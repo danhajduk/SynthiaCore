@@ -8,7 +8,7 @@ export const meta = {
 };
 
 export const routes: RouteObject[] = [
-  { path: meta.basePath, element: <HelloWorldPage /> },
+  { path: meta.basePath, element: <HelloWorldPage> },
 ];
 
 export const navItem = {
