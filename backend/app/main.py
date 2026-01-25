@@ -20,6 +20,8 @@ logging.basicConfig(level=logging.INFO)
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Synthia Core", version="0.1.0")
+    api_metrics = ApiMetricsCollector()
+    app.state.api_metrics = api_metrics
 
     @app.on_event("startup")
     async def start_background_tasks():
