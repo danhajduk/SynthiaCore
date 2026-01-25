@@ -9,19 +9,21 @@ from typing import Dict, Optional, Tuple
 import psutil
 
 from .models import (
-    SystemStats, LoadAvg, CpuStats, MemStats, SwapStats, DiskUsage,
-    NetStats, NetIfaceCounters, NetIfaceRates,
+    SystemStats,
+    LoadAvg,
+    CpuStats,
+    MemStats,
+    SwapStats,
+    DiskUsage,
+    NetStats,
+    NetIfaceCounters,
+    NetIfaceRates,
 )
 from app.system.api_metrics import ApiMetricsCollector
 from app.system.busy_rating import compute_busy_rating
 
-timestamp: float  # epoch seconds
 # ---- simple in-process baseline cache ----
 _last_net: Optional[Tuple[float, Dict[str, psutil._common.snetio]]] = None
-now = time()
-
-api: dict = api_metrics.snapshot(window_s=60, top_n=10) if api_metrics else {}
-rating = compute_busy_rating(system_snapshot, api) # we’ll define next
 
 
 def _get_uptime_s() -> float:
@@ -32,11 +34,13 @@ def _get_uptime_s() -> float:
 def collect_system_stats(api_metrics: Optional[ApiMetricsCollector] = None) -> SystemStats:
     hostname = socket.gethostname()
 
+    # Load averages (Linux/Unix); on platforms without it, fall back gracefully
     try:
         l1, l5, l15 = os.getloadavg()
     except (AttributeError, OSError):
         l1 = l5 = l15 = 0.0
 
+    # CPU sampling: consistent window, avoids "0% first call" artifacts
     cpu_per = [round(v, 2) for v in psutil.cpu_percent(interval=1.0, percpu=True)]
     cpu_total = round(sum(cpu_per) / len(cpu_per), 2) if cpu_per else 0.0
 
@@ -47,48 +51,74 @@ def collect_system_stats(api_metrics: Optional[ApiMetricsCollector] = None) -> S
         cores_physical=psutil.cpu_count(logical=False),
     )
 
+    # Memory
     vm = psutil.virtual_memory()
-    mem = MemStats(total=vm.total, available=vm.available, used=vm.used, free=getattr(vm, "free", 0), percent=vm.percent)
+    mem = MemStats(
+        total=vm.total,
+        available=vm.available,
+        used=vm.used,
+        free=getattr(vm, "free", 0),
+        percent=vm.percent,
+    )
 
+    # Swap
     sm = psutil.swap_memory()
-    swap = SwapStats(total=sm.total, used=sm.used, free=sm.free, percent=sm.percent)
+    swap = SwapStats(
+        total=sm.total,
+        used=sm.used,
+        free=sm.free,
+        percent=sm.percent,
+    )
 
+    # Disks
     disks: Dict[str, DiskUsage] = {}
     for p in psutil.disk_partitions(all=False):
+        # Skip pseudo/readonly mounts
         if p.fstype in ("", "squashfs") or p.mountpoint.startswith(("/snap", "/var/lib/docker")):
             continue
         try:
             du = psutil.disk_usage(p.mountpoint)
-            disks[p.mountpoint] = DiskUsage(total=du.total, used=du.used, free=du.free, percent=du.percent)
+            disks[p.mountpoint] = DiskUsage(
+                total=du.total,
+                used=du.used,
+                free=du.free,
+                percent=du.percent,
+            )
         except PermissionError:
             continue
 
+    # Network
     net = collect_net_stats()
 
-    api: Optional[ApiMetricsSnapshot] = api_metrics.snapshot(window_s=60, top_n=10) if api_metrics else None
+    # API metrics (optional)
+    api: dict = api_metrics.snapshot(window_s=60, top_n=10) if api_metrics else {}
 
-    # compute rating from the snapshot (best effort if api is None)
-    # NOTE: compute_busy_rating expects dicts in your sampler; keep consistent
-    snapshot_dict = {
-        "cpu": {"percent_total": cpu_total, "cores_logical": cpu.cores_logical},
-        "load": {"load1": round(l1, 3), "load5": round(l5, 3), "load15": round(l15, 3)},
-        "mem": {"percent": mem.percent},
-        "swap": {"percent": swap.percent},
-    }
-    api_dict = api if isinstance(api, dict) else (api.model_dump() if api else {})
-    busy_rating = compute_busy_rating(snapshot_dict, api_dict)
+    # Busy rating (0..10)
+    busy_rating = compute_busy_rating(
+        {
+            "cpu": {"percent_total": cpu_total, "cores_logical": cpu.cores_logical},
+            "load": {"load1": round(l1, 3), "load5": round(l5, 3), "load15": round(l15, 3)},
+            "mem": {"percent": mem.percent},
+            "swap": {"percent": swap.percent},
+        },
+        api,
+    )
 
     return SystemStats(
         timestamp=round(time.time(), 3),
         hostname=hostname,
         uptime_s=_get_uptime_s(),
-        load=LoadAvg(load1=round(l1, 3), load5=round(l5, 3), load15=round(l15, 3)),
+        load=LoadAvg(
+            load1=round(l1, 3),
+            load5=round(l5, 3),
+            load15=round(l15, 3),
+        ),
         cpu=cpu,
         mem=mem,
         swap=swap,
         disks=disks,
         net=net,
-        api=api_dict if api else None,
+        api=api,
         busy_rating=round(busy_rating, 2),
     )
 
@@ -105,11 +135,13 @@ def _net_to_model(c: psutil._common.snetio) -> NetIfaceCounters:
         dropout=c.dropout,
     )
 
+
 def _rates(prev: psutil._common.snetio, curr: psutil._common.snetio, dt: float) -> NetIfaceRates:
     # bytes per second
     tx = max(0.0, (curr.bytes_sent - prev.bytes_sent) / dt)
     rx = max(0.0, (curr.bytes_recv - prev.bytes_recv) / dt)
     return NetIfaceRates(tx_Bps=round(tx, 2), rx_Bps=round(rx, 2))
+
 
 def collect_net_stats() -> NetStats:
     global _last_net
@@ -130,24 +162,23 @@ def collect_net_stats() -> NetStats:
 
         # Avoid divide-by-zero / tiny windows
         if dt >= 0.25:
-            # total rate (recompute from totals using last "sum" if present)
-            # easiest: sum pernic into a pseudo-total
             def sum_counters(d: Dict[str, psutil._common.snetio]) -> psutil._common.snetio:
-                # Create a snetio-like tuple by summing fields
-                # snetio: bytes_sent, bytes_recv, packets_sent, packets_recv, errin, errout, dropin, dropout
                 bs = br = ps = pr = ei = eo = di = do = 0
                 for c in d.values():
-                    bs += c.bytes_sent; br += c.bytes_recv
-                    ps += c.packets_sent; pr += c.packets_recv
-                    ei += c.errin; eo += c.errout
-                    di += c.dropin; do += c.dropout
+                    bs += c.bytes_sent
+                    br += c.bytes_recv
+                    ps += c.packets_sent
+                    pr += c.packets_recv
+                    ei += c.errin
+                    eo += c.errout
+                    di += c.dropin
+                    do += c.dropout
                 return psutil._common.snetio(bs, br, ps, pr, ei, eo, di, do)
 
             prev_total = sum_counters(last_per)
             curr_total = sum_counters(per)
             total_rate = _rates(prev_total, curr_total, dt)
 
-            # per-interface rate
             per_iface_rate = {}
             for name, curr in per.items():
                 prev = last_per.get(name)
