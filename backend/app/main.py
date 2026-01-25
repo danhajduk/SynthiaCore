@@ -10,7 +10,11 @@ from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
 from .api.system import build_system_router
 from .system.api_metrics import ApiMetricsCollector, ApiMetricsMiddleware
-from .system.sampler import stats_sampler_loop
+from app.system.sampler import (
+    stats_fast_sampler_loop,
+    api_metrics_sampler_loop,
+    stats_minute_writer_loop,
+)
 
 from .api.admin import router as admin_router
 from .system.stats.router import router as stats_router
@@ -32,7 +36,12 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     async def start_background_tasks():
-        asyncio.create_task(stats_sampler_loop())
+        app.state.latest_stats = None
+        app.state.latest_api_metrics = None
+
+        asyncio.create_task(stats_fast_sampler_loop(app, interval_s=5.0))
+        asyncio.create_task(api_metrics_sampler_loop(app, window_s=60, top_n=10))
+        asyncio.create_task(stats_minute_writer_loop(app))
 
     api_metrics = ApiMetricsCollector()
     app.add_middleware(
