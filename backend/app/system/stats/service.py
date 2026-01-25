@@ -22,8 +22,6 @@ from .models import (
 from app.system.api_metrics import ApiMetricsCollector
 from app.system.busy_rating import compute_busy_rating
 
-# ---- simple in-process baseline cache ----
-_last_net: Optional[Tuple[float, Dict[str, psutil._common.snetio]]] = None
 
 
 def _get_uptime_s() -> float:
@@ -123,24 +121,38 @@ def collect_system_stats(api_metrics: Optional[ApiMetricsCollector] = None) -> S
     )
 
 
-def _net_to_model(c: psutil._common.snetio) -> NetIfaceCounters:
+# ---- simple in-process baseline cache ----
+# store last timestamp + per-interface counters (psutil returns namedtuple-like objects)
+_last_net: Optional[Tuple[float, Dict[str, object]]] = None
+
+
+def _net_to_model(c) -> NetIfaceCounters:
+    # c is psutil.net_io_counters(...) result (a namedtuple-ish object)
     return NetIfaceCounters(
-        bytes_sent=c.bytes_sent,
-        bytes_recv=c.bytes_recv,
-        packets_sent=c.packets_sent,
-        packets_recv=c.packets_recv,
-        errin=c.errin,
-        errout=c.errout,
-        dropin=c.dropin,
-        dropout=c.dropout,
+        bytes_sent=int(c.bytes_sent),
+        bytes_recv=int(c.bytes_recv),
+        packets_sent=int(c.packets_sent),
+        packets_recv=int(c.packets_recv),
+        errin=int(c.errin),
+        errout=int(c.errout),
+        dropin=int(c.dropin),
+        dropout=int(c.dropout),
     )
 
 
-def _rates(prev: psutil._common.snetio, curr: psutil._common.snetio, dt: float) -> NetIfaceRates:
-    # bytes per second
-    tx = max(0.0, (curr.bytes_sent - prev.bytes_sent) / dt)
-    rx = max(0.0, (curr.bytes_recv - prev.bytes_recv) / dt)
+def _rates_bytes(prev_sent: int, prev_recv: int, curr_sent: int, curr_recv: int, dt: float) -> NetIfaceRates:
+    tx = max(0.0, (curr_sent - prev_sent) / dt)
+    rx = max(0.0, (curr_recv - prev_recv) / dt)
     return NetIfaceRates(tx_Bps=round(tx, 2), rx_Bps=round(rx, 2))
+
+
+def _sum_bytes(per: Dict[str, object]) -> Tuple[int, int]:
+    sent = 0
+    recv = 0
+    for c in per.values():
+        sent += int(getattr(c, "bytes_sent", 0))
+        recv += int(getattr(c, "bytes_recv", 0))
+    return sent, recv
 
 
 def collect_net_stats() -> NetStats:
@@ -160,33 +172,26 @@ def collect_net_stats() -> NetStats:
         last_t, last_per = _last_net
         dt = now - last_t
 
-        # Avoid divide-by-zero / tiny windows
         if dt >= 0.25:
-            def sum_counters(d: Dict[str, psutil._common.snetio]) -> psutil._common.snetio:
-                bs = br = ps = pr = ei = eo = di = do = 0
-                for c in d.values():
-                    bs += c.bytes_sent
-                    br += c.bytes_recv
-                    ps += c.packets_sent
-                    pr += c.packets_recv
-                    ei += c.errin
-                    eo += c.errout
-                    di += c.dropin
-                    do += c.dropout
-                return psutil._common.snetio(bs, br, ps, pr, ei, eo, di, do)
+            # total rate from summed bytes
+            prev_sent, prev_recv = _sum_bytes(last_per)
+            curr_sent, curr_recv = _sum_bytes(per)
+            total_rate = _rates_bytes(prev_sent, prev_recv, curr_sent, curr_recv, dt)
 
-            prev_total = sum_counters(last_per)
-            curr_total = sum_counters(per)
-            total_rate = _rates(prev_total, curr_total, dt)
-
+            # per-interface rate
             per_iface_rate = {}
             for name, curr in per.items():
                 prev = last_per.get(name)
                 if prev is None:
                     continue
-                per_iface_rate[name] = _rates(prev, curr, dt)
+                per_iface_rate[name] = _rates_bytes(
+                    int(getattr(prev, "bytes_sent", 0)),
+                    int(getattr(prev, "bytes_recv", 0)),
+                    int(getattr(curr, "bytes_sent", 0)),
+                    int(getattr(curr, "bytes_recv", 0)),
+                    dt,
+                )
 
-    # update baseline after computing
     _last_net = (now, per)
 
     return NetStats(
