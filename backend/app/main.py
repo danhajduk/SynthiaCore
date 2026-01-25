@@ -1,3 +1,5 @@
+# /backend/app/main.py
+
 from __future__ import annotations
 
 import logging
@@ -43,12 +45,6 @@ def create_app() -> FastAPI:
         asyncio.create_task(api_metrics_sampler_loop(app, window_s=60, top_n=10))
         asyncio.create_task(stats_minute_writer_loop(app))
 
-    api_metrics = ApiMetricsCollector()
-    app.add_middleware(
-        ApiMetricsMiddleware,
-        collector=api_metrics,
-        trust_proxy_headers=False,   # set True ONLY if nginx is in front and locked down
-    )
 
     app.add_middleware(
         CORSMiddleware,
