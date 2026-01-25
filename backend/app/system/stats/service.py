@@ -95,7 +95,7 @@ def collect_system_stats() -> SystemStats:
             load1=round(l1, 3),
             load5=round(l5, 3),
             load15=round(l15, 3),
-        )
+        ),
         cpu=cpu,
         mem=mem,
         swap=swap,
