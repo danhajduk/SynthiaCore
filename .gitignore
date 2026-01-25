@@ -15,3 +15,6 @@ frontend/src/addons/*
 
 # OS
 .DS_Store
+
+.env.development
+.env.local

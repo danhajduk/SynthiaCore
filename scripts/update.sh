@@ -30,6 +30,8 @@ cd "$REPO_DIR"
 if [[ -x "$REPO_DIR/scripts/sync-addons-frontend.sh" ]]; then
   "$REPO_DIR/scripts/sync-addons-frontend.sh"
 fi
+echo "[update] configure frontend API target"
+"$REPO_DIR/scripts/configure-frontend-api.sh"
 
 echo "[update] restart services"
 systemctl --user restart synthia-backend.service
