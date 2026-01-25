@@ -10,7 +10,7 @@ from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
 from .api.system import build_system_router
 from .system.api_metrics import ApiMetricsCollector, ApiMetricsMiddleware
-from .system.stats.sampler import stats_sampler_loop
+from .system.sampler import stats_sampler_loop
 
 from .api.admin import router as admin_router
 from .system.stats.router import router as stats_router
