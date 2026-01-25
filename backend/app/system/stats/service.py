@@ -26,7 +26,7 @@ def collect_system_stats() -> SystemStats:
 
     # CPU %
     # CPU sampling: consistent window, no "0% first call" artifacts
-    cpu_per = psutil.cpu_percent(interval=0.1, percpu=True)
+    cpu_per = psutil.cpu_percent(interval=1.0, percpu=True)
     cpu_total = round(sum(cpu_per) / len(cpu_per), 1) if cpu_per else 0.0
 
     cpu = CpuStats(
@@ -45,7 +45,7 @@ def collect_system_stats() -> SystemStats:
         free=getattr(vm, "free", 0),
         percent=vm.percent,
     )
-    
+
     # Swap
     sm = psutil.swap_memory()
     swap = SwapStats(
