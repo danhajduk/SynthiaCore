@@ -55,10 +55,15 @@ async def stats_fast_sampler_loop(app: FastAPI, interval_s: float = 5.0) -> None
         await asyncio.sleep(interval_s)
 
 
-async def api_metrics_sampler_loop(app: FastAPI, window_s: int = 60, top_n: int = 10) -> None:
+async def api_metrics_sampler_loop(
+    app: FastAPI,
+    window_s: int = 60,
+    top_n: int = 10,
+    interval_s: int = 10,
+) -> None:
     """
-    Snapshot API metrics every 60s (or whatever window_s is).
-    This reads the ApiMetricsCollector that middleware is already populating.
+    Snapshot API metrics over a rolling window (window_s),
+    updating every interval_s seconds.
     """
     while True:
         try:
@@ -67,11 +72,10 @@ async def api_metrics_sampler_loop(app: FastAPI, window_s: int = 60, top_n: int 
                 log.warning("api_metrics_sampler_loop: app.state.api_metrics is not set yet")
             else:
                 app.state.latest_api_metrics = collector.snapshot(window_s=window_s, top_n=top_n)
-
         except Exception:
             log.exception("api_metrics_sampler_loop failed; continuing")
 
-        await asyncio.sleep(window_s)
+        await asyncio.sleep(interval_s)
 
 
 async def stats_minute_writer_loop(app: FastAPI) -> None:

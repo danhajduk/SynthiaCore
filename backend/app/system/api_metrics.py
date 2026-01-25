@@ -91,7 +91,12 @@ class ApiMetricsMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         collector: ApiMetricsCollector,
-        exclude_prefixes: Iterable[str] = ("/api/system/stats", "/docs", "/openapi.json"),
+        exclude_prefixes=(
+            "/api/system/stats",
+            "/api/health",
+            "/docs",
+            "/openapi.json",
+        ),
         trust_proxy_headers: bool = False,
     ):
         super().__init__(app)
