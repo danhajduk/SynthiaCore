@@ -26,8 +26,13 @@ def collect_system_stats() -> SystemStats:
 
     # CPU %
     # CPU sampling: consistent window, no "0% first call" artifacts
-    cpu_per = psutil.cpu_percent(interval=1.0, percpu=True)
-    cpu_total = round(sum(cpu_per) / len(cpu_per), 1) if cpu_per else 0.0
+    cpu_per = [
+        round(v, 2)
+        for v in psutil.cpu_percent(interval=1.0, percpu=True)
+    ]
+    cpu_total = round(
+        sum(cpu_per) / len(cpu_per), 2
+    ) if cpu_per else 0.0
 
     cpu = CpuStats(
         percent_total=cpu_total,
