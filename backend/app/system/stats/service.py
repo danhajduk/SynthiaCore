@@ -6,8 +6,19 @@ import time
 from typing import Dict
 
 import psutil
+from time import time
+
 
 from .models import SystemStats, LoadAvg, CpuStats, MemStats, SwapStats, DiskUsage
+from .models import NetStats, NetIfaceCounters, NetIfaceRates
+
+timestamp: float  # epoch seconds
+# ---- simple in-process baseline cache ----
+_last_net: Optional[Tuple[float, Dict[str, psutil._common.snetio]]] = None
+now = time()
+
+api = api_metrics.snapshot(window_s=60, top_n=10)  # use the global collector instance
+rating = compute_busy_rating(system_snapshot, api) # we’ll define next
 
 
 def _get_uptime_s() -> float:
@@ -74,12 +85,95 @@ def collect_system_stats() -> SystemStats:
         except PermissionError:
             continue
 
+    net = collect_net_stats()
+
     return SystemStats(
+        timestamp=time(),
         hostname=hostname,
         uptime_s=_get_uptime_s(),
-        load=LoadAvg(load1=l1, load5=l5, load15=l15),
+        load = LoadAvg(
+            load1=round(l1, 3),
+            load5=round(l5, 3),
+            load15=round(l15, 3),
+        )
         cpu=cpu,
         mem=mem,
         swap=swap,
         disks=disks,
+        net=net,
+        api=api,
+        busy_rating=round(rating, 2),
+    )
+
+
+def _net_to_model(c: psutil._common.snetio) -> NetIfaceCounters:
+    return NetIfaceCounters(
+        bytes_sent=c.bytes_sent,
+        bytes_recv=c.bytes_recv,
+        packets_sent=c.packets_sent,
+        packets_recv=c.packets_recv,
+        errin=c.errin,
+        errout=c.errout,
+        dropin=c.dropin,
+        dropout=c.dropout,
+    )
+
+def _rates(prev: psutil._common.snetio, curr: psutil._common.snetio, dt: float) -> NetIfaceRates:
+    # bytes per second
+    tx = max(0.0, (curr.bytes_sent - prev.bytes_sent) / dt)
+    rx = max(0.0, (curr.bytes_recv - prev.bytes_recv) / dt)
+    return NetIfaceRates(tx_Bps=round(tx, 2), rx_Bps=round(rx, 2))
+
+def collect_net_stats() -> NetStats:
+    global _last_net
+
+    now = time.time()
+    per = psutil.net_io_counters(pernic=True)
+    total = psutil.net_io_counters(pernic=False)
+
+    per_iface = {name: _net_to_model(c) for name, c in per.items()}
+    total_model = _net_to_model(total)
+
+    total_rate: Optional[NetIfaceRates] = None
+    per_iface_rate: Optional[Dict[str, NetIfaceRates]] = None
+
+    if _last_net is not None:
+        last_t, last_per = _last_net
+        dt = now - last_t
+
+        # Avoid divide-by-zero / tiny windows
+        if dt >= 0.25:
+            # total rate (recompute from totals using last "sum" if present)
+            # easiest: sum pernic into a pseudo-total
+            def sum_counters(d: Dict[str, psutil._common.snetio]) -> psutil._common.snetio:
+                # Create a snetio-like tuple by summing fields
+                # snetio: bytes_sent, bytes_recv, packets_sent, packets_recv, errin, errout, dropin, dropout
+                bs = br = ps = pr = ei = eo = di = do = 0
+                for c in d.values():
+                    bs += c.bytes_sent; br += c.bytes_recv
+                    ps += c.packets_sent; pr += c.packets_recv
+                    ei += c.errin; eo += c.errout
+                    di += c.dropin; do += c.dropout
+                return psutil._common.snetio(bs, br, ps, pr, ei, eo, di, do)
+
+            prev_total = sum_counters(last_per)
+            curr_total = sum_counters(per)
+            total_rate = _rates(prev_total, curr_total, dt)
+
+            # per-interface rate
+            per_iface_rate = {}
+            for name, curr in per.items():
+                prev = last_per.get(name)
+                if prev is None:
+                    continue
+                per_iface_rate[name] = _rates(prev, curr, dt)
+
+    # update baseline after computing
+    _last_net = (now, per)
+
+    return NetStats(
+        total=total_model,
+        per_iface=per_iface,
+        total_rate=total_rate,
+        per_iface_rate=per_iface_rate,
     )

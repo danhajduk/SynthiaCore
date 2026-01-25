@@ -1,20 +1,35 @@
 from __future__ import annotations
 
 import logging
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
 from .api.system import build_system_router
+from .system.api_metrics import ApiMetricsCollector, ApiMetricsMiddleware
+from .system.stats.sampler import stats_sampler_loop
 
 from .api.admin import router as admin_router
 from .system.stats.router import router as stats_router
 
 logging.basicConfig(level=logging.INFO)
 
+@app.on_event("startup")
+async def start_background_tasks():
+    asyncio.create_task(stats_sampler_loop())
+
 def create_app() -> FastAPI:
     app = FastAPI(title="Synthia Core", version="0.1.0")
+
+    api_metrics = ApiMetricsCollector()
+    app.add_middleware(
+        ApiMetricsMiddleware,
+        collector=api_metrics,
+        trust_proxy_headers=False,   # set True ONLY if nginx is in front and locked down
+    )
 
     app.add_middleware(
         CORSMiddleware,
