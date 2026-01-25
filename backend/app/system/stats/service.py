@@ -11,6 +11,7 @@ from time import time
 
 from .models import SystemStats, LoadAvg, CpuStats, MemStats, SwapStats, DiskUsage
 from .models import NetStats, NetIfaceCounters, NetIfaceRates
+from app.system.api_metrics import ApiMetricsCollector
 
 timestamp: float  # epoch seconds
 # ---- simple in-process baseline cache ----
