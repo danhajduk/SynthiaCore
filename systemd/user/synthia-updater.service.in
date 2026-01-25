@@ -1,0 +1,12 @@
+[Unit]
+Description=Synthia Updater (git pull + deps + restart)
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=@INSTALL_DIR@
+ExecStart=@INSTALL_DIR@/scripts/update.sh
+Environment=LOG_FILE=/tmp/synthia_update.log
+
+[Install]
+WantedBy=default.target

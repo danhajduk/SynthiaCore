@@ -53,6 +53,19 @@ ensure_deps() {
   fi
 }
 
+install_user_unit_from_template() {
+  local template="$1"
+  local out="$2"
+
+  if [[ ! -f "$template" ]]; then
+    echo "[bootstrap] ERROR: missing unit template: $template"
+    exit 1
+  fi
+
+  # Substitute @INSTALL_DIR@ safely (sed delimiter = |)
+  sed "s|@INSTALL_DIR@|$INSTALL_DIR|g" "$template" > "$out"
+}
+
 echo "[bootstrap] mode=$MODE dir=$INSTALL_DIR"
 ensure_deps
 
@@ -92,6 +105,13 @@ else
   echo "[bootstrap] WARN: scripts/sync-addons-frontend.sh not found/executable; skipping"
 fi
 
+echo "[bootstrap] Ensure update script exists + executable"
+if [[ ! -f "$INSTALL_DIR/scripts/update.sh" ]]; then
+  echo "[bootstrap] ERROR: missing scripts/update.sh (required for updater service)"
+  exit 1
+fi
+chmod +x "$INSTALL_DIR/scripts/update.sh"
+
 echo "[bootstrap] Admin token env"
 mkdir -p "$HOME/.config/synthia"
 ENVFILE="$HOME/.config/synthia/admin.env"
@@ -104,42 +124,22 @@ else
   echo "[bootstrap] Using existing $ENVFILE"
 fi
 
-echo "[bootstrap] Writing systemd user units (generated)"
-mkdir -p "$HOME/.config/systemd/user"
+echo "[bootstrap] Installing systemd user units from repo templates"
+UNIT_SRC_DIR="$INSTALL_DIR/systemd/user"
+UNIT_DST_DIR="$HOME/.config/systemd/user"
+mkdir -p "$UNIT_DST_DIR"
 
-cat > "$HOME/.config/systemd/user/synthia-backend.service" <<EOF
-[Unit]
-Description=Synthia Backend Service
-After=network.target
+install_user_unit_from_template \
+  "$UNIT_SRC_DIR/synthia-backend.service.in" \
+  "$UNIT_DST_DIR/synthia-backend.service"
 
-[Service]
-Type=simple
-WorkingDirectory=$INSTALL_DIR/backend
-ExecStart=$INSTALL_DIR/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 9001
-Restart=always
-RestartSec=2
-EnvironmentFile=%h/.config/synthia/admin.env
-Environment=PYTHONUNBUFFERED=1
+install_user_unit_from_template \
+  "$UNIT_SRC_DIR/synthia-frontend-dev.service.in" \
+  "$UNIT_DST_DIR/synthia-frontend-dev.service"
 
-[Install]
-WantedBy=default.target
-EOF
-
-cat > "$HOME/.config/systemd/user/synthia-frontend-dev.service" <<EOF
-[Unit]
-Description=Synthia Frontend Dev Service (Vite on 5173)
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=$INSTALL_DIR/frontend
-ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 5173
-Restart=always
-RestartSec=2
-
-[Install]
-WantedBy=default.target
-EOF
+install_user_unit_from_template \
+  "$UNIT_SRC_DIR/synthia-updater.service.in" \
+  "$UNIT_DST_DIR/synthia-updater.service"
 
 systemctl --user daemon-reload
 
@@ -159,17 +159,18 @@ set -e
 if [[ $BACKEND_RC -ne 0 ]]; then
   echo "[bootstrap] ERROR: backend failed"
   systemctl --user status synthia-backend.service --no-pager || true
-  journalctl --user -u synthia-backend.service -n 80 --no-pager || true
+  journalctl --user -u synthia-backend.service -n 120 --no-pager || true
   exit 1
 fi
 
 if [[ $FRONTEND_RC -ne 0 ]]; then
   echo "[bootstrap] ERROR: frontend failed"
   systemctl --user status synthia-frontend-dev.service --no-pager || true
-  journalctl --user -u synthia-frontend-dev.service -n 80 --no-pager || true
+  journalctl --user -u synthia-frontend-dev.service -n 120 --no-pager || true
   exit 1
 fi
 
 echo "[bootstrap] Done."
-echo "Backend:  http://localhost:9001/api/health"
-echo "Frontend: http://localhost:5173"
+echo "Backend:  http://$(hostname -I | awk '{print $1}'):9001/api/health"
+echo "Frontend: http://$(hostname -I | awk '{print $1}'):5173"
+echo "Updater unit installed: synthia-updater.service (trigger via: systemctl --user start synthia-updater.service)"

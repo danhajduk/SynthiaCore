@@ -8,7 +8,6 @@ from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
 from .api.system import build_system_router
 
-# ✅ import admin router here, but don't include it until create_app()
 from .api.admin import router as admin_router
 
 logging.basicConfig(level=logging.INFO)
@@ -29,7 +28,7 @@ def create_app() -> FastAPI:
 
     # ✅ Add admin routes here (where app exists)
     app.include_router(admin_router, prefix="/api")
-
+    
     # Addons
     registry = build_registry()
     register_addons(app, registry)

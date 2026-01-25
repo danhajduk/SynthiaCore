@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/Projects/Synthia/frontend
+WorkingDirectory=@INSTALL_DIR@/frontend
 ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 5173
 Restart=always
 RestartSec=2
