@@ -17,12 +17,13 @@ from .system.stats.router import router as stats_router
 
 logging.basicConfig(level=logging.INFO)
 
-@app.on_event("startup")
-async def start_background_tasks():
-    asyncio.create_task(stats_sampler_loop())
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Synthia Core", version="0.1.0")
+
+    @app.on_event("startup")
+    async def start_background_tasks():
+        asyncio.create_task(stats_sampler_loop())
 
     api_metrics = ApiMetricsCollector()
     app.add_middleware(
