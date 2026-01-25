@@ -1,17 +1,19 @@
 # backend/app/system/stats/service.py
 from __future__ import annotations
+
 import os
 import socket
 import time
-from typing import Dict
+from typing import Dict, Optional, Tuple
 
 import psutil
-from time import time
 
-
-from .models import SystemStats, LoadAvg, CpuStats, MemStats, SwapStats, DiskUsage
-from .models import NetStats, NetIfaceCounters, NetIfaceRates
-from app.system.api_metrics import ApiMetricsCollector
+from .models import (
+    SystemStats, LoadAvg, CpuStats, MemStats, SwapStats, DiskUsage,
+    NetStats, NetIfaceCounters, NetIfaceRates,
+)
+from app.system.api_metrics import ApiMetricsCollector, ApiMetricsSnapshot
+from app.system.busy_rating import compute_busy_rating
 
 timestamp: float  # epoch seconds
 # ---- simple in-process baseline cache ----
@@ -27,24 +29,16 @@ def _get_uptime_s() -> float:
     return max(0.0, time.time() - psutil.boot_time())
 
 
-def collect_system_stats() -> SystemStats:
+def collect_system_stats(api_metrics: Optional[ApiMetricsCollector] = None) -> SystemStats:
     hostname = socket.gethostname()
 
-    # Load averages (Linux/Unix); on platforms without it, fall back gracefully
     try:
         l1, l5, l15 = os.getloadavg()
     except (AttributeError, OSError):
         l1 = l5 = l15 = 0.0
 
-    # CPU %
-    # CPU sampling: consistent window, no "0% first call" artifacts
-    cpu_per = [
-        round(v, 2)
-        for v in psutil.cpu_percent(interval=1.0, percpu=True)
-    ]
-    cpu_total = round(
-        sum(cpu_per) / len(cpu_per), 2
-    ) if cpu_per else 0.0
+    cpu_per = [round(v, 2) for v in psutil.cpu_percent(interval=1.0, percpu=True)]
+    cpu_total = round(sum(cpu_per) / len(cpu_per), 2) if cpu_per else 0.0
 
     cpu = CpuStats(
         percent_total=cpu_total,
@@ -53,57 +47,49 @@ def collect_system_stats() -> SystemStats:
         cores_physical=psutil.cpu_count(logical=False),
     )
 
-    # Memory
     vm = psutil.virtual_memory()
-    mem = MemStats(
-        total=vm.total,
-        available=vm.available,
-        used=vm.used,
-        free=getattr(vm, "free", 0),
-        percent=vm.percent,
-    )
+    mem = MemStats(total=vm.total, available=vm.available, used=vm.used, free=getattr(vm, "free", 0), percent=vm.percent)
 
-    # Swap
     sm = psutil.swap_memory()
-    swap = SwapStats(
-        total=sm.total,
-        used=sm.used,
-        free=sm.free,
-        percent=sm.percent,
-    )
+    swap = SwapStats(total=sm.total, used=sm.used, free=sm.free, percent=sm.percent)
 
-    # Disks
     disks: Dict[str, DiskUsage] = {}
     for p in psutil.disk_partitions(all=False):
-        # Skip pseudo/readonly mounts
         if p.fstype in ("", "squashfs") or p.mountpoint.startswith(("/snap", "/var/lib/docker")):
             continue
         try:
             du = psutil.disk_usage(p.mountpoint)
-            disks[p.mountpoint] = DiskUsage(
-                total=du.total, used=du.used, free=du.free, percent=du.percent
-            )
+            disks[p.mountpoint] = DiskUsage(total=du.total, used=du.used, free=du.free, percent=du.percent)
         except PermissionError:
             continue
 
     net = collect_net_stats()
 
+    api: Optional[ApiMetricsSnapshot] = api_metrics.snapshot(window_s=60, top_n=10) if api_metrics else None
+
+    # compute rating from the snapshot (best effort if api is None)
+    # NOTE: compute_busy_rating expects dicts in your sampler; keep consistent
+    snapshot_dict = {
+        "cpu": {"percent_total": cpu_total, "cores_logical": cpu.cores_logical},
+        "load": {"load1": round(l1, 3), "load5": round(l5, 3), "load15": round(l15, 3)},
+        "mem": {"percent": mem.percent},
+        "swap": {"percent": swap.percent},
+    }
+    api_dict = api if isinstance(api, dict) else (api.model_dump() if api else {})
+    busy_rating = compute_busy_rating(snapshot_dict, api_dict)
+
     return SystemStats(
-        timestamp=time(),
+        timestamp=round(time.time(), 3),
         hostname=hostname,
         uptime_s=_get_uptime_s(),
-        load = LoadAvg(
-            load1=round(l1, 3),
-            load5=round(l5, 3),
-            load15=round(l15, 3),
-        ),
+        load=LoadAvg(load1=round(l1, 3), load5=round(l5, 3), load15=round(l15, 3)),
         cpu=cpu,
         mem=mem,
         swap=swap,
         disks=disks,
         net=net,
-        api=api,
-        busy_rating=round(rating, 2),
+        api=api_dict if api else None,
+        busy_rating=round(busy_rating, 2),
     )
 
 
