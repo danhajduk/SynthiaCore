@@ -12,7 +12,7 @@ from .models import (
     SystemStats, LoadAvg, CpuStats, MemStats, SwapStats, DiskUsage,
     NetStats, NetIfaceCounters, NetIfaceRates,
 )
-from app.system.api_metrics import ApiMetricsCollector, ApiMetricsSnapshot
+from app.system.api_metrics import ApiMetricsCollector
 from app.system.busy_rating import compute_busy_rating
 
 timestamp: float  # epoch seconds
@@ -20,7 +20,7 @@ timestamp: float  # epoch seconds
 _last_net: Optional[Tuple[float, Dict[str, psutil._common.snetio]]] = None
 now = time()
 
-api = api_metrics.snapshot(window_s=60, top_n=10)  # use the global collector instance
+api: dict = api_metrics.snapshot(window_s=60, top_n=10) if api_metrics else {}
 rating = compute_busy_rating(system_snapshot, api) # we’ll define next
 
 

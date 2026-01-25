@@ -49,7 +49,7 @@ class SystemStats(BaseModel):
     swap: SwapStats
     disks: Dict[str, DiskUsage]  # mountpoint -> usage
     net: NetStats
-    api: dict  # or a typed ApiStats model if you want
+    api: dict  
     busy_rating: float
 
 
