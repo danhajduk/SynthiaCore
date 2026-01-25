@@ -25,10 +25,9 @@ def collect_system_stats() -> SystemStats:
         l1 = l5 = l15 = 0.0
 
     # CPU %
-    # NOTE: first call can be 0.0 unless interval is used;
-    # we can accept that for "current snapshot" or do a tiny interval like 0.1
-    cpu_total = psutil.cpu_percent(interval=0.1)
-    cpu_per = psutil.cpu_percent(interval=None, percpu=True)
+    # CPU sampling: consistent window, no "0% first call" artifacts
+    cpu_per = psutil.cpu_percent(interval=0.1, percpu=True)
+    cpu_total = round(sum(cpu_per) / len(cpu_per), 1) if cpu_per else 0.0
 
     cpu = CpuStats(
         percent_total=cpu_total,
@@ -37,6 +36,7 @@ def collect_system_stats() -> SystemStats:
         cores_physical=psutil.cpu_count(logical=False),
     )
 
+    # Memory
     vm = psutil.virtual_memory()
     mem = MemStats(
         total=vm.total,
@@ -45,7 +45,8 @@ def collect_system_stats() -> SystemStats:
         free=getattr(vm, "free", 0),
         percent=vm.percent,
     )
-
+    
+    # Swap
     sm = psutil.swap_memory()
     swap = SwapStats(
         total=sm.total,
@@ -54,6 +55,7 @@ def collect_system_stats() -> SystemStats:
         percent=sm.percent,
     )
 
+    # Disks
     disks: Dict[str, DiskUsage] = {}
     for p in psutil.disk_partitions(all=False):
         # Skip pseudo/readonly mounts
