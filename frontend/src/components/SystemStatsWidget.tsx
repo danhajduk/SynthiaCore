@@ -27,6 +27,10 @@ type SystemStats = {
   busy_rating: number;
 };
 
+function clamp(x: number, lo = 0, hi = 100) {
+  return Math.max(lo, Math.min(hi, x));
+}
+
 function fmtBytes(n: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let x = n;
@@ -46,6 +50,7 @@ function fmtUptime(sec: number): string {
   const d = Math.floor(h / 24);
   const rem = h - d * 24;
   return `${d}d ${rem.toFixed(0)}h`;
+<<<<<<< HEAD
 }
 
 function busyBadge(busy: number) {
@@ -57,21 +62,172 @@ function busyBadge(busy: number) {
 
 function clampPct(x: number) {
   return Math.max(0, Math.min(100, x));
+=======
+>>>>>>> 646440f (UI Updated)
 }
+
+function busyStyle(busy: number) {
+  // returns {label, bg, border, text}
+  if (busy >= 8) return { label: "HOT", bg: "rgba(220,38,38,0.15)", border: "rgba(220,38,38,0.35)", text: "#fecaca" };
+  if (busy >= 6) return { label: "BUSY", bg: "rgba(249,115,22,0.15)", border: "rgba(249,115,22,0.35)", text: "#fed7aa" };
+  if (busy >= 3) return { label: "ACTIVE", bg: "rgba(234,179,8,0.12)", border: "rgba(234,179,8,0.30)", text: "#fef3c7" };
+  return { label: "IDLE", bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.30)", text: "#d1fae5" };
+}
+
+const styles = {
+  panel: {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    borderRadius: 16,
+    padding: 16,
+  } as React.CSSProperties,
+  headerRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+  } as React.CSSProperties,
+  title: {
+    fontSize: 14,
+    fontWeight: 700,
+    margin: 0,
+  } as React.CSSProperties,
+  subtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    opacity: 0.7,
+  } as React.CSSProperties,
+  badge: (busy: number): React.CSSProperties => {
+    const b = busyStyle(busy);
+    return {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "6px 10px",
+      borderRadius: 999,
+      border: `1px solid ${b.border}`,
+      background: b.bg,
+      color: b.text,
+      fontSize: 12,
+      fontWeight: 700,
+      whiteSpace: "nowrap",
+    };
+  },
+  grid4: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: 12,
+    marginTop: 14,
+  } as React.CSSProperties,
+  grid2: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 12,
+    marginTop: 12,
+  } as React.CSSProperties,
+  card: {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.18)",
+    borderRadius: 14,
+    padding: 14,
+    minWidth: 0,
+  } as React.CSSProperties,
+  label: {
+    fontSize: 11,
+    fontWeight: 700,
+    opacity: 0.75,
+    letterSpacing: 0.2,
+  } as React.CSSProperties,
+  value: {
+    marginTop: 6,
+    fontSize: 22,
+    fontWeight: 800,
+  } as React.CSSProperties,
+  sub: {
+    marginTop: 2,
+    fontSize: 12,
+    opacity: 0.7,
+  } as React.CSSProperties,
+  barOuter: {
+    marginTop: 10,
+    height: 8,
+    width: "100%",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.10)",
+    overflow: "hidden",
+  } as React.CSSProperties,
+  barInner: (pct: number): React.CSSProperties => ({
+    height: "100%",
+    width: `${clamp(pct)}%`,
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.55)",
+  }),
+  rowBetween: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  } as React.CSSProperties,
+  mono: {
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+  } as React.CSSProperties,
+  btn: {
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "inherit",
+    borderRadius: 10,
+    padding: "6px 10px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  } as React.CSSProperties,
+  smallGrid2: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+    marginTop: 10,
+  } as React.CSSProperties,
+  mini: {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    borderRadius: 12,
+    padding: "8px 10px",
+  } as React.CSSProperties,
+  miniLabel: { fontSize: 10, fontWeight: 800, opacity: 0.7 } as React.CSSProperties,
+  miniValue: { marginTop: 3, fontSize: 14, fontWeight: 800 } as React.CSSProperties,
+  list: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 } as React.CSSProperties,
+  listRow: { display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12 } as React.CSSProperties,
+  pre: {
+    marginTop: 10,
+    maxHeight: 380,
+    overflow: "auto",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(0,0,0,0.35)",
+    borderRadius: 14,
+    padding: 12,
+    fontSize: 11,
+    opacity: 0.85,
+  } as React.CSSProperties,
+};
 
 export default function SystemStatsWidget() {
   const [data, setData] = useState<SystemStats | null>(null);
   const [err, setErr] = useState<string | null>(null);
+<<<<<<< HEAD
   const [showDetails, setShowDetails] = useState(false);
   const [showApiLists, setShowApiLists] = useState(false);
+=======
+  const [showApiDetails, setShowApiDetails] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
+>>>>>>> 646440f (UI Updated)
 
   async function load() {
     try {
       setErr(null);
       const res = await fetch("/api/system/stats/current", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as SystemStats;
-      setData(json);
+      setData((await res.json()) as SystemStats);
     } catch (e: any) {
       setErr(e?.message ?? String(e));
     }
@@ -84,6 +240,7 @@ export default function SystemStatsWidget() {
   }, []);
 
   const busy = data?.busy_rating ?? 0;
+<<<<<<< HEAD
   const badge = useMemo(() => busyBadge(busy), [busy]);
 
   if (err) {
@@ -102,6 +259,21 @@ export default function SystemStatsWidget() {
           </button>
         </div>
         <div className="mt-3 rounded-xl border border-red-500/30 bg-red-600/10 p-3 text-sm text-red-200">
+=======
+  const badge = useMemo(() => busyStyle(busy), [busy]);
+
+  if (err) {
+    return (
+      <div style={styles.panel}>
+        <div style={styles.headerRow}>
+          <div>
+            <div style={styles.title}>System Health</div>
+            <div style={styles.subtitle}>Live system + API metrics</div>
+          </div>
+          <button style={styles.btn} onClick={load}>Retry</button>
+        </div>
+        <div style={{ marginTop: 12, padding: 10, borderRadius: 12, border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.12)", color: "#fecaca", fontSize: 13 }}>
+>>>>>>> 646440f (UI Updated)
           Failed to load: {err}
         </div>
       </div>
@@ -110,9 +282,15 @@ export default function SystemStatsWidget() {
 
   if (!data) {
     return (
+<<<<<<< HEAD
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm">
         <div className="text-sm font-semibold">System Health</div>
         <div className="mt-2 text-sm text-white/60">Loading…</div>
+=======
+      <div style={styles.panel}>
+        <div style={styles.title}>System Health</div>
+        <div style={styles.subtitle}>Loading…</div>
+>>>>>>> 646440f (UI Updated)
       </div>
     );
   }
@@ -121,6 +299,7 @@ export default function SystemStatsWidget() {
   const cpuPct = data.cpu.percent_total;
   const memPct = data.mem.percent;
   const load1 = data.load.load1;
+<<<<<<< HEAD
   const netRx = data.net.total_rate?.rx_Bps ?? 0;
   const netTx = data.net.total_rate?.tx_Bps ?? 0;
 
@@ -135,17 +314,50 @@ export default function SystemStatsWidget() {
             <span className="mx-2 opacity-40">•</span>
             uptime {fmtUptime(data.uptime_s)}
             <span className="mx-2 opacity-40">•</span>
+=======
+  const rx = data.net.total_rate?.rx_Bps ?? 0;
+  const tx = data.net.total_rate?.tx_Bps ?? 0;
+
+  // Make grids responsive without Tailwind
+  const grid4 = {
+    ...styles.grid4,
+    gridTemplateColumns: window.innerWidth < 900 ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
+  } as React.CSSProperties;
+
+  const grid2 = {
+    ...styles.grid2,
+    gridTemplateColumns: window.innerWidth < 900 ? "repeat(1, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))",
+  } as React.CSSProperties;
+
+  return (
+    <div style={styles.panel}>
+      <div style={styles.headerRow}>
+        <div>
+          <div style={styles.title}>System Health</div>
+          <div style={styles.subtitle}>
+            <span style={{ ...styles.mono, opacity: 0.85 }}>{data.hostname}</span>
+            <span style={{ opacity: 0.35, margin: "0 8px" }}>•</span>
+            uptime {fmtUptime(data.uptime_s)}
+            <span style={{ opacity: 0.35, margin: "0 8px" }}>•</span>
+>>>>>>> 646440f (UI Updated)
             updated {lastSeen}
           </div>
         </div>
 
+<<<<<<< HEAD
         <div className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${badge.cls}`}>
           <span>{badge.label}</span>
           <span className="opacity-70">•</span>
+=======
+        <div style={styles.badge(busy)}>
+          <span>{badge.label}</span>
+          <span style={{ opacity: 0.6 }}>•</span>
+>>>>>>> 646440f (UI Updated)
           <span>{busy.toFixed(1)}/10</span>
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* KPI cards */}
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
@@ -196,12 +408,39 @@ export default function SystemStatsWidget() {
                 </div>
                 <div className="mt-1 text-[11px] text-white/50">
                   {fmtBytes(d.used)} used / {fmtBytes(d.total)} total
+=======
+      <div style={grid4}>
+        <Kpi title="CPU" value={`${cpuPct.toFixed(1)}%`} sub={`cores ${data.cpu.cores_logical}`} pct={cpuPct} />
+        <Kpi title="Memory" value={`${memPct.toFixed(1)}%`} sub={`${fmtBytes(data.mem.used)} used`} pct={memPct} />
+        <Kpi title="Load" value={load1.toFixed(2)} sub={`${data.load.load5.toFixed(2)} / ${data.load.load15.toFixed(2)}`} pct={clamp((load1 / Math.max(1, data.cpu.cores_logical)) * 100)} />
+        <Kpi title="Network" value={data.net.total_rate ? `↓ ${fmtBps(rx)}` : "—"} sub={data.net.total_rate ? `↑ ${fmtBps(tx)}` : "warming up"} pct={data.net.total_rate ? clamp((Math.log10(rx + tx + 1) / 7) * 100) : 0} />
+      </div>
+
+      <div style={grid2}>
+        <div style={styles.card}>
+          <div style={styles.rowBetween}>
+            <div style={styles.label}>Disks</div>
+          </div>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 12 }}>
+            {Object.entries(data.disks).map(([mnt, d]) => (
+              <div key={mnt}>
+                <div style={styles.rowBetween}>
+                  <div style={{ ...styles.mono, fontSize: 12, opacity: 0.85 }}>{mnt}</div>
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>{d.percent.toFixed(1)}%</div>
+                </div>
+                <div style={styles.barOuter}>
+                  <div style={styles.barInner(d.percent)} />
+                </div>
+                <div style={{ marginTop: 4, fontSize: 11, opacity: 0.6 }}>
+                  {fmtBytes(d.used)} / {fmtBytes(d.total)}
+>>>>>>> 646440f (UI Updated)
                 </div>
               </div>
             ))}
           </div>
         </div>
 
+<<<<<<< HEAD
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
           <div className="flex items-center justify-between">
             <div className="text-xs font-semibold text-white/70">API (last {data.api.window_s}s)</div>
@@ -224,11 +463,33 @@ export default function SystemStatsWidget() {
             <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
               <TopList title="Top paths" items={data.api.top_paths} emptyHint="No tracked requests (stats endpoint excluded)." />
               <TopList title="Top clients" items={data.api.top_clients} emptyHint="No tracked clients yet." />
+=======
+        <div style={styles.card}>
+          <div style={styles.rowBetween}>
+            <div style={styles.label}>API (last {data.api.window_s}s)</div>
+            <button style={styles.btn} onClick={() => setShowApiDetails(v => !v)}>
+              {showApiDetails ? "Hide details" : "Show details"}
+            </button>
+          </div>
+
+          <div style={styles.smallGrid2}>
+            <Mini label="RPS" value={data.api.rps.toFixed(2)} />
+            <Mini label="Inflight" value={`${data.api.inflight}`} />
+            <Mini label="p95" value={`${Math.round(data.api.latency_ms_p95)} ms`} />
+            <Mini label="Errors" value={`${(data.api.error_rate * 100).toFixed(1)}%`} />
+          </div>
+
+          {showApiDetails && (
+            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Top title="Top paths" items={data.api.top_paths} empty="No tracked requests (stats endpoint excluded)." />
+              <Top title="Top clients" items={data.api.top_clients} empty="No tracked clients yet." />
+>>>>>>> 646440f (UI Updated)
             </div>
           )}
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* Details */}
       <div className="mt-4">
         <button
@@ -244,10 +505,18 @@ export default function SystemStatsWidget() {
           </pre>
         )}
       </div>
+=======
+      <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button style={styles.btn} onClick={() => setShowRaw(v => !v)}>{showRaw ? "Hide raw JSON" : "Show raw JSON"}</button>
+      </div>
+
+      {showRaw && <pre style={styles.pre}>{JSON.stringify(data, null, 2)}</pre>}
+>>>>>>> 646440f (UI Updated)
     </div>
   );
 }
 
+<<<<<<< HEAD
 function KpiCard(props: {
   title: string;
   value: string;
@@ -266,6 +535,16 @@ function KpiCard(props: {
       {props.sub && <div className="mt-0.5 text-xs text-white/60">{props.sub}</div>}
       <div className="mt-3 h-2 w-full rounded bg-white/10">
         <div className="h-2 rounded bg-white/60" style={{ width: `${pct}%` }} />
+=======
+function Kpi(props: { title: string; value: string; sub: string; pct: number }) {
+  return (
+    <div style={styles.card}>
+      <div style={styles.label}>{props.title}</div>
+      <div style={styles.value}>{props.value}</div>
+      <div style={styles.sub}>{props.sub}</div>
+      <div style={styles.barOuter}>
+        <div style={styles.barInner(props.pct)} />
+>>>>>>> 646440f (UI Updated)
       </div>
     </div>
   );
@@ -273,13 +552,20 @@ function KpiCard(props: {
 
 function MiniStat(props: { label: string; value: string }) {
   return (
+<<<<<<< HEAD
     <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
       <div className="text-[10px] font-semibold text-white/60">{props.label}</div>
       <div className="mt-0.5 text-sm font-semibold text-white/90">{props.value}</div>
+=======
+    <div style={styles.mini}>
+      <div style={styles.miniLabel}>{props.label}</div>
+      <div style={styles.miniValue}>{props.value}</div>
+>>>>>>> 646440f (UI Updated)
     </div>
   );
 }
 
+<<<<<<< HEAD
 function TopList(props: { title: string; items: [string, number][]; emptyHint: string }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
@@ -292,6 +578,20 @@ function TopList(props: { title: string; items: [string, number][]; emptyHint: s
           </div>
         ))}
         {props.items.length === 0 && <div className="text-xs text-white/40">{props.emptyHint}</div>}
+=======
+function Top(props: { title: string; items: [string, number][]; empty: string }) {
+  return (
+    <div style={{ ...styles.mini, padding: 10 }}>
+      <div style={{ ...styles.miniLabel, fontSize: 11 }}>{props.title}</div>
+      <div style={styles.list}>
+        {props.items.slice(0, 8).map(([k, v]) => (
+          <div key={k} style={styles.listRow}>
+            <span style={{ ...styles.mono, opacity: 0.85, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k}</span>
+            <span style={{ opacity: 0.75 }}>{v}</span>
+          </div>
+        ))}
+        {props.items.length === 0 && <div style={{ fontSize: 12, opacity: 0.55 }}>{props.empty}</div>}
+>>>>>>> 646440f (UI Updated)
       </div>
     </div>
   );
