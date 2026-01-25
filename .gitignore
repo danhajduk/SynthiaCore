@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Frontend addon sync target (symlinks/copies)
+frontend/src/addons/*
+!frontend/src/addons/.gitkeep
+
+# OS
+.DS_Store
