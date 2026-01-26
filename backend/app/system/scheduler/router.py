@@ -93,4 +93,13 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
         data["debug_leases_len"] = len(engine.store.leases)
         return JSONResponse(data)
 
+    @router.get("/debug/queue")
+    async def debug_queue(n: int = 20):
+        n = max(1, min(200, int(n)))
+        # peek without destructively popping
+        q = engine.store.queues.normal
+        ids = list(q)[:n]
+        present = [(jid, jid in engine.store.jobs, engine.store.jobs.get(jid).state if jid in engine.store.jobs else None) for jid in ids]
+        return {"store_id": hex(id(engine.store)), "jobs_len": len(engine.store.jobs), "sample": present}
+
     return router

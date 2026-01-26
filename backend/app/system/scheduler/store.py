@@ -46,6 +46,10 @@ class SchedulerStore:
         return self.queues.background
 
     def enqueue(self, job: Job) -> None:
+        # Safety: only enqueue if job is actually tracked
+        # (prevents stale queue IDs)
+        if job.job_id not in self.jobs:
+            self.jobs[job.job_id] = job
         q = self._queue_for(job.priority)
         q.append(job.job_id)
 

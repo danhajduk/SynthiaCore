@@ -235,6 +235,10 @@ class SchedulerEngine:
                     return self.store.jobs[existing]
 
             self.store.jobs[job.job_id] = job
+            job.state = JobState.queued
+            job.lease_id = None
+            job.updated_at = utcnow()
+            self.store.enqueue(job)
             if job.idempotency_key:
                 self.store.idempotency_index[job.idempotency_key] = job.job_id
             self.store.enqueue(job)
@@ -265,8 +269,14 @@ class SchedulerEngine:
             scanned = 0
             max_scan = sum(self.store.queue_depths().values())
 
+            queue_before = self.store.queue_depths()
+            jobs_len = len(self.store.jobs)
+
             while scanned < max_scan:
                 job_id = self.store.dequeue_next()
+                # DEBUG: track what we're popping
+                print(f"dequeue job_id={job_id} jobs_len={len(self.store.jobs)}")
+
                 if not job_id:
                     return RequestLeaseDenied(reason="No queued jobs")
 
@@ -317,7 +327,13 @@ class SchedulerEngine:
                 self.store.leases[lease_id] = lease
                 return lease, job
 
-            return RequestLeaseDenied(reason="No eligible job found")
+            return RequestLeaseDenied(
+                reason=(
+                    "No eligible job found "
+                    f"(store={hex(id(self.store))}, jobs={len(self.store.jobs)}, "
+                    f"queues={self.store.queue_depths()})"
+                )
+            )
 
     # ---------- Heartbeat ----------
     async def heartbeat(self, lease_id: str, worker_id: str) -> Lease:
