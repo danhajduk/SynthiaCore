@@ -76,6 +76,7 @@ class WorkerRunner:
 
     async def run_once(self) -> None:
         res = await self.request_lease()
+        print(f"[{self.cfg.worker_id}] lease response: {res}")
 
         if res.get("denied") is True:
             retry_ms = int(res.get("retry_after_ms", 1500))
