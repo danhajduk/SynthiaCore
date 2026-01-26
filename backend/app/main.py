@@ -21,6 +21,8 @@ from app.system.sampler import (
 from .api.admin import router as admin_router
 from .system.stats.router import router as stats_router
 
+from app.system.scheduler import router as scheduler_router
+
 logging.basicConfig(level=logging.INFO)
 
 
@@ -63,6 +65,8 @@ def create_app() -> FastAPI:
     # System stats routes
     app.include_router(stats_router, prefix="/api")
 
+    # Scheduler routes
+    app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])
     # Addons
     registry = build_registry()
     register_addons(app, registry)
