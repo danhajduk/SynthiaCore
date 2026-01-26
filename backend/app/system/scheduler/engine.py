@@ -235,12 +235,13 @@ class SchedulerEngine:
                     return self.store.jobs[existing]
 
             self.store.jobs[job.job_id] = job
+            if job.idempotency_key:
+                self.store.idempotency_index[job.idempotency_key] = job.job_id
+
             job.state = JobState.queued
             job.lease_id = None
             job.updated_at = utcnow()
-            self.store.enqueue(job)
-            if job.idempotency_key:
-                self.store.idempotency_index[job.idempotency_key] = job.job_id
+
             self.store.enqueue(job)
             return job
 

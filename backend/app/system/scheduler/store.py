@@ -45,13 +45,24 @@ class SchedulerStore:
             return self.queues.low
         return self.queues.background
 
-    def enqueue(self, job: Job) -> None:
-        # Safety: only enqueue if job is actually tracked
-        # (prevents stale queue IDs)
-        if job.job_id not in self.jobs:
-            self.jobs[job.job_id] = job
-        q = self._queue_for(job.priority)
-        q.append(job.job_id)
+    def dequeue_next(self) -> Optional[str]:
+        if self.queues.high:
+            jid = self.queues.high.popleft()
+            self.queued_ids.discard(jid)
+            return jid
+        if self.queues.normal:
+            jid = self.queues.normal.popleft()
+            self.queued_ids.discard(jid)
+            return jid
+        if self.queues.low:
+            jid = self.queues.low.popleft()
+            self.queued_ids.discard(jid)
+            return jid
+        if self.queues.background:
+            jid = self.queues.background.popleft()
+            self.queued_ids.discard(jid)
+            return jid
+        return None
 
     def dequeue_next(self) -> Optional[str]:
         """

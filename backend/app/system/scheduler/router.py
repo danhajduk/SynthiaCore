@@ -96,10 +96,22 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
     @router.get("/debug/queue")
     async def debug_queue(n: int = 20):
         n = max(1, min(200, int(n)))
-        # peek without destructively popping
-        q = engine.store.queues.normal
-        ids = list(q)[:n]
-        present = [(jid, jid in engine.store.jobs, engine.store.jobs.get(jid).state if jid in engine.store.jobs else None) for jid in ids]
-        return {"store_id": hex(id(engine.store)), "jobs_len": len(engine.store.jobs), "sample": present}
+        q = list(engine.store.queues.normal)[:n]
+        sample = []
+        for jid in q:
+            job = engine.store.jobs.get(jid)
+            sample.append({
+                "job_id": jid,
+                "in_jobs": job is not None,
+                "state": job.state if job else None,
+                "type": job.type if job else None,
+            })
+        return {
+            "store_id": hex(id(engine.store)),
+            "jobs_len": len(engine.store.jobs),
+            "queued_ids_len": getattr(engine.store, "queued_ids", None) and len(engine.store.queued_ids),
+            "queue_depths": engine.store.queue_depths(),
+            "sample": sample,
+        }
 
     return router
