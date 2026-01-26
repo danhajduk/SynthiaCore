@@ -214,13 +214,8 @@ const styles = {
 export default function SystemStatsWidget() {
   const [data, setData] = useState<SystemStats | null>(null);
   const [err, setErr] = useState<string | null>(null);
-<<<<<<< HEAD
   const [showDetails, setShowDetails] = useState(false);
   const [showApiLists, setShowApiLists] = useState(false);
-=======
-  const [showApiDetails, setShowApiDetails] = useState(false);
-  const [showRaw, setShowRaw] = useState(false);
->>>>>>> 646440f (UI Updated)
 
   async function load() {
     try {
