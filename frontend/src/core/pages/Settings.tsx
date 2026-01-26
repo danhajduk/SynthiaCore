@@ -5,7 +5,7 @@ export default function Settings() {
   const showDevTools = import.meta.env.DEV;
 
   return (
-    <div style={{  }}>
+    <div >
       <h1 style={{ marginTop: 0 }}>Settings</h1>
       <p>Placeholder system settings page.</p>
 
