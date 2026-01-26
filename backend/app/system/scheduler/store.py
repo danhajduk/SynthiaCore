@@ -26,7 +26,6 @@ class SchedulerStore:
 
         self.jobs: Dict[str, Job] = {}
         self.leases: Dict[str, Lease] = {}
-
         self.idempotency_index: Dict[str, str] = {}  # idempotency_key -> job_id
 
         self.queues = Queues(
@@ -35,6 +34,9 @@ class SchedulerStore:
             low=deque(),
             background=deque(),
         )
+
+        # Prevent duplicate job_ids from accumulating in queues
+        self.queued_ids: set[str] = set()
 
     def _queue_for(self, prio: JobPriority) -> Deque[str]:
         if prio == JobPriority.high:
@@ -45,7 +47,20 @@ class SchedulerStore:
             return self.queues.low
         return self.queues.background
 
+    def enqueue(self, job: Job) -> None:
+        """
+        Enqueue job_id once (deduped).
+        """
+        if job.job_id in self.queued_ids:
+            return
+        self.queued_ids.add(job.job_id)
+        self._queue_for(job.priority).append(job.job_id)
+
     def dequeue_next(self) -> Optional[str]:
+        """
+        Strict priority order. (Fairness/aging can come later.)
+        Dequeues a job_id and removes it from queued_ids.
+        """
         if self.queues.high:
             jid = self.queues.high.popleft()
             self.queued_ids.discard(jid)
@@ -62,20 +77,6 @@ class SchedulerStore:
             jid = self.queues.background.popleft()
             self.queued_ids.discard(jid)
             return jid
-        return None
-
-    def dequeue_next(self) -> Optional[str]:
-        """
-        Strict priority order. (Fairness/aging can come later.)
-        """
-        if self.queues.high:
-            return self.queues.high.popleft()
-        if self.queues.normal:
-            return self.queues.normal.popleft()
-        if self.queues.low:
-            return self.queues.low.popleft()
-        if self.queues.background:
-            return self.queues.background.popleft()
         return None
 
     def queue_depths(self) -> Dict[str, int]:
