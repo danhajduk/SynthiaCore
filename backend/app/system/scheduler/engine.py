@@ -223,6 +223,7 @@ class SchedulerEngine:
                 available_capacity_units=available,
                 queue_depths=self.store.queue_depths(),
                 active_leases=len(self.store.leases),
+                store_id = hex(id(self.store)),
             )
 
     # ---------- Job submit ----------

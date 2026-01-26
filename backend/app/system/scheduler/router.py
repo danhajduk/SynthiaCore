@@ -87,6 +87,10 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
     @router.get("/status")
     async def status():
         snap = await engine.snapshot()
-        return JSONResponse(snap.model_dump())
+        data = snap.model_dump()
+        data["debug_store_id"] = hex(id(engine.store))
+        data["debug_jobs_len"] = len(engine.store.jobs)
+        data["debug_leases_len"] = len(engine.store.leases)
+        return JSONResponse(data)
 
     return router
