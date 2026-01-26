@@ -48,7 +48,6 @@ class SchedulerEngine:
         lease_ttl_s: int = 60,
         heartbeat_grace_s: int = 0,
         failclosed_busy_default: int = 8,
-        # NEW: inject metrics (stats, api_metrics)
         metrics_provider: Optional[Callable[[], Tuple[Any | None, Any | None]]] = None,
     ) -> None:
         self.store = store
@@ -66,43 +65,45 @@ class SchedulerEngine:
 
     # ---------- Small helpers (router convenience) ----------
     @staticmethod
-    def utcnow() -> datetime:
-        return utcnow()
-
-    @staticmethod
     def new_id() -> str:
         return str(uuid.uuid4())
 
-    # ---------- Busy rating (real metrics when available) ----------
+    # canonical name
+    @staticmethod
+    def utcnow() -> datetime:
+        return utcnow()
+
+    # backwards-compatible alias (in case anything still calls engine.utcnow())
+    @staticmethod
+    def utcnow() -> datetime:
+        return utcnow()
+
+    # ---------- Busy rating ----------
     def compute_busy_rating(self) -> int:
         """
         v1 heuristic:
-          - If metrics missing/stale: fail-closed (busy=8 by default)
+          - If metrics missing/stale: fail-closed (busy=failclosed_busy_default)
           - Otherwise compute a 0..10 score from CPU/MEM + API p95/error (when present)
 
-        This stays defensive about field names until we lock your stats schema.
+        Defensive about field names until stats schema is finalized.
         """
         stats, api = self.metrics_provider()
 
         if stats is None and api is None:
             return self.failclosed_busy_default
 
-        # If you track timestamps, we can fail-closed on staleness.
-        # Optional: if stats has collected_at and it's too old, treat as missing.
+        # Optional staleness check if stats carries a timestamp
         try:
             collected_at = getattr(stats, "collected_at", None) or getattr(stats, "ts", None)
             if isinstance(collected_at, datetime):
                 age_s = (utcnow() - collected_at).total_seconds()
-                if age_s > 30:  # stale fast-sampled stats
+                if age_s > 30:
                     stats = None
         except Exception:
             pass
 
-        # Score buckets. Clamp at end.
         score = 0
 
-        # ---- CPU / Memory ----
-        # Try several likely field names to avoid breakage.
         cpu = self._first_number(stats, ["cpu_percent", "cpu_pct", "cpu"])
         mem = self._first_number(stats, ["mem_percent", "memory_percent", "mem_pct", "ram_percent", "ram_pct"])
 
@@ -126,8 +127,6 @@ class SchedulerEngine:
             elif mem >= 70:
                 score += 1
 
-        # ---- API latency / error (if present) ----
-        # Your api_metrics collector might expose p95_ms, p95, latency_p95_ms, etc.
         p95 = self._first_number(api, ["p95_ms", "latency_p95_ms", "p95", "p95_latency_ms"])
         err = self._first_number(api, ["error_rate", "errors_rate", "err_rate"])
         inflight = self._first_number(api, ["inflight", "in_flight", "active_requests"])
@@ -142,7 +141,6 @@ class SchedulerEngine:
                 score += 1
 
         # Error rate contributes up to 3
-        # (If err is 0..1 fraction; if it's percentage 0..100 we normalize.)
         if err is not None:
             if err > 1.0:
                 err = err / 100.0
@@ -160,22 +158,12 @@ class SchedulerEngine:
             elif inflight >= 50:
                 score += 1
 
-        # If we *only* had one weak metric and everything else is missing, we still
-        # don’t want "0" — keep it conservative:
-        if stats is None and api is None:
-            return self.failclosed_busy_default
-
         return max(0, min(10, int(score)))
 
     @staticmethod
     def _first_number(obj: Any, fields: list[str]) -> Optional[float]:
-        """
-        Try to extract a numeric field from an object or dict.
-        Returns float if found and numeric-ish.
-        """
         if obj is None:
             return None
-
         for f in fields:
             try:
                 if isinstance(obj, dict) and f in obj:
@@ -185,8 +173,6 @@ class SchedulerEngine:
 
                 if v is None:
                     continue
-
-                # basic numeric coercion
                 if isinstance(v, (int, float)):
                     return float(v)
                 if isinstance(v, str):
@@ -194,7 +180,6 @@ class SchedulerEngine:
                     return float(v2)
             except Exception:
                 continue
-
         return None
 
     # ---------- Capacity ----------
@@ -223,7 +208,6 @@ class SchedulerEngine:
                 available_capacity_units=available,
                 queue_depths=self.store.queue_depths(),
                 active_leases=len(self.store.leases),
-                store_id = hex(id(self.store)),
             )
 
     # ---------- Job submit ----------
@@ -242,6 +226,7 @@ class SchedulerEngine:
             job.lease_id = None
             job.updated_at = utcnow()
 
+            # ✅ enqueue exactly once
             self.store.enqueue(job)
             return job
 
@@ -265,19 +250,11 @@ class SchedulerEngine:
                     reason=f"No capacity (busy={busy}, usable={usable}, leased={leased})"
                 )
 
-            # Find next job that fits.
-            # Conservative: if it doesn't fit, we don't do partial allocation.
             scanned = 0
             max_scan = sum(self.store.queue_depths().values())
 
-            queue_before = self.store.queue_depths()
-            jobs_len = len(self.store.jobs)
-
             while scanned < max_scan:
                 job_id = self.store.dequeue_next()
-                # DEBUG: track what we're popping
-                print(f"dequeue job_id={job_id} jobs_len={len(self.store.jobs)}")
-
                 if not job_id:
                     return RequestLeaseDenied(reason="No queued jobs")
 
@@ -299,14 +276,12 @@ class SchedulerEngine:
                     need = min(need, int(max_units))
 
                 if need > available:
-                    # Put it back at the end of its queue to avoid head-of-line blocking.
                     self.store.enqueue(job)
                     return RequestLeaseDenied(
                         reason=f"Next job needs {job.requested_units}u but only {available}u available",
                         retry_after_ms=2000,
                     )
 
-                # grant lease
                 lease_id = str(uuid.uuid4())
                 now = utcnow()
                 expires = now + timedelta(seconds=self.lease_ttl_s + self.heartbeat_grace_s)
@@ -329,11 +304,7 @@ class SchedulerEngine:
                 return lease, job
 
             return RequestLeaseDenied(
-                reason=(
-                    "No eligible job found "
-                    f"(store={hex(id(self.store))}, jobs={len(self.store.jobs)}, "
-                    f"queues={self.store.queue_depths()})"
-                )
+                reason=f"No eligible job found (store={hex(id(self.store))}, jobs={len(self.store.jobs)}, queues={self.store.queue_depths()})"
             )
 
     # ---------- Heartbeat ----------
@@ -354,7 +325,6 @@ class SchedulerEngine:
 
             job = self.store.jobs.get(lease.job_id)
             if job and job.state in (JobState.leased, JobState.running):
-                # first heartbeat = imply running (worker started)
                 if job.state == JobState.leased:
                     job.state = JobState.running
                 job.updated_at = now
@@ -369,7 +339,6 @@ class SchedulerEngine:
 
             lease = self.store.leases.get(lease_id)
             if not lease:
-                # idempotent-ish: if already gone, treat as ok
                 return
 
             if lease.worker_id != worker_id:
@@ -378,20 +347,13 @@ class SchedulerEngine:
             now = utcnow()
             job = self.store.jobs.get(lease.job_id)
             if job:
-                if status == "completed":
-                    job.state = JobState.completed
-                else:
-                    job.state = JobState.failed
+                job.state = JobState.completed if status == "completed" else JobState.failed
                 job.updated_at = now
 
-            # release capacity
             self.store.leases.pop(lease_id, None)
 
     # ---------- Expiry loop ----------
     def _expire_leases_locked(self) -> int:
-        """
-        Expire leases and mark jobs expired. Must be called under store.lock.
-        """
         now = utcnow()
         expired_ids = [lid for lid, l in self.store.leases.items() if l.expires_at <= now]
         for lid in expired_ids:

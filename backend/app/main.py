@@ -21,9 +21,9 @@ from .api.admin import router as admin_router
 from .system.stats.router import router as stats_router
 
 # NEW: scheduler components
-from app.system.scheduler import build_scheduler_router
 from app.system.scheduler.store import SchedulerStore
 from app.system.scheduler.engine import SchedulerEngine
+from app.system.scheduler import build_scheduler_router
 
 logging.basicConfig(level=logging.INFO)
 
