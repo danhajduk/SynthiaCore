@@ -596,5 +596,3 @@ function Top(props: { title: string; items: [string, number][]; empty: string })
     </div>
   );
 }
-
-
