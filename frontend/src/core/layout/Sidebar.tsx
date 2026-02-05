@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { apiGet } from "../api/client";
 import { loadAddons } from "../router/loadAddons";
+import avatarUrl from "../../assets/avarat.png";
 
 type AddonInfo = {
   id: string;
@@ -60,6 +61,21 @@ export default function Sidebar() {
         background: "linear-gradient(180deg, rgba(50,50,70,0.35), rgba(10,10,20,0.35))",
       }}
     >
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+        <img
+          src={avatarUrl}
+          alt="Avatar"
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            objectFit: "cover",
+            objectPosition: "center top",
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(255,255,255,0.06)",
+          }}
+        />
+      </div>
       <div style={{ fontWeight: 800, marginBottom: 12 }}>Navigation</div>
       <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {coreItems.map((it) => (
