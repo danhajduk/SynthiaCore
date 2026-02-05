@@ -1,6 +1,7 @@
 .hw-page {
   display: grid;
   gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .hw-title {
@@ -16,6 +17,41 @@
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.hw-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.hw-status-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #64748b;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.hw-status-led.ok {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+}
+
+.hw-status-led.warn {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.hw-status-led.error {
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.hw-status-text {
+  font-size: 13px;
+  opacity: 0.9;
 }
 
 .hw-card-title {
@@ -94,4 +130,10 @@
   padding: 12px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 900px) {
+  .hw-page {
+    grid-template-columns: 1fr;
+  }
 }

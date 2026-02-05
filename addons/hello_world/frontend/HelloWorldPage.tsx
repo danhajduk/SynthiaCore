@@ -35,6 +35,9 @@ export default function HelloWorldPage() {
   const completeTimersRef = useRef<number[]>([]);
 
   const canSubmit = useMemo(() => requestedUnits >= 1, [requestedUnits]);
+  const statusLabel = status?.status === "ok" ? "Online" : status ? "Degraded" : "Offline";
+  const statusLed =
+    status?.status === "ok" ? "ok" : status ? "warn" : err ? "error" : "off";
 
   useEffect(() => {
     return () => {
@@ -182,6 +185,10 @@ export default function HelloWorldPage() {
 
       <section className="hw-card">
         <div className="hw-card-title">Backend Status</div>
+        <div className="hw-status-row">
+          <span className={`hw-status-led ${statusLed}`} />
+          <div className="hw-status-text">Status: {statusLabel}</div>
+        </div>
         <button
           onClick={fetchStatus}
           className="hw-btn"
