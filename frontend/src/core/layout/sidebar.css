@@ -1,0 +1,92 @@
+.sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(50, 50, 70, 0.35),
+    rgba(10, 10, 20, 0.35)
+  );
+}
+
+.sidebar-avatar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.sidebar-avatar::before {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(110, 190, 255, 0.45) 0%,
+    rgba(110, 190, 255, 0.2) 40%,
+    rgba(110, 190, 255, 0) 70%
+  );
+  filter: blur(8px);
+  animation: avatarGlow 4.5s ease-in-out infinite;
+}
+
+.sidebar-avatar-img {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center top;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-title {
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-link {
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: white;
+  background: transparent;
+}
+
+.sidebar-link-active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 6px 0;
+}
+
+.sidebar-footer {
+  margin-top: 16px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+@keyframes avatarGlow {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.6;
+  }
+}

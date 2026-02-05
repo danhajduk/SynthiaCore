@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import "./style.css";
 
 type EnqueueResult = { ok: boolean; job_id?: string; state?: string; error?: string };
 
@@ -76,65 +77,44 @@ export default function HelloWorldPage() {
   }
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div className="hw-page">
       <div>
-        <h1 style={{ marginTop: 0 }}>Hello World</h1>
-        <div style={{ opacity: 0.8 }}>Addon UI with scheduler enqueue controls.</div>
+        <h1 className="hw-title">Hello World</h1>
+        <div className="hw-muted">Addon UI with scheduler enqueue controls.</div>
       </div>
 
-      <section
-        style={{
-          padding: 12,
-          borderRadius: 14,
-          border: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(255,255,255,0.04)",
-        }}
-      >
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Backend Status</div>
+      <section className="hw-card">
+        <div className="hw-card-title">Backend Status</div>
         <button
           onClick={fetchStatus}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.15)",
-            background: "rgba(255,255,255,0.06)",
-            color: "white",
-            cursor: "pointer",
-          }}
+          className="hw-btn"
         >
           Fetch status
         </button>
         {status && (
-          <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+          <pre className="hw-pre">
             {JSON.stringify(status, null, 2)}
           </pre>
         )}
       </section>
 
-      <section
-        style={{
-          padding: 12,
-          borderRadius: 14,
-          border: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(255,255,255,0.04)",
-        }}
-      >
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Enqueue One Job</div>
-        <div style={{ display: "grid", gap: 8, maxWidth: 520 }}>
-          <label>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Job type</div>
+      <section className="hw-card">
+        <div className="hw-card-title">Enqueue One Job</div>
+        <div className="hw-form">
+          <label className="hw-label">
+            <div className="hw-label-text">Job type</div>
             <input
               value={jobType}
               onChange={(e) => setJobType(e.target.value)}
-              style={{ width: "100%", padding: 8, borderRadius: 8 }}
+              className="hw-input"
             />
           </label>
-          <label>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Priority</div>
+          <label className="hw-label">
+            <div className="hw-label-text">Priority</div>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              style={{ width: "100%", padding: 8, borderRadius: 8 }}
+              className="hw-select"
             >
               <option value="high">high</option>
               <option value="normal">normal</option>
@@ -142,113 +122,91 @@ export default function HelloWorldPage() {
               <option value="background">background</option>
             </select>
           </label>
-          <label>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Requested units</div>
+          <label className="hw-label">
+            <div className="hw-label-text">Requested units</div>
             <input
               type="number"
               min={1}
               value={requestedUnits}
               onChange={(e) => setRequestedUnits(Number(e.target.value))}
-              style={{ width: "100%", padding: 8, borderRadius: 8 }}
+              className="hw-input"
             />
           </label>
-          <label>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Payload (JSON)</div>
+          <label className="hw-label">
+            <div className="hw-label-text">Payload (JSON)</div>
             <textarea
               rows={5}
               value={payload}
               onChange={(e) => setPayload(e.target.value)}
-              style={{ width: "100%", padding: 8, borderRadius: 8 }}
+              className="hw-textarea"
             />
           </label>
-          <label>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Idempotency key (optional)</div>
+          <label className="hw-label">
+            <div className="hw-label-text">Idempotency key (optional)</div>
             <input
               value={idempotencyKey}
               onChange={(e) => setIdempotencyKey(e.target.value)}
-              style={{ width: "100%", padding: 8, borderRadius: 8 }}
+              className="hw-input"
             />
           </label>
           <button
             onClick={enqueueJob}
             disabled={!canSubmit}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(255,255,255,0.06)",
-              color: "white",
-              cursor: canSubmit ? "pointer" : "not-allowed",
-              opacity: canSubmit ? 1 : 0.6,
-            }}
+            className="hw-btn"
           >
             Enqueue job
           </button>
           {enqueueResult && (
-            <pre style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
+            <pre className="hw-pre-tight">
               {JSON.stringify(enqueueResult, null, 2)}
             </pre>
           )}
         </div>
       </section>
 
-      <section
-        style={{
-          padding: 12,
-          borderRadius: 14,
-          border: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(255,255,255,0.04)",
-        }}
-      >
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Burst Enqueue</div>
-        <div style={{ display: "grid", gap: 8, maxWidth: 520 }}>
-          <label>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Jobs</div>
+      <section className="hw-card">
+        <div className="hw-card-title">Burst Enqueue</div>
+        <div className="hw-form">
+          <label className="hw-label">
+            <div className="hw-label-text">Jobs</div>
             <input
               type="number"
               min={1}
               max={500}
               value={burstN}
               onChange={(e) => setBurstN(Number(e.target.value))}
-              style={{ width: "100%", padding: 8, borderRadius: 8 }}
+              className="hw-input"
             />
           </label>
-          <label>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Sleep seconds</div>
+          <label className="hw-label">
+            <div className="hw-label-text">Sleep seconds</div>
             <input
               type="number"
               min={0.1}
               step={0.1}
               value={burstSeconds}
               onChange={(e) => setBurstSeconds(Number(e.target.value))}
-              style={{ width: "100%", padding: 8, borderRadius: 8 }}
+              className="hw-input"
             />
           </label>
-          <label>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>Units per job</div>
+          <label className="hw-label">
+            <div className="hw-label-text">Units per job</div>
             <input
               type="number"
               min={1}
               value={burstUnits}
               onChange={(e) => setBurstUnits(Number(e.target.value))}
-              style={{ width: "100%", padding: 8, borderRadius: 8 }}
+              className="hw-input"
             />
           </label>
           <button
             onClick={burstJobs}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(255,255,255,0.06)",
-              color: "white",
-              cursor: "pointer",
-            }}
+            className="hw-btn"
           >
             Enqueue burst
           </button>
           {burstResult && (
-            <pre style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
+            <pre className="hw-pre-tight">
               {JSON.stringify(burstResult, null, 2)}
             </pre>
           )}
@@ -256,7 +214,7 @@ export default function HelloWorldPage() {
       </section>
 
       {err && (
-        <pre style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+        <pre className="hw-error">
           {err}
         </pre>
       )}

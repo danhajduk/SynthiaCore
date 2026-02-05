@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import "./admin-reload-card.css";
 
 type ReloadStartResponse = { started: boolean; unit?: string; log?: string };
 type ReloadStatusResponse = { exists: boolean; tail: string };
@@ -94,71 +95,44 @@ export default function AdminReloadCard() {
 
   return (
     <section
-      style={{
-        marginTop: 16,
-        padding: 14,
-        borderRadius: 16,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.04)",
-      }}
+      className="admin-card"
     >
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+      <div className="admin-header">
         <div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>Dev Tools</div>
-          <div style={{ opacity: 0.75, fontSize: 12 }}>
+          <div className="admin-title">Dev Tools</div>
+          <div className="admin-subtitle">
             Triggers <code>/api/admin/reload</code> and shows live updater logs. Remove later for prod.
           </div>
         </div>
-        <div style={{ fontSize: 12, opacity: 0.7 }}>⚠️ Dev-only</div>
+        <div className="admin-warning">⚠️ Dev-only</div>
       </div>
 
-      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>API Base</div>
+      <div className="admin-form">
+        <label className="admin-label">
+          <div className="admin-label-text">API Base</div>
           <input
             value={apiBase}
             onChange={(e) => setApiBase(e.target.value)}
             placeholder="http://10.0.0.100:9001"
-            style={{
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(0,0,0,0.25)",
-              color: "white",
-            }}
+            className="admin-input"
           />
         </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>Admin Token (stored in localStorage)</div>
+        <label className="admin-label">
+          <div className="admin-label-text">Admin Token (stored in localStorage)</div>
           <input
             value={token}
             onChange={(e) => setToken(e.target.value)}
             placeholder="Paste SYNTHIA_ADMIN_TOKEN here"
-            style={{
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(0,0,0,0.25)",
-              color: "white",
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-              fontSize: 12,
-            }}
+            className="admin-input admin-input-mono"
           />
         </label>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div className="admin-actions">
           <button
             onClick={triggerReload}
             disabled={!token.trim() || busy}
-            style={{
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: busy ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.10)",
-              color: "white",
-              cursor: busy ? "not-allowed" : "pointer",
-            }}
+            className="admin-btn admin-btn-primary"
             title={!token.trim() ? "Paste token first" : "Trigger reload"}
           >
             {busy ? "Reloading…" : "Reload Core"}
@@ -167,54 +141,29 @@ export default function AdminReloadCard() {
           <button
             onClick={refreshStatus}
             disabled={!token.trim()}
-            style={{
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(255,255,255,0.06)",
-              color: "white",
-              cursor: "pointer",
-            }}
+            className="admin-btn"
           >
             Refresh Status
           </button>
 
           <button
             onClick={stopPolling}
-            style={{
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(255,255,255,0.03)",
-              color: "white",
-              cursor: "pointer",
-              opacity: 0.9,
-            }}
+            className="admin-btn admin-btn-muted"
           >
             Stop Polling
           </button>
         </div>
 
         {err && (
-          <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: "#ffb3b3", fontSize: 12 }}>
+          <pre className="admin-error">
             {err}
           </pre>
         )}
 
         <div>
-          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>Updater Log Tail</div>
+          <div className="admin-log-label">Updater Log Tail</div>
           <pre
-            style={{
-              margin: 0,
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(0,0,0,0.25)",
-              maxHeight: 260,
-              overflow: "auto",
-              whiteSpace: "pre-wrap",
-              fontSize: 12,
-            }}
+            className="admin-log"
           >
             {tail || "(no log yet)"}
           </pre>

@@ -1,13 +1,14 @@
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import "./shell.css";
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", height: "100vh" }}>
+    <div className="shell">
       <Sidebar />
-      <div style={{ display: "grid", gridTemplateRows: "56px 1fr" }}>
+      <div className="shell-main">
         <Header />
-        <main style={{ padding: 16, overflow: "auto" }}>{children}</main>
+        <main className="shell-content">{children}</main>
       </div>
     </div>
   );

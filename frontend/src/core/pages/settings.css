@@ -1,0 +1,17 @@
+.settings-title {
+  margin-top: 0;
+}
+
+.settings-hr {
+  margin: 24px 0;
+  opacity: 0.25;
+}
+
+.settings-hr-wide {
+  margin: 32px 0;
+  opacity: 0.25;
+}
+
+.settings-muted {
+  opacity: 0.7;
+}

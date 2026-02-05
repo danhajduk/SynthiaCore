@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { apiGet } from "../api/client";
 import { loadAddons } from "../router/loadAddons";
 import avatarUrl from "../../assets/avatar.png";
+import "./sidebar.css";
 
 type AddonInfo = {
   id: string;

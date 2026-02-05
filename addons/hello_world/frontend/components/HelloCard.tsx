@@ -1,6 +1,8 @@
+import "../style.css";
+
 export default function HelloCard() {
   return (
-    <div style={{ padding: 12, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)" }}>
+    <div className="hw-card-mini">
       Hello from a component inside the addon.
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import "./system-stats-widget.css";
 
 type SystemStats = {
   timestamp: number;
@@ -53,149 +54,16 @@ function fmtUptime(sec: number): string {
 }
 
 function busyStyle(busy: number) {
-  // returns {label, bg, border, text}
-  if (busy >= 8) return { label: "HOT", bg: "rgba(220,38,38,0.15)", border: "rgba(220,38,38,0.35)", text: "#fecaca" };
-  if (busy >= 6) return { label: "BUSY", bg: "rgba(249,115,22,0.15)", border: "rgba(249,115,22,0.35)", text: "#fed7aa" };
-  if (busy >= 3) return { label: "ACTIVE", bg: "rgba(234,179,8,0.12)", border: "rgba(234,179,8,0.30)", text: "#fef3c7" };
-  return { label: "IDLE", bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.30)", text: "#d1fae5" };
+  if (busy >= 8) return { label: "HOT", className: "stats-badge-hot" };
+  if (busy >= 6) return { label: "BUSY", className: "stats-badge-busy" };
+  if (busy >= 3) return { label: "ACTIVE", className: "stats-badge-active" };
+  return { label: "IDLE", className: "stats-badge-idle" };
 }
 
-const styles = {
-  panel: {
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.04)",
-    borderRadius: 16,
-    padding: 16,
-  } as React.CSSProperties,
-  headerRow: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-    flexWrap: "wrap",
-  } as React.CSSProperties,
-  title: {
-    fontSize: 14,
-    fontWeight: 700,
-    margin: 0,
-  } as React.CSSProperties,
-  subtitle: {
-    marginTop: 4,
-    fontSize: 12,
-    opacity: 0.7,
-  } as React.CSSProperties,
-  badge: (busy: number): React.CSSProperties => {
-    const b = busyStyle(busy);
-    return {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "6px 10px",
-      borderRadius: 999,
-      border: `1px solid ${b.border}`,
-      background: b.bg,
-      color: b.text,
-      fontSize: 12,
-      fontWeight: 700,
-      whiteSpace: "nowrap",
-    };
-  },
-  grid4: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-    gap: 12,
-    marginTop: 14,
-  } as React.CSSProperties,
-  grid2: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 12,
-    marginTop: 12,
-  } as React.CSSProperties,
-  card: {
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(0,0,0,0.18)",
-    borderRadius: 14,
-    padding: 14,
-    minWidth: 0,
-  } as React.CSSProperties,
-  label: {
-    fontSize: 11,
-    fontWeight: 700,
-    opacity: 0.75,
-    letterSpacing: 0.2,
-  } as React.CSSProperties,
-  value: {
-    marginTop: 6,
-    fontSize: 22,
-    fontWeight: 800,
-  } as React.CSSProperties,
-  sub: {
-    marginTop: 2,
-    fontSize: 12,
-    opacity: 0.7,
-  } as React.CSSProperties,
-  barOuter: {
-    marginTop: 10,
-    height: 8,
-    width: "100%",
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.10)",
-    overflow: "hidden",
-  } as React.CSSProperties,
-  barInner: (pct: number): React.CSSProperties => ({
-    height: "100%",
-    width: `${clamp(pct)}%`,
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.55)",
-  }),
-  rowBetween: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  } as React.CSSProperties,
-  mono: {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  } as React.CSSProperties,
-  btn: {
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
-    color: "inherit",
-    borderRadius: 10,
-    padding: "6px 10px",
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: "pointer",
-  } as React.CSSProperties,
-  smallGrid2: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 10,
-    marginTop: 10,
-  } as React.CSSProperties,
-  mini: {
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.03)",
-    borderRadius: 12,
-    padding: "8px 10px",
-  } as React.CSSProperties,
-  miniLabel: { fontSize: 10, fontWeight: 800, opacity: 0.7 } as React.CSSProperties,
-  miniValue: { marginTop: 3, fontSize: 14, fontWeight: 800 } as React.CSSProperties,
-  list: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 } as React.CSSProperties,
-  listRow: { display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12 } as React.CSSProperties,
-  pre: {
-    marginTop: 10,
-    maxHeight: 380,
-    overflow: "auto",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(0,0,0,0.35)",
-    borderRadius: 14,
-    padding: 12,
-    fontSize: 11,
-    opacity: 0.85,
-  } as React.CSSProperties,
-};
+function pctClass(pct: number) {
+  const rounded = Math.round(clamp(pct) / 5) * 5;
+  return `pct-${Math.max(0, Math.min(100, rounded))}`;
+}
 
 export default function SystemStatsWidget() {
   const [data, setData] = useState<SystemStats | null>(null);
@@ -225,15 +93,15 @@ export default function SystemStatsWidget() {
 
   if (err) {
     return (
-      <div style={styles.panel}>
-        <div style={styles.headerRow}>
+      <div className="stats-panel">
+        <div className="stats-header-row">
           <div>
-            <div style={styles.title}>System Health</div>
-            <div style={styles.subtitle}>Live system + API metrics</div>
+            <div className="stats-title">System Health</div>
+            <div className="stats-subtitle">Live system + API metrics</div>
           </div>
-          <button style={styles.btn} onClick={load}>Retry</button>
+          <button className="stats-btn" onClick={load}>Retry</button>
         </div>
-        <div style={{ marginTop: 12, padding: 10, borderRadius: 12, border: "1px solid rgba(220,38,38,0.35)", background: "rgba(220,38,38,0.12)", color: "#fecaca", fontSize: 13 }}>
+        <div className="stats-error-box">
           Failed to load: {err}
         </div>
       </div>
@@ -242,9 +110,9 @@ export default function SystemStatsWidget() {
 
   if (!data) {
     return (
-      <div style={styles.panel}>
-        <div style={styles.title}>System Health</div>
-        <div style={styles.subtitle}>Loading…</div>
+      <div className="stats-panel">
+        <div className="stats-title">System Health</div>
+        <div className="stats-subtitle">Loading…</div>
       </div>
     );
   }
@@ -256,61 +124,50 @@ export default function SystemStatsWidget() {
   const rx = data.net.total_rate?.rx_Bps ?? 0;
   const tx = data.net.total_rate?.tx_Bps ?? 0;
 
-  // Make grids responsive without Tailwind
-  const grid4 = {
-    ...styles.grid4,
-    gridTemplateColumns: window.innerWidth < 900 ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))",
-  } as React.CSSProperties;
-
-  const grid2 = {
-    ...styles.grid2,
-    gridTemplateColumns: window.innerWidth < 900 ? "repeat(1, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))",
-  } as React.CSSProperties;
-
   return (
-    <div style={styles.panel}>
-      <div style={styles.headerRow}>
+    <div className="stats-panel">
+      <div className="stats-header-row">
         <div>
-          <div style={styles.title}>System Health</div>
-          <div style={styles.subtitle}>
-            <span style={{ ...styles.mono, opacity: 0.85 }}>{data.hostname}</span>
-            <span style={{ opacity: 0.35, margin: "0 8px" }}>•</span>
+          <div className="stats-title">System Health</div>
+          <div className="stats-subtitle">
+            <span className="stats-mono stats-mono-small">{data.hostname}</span>
+            <span className="stats-divider">•</span>
             uptime {fmtUptime(data.uptime_s)}
-            <span style={{ opacity: 0.35, margin: "0 8px" }}>•</span>
+            <span className="stats-divider">•</span>
             updated {lastSeen}
           </div>
         </div>
 
-        <div style={styles.badge(busy)}>
+        <div className={`stats-badge ${badge.className}`}>
           <span>{badge.label}</span>
-          <span style={{ opacity: 0.6 }}>•</span>
+          <span className="stats-dot">•</span>
           <span>{busy.toFixed(1)}/10</span>
         </div>
       </div>
 
-      <div style={grid4}>
+      <div className="stats-grid-4">
         <Kpi title="CPU" value={`${cpuPct.toFixed(1)}%`} sub={`cores ${data.cpu.cores_logical}`} pct={cpuPct} />
         <Kpi title="Memory" value={`${memPct.toFixed(1)}%`} sub={`${fmtBytes(data.mem.used)} used`} pct={memPct} />
         <Kpi title="Load" value={load1.toFixed(2)} sub={`${data.load.load5.toFixed(2)} / ${data.load.load15.toFixed(2)}`} pct={clamp((load1 / Math.max(1, data.cpu.cores_logical)) * 100)} />
         <Kpi title="Network" value={data.net.total_rate ? `↓ ${fmtBps(rx)}` : "—"} sub={data.net.total_rate ? `↑ ${fmtBps(tx)}` : "warming up"} pct={data.net.total_rate ? clamp((Math.log10(rx + tx + 1) / 7) * 100) : 0} />
       </div>
 
-      <div style={grid2}>
-        <div style={styles.card}>
-          <div style={styles.rowBetween}>
-            <div style={styles.label}>Disks</div>
+      <div className="stats-grid-2">
+        <div className="stats-card">
+          <div className="stats-row-between">
+            <div className="stats-label">Disks</div>
           </div>
-          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="stats-disks">
             {Object.entries(data.disks).map(([mnt, d]) => (
               <div key={mnt}>
-                <div style={styles.rowBetween}>
-                  <div style={{ ...styles.mono, fontSize: 12, opacity: 0.85 }}>{mnt}</div>
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>{d.percent.toFixed(1)}%</div>
+                <div className="stats-row-between">
+                  <div className="stats-mono stats-mono-small">{mnt}</div>
+                  <div className="stats-sub">{d.percent.toFixed(1)}%</div>
                 </div>
-                <div style={styles.barOuter}>
-                  <div style={styles.barInner(d.percent)} />
+                <div className="stats-bar-outer">
+                  <div className={`stats-bar-inner ${pctClass(d.percent)}`} />
                 </div>
-                <div style={{ marginTop: 4, fontSize: 11, opacity: 0.6 }}>
+                <div className="stats-disk-sub">
                   {fmtBytes(d.used)} / {fmtBytes(d.total)}
                 </div>
               </div>
@@ -318,15 +175,15 @@ export default function SystemStatsWidget() {
           </div>
         </div>
 
-        <div style={styles.card}>
-          <div style={styles.rowBetween}>
-            <div style={styles.label}>API (last {data.api.window_s}s)</div>
-            <button style={styles.btn} onClick={() => setShowApiDetails(v => !v)}>
+        <div className="stats-card">
+          <div className="stats-row-between">
+            <div className="stats-label">API (last {data.api.window_s}s)</div>
+            <button className="stats-btn" onClick={() => setShowApiDetails(v => !v)}>
               {showApiDetails ? "Hide details" : "Show details"}
             </button>
           </div>
 
-          <div style={styles.smallGrid2}>
+          <div className="stats-small-grid">
             <Mini label="RPS" value={data.api.rps.toFixed(2)} />
             <Mini label="Inflight" value={`${data.api.inflight}`} />
             <Mini label="p95" value={`${Math.round(data.api.latency_ms_p95)} ms`} />
@@ -334,7 +191,7 @@ export default function SystemStatsWidget() {
           </div>
 
           {showApiDetails && (
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="stats-api-details">
               <Top title="Top paths" items={data.api.top_paths} empty="No tracked requests (stats endpoint excluded)." />
               <Top title="Top clients" items={data.api.top_clients} empty="No tracked clients yet." />
             </div>
@@ -342,23 +199,23 @@ export default function SystemStatsWidget() {
         </div>
       </div>
 
-      <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button style={styles.btn} onClick={() => setShowRaw(v => !v)}>{showRaw ? "Hide raw JSON" : "Show raw JSON"}</button>
+      <div className="stats-raw-toggle">
+        <button className="stats-btn" onClick={() => setShowRaw(v => !v)}>{showRaw ? "Hide raw JSON" : "Show raw JSON"}</button>
       </div>
 
-      {showRaw && <pre style={styles.pre}>{JSON.stringify(data, null, 2)}</pre>}
+      {showRaw && <pre className="stats-pre">{JSON.stringify(data, null, 2)}</pre>}
     </div>
   );
 }
 
 function Kpi(props: { title: string; value: string; sub: string; pct: number }) {
   return (
-    <div style={styles.card}>
-      <div style={styles.label}>{props.title}</div>
-      <div style={styles.value}>{props.value}</div>
-      <div style={styles.sub}>{props.sub}</div>
-      <div style={styles.barOuter}>
-        <div style={styles.barInner(props.pct)} />
+    <div className="stats-card">
+      <div className="stats-label">{props.title}</div>
+      <div className="stats-value">{props.value}</div>
+      <div className="stats-sub">{props.sub}</div>
+      <div className="stats-bar-outer">
+        <div className={`stats-bar-inner ${pctClass(props.pct)}`} />
       </div>
     </div>
   );
@@ -366,25 +223,25 @@ function Kpi(props: { title: string; value: string; sub: string; pct: number }) 
 
 function Mini(props: { label: string; value: string }) {
   return (
-    <div style={styles.mini}>
-      <div style={styles.miniLabel}>{props.label}</div>
-      <div style={styles.miniValue}>{props.value}</div>
+    <div className="stats-mini">
+      <div className="stats-mini-label">{props.label}</div>
+      <div className="stats-mini-value">{props.value}</div>
     </div>
   );
 }
 
 function Top(props: { title: string; items: [string, number][]; empty: string }) {
   return (
-    <div style={{ ...styles.mini, padding: 10 }}>
-      <div style={{ ...styles.miniLabel, fontSize: 11 }}>{props.title}</div>
-      <div style={styles.list}>
+    <div className="stats-mini">
+      <div className="stats-mini-label">{props.title}</div>
+      <div className="stats-list">
         {props.items.slice(0, 8).map(([k, v]) => (
-          <div key={k} style={styles.listRow}>
-            <span style={{ ...styles.mono, opacity: 0.85, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k}</span>
-            <span style={{ opacity: 0.75 }}>{v}</span>
+          <div key={k} className="stats-list-row">
+            <span className="stats-mono stats-list-key">{k}</span>
+            <span className="stats-sub">{v}</span>
           </div>
         ))}
-        {props.items.length === 0 && <div style={{ fontSize: 12, opacity: 0.55 }}>{props.empty}</div>}
+        {props.items.length === 0 && <div className="stats-list-empty">{props.empty}</div>}
       </div>
     </div>
   );

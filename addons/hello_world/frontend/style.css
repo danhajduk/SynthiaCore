@@ -1,0 +1,83 @@
+.hw-page {
+  display: grid;
+  gap: 16px;
+}
+
+.hw-title {
+  margin-top: 0;
+}
+
+.hw-muted {
+  opacity: 0.8;
+}
+
+.hw-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.hw-card-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.hw-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  cursor: pointer;
+}
+
+.hw-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.hw-pre {
+  margin-top: 12px;
+  white-space: pre-wrap;
+}
+
+.hw-pre-tight {
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+
+.hw-form {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+}
+
+.hw-label {
+  display: grid;
+  gap: 6px;
+}
+
+.hw-label-text {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.hw-input,
+.hw-select,
+.hw-textarea {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.hw-error {
+  margin-top: 12px;
+  white-space: pre-wrap;
+}
+
+.hw-card-mini {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
