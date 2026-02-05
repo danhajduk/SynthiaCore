@@ -21,6 +21,7 @@ export default function HelloWorldPage() {
   const [burstN, setBurstN] = useState(10);
   const [burstSeconds, setBurstSeconds] = useState(1.0);
   const [burstUnits, setBurstUnits] = useState(5);
+  const [burstUnique, setBurstUnique] = useState(false);
 
   const [acquireWorkerId, setAcquireWorkerId] = useState("hello-world-ui");
   const [acquireMaxUnits, setAcquireMaxUnits] = useState("");
@@ -41,7 +42,10 @@ export default function HelloWorldPage() {
     status?.status === "ok" ? "ok" : status ? "warn" : err ? "error" : "off";
 
   useEffect(() => {
+    fetchStatus();
+    const t = window.setInterval(fetchStatus, 5000);
     return () => {
+      window.clearInterval(t);
       if (acquireTimerRef.current !== null) {
         window.clearInterval(acquireTimerRef.current);
         acquireTimerRef.current = null;
@@ -96,6 +100,7 @@ export default function HelloWorldPage() {
         n: String(burstN),
         seconds: String(burstSeconds),
         units: String(burstUnits),
+        unique: String(burstUnique),
       });
       const res = await fetch(`/api/addons/hello_world/jobs/burst?${params.toString()}`, {
         method: "POST",
@@ -191,12 +196,6 @@ export default function HelloWorldPage() {
           <span className={`hw-status-led ${statusLed}`} />
           <div className="hw-status-text">Status: {statusLabel}</div>
         </div>
-        <button
-          onClick={fetchStatus}
-          className="hw-btn"
-        >
-          Fetch status
-        </button>
         {status && (
           <pre className="hw-pre">
             {JSON.stringify(status, null, 2)}
@@ -312,6 +311,14 @@ export default function HelloWorldPage() {
               onChange={(e) => setBurstUnits(Number(e.target.value))}
               className="hw-input"
             />
+          </label>
+          <label className="hw-checkbox">
+            <input
+              type="checkbox"
+              checked={burstUnique}
+              onChange={(e) => setBurstUnique(e.target.checked)}
+            />
+            <span>Unique jobs (one lease per worker)</span>
           </label>
           <button
             onClick={burstJobs}

@@ -49,7 +49,7 @@ async def enqueue_job(req: Request, body: EnqueueJobRequest):
 
 
 @router.post("/jobs/burst")
-async def burst(req: Request, n: int = 10, seconds: float = 1.0, units: int = 5):
+async def burst(req: Request, n: int = 10, seconds: float = 1.0, units: int = 5, unique: bool = False):
     """
     Enqueue N sleep jobs (default 10), each sleeps `seconds` and requests `units`.
     """
@@ -69,6 +69,7 @@ async def burst(req: Request, n: int = 10, seconds: float = 1.0, units: int = 5)
             type="helloworld.sleep",
             priority=JobPriority.normal,
             requested_units=units,
+            unique=unique,
             payload={"seconds": seconds},
             tags=["addon:helloworld"],
             state=JobState.queued,
