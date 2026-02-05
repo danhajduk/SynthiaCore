@@ -48,7 +48,8 @@ export default function Addons() {
       <h1 className="addons-title">Addons</h1>
       {err && <pre className="addons-error">{err}</pre>}
       {!err && (
-        <div className="addons-list">
+        <div className="addons-container">
+          <div className="addons-list">
           {addons.length === 0 ? (
             <div className="addons-empty">No backend addons loaded.</div>
           ) : (
@@ -83,6 +84,7 @@ export default function Addons() {
               </div>
             ))
           )}
+          </div>
         </div>
       )}
     </div>

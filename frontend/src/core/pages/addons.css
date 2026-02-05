@@ -11,6 +11,17 @@
   gap: 10px;
 }
 
+.addons-container {
+  max-width: 33%;
+  min-width: 320px;
+}
+
+@media (max-width: 900px) {
+  .addons-container {
+    max-width: 100%;
+  }
+}
+
 .addons-empty {
   opacity: 0.8;
 }
