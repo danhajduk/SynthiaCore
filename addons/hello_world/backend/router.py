@@ -20,6 +20,9 @@ class EnqueueJobRequest(BaseModel):
     idempotency_key: Optional[str] = None
 
 
+EnqueueJobRequest.model_rebuild()
+
+
 @router.post("/jobs/enqueue")
 async def enqueue_job(req: Request, body: EnqueueJobRequest):
     engine = getattr(req.app.state, "scheduler_engine", None)
