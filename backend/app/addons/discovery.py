@@ -28,7 +28,9 @@ def addons_dir() -> Path:
 def discover_backend_addons() -> list[DiscoveredAddon]:
     log.info("Looking for backend addons in %s", addons_dir())
     base = addons_dir()
+    log.debug("Checking if addons directory exists at %s", base)
     if not base.exists():
+        log.warning("Addons directory does not exist at %s", base)
         return []
     log.debug("Found %d addon folders in %s", len([p for p in base.iterdir() if p.is_dir()]), base)  
 
@@ -39,7 +41,7 @@ def discover_backend_addons() -> list[DiscoveredAddon]:
         manifest_path = addon_folder / "manifest.json"
         entry = addon_folder / "backend" / "addon.py"
         log.debug("Looking for manifest at %s and entrypoint at %s", manifest_path, entry)
-        
+
         if not entry.exists():
             log.warning("Skipping addon '%s': missing backend/addon.py entrypoint", addon_id)
             continue
