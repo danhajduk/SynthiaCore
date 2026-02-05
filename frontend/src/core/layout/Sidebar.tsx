@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { apiGet } from "../api/client";
 import { loadAddons } from "../router/loadAddons";
-import avatarUrl from "../../assets/avarat.png";
+import avatarUrl from "../../assets/avatar.png";
 
 type AddonInfo = {
   id: string;
