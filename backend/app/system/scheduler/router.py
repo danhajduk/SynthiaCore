@@ -47,6 +47,7 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             type=req.type,
             priority=req.priority,
             requested_units=req.requested_units,
+            unique=req.unique,
             payload=req.payload,
             idempotency_key=req.idempotency_key,
             tags=req.tags,

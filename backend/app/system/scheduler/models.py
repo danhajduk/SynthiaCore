@@ -29,6 +29,7 @@ class Job(BaseModel):
     type: str = "generic"
     priority: JobPriority = JobPriority.normal
     requested_units: int = 1
+    unique: bool = False
 
     state: JobState = JobState.queued
     payload: Dict[str, Any] = Field(default_factory=dict)
@@ -72,6 +73,7 @@ class SubmitJobRequest(BaseModel):
     type: str = "generic"
     priority: JobPriority = JobPriority.normal
     requested_units: int = 1
+    unique: bool = False
     payload: Dict[str, Any] = Field(default_factory=dict)
 
     idempotency_key: Optional[str] = None

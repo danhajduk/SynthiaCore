@@ -15,6 +15,7 @@ class EnqueueJobRequest(BaseModel):
     job_type: str = Field(default="helloworld.sleep")
     priority: JobPriority = Field(default=JobPriority.normal)
     requested_units: int = Field(default=5, ge=1)
+    unique: bool = Field(default=False)
     payload: Dict[str, Any] = Field(default_factory=dict)
     idempotency_key: Optional[str] = None
 
@@ -31,6 +32,7 @@ async def enqueue_job(req: Request, body: EnqueueJobRequest):
         type=body.job_type,
         priority=body.priority,
         requested_units=body.requested_units,
+        unique=body.unique,
         payload=body.payload,
         idempotency_key=body.idempotency_key,
         tags=["addon:helloworld"],

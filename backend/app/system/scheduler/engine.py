@@ -252,6 +252,7 @@ class SchedulerEngine:
 
             scanned = 0
             max_scan = sum(self.store.queue_depths().values())
+            worker_has_lease = any(lease.worker_id == worker_id for lease in self.store.leases.values())
 
             while scanned < max_scan:
                 job_id = self.store.dequeue_next()
@@ -264,6 +265,9 @@ class SchedulerEngine:
                     continue
 
                 if job.state != JobState.queued:
+                    continue
+                if job.unique and worker_has_lease:
+                    self.store.enqueue(job)
                     continue
 
                 need = int(job.requested_units)
