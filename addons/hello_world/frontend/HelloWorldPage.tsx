@@ -24,9 +24,15 @@ export default function HelloWorldPage() {
   const [acquireWorkerId, setAcquireWorkerId] = useState("hello-world-ui");
   const [acquireMaxUnits, setAcquireMaxUnits] = useState("");
   const [acquireIntervalMs, setAcquireIntervalMs] = useState(1500);
+  const [autoCompleteEnabled, setAutoCompleteEnabled] = useState(true);
+  const [autoCompleteDelayMs, setAutoCompleteDelayMs] = useState(2000);
+  const [autoCompleteStatus, setAutoCompleteStatus] = useState<"completed" | "failed">(
+    "completed"
+  );
   const [acquireResult, setAcquireResult] = useState<any>(null);
   const [acquiring, setAcquiring] = useState(false);
   const acquireTimerRef = useRef<number | null>(null);
+  const completeTimersRef = useRef<number[]>([]);
 
   const canSubmit = useMemo(() => requestedUnits >= 1, [requestedUnits]);
 
@@ -35,6 +41,10 @@ export default function HelloWorldPage() {
       if (acquireTimerRef.current !== null) {
         window.clearInterval(acquireTimerRef.current);
         acquireTimerRef.current = null;
+      }
+      if (completeTimersRef.current.length > 0) {
+        completeTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+        completeTimersRef.current = [];
       }
     };
   }, []);
@@ -109,7 +119,31 @@ export default function HelloWorldPage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setAcquireResult(await res.json());
+      const data = await res.json();
+      setAcquireResult(data);
+
+      if (autoCompleteEnabled && data?.denied === false && data?.lease?.lease_id) {
+        const leaseId = data.lease.lease_id as string;
+        const workerId = body.worker_id;
+        const delayMs = Math.max(0, Number(autoCompleteDelayMs) || 0);
+        const timerId = window.setTimeout(() => {
+          completeLease(leaseId, workerId, autoCompleteStatus);
+        }, delayMs);
+        completeTimersRef.current.push(timerId);
+      }
+    } catch (e: any) {
+      setErr(String(e));
+    }
+  }
+
+  async function completeLease(leaseId: string, workerId: string, status: "completed" | "failed") {
+    try {
+      const res = await fetch(`/api/system/scheduler/leases/${leaseId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ worker_id: workerId, status }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (e: any) {
       setErr(String(e));
     }
@@ -132,6 +166,10 @@ export default function HelloWorldPage() {
     if (acquireTimerRef.current !== null) {
       window.clearInterval(acquireTimerRef.current);
       acquireTimerRef.current = null;
+    }
+    if (completeTimersRef.current.length > 0) {
+      completeTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+      completeTimersRef.current = [];
     }
   }
 
@@ -303,6 +341,36 @@ export default function HelloWorldPage() {
               onChange={(e) => setAcquireIntervalMs(Number(e.target.value))}
               className="hw-input"
             />
+          </label>
+          <label className="hw-label">
+            <div className="hw-label-text">Auto-complete after (ms)</div>
+            <input
+              type="number"
+              min={0}
+              step={100}
+              value={autoCompleteDelayMs}
+              onChange={(e) => setAutoCompleteDelayMs(Number(e.target.value))}
+              className="hw-input"
+            />
+          </label>
+          <label className="hw-label">
+            <div className="hw-label-text">Auto-complete status</div>
+            <select
+              value={autoCompleteStatus}
+              onChange={(e) => setAutoCompleteStatus(e.target.value as "completed" | "failed")}
+              className="hw-select"
+            >
+              <option value="completed">completed</option>
+              <option value="failed">failed</option>
+            </select>
+          </label>
+          <label className="hw-checkbox">
+            <input
+              type="checkbox"
+              checked={autoCompleteEnabled}
+              onChange={(e) => setAutoCompleteEnabled(e.target.checked)}
+            />
+            <span>Auto-complete leases after delay</span>
           </label>
           <div className="hw-actions">
             <button
