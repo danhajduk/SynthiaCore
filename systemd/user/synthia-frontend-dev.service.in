@@ -5,7 +5,8 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=@INSTALL_DIR@/frontend
-Environment=VITE_API_TARGET=http://10.0.0.100:9001
+# Optional override: set VITE_API_TARGET in ~/.config/synthia/frontend.env
+EnvironmentFile=-%h/.config/synthia/frontend.env
 ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 5173
 Restart=always
 RestartSec=2

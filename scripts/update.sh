@@ -37,7 +37,4 @@ echo "[update] restart services"
 systemctl --user restart synthia-backend.service
 systemctl --user restart synthia-frontend-dev.service
 
-journalctl --user -u synthia-backend.service -f
-systemctl --user status synthia-backend.service
-
 echo "=== [update] $(date -Is) finished ==="

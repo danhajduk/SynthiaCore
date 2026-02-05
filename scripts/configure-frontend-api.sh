@@ -4,10 +4,31 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FRONTEND_DIR="$REPO_DIR/frontend"
 
-BACKEND_HOST="${SYNTHIA_BACKEND_HOST:-HomeAssistant.local}"
+BACKEND_HOST="${SYNTHIA_BACKEND_HOST:-}"
 BACKEND_PORT="${SYNTHIA_BACKEND_PORT:-9001}"
 
-IP="$(getent ahostsv4 "$BACKEND_HOST" | awk '{print $1; exit}')"
+resolve_host() {
+  local host="$1"
+  if [[ -z "$host" ]]; then
+    echo ""
+    return
+  fi
+  if [[ "$host" =~ ^[0-9]+(\.[0-9]+){3}$ ]]; then
+    echo "$host"
+    return
+  fi
+  getent ahostsv4 "$host" | awk '{print $1; exit}'
+}
+
+if [[ -z "$BACKEND_HOST" ]]; then
+  # Prefer the first non-loopback IP on this host
+  BACKEND_HOST="$(hostname -I | awk '{print $1}')"
+  if [[ -z "$BACKEND_HOST" ]]; then
+    BACKEND_HOST="127.0.0.1"
+  fi
+fi
+
+IP="$(resolve_host "$BACKEND_HOST")"
 
 if [[ -z "$IP" ]]; then
   echo "[configure] ERROR: Could not resolve $BACKEND_HOST"

@@ -148,6 +148,7 @@ if command -v loginctl >/dev/null 2>&1; then
   sudo loginctl enable-linger "$USER" || true
 fi
 echo "[update] configure frontend API target"
+REPO_DIR="$INSTALL_DIR"
 "$REPO_DIR/scripts/configure-frontend-api.sh"
 
 echo "[bootstrap] Enabling + starting services"
