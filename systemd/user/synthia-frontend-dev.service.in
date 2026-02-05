@@ -5,6 +5,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=@INSTALL_DIR@/frontend
+Environment=VITE_API_TARGET=http://10.0.0.100:9001
 ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 5173
 Restart=always
 RestartSec=2
