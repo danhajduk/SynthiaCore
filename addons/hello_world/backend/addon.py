@@ -1,14 +1,16 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 # Import shared addon models from core backend
 from app.addons.models import AddonMeta, BackendAddon
+from .router import router as jobs_router
 
 router = APIRouter()
 
 @router.get("/status")
 def status():
     return {"status": "ok", "addon": "hello_world"}
+
+router.include_router(jobs_router)
 
 addon = BackendAddon(
     meta=AddonMeta(
