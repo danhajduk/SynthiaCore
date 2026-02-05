@@ -54,63 +54,41 @@ export default function Sidebar() {
   const items = [...coreItems, ...addonItems];
 
   return (
-    <aside
-      style={{
-        borderRight: "1px solid rgba(255,255,255,0.08)",
-        padding: 12,
-        background: "linear-gradient(180deg, rgba(50,50,70,0.35), rgba(10,10,20,0.35))",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+    <aside className="sidebar">
+      <div className="sidebar-avatar">
         <img
           src={avatarUrl}
           alt="Avatar"
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: "50%",
-            objectFit: "cover",
-            objectPosition: "center top",
-            border: "1px solid rgba(255,255,255,0.15)",
-            background: "rgba(255,255,255,0.06)",
-          }}
+          className="sidebar-avatar-img"
         />
       </div>
-      <div style={{ fontWeight: 800, marginBottom: 12 }}>Navigation</div>
-      <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="sidebar-title">Navigation</div>
+      <nav className="sidebar-nav">
         {coreItems.map((it) => (
           <NavLink
             key={it.path}
             to={it.path}
-            style={({ isActive }) => ({
-              padding: "10px 12px",
-              borderRadius: 10,
-              textDecoration: "none",
-              color: "white",
-              background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
-            })}
+            className={({ isActive }) =>
+              `sidebar-link${isActive ? " sidebar-link-active" : ""}`
+            }
           >
             {it.label}
           </NavLink>
         ))}
-        <div style={{ height: 1, background: "rgba(255,255,255,0.12)", margin: "6px 0" }} />
+        <div className="sidebar-divider" />
         {addonItems.map((it) => (
           <NavLink
             key={it.path}
             to={it.path}
-            style={({ isActive }) => ({
-              padding: "10px 12px",
-              borderRadius: 10,
-              textDecoration: "none",
-              color: "white",
-              background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
-            })}
+            className={({ isActive }) =>
+              `sidebar-link${isActive ? " sidebar-link-active" : ""}`
+            }
           >
             {it.label}
           </NavLink>
         ))}
       </nav>
-      <div style={{ marginTop: 16, fontSize: 12, opacity: 0.7 }}>
+      <div className="sidebar-footer">
         Addon links appear after sync.
       </div>
     </aside>
