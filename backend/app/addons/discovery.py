@@ -38,7 +38,10 @@ def discover_backend_addons() -> list[DiscoveredAddon]:
         addon_id = addon_folder.name
         manifest_path = addon_folder / "manifest.json"
         entry = addon_folder / "backend" / "addon.py"
+        log.debug("Looking for manifest at %s and entrypoint at %s", manifest_path, entry)
+        
         if not entry.exists():
+            log.warning("Skipping addon '%s': missing backend/addon.py entrypoint", addon_id)
             continue
 
         try:
