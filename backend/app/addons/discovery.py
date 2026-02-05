@@ -30,9 +30,11 @@ def discover_backend_addons() -> list[DiscoveredAddon]:
     base = addons_dir()
     if not base.exists():
         return []
+    log.debug("Found %d addon folders in %s", len([p for p in base.iterdir() if p.is_dir()]), base)  
 
     results: list[DiscoveredAddon] = []
     for addon_folder in sorted([p for p in base.iterdir() if p.is_dir()]):
+        log.debug("Processing addon folder: %s", addon_folder)
         addon_id = addon_folder.name
         manifest_path = addon_folder / "manifest.json"
         entry = addon_folder / "backend" / "addon.py"
