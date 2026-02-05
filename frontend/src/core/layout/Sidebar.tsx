@@ -62,7 +62,23 @@ export default function Sidebar() {
     >
       <div style={{ fontWeight: 800, marginBottom: 12 }}>Navigation</div>
       <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {items.map((it) => (
+        {coreItems.map((it) => (
+          <NavLink
+            key={it.path}
+            to={it.path}
+            style={({ isActive }) => ({
+              padding: "10px 12px",
+              borderRadius: 10,
+              textDecoration: "none",
+              color: "white",
+              background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
+            })}
+          >
+            {it.label}
+          </NavLink>
+        ))}
+        <div style={{ height: 1, background: "rgba(255,255,255,0.12)", margin: "6px 0" }} />
+        {addonItems.map((it) => (
           <NavLink
             key={it.path}
             to={it.path}
