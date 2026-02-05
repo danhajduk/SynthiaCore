@@ -20,7 +20,7 @@ function isAddonModule(x: any): x is FrontendAddonModule {
  * Vite glob import loads *synced* addon frontends from src/addons/<addon-name>/index.ts
  * If an addon doesn't exist or has invalid exports, it's skipped.
  */
-const modules = import.meta.glob("../../addons/*/index.ts", { eager: true });
+const modules = import.meta.glob("../../addons/*/index.ts{,x}", { eager: true });
 
 export function loadAddons(): FrontendAddonModule[] {
   const out: FrontendAddonModule[] = [];
