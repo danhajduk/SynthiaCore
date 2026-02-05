@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union, List
 
 from .models import (
     Job,
@@ -14,6 +14,7 @@ from .models import (
     RequestLeaseDenied,
 )
 from .store import SchedulerStore
+from .history import SchedulerHistoryStore
 
 
 def utcnow() -> datetime:
@@ -49,6 +50,7 @@ class SchedulerEngine:
         heartbeat_grace_s: int = 0,
         failclosed_busy_default: int = 8,
         metrics_provider: Optional[Callable[[], Tuple[Any | None, Any | None]]] = None,
+        history_store: Optional[SchedulerHistoryStore] = None,
     ) -> None:
         self.store = store
         self.total_capacity_units = total_capacity_units
@@ -57,6 +59,7 @@ class SchedulerEngine:
         self.heartbeat_grace_s = heartbeat_grace_s
 
         self.metrics_provider = metrics_provider or (lambda: (None, None))
+        self.history_store = history_store
 
         # env override
         self.failclosed_busy_default = int(
@@ -236,9 +239,13 @@ class SchedulerEngine:
         worker_id: str,
         max_units: Optional[int] = None,
     ) -> Union[Tuple[Lease, Job], RequestLeaseDenied]:
+        expired: List[tuple[Lease, Job | None]] = []
+        lease_job: Tuple[Lease, Job] | None = None
+        denied: RequestLeaseDenied | None = None
+
         async with self.store.lock:
             # expire first, so capacity is accurate
-            self._expire_leases_locked()
+            expired = self._expire_leases_locked()
 
             busy = self.compute_busy_rating()
             usable = self.usable_capacity_units(busy)
@@ -246,75 +253,95 @@ class SchedulerEngine:
             available = max(0, usable - leased)
 
             if available <= 0:
-                return RequestLeaseDenied(
+                denied = RequestLeaseDenied(
                     reason=f"No capacity (busy={busy}, usable={usable}, leased={leased})"
                 )
+                lease_job = None
 
-            scanned = 0
-            max_scan = sum(self.store.queue_depths().values())
-            worker_has_lease = any(lease.worker_id == worker_id for lease in self.store.leases.values())
+            if denied is None:
+                scanned = 0
+                max_scan = sum(self.store.queue_depths().values())
+                worker_has_lease = any(lease.worker_id == worker_id for lease in self.store.leases.values())
 
-            while scanned < max_scan:
-                job_id = self.store.dequeue_next()
-                if not job_id:
-                    return RequestLeaseDenied(reason="No queued jobs")
+                while scanned < max_scan:
+                    job_id = self.store.dequeue_next()
+                    if not job_id:
+                        denied = RequestLeaseDenied(reason="No queued jobs")
+                        break
 
-                job = self.store.jobs.get(job_id)
-                scanned += 1
-                if not job:
-                    continue
+                    job = self.store.jobs.get(job_id)
+                    scanned += 1
+                    if not job:
+                        continue
 
-                if job.state != JobState.queued:
-                    continue
-                if job.unique and worker_has_lease:
-                    self.store.enqueue(job)
-                    continue
+                    if job.state != JobState.queued:
+                        continue
+                    if job.unique and worker_has_lease:
+                        self.store.enqueue(job)
+                        continue
 
-                need = int(job.requested_units)
-                if need <= 0:
-                    job.state = JobState.failed
-                    job.updated_at = utcnow()
-                    continue
+                    need = int(job.requested_units)
+                    if need <= 0:
+                        job.state = JobState.failed
+                        job.updated_at = utcnow()
+                        continue
 
-                if max_units is not None:
-                    need = min(need, int(max_units))
+                    if max_units is not None:
+                        need = min(need, int(max_units))
 
-                if need > available:
-                    self.store.enqueue(job)
-                    return RequestLeaseDenied(
-                        reason=f"Next job needs {job.requested_units}u but only {available}u available",
-                        retry_after_ms=2000,
+                    if need > available:
+                        self.store.enqueue(job)
+                        denied = RequestLeaseDenied(
+                            reason=f"Next job needs {job.requested_units}u but only {available}u available",
+                            retry_after_ms=2000,
+                        )
+                        break
+
+                    lease_id = str(uuid.uuid4())
+                    now = utcnow()
+                    expires = now + timedelta(seconds=self.lease_ttl_s + self.heartbeat_grace_s)
+
+                    lease = Lease(
+                        lease_id=lease_id,
+                        job_id=job.job_id,
+                        worker_id=worker_id,
+                        capacity_units=need,
+                        issued_at=now,
+                        expires_at=expires,
+                        last_heartbeat=now,
                     )
 
-                lease_id = str(uuid.uuid4())
-                now = utcnow()
-                expires = now + timedelta(seconds=self.lease_ttl_s + self.heartbeat_grace_s)
+                    job.state = JobState.leased
+                    job.lease_id = lease_id
+                    job.updated_at = now
 
-                lease = Lease(
-                    lease_id=lease_id,
-                    job_id=job.job_id,
-                    worker_id=worker_id,
-                    capacity_units=need,
-                    issued_at=now,
-                    expires_at=expires,
-                    last_heartbeat=now,
-                )
+                    self.store.leases[lease_id] = lease
+                    lease_job = (lease, job)
+                    denied = None
+                    break
 
-                job.state = JobState.leased
-                job.lease_id = lease_id
-                job.updated_at = now
+                if denied is None and lease_job is None:
+                    denied = RequestLeaseDenied(
+                        reason=f"No eligible job found (store={hex(id(self.store))}, jobs={len(self.store.jobs)}, queues={self.store.queue_depths()})"
+                    )
 
-                self.store.leases[lease_id] = lease
-                return lease, job
+        if self.history_store:
+            if expired:
+                await self.history_store.record_expired(expired)
+            if lease_job:
+                lease, job = lease_job
+                await self.history_store.record_lease(job, lease)
 
-            return RequestLeaseDenied(
-                reason=f"No eligible job found (store={hex(id(self.store))}, jobs={len(self.store.jobs)}, queues={self.store.queue_depths()})"
-            )
+        if lease_job:
+            return lease_job
+        assert denied is not None
+        return denied
 
     # ---------- Heartbeat ----------
     async def heartbeat(self, lease_id: str, worker_id: str) -> Lease:
+        expired: List[tuple[Lease, Job | None]] = []
         async with self.store.lock:
-            self._expire_leases_locked()
+            expired = self._expire_leases_locked()
 
             lease = self.store.leases.get(lease_id)
             if not lease:
@@ -328,18 +355,30 @@ class SchedulerEngine:
             lease.expires_at = now + timedelta(seconds=self.lease_ttl_s + self.heartbeat_grace_s)
 
             job = self.store.jobs.get(lease.job_id)
+            changed_to_running = False
             if job and job.state in (JobState.leased, JobState.running):
                 if job.state == JobState.leased:
                     job.state = JobState.running
+                    changed_to_running = True
                 job.updated_at = now
 
             self.store.leases[lease_id] = lease
-            return lease
+
+        if self.history_store:
+            if expired:
+                await self.history_store.record_expired(expired)
+            if job and changed_to_running:
+                await self.history_store.update_state(job, lease)
+
+        return lease
 
     # ---------- Complete ----------
     async def complete(self, lease_id: str, worker_id: str, status: str) -> None:
+        expired: List[tuple[Lease, Job | None]] = []
+        lease: Lease | None = None
+        job: Job | None = None
         async with self.store.lock:
-            self._expire_leases_locked()
+            expired = self._expire_leases_locked()
 
             lease = self.store.leases.get(lease_id)
             if not lease:
@@ -356,10 +395,17 @@ class SchedulerEngine:
 
             self.store.leases.pop(lease_id, None)
 
+        if self.history_store:
+            if expired:
+                await self.history_store.record_expired(expired)
+            if lease and job:
+                await self.history_store.update_state(job, lease, finished_at=utcnow())
+
     # ---------- Expiry loop ----------
-    def _expire_leases_locked(self) -> int:
+    def _expire_leases_locked(self) -> List[tuple[Lease, Job | None]]:
         now = utcnow()
         expired_ids = [lid for lid, l in self.store.leases.items() if l.expires_at <= now]
+        expired: List[tuple[Lease, Job | None]] = []
         for lid in expired_ids:
             lease = self.store.leases.pop(lid, None)
             if not lease:
@@ -369,8 +415,13 @@ class SchedulerEngine:
                 job.state = JobState.expired
                 job.updated_at = now
                 job.lease_id = None
-        return len(expired_ids)
+            expired.append((lease, job))
+        return expired
 
     async def expire_tick(self) -> int:
+        expired: List[tuple[Lease, Job | None]] = []
         async with self.store.lock:
-            return self._expire_leases_locked()
+            expired = self._expire_leases_locked()
+        if self.history_store and expired:
+            await self.history_store.record_expired(expired)
+        return len(expired)

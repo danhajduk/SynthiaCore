@@ -2,6 +2,7 @@ import type { RouteObject } from "react-router-dom";
 import Home from "../pages/Home";
 import Addons from "../pages/Addons";
 import Settings from "../pages/Settings";
+import SettingsStatistics from "../pages/SettingsStatistics";
 import { getAddonRoutes } from "./loadAddons";
 
 export function buildRoutes(): RouteObject[] {
@@ -11,6 +12,7 @@ export function buildRoutes(): RouteObject[] {
     { path: "/", element: <Home /> },
     { path: "/addons", element: <Addons /> },
     { path: "/settings", element: <Settings /> },
+    { path: "/settings/statistics", element: <SettingsStatistics /> },
     ...addonRoutes,
     { path: "*", element: <div>404</div> },
   ];

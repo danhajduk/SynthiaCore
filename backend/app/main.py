@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+from datetime import timedelta
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +26,7 @@ from .system.stats.router import router as stats_router
 # NEW: scheduler components
 from app.system.scheduler.store import SchedulerStore
 from app.system.scheduler.engine import SchedulerEngine
+from app.system.scheduler.history import SchedulerHistoryStore
 from app.system.scheduler import build_scheduler_router
 
 setup_logging()
@@ -53,6 +56,18 @@ def create_app() -> FastAPI:
         asyncio.create_task(api_metrics_sampler_loop(app, window_s=60, top_n=10))
         asyncio.create_task(stats_minute_writer_loop(app))
 
+        async def history_cleanup_loop() -> None:
+            while True:
+                try:
+                    history_store = getattr(app.state, "scheduler_history", None)
+                    if history_store:
+                        await history_store.cleanup(days=30)
+                except Exception:
+                    pass
+                await asyncio.sleep(timedelta(days=1).total_seconds())
+
+        asyncio.create_task(history_cleanup_loop())
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -74,6 +89,11 @@ def create_app() -> FastAPI:
     # Scheduler (NEW wiring)
     # --------------------
     store = SchedulerStore()
+    history_db = os.getenv(
+        "SCHEDULER_HISTORY_DB",
+        os.path.join(os.getcwd(), "var", "scheduler_history.db"),
+    )
+    history_store = SchedulerHistoryStore(history_db)
 
     def metrics_provider():
         # SchedulerEngine will handle None/staleness conservatively.
@@ -82,11 +102,16 @@ def create_app() -> FastAPI:
             getattr(app.state, "latest_api_metrics", None),
         )
 
-    engine = SchedulerEngine(store=store, metrics_provider=metrics_provider)
+    engine = SchedulerEngine(
+        store=store,
+        metrics_provider=metrics_provider,
+        history_store=history_store,
+    )
 
     # make available to the rest of the app (debugging / future hooks)
     app.state.scheduler_store = store
     app.state.scheduler_engine = engine
+    app.state.scheduler_history = history_store
 
     scheduler_router = build_scheduler_router(engine)
     app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])

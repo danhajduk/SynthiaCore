@@ -156,4 +156,30 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             "sample": sample,
         }
 
+    @router.get("/history/stats")
+    async def history_stats(days: int = 30):
+        history = engine.history_store
+        if not history:
+            return {"ok": False, "error": "history_disabled"}
+        stats = await history.stats(days=days)
+        return {
+            "ok": True,
+            "range": {
+                "from": stats.range_start.isoformat(),
+                "to": stats.range_end.isoformat(),
+                "days": int(days),
+            },
+            "total": stats.total,
+            "totals_by_state": stats.totals_by_state,
+            "addons": stats.addons,
+        }
+
+    @router.post("/history/cleanup")
+    async def history_cleanup(days: int = 30):
+        history = engine.history_store
+        if not history:
+            return {"ok": False, "error": "history_disabled"}
+        deleted = await history.cleanup(days=days)
+        return {"ok": True, "deleted": deleted, "days": int(days)}
+
     return router
