@@ -45,6 +45,7 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     async def start_background_tasks():
+        log.info("Starting background tasks for stats sampling and API metrics")
         app.state.latest_stats = None
         app.state.latest_api_metrics = None
 
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])
 
     # Addons
+    log.info("Building addon registry and registering addons")
     registry = build_registry()
     register_addons(app, registry)
 

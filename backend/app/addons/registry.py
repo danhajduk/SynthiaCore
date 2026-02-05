@@ -17,9 +17,11 @@ class AddonRegistry:
     errors: Dict[str, str]
 
 def build_registry() -> AddonRegistry:
+    log.info("Discovering backend addons")
     discovered = discover_backend_addons()
     addons: Dict[str, BackendAddon] = {}
     errors: Dict[str, str] = {}
+    log.info("Discovered %d backend addons", len(discovered))
 
     for d in discovered:
         if d.addon is not None:
