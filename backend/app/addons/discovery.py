@@ -6,8 +6,10 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+import logging
 
 from .models import BackendAddon, AddonMeta
+log = logging.getLogger("synthia.addons")
 
 @dataclass
 class DiscoveredAddon:
@@ -24,6 +26,7 @@ def addons_dir() -> Path:
     return repo_root() / "addons"
 
 def discover_backend_addons() -> list[DiscoveredAddon]:
+    log.info("Looking for backend addons in %s", addons_dir())
     base = addons_dir()
     if not base.exists():
         return []
