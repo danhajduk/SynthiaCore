@@ -19,9 +19,24 @@ export default function Sidebar() {
   const [backendAddons, setBackendAddons] = useState<AddonInfo[]>([]);
 
   useEffect(() => {
-    apiGet<AddonInfo[]>("/api/addons")
-      .then(setBackendAddons)
-      .catch(() => setBackendAddons([]));
+    let alive = true;
+
+    const load = () => {
+      apiGet<AddonInfo[]>("/api/addons")
+        .then((data) => {
+          if (alive) setBackendAddons(data);
+        })
+        .catch(() => {
+          if (alive) setBackendAddons([]);
+        });
+    };
+
+    load();
+    const id = setInterval(load, 5000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
   }, []);
 
   const backendMap = new Map(backendAddons.map((a) => [a.id, a]));
