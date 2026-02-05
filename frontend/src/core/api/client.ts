@@ -1,4 +1,5 @@
-export const API_BASE = "http://localhost:9001";
+const envBase = (import.meta as any).env?.VITE_API_BASE as string | undefined;
+export const API_BASE = envBase && envBase.length > 0 ? envBase : "";
 
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
