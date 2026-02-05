@@ -11,6 +11,7 @@ type SchedulerJob = {
   type: string;
   priority: JobPriority;
   requested_units: number;
+  unique?: boolean;
   state: JobState;
   payload: Record<string, unknown>;
   idempotency_key?: string | null;
@@ -231,6 +232,7 @@ export default function Settings() {
                           <div className="settings-job-meta">
                             <span>prio {entry.job.priority}</span>
                             <span>units {entry.job.requested_units}</span>
+                            <span>{entry.job.unique ? "unique" : "shared"}</span>
                             <span>{entry.in_queue ? "queued" : "not queued"}</span>
                           </div>
                           <div className="settings-job-meta">
@@ -260,6 +262,7 @@ export default function Settings() {
                           <div className="settings-job-meta">
                             <span>prio {entry.job.priority}</span>
                             <span>units {entry.job.requested_units}</span>
+                            <span>{entry.job.unique ? "unique" : "shared"}</span>
                             <span>{entry.in_queue ? "queued" : "not queued"}</span>
                           </div>
                           <div className="settings-job-meta">
