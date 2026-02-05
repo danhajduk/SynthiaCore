@@ -59,6 +59,7 @@ export default function Settings() {
   const showDevTools = import.meta.env.DEV;
   const [jobsData, setJobsData] = useState<JobsResponse | null>(null);
   const [jobsErr, setJobsErr] = useState<string | null>(null);
+  const [showStats, setShowStats] = useState(true);
   const [showJobs, setShowJobs] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [stateFilter, setStateFilter] = useState<JobState | "all">("all");
@@ -107,7 +108,16 @@ export default function Settings() {
         Live system and API health metrics.
       </p>
 
-      <SystemStatsWidget />
+      <div className="settings-row">
+        <div />
+        <div className="settings-row-actions">
+          <button className="settings-btn" onClick={() => setShowStats(v => !v)}>
+            {showStats ? "Hide statistics" : "Show statistics"}
+          </button>
+        </div>
+      </div>
+
+      {showStats && <SystemStatsWidget />}
 
       <hr className="settings-hr" />
 
