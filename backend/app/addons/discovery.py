@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,11 +31,23 @@ def discover_backend_addons() -> list[DiscoveredAddon]:
     results: list[DiscoveredAddon] = []
     for addon_folder in sorted([p for p in base.iterdir() if p.is_dir()]):
         addon_id = addon_folder.name
+        manifest_path = addon_folder / "manifest.json"
         entry = addon_folder / "backend" / "addon.py"
         if not entry.exists():
             continue
 
         try:
+            if not manifest_path.exists():
+                raise RuntimeError(f"Missing manifest.json for addon '{addon_id}'")
+
+            manifest_data = json.loads(manifest_path.read_text())
+            manifest_meta = AddonMeta.model_validate(manifest_data)
+
+            if manifest_meta.id != addon_id:
+                raise RuntimeError(
+                    f"manifest.json id='{manifest_meta.id}' does not match folder name '{addon_id}'"
+                )
+
             module_name = f"synthia_addons.{addon_id}"
             spec = importlib.util.spec_from_file_location(module_name, entry)
             if spec is None or spec.loader is None:
@@ -50,9 +63,12 @@ def discover_backend_addons() -> list[DiscoveredAddon]:
             # Accept either BackendAddon instance or dict-like and validate via Pydantic
             addon = raw if isinstance(raw, BackendAddon) else BackendAddon.model_validate(raw)
 
-            # Validate ID match
-            if addon.meta.id != addon_id:
-                raise RuntimeError(f"addon.meta.id='{addon.meta.id}' does not match folder name '{addon_id}'")
+            # Prefer manifest metadata as source of truth
+            if addon.meta.id != manifest_meta.id:
+                raise RuntimeError(
+                    f"addon.meta.id='{addon.meta.id}' does not match manifest id '{manifest_meta.id}'"
+                )
+            addon = BackendAddon(meta=manifest_meta, router=addon.router)
 
             results.append(DiscoveredAddon(addon_id=addon_id, module_path=entry, addon=addon, error=None))
 
