@@ -52,10 +52,6 @@ fi
 echo "[update] configure frontend API target"
 "$REPO_DIR/scripts/configure-frontend-api.sh"
 
-echo "[update] restart services"
-systemctl --user restart synthia-backend.service
-systemctl --user restart synthia-frontend-dev.service
-
 if [[ "$SERVICE_UPDATE" == "true" ]]; then
   echo "[update] reinstalling systemd user units"
   UNIT_SRC_DIR="$REPO_DIR/systemd/user"
@@ -80,5 +76,10 @@ if [[ "$SERVICE_UPDATE" == "true" ]]; then
   systemctl --user restart synthia-backend.service
   systemctl --user restart synthia-frontend-dev.service
 fi
+
+echo "[update] restart services"
+systemctl --user restart synthia-backend.service
+systemctl --user restart synthia-frontend-dev.service
+
 
 echo "=== [update] $(date -Is) finished ==="
