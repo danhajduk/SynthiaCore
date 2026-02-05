@@ -5,6 +5,7 @@ After=network.target
 [Service]
 Type=oneshot
 WorkingDirectory=@INSTALL_DIR@
+EnvironmentFile=-@INSTALL_DIR@/scripts/synthia.env
 ExecStart=@INSTALL_DIR@/scripts/update.sh
 Environment=LOG_FILE=/tmp/synthia_update.log
 

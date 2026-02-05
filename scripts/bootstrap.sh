@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$REPO_DIR/scripts/synthia.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$ENV_FILE"
+  set +a
+fi
+
 REPO_URL_DEFAULT="https://github.com/danhajduk/SynthiaCore.git"
 REPO_URL="${REPO_URL:-$REPO_URL_DEFAULT}"
 

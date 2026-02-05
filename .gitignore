@@ -18,3 +18,4 @@ frontend/src/addons/*
 
 .env.development
 .env.local
+logs/

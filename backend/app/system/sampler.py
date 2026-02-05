@@ -12,7 +12,7 @@ from app.system.stats_store import StatsStore
 from app.system.stats.service import collect_system_stats
 from app.system.busy_rating import compute_busy_rating
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("synthia.system")
 store = StatsStore()
 
 

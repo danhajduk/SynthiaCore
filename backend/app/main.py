@@ -1,12 +1,13 @@
 # /backend/app/main.py
 from __future__ import annotations
 
-import logging
 import asyncio
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .core.logging import setup_logging
 from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
 from .api.system import build_system_router
@@ -25,11 +26,13 @@ from app.system.scheduler.store import SchedulerStore
 from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler import build_scheduler_router
 
-logging.basicConfig(level=logging.INFO)
+setup_logging()
+log = logging.getLogger("synthia.core")
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Synthia Core", version="0.1.0")
+    log.info("Starting Synthia Core")
 
     api_metrics = ApiMetricsCollector()
     app.state.api_metrics = api_metrics

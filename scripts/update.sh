@@ -2,6 +2,14 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$REPO_DIR/scripts/synthia.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$ENV_FILE"
+  set +a
+fi
+
 LOG_FILE="${LOG_FILE:-/tmp/synthia_update.log}"
 SERVICE_UPDATE=false
 
