@@ -53,6 +53,12 @@
   max-width: 520px;
 }
 
+.hw-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .hw-label {
   display: grid;
   gap: 6px;

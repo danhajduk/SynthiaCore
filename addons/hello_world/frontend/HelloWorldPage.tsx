@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./style.css";
 
 type EnqueueResult = { ok: boolean; job_id?: string; state?: string; error?: string };
@@ -21,7 +21,23 @@ export default function HelloWorldPage() {
   const [burstSeconds, setBurstSeconds] = useState(1.0);
   const [burstUnits, setBurstUnits] = useState(5);
 
+  const [acquireWorkerId, setAcquireWorkerId] = useState("hello-world-ui");
+  const [acquireMaxUnits, setAcquireMaxUnits] = useState("");
+  const [acquireIntervalMs, setAcquireIntervalMs] = useState(1500);
+  const [acquireResult, setAcquireResult] = useState<any>(null);
+  const [acquiring, setAcquiring] = useState(false);
+  const acquireTimerRef = useRef<number | null>(null);
+
   const canSubmit = useMemo(() => requestedUnits >= 1, [requestedUnits]);
+
+  useEffect(() => {
+    return () => {
+      if (acquireTimerRef.current !== null) {
+        window.clearInterval(acquireTimerRef.current);
+        acquireTimerRef.current = null;
+      }
+    };
+  }, []);
 
   async function fetchStatus() {
     setErr(null);
@@ -73,6 +89,49 @@ export default function HelloWorldPage() {
       setBurstResult(await res.json());
     } catch (e: any) {
       setErr(String(e));
+    }
+  }
+
+  async function requestLease() {
+    setErr(null);
+    setAcquireResult(null);
+    try {
+      const body: { worker_id: string; max_units?: number } = {
+        worker_id: acquireWorkerId || "hello-world-ui",
+      };
+      const parsedUnits = Number(acquireMaxUnits);
+      if (!Number.isNaN(parsedUnits) && parsedUnits > 0) {
+        body.max_units = parsedUnits;
+      }
+      const res = await fetch("/api/system/scheduler/leases/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setAcquireResult(await res.json());
+    } catch (e: any) {
+      setErr(String(e));
+    }
+  }
+
+  function startAcquiring() {
+    if (acquiring) return;
+    setAcquiring(true);
+    requestLease();
+    if (acquireTimerRef.current !== null) {
+      window.clearInterval(acquireTimerRef.current);
+    }
+    acquireTimerRef.current = window.setInterval(() => {
+      requestLease();
+    }, Math.max(500, Number(acquireIntervalMs) || 1500));
+  }
+
+  function stopAcquiring() {
+    setAcquiring(false);
+    if (acquireTimerRef.current !== null) {
+      window.clearInterval(acquireTimerRef.current);
+      acquireTimerRef.current = null;
     }
   }
 
@@ -208,6 +267,68 @@ export default function HelloWorldPage() {
           {burstResult && (
             <pre className="hw-pre-tight">
               {JSON.stringify(burstResult, null, 2)}
+            </pre>
+          )}
+        </div>
+      </section>
+
+      <section className="hw-card">
+        <div className="hw-card-title">Acquire Jobs (Scheduler)</div>
+        <div className="hw-form">
+          <label className="hw-label">
+            <div className="hw-label-text">Worker id</div>
+            <input
+              value={acquireWorkerId}
+              onChange={(e) => setAcquireWorkerId(e.target.value)}
+              className="hw-input"
+            />
+          </label>
+          <label className="hw-label">
+            <div className="hw-label-text">Max units (optional)</div>
+            <input
+              type="number"
+              min={1}
+              value={acquireMaxUnits}
+              onChange={(e) => setAcquireMaxUnits(e.target.value)}
+              className="hw-input"
+            />
+          </label>
+          <label className="hw-label">
+            <div className="hw-label-text">Acquire interval (ms)</div>
+            <input
+              type="number"
+              min={500}
+              step={100}
+              value={acquireIntervalMs}
+              onChange={(e) => setAcquireIntervalMs(Number(e.target.value))}
+              className="hw-input"
+            />
+          </label>
+          <div className="hw-actions">
+            <button
+              onClick={startAcquiring}
+              disabled={acquiring}
+              className="hw-btn"
+            >
+              Start acquiring
+            </button>
+            <button
+              onClick={stopAcquiring}
+              disabled={!acquiring}
+              className="hw-btn"
+            >
+              Stop
+            </button>
+            <button
+              onClick={requestLease}
+              className="hw-btn"
+            >
+              Acquire once
+            </button>
+          </div>
+          {acquireResult && (
+            <pre className="hw-pre-tight">
+              {JSON.stringify(acquireResult, null, 2)}
             </pre>
           )}
         </div>

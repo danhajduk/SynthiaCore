@@ -28,12 +28,20 @@
 
 .addon-card {
   padding: 12px;
-  max-width: 30%;
+  width: 50%;
+  max-width: 50%;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   display: grid;
   gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .addon-card {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .addon-card-header {
