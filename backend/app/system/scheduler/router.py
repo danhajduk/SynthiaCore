@@ -93,6 +93,47 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
         data["debug_leases_len"] = len(engine.store.leases)
         return JSONResponse(data)
 
+    @router.get("/jobs")
+    async def jobs(limit: int = 200, state: JobState | None = None):
+        limit = max(1, min(1000, int(limit)))
+        now = engine.utcnow()
+
+        async with engine.store.lock:
+            jobs_list = list(engine.store.jobs.values())
+            if state is not None:
+                jobs_list = [job for job in jobs_list if job.state == state]
+
+            jobs_list.sort(key=lambda job: job.updated_at, reverse=True)
+
+            lease_by_job = {lease.job_id: lease for lease in engine.store.leases.values()}
+            jobs_payload = []
+            for job in jobs_list[:limit]:
+                lease = lease_by_job.get(job.job_id)
+                jobs_payload.append({
+                    "job": job.model_dump(mode="json"),
+                    "lease": lease.model_dump(mode="json") if lease else None,
+                    "in_queue": job.job_id in engine.store.queued_ids,
+                    "age_s": (now - job.created_at).total_seconds(),
+                    "since_update_s": (now - job.updated_at).total_seconds(),
+                })
+
+            store_id = hex(id(engine.store))
+            jobs_len = len(engine.store.jobs)
+            leases_len = len(engine.store.leases)
+            queue_depths = engine.store.queue_depths()
+
+        snap = await engine.snapshot()
+
+        return {
+            "now": now.isoformat(),
+            "store_id": store_id,
+            "jobs_len": jobs_len,
+            "leases_len": leases_len,
+            "queue_depths": queue_depths,
+            "snapshot": snap.model_dump(mode="json"),
+            "jobs": jobs_payload,
+        }
+
     @router.get("/debug/queue")
     async def debug_queue(n: int = 20):
         n = max(1, min(200, int(n)))
