@@ -203,30 +203,75 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div className="settings-jobs-grid">
-                {jobsData.jobs.map((entry) => (
-                  <button
-                    key={entry.job.job_id}
-                    className={`settings-job-card ${selectedJobId === entry.job.job_id ? "is-selected" : ""}`}
-                    onClick={() => setSelectedJobId(entry.job.job_id)}
-                  >
-                    <div className="settings-job-row">
-                      <div className="settings-job-id">{entry.job.job_id}</div>
-                      <span className={`settings-state settings-state-${entry.job.state}`}>{entry.job.state}</span>
+              {(() => {
+                const topJobs = jobsData.jobs.filter((entry) =>
+                  entry.job.state === "queued" || entry.job.state === "leased"
+                );
+                const bottomJobs = jobsData.jobs.filter((entry) =>
+                  entry.job.state === "completed" || entry.job.state === "failed"
+                );
+                return (
+                  <>
+                    <div className="settings-row">
+                      <h3>Queue / Leased</h3>
+                      <div className="settings-muted">{topJobs.length} jobs</div>
                     </div>
-                    <div className="settings-job-sub">{entry.job.type}</div>
-                    <div className="settings-job-meta">
-                      <span>prio {entry.job.priority}</span>
-                      <span>units {entry.job.requested_units}</span>
-                      <span>{entry.in_queue ? "queued" : "not queued"}</span>
+                    <div className="settings-jobs-grid">
+                      {topJobs.map((entry) => (
+                        <button
+                          key={entry.job.job_id}
+                          className={`settings-job-card ${selectedJobId === entry.job.job_id ? "is-selected" : ""}`}
+                          onClick={() => setSelectedJobId(entry.job.job_id)}
+                        >
+                          <div className="settings-job-row">
+                            <div className="settings-job-id">{entry.job.job_id}</div>
+                            <span className={`settings-state settings-state-${entry.job.state}`}>{entry.job.state}</span>
+                          </div>
+                          <div className="settings-job-sub">{entry.job.type}</div>
+                          <div className="settings-job-meta">
+                            <span>prio {entry.job.priority}</span>
+                            <span>units {entry.job.requested_units}</span>
+                            <span>{entry.in_queue ? "queued" : "not queued"}</span>
+                          </div>
+                          <div className="settings-job-meta">
+                            <span>age {Math.round(entry.age_s)}s</span>
+                            <span>updated {Math.round(entry.since_update_s)}s ago</span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                    <div className="settings-job-meta">
-                      <span>age {Math.round(entry.age_s)}s</span>
-                      <span>updated {Math.round(entry.since_update_s)}s ago</span>
+
+                    <div className="settings-row">
+                      <h3>Completed / Failed</h3>
+                      <div className="settings-muted">{bottomJobs.length} jobs</div>
                     </div>
-                  </button>
-                ))}
-              </div>
+                    <div className="settings-jobs-grid">
+                      {bottomJobs.map((entry) => (
+                        <button
+                          key={entry.job.job_id}
+                          className={`settings-job-card ${selectedJobId === entry.job.job_id ? "is-selected" : ""}`}
+                          onClick={() => setSelectedJobId(entry.job.job_id)}
+                        >
+                          <div className="settings-job-row">
+                            <div className="settings-job-id">{entry.job.job_id}</div>
+                            <span className={`settings-state settings-state-${entry.job.state}`}>{entry.job.state}</span>
+                          </div>
+                          <div className="settings-job-sub">{entry.job.type}</div>
+                          <div className="settings-job-meta">
+                            <span>prio {entry.job.priority}</span>
+                            <span>units {entry.job.requested_units}</span>
+                            <span>{entry.in_queue ? "queued" : "not queued"}</span>
+                          </div>
+                          <div className="settings-job-meta">
+                            <span>age {Math.round(entry.age_s)}s</span>
+                            <span>updated {Math.round(entry.since_update_s)}s ago</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
 
               <div className="settings-job-detail">
                 <div className="settings-job-detail-header">
