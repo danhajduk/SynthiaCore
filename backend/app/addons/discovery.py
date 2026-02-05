@@ -19,8 +19,8 @@ class DiscoveredAddon:
     error: str | None
 
 def repo_root() -> Path:
-    # backend/app/addons/discovery.py -> parents: addons(1), app(2), backend(3), repo(4)
-    return Path(__file__).resolve().parents[4]
+    # backend/app/addons/discovery.py -> parents: addons(0), app(1), backend(2), repo(3)
+    return Path(__file__).resolve().parents[3]
 
 def addons_dir() -> Path:
     return repo_root() / "addons"
