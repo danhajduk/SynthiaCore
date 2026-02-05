@@ -14,6 +14,7 @@ export default function HelloWorldPage() {
   const [jobType, setJobType] = useState("helloworld.sleep");
   const [priority, setPriority] = useState("normal");
   const [requestedUnits, setRequestedUnits] = useState(5);
+  const [uniqueJob, setUniqueJob] = useState(false);
   const [payload, setPayload] = useState(defaultPayload);
   const [idempotencyKey, setIdempotencyKey] = useState("");
 
@@ -71,6 +72,7 @@ export default function HelloWorldPage() {
         job_type: jobType,
         priority,
         requested_units: requestedUnits,
+        unique: uniqueJob,
         payload: payload ? JSON.parse(payload) : {},
         idempotency_key: idempotencyKey || null,
       };
@@ -235,6 +237,14 @@ export default function HelloWorldPage() {
               onChange={(e) => setRequestedUnits(Number(e.target.value))}
               className="hw-input"
             />
+          </label>
+          <label className="hw-checkbox">
+            <input
+              type="checkbox"
+              checked={uniqueJob}
+              onChange={(e) => setUniqueJob(e.target.checked)}
+            />
+            <span>Unique job (one lease per worker)</span>
           </label>
           <label className="hw-label">
             <div className="hw-label-text">Payload (JSON)</div>
