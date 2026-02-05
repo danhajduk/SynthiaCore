@@ -1,5 +1,13 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { getNavItems } from "../router/loadAddons";
+import { apiGet } from "../api/client";
+import { loadAddons } from "../router/loadAddons";
+
+type AddonInfo = {
+  id: string;
+  enabled?: boolean;
+  show_sidebar?: boolean;
+};
 
 const coreItems = [
   { label: "Home", path: "/" },
@@ -8,7 +16,24 @@ const coreItems = [
 ];
 
 export default function Sidebar() {
-  const addonItems = getNavItems();
+  const [backendAddons, setBackendAddons] = useState<AddonInfo[]>([]);
+
+  useEffect(() => {
+    apiGet<AddonInfo[]>("/api/addons")
+      .then(setBackendAddons)
+      .catch(() => setBackendAddons([]));
+  }, []);
+
+  const backendMap = new Map(backendAddons.map((a) => [a.id, a]));
+  const addonItems = loadAddons()
+    .filter((mod) => {
+      const meta = backendMap.get(mod.meta.id);
+      if (!meta) return false;
+      if (meta.enabled === false) return false;
+      if (meta.show_sidebar === false) return false;
+      return true;
+    })
+    .map((mod) => mod.navItem);
 
   const items = [...coreItems, ...addonItems];
 

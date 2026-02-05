@@ -9,6 +9,7 @@ class AddonMeta(BaseModel):
     name: str
     version: str
     description: str = ""
+    show_sidebar: bool = True
 
 
 class BackendAddon(BaseModel):

@@ -3,6 +3,7 @@
   "name": "Hello World",
   "version": "0.1.0",
   "description": "Example addon used to validate the addon system.",
+  "show_sidebar": true,
   "backend": "./backend",
   "frontend": "./frontend"
 }
