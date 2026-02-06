@@ -39,13 +39,13 @@ class StartWorkerRequest(BaseModel):
 StartWorkerRequest.model_rebuild()
 
 
-@dataclass
 class WorkerState:
-    running: bool = False
-    worker_id: str = "hello-world-worker"
-    max_units: Optional[int] = None
-    heartbeat_interval_s: float = 5.0
-    task: asyncio.Task | None = None
+    def __init__(self) -> None:
+        self.running: bool = False
+        self.worker_id: str = "hello-world-worker"
+        self.max_units: Optional[int] = None
+        self.heartbeat_interval_s: float = 5.0
+        self.task: asyncio.Task | None = None
 
 
 async def _heartbeat_loop(engine: SchedulerEngine, lease_id: str, worker_id: str, interval_s: float) -> None:
