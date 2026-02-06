@@ -81,7 +81,9 @@ async def _run_worker(engine: SchedulerEngine, state: WorkerState) -> None:
             if job.type not in ("helloworld.cpu", "cpu"):
                 payload = job.payload or {}
                 units = max(1, int(getattr(job, "requested_units", 1) or 1))
-                cpu_seconds = float(payload.get("cpu_seconds", units * 0.2))
+                job_seconds = float(payload.get("seconds", 1.0))
+                target_util = min(1.0, units / 25.0)  # 10 units -> 0.4 core (10% on 4 cores)
+                cpu_seconds = float(payload.get("cpu_seconds", job_seconds * target_util))
                 if cpu_seconds > 0:
                     await handler_cpu({"seconds": cpu_seconds})
             t0 = time.time()
