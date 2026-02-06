@@ -1,7 +1,10 @@
 # backend/app/system/stats/models.py
 from __future__ import annotations
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
-from typing import Dict, List, Optional
 
 
 class LoadAvg(BaseModel):
@@ -74,3 +77,38 @@ class NetStats(BaseModel):
     # Optional because first call has no baseline (or if clocks go weird)
     total_rate: Optional[NetIfaceRates] = None
     per_iface_rate: Optional[Dict[str, NetIfaceRates]] = None
+
+
+# ---- Snapshot + Quiet Assessment Models (MVP) ----
+
+class QuietState(str, Enum):
+    QUIET = "QUIET"
+    NORMAL = "NORMAL"
+    BUSY = "BUSY"
+    PANIC = "PANIC"
+
+
+class QuietAssessment(BaseModel):
+    quiet_score: int = Field(ge=0, le=100)
+    state: QuietState
+    reasons: List[str] = Field(default_factory=list)
+    inputs: Dict[str, Any] = Field(default_factory=dict)
+
+
+class AddonStatsSnapshot(BaseModel):
+    lifecycle_state: Optional[str] = None
+    health_status: Optional[str] = None
+    health_last_checked: Optional[datetime] = None
+    health_last_ok: Optional[datetime] = None
+    runtime_dir_bytes: Optional[int] = None
+    custom: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SystemStatsSnapshot(BaseModel):
+    collected_at: datetime
+    host: Dict[str, Any] = Field(default_factory=dict)
+    process: Dict[str, Any] = Field(default_factory=dict)
+    api: Dict[str, Any] = Field(default_factory=dict)
+    addons: Dict[str, AddonStatsSnapshot] = Field(default_factory=dict)
+    quiet: Optional[QuietAssessment] = None
+    errors: Dict[str, Any] = Field(default_factory=dict)

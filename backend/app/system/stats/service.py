@@ -4,11 +4,19 @@ from __future__ import annotations
 import os
 import socket
 import time
-from typing import Dict, Optional, Tuple
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 import psutil
 
+from app.addons.discovery import repo_root
+from app.addons.registry import AddonRegistry
+from app.system.api_metrics import ApiMetricsCollector
+from app.system.busy_rating import compute_busy_rating
 from .models import (
+    AddonStatsSnapshot,
+    SystemStatsSnapshot,
     SystemStats,
     LoadAvg,
     CpuStats,
@@ -19,8 +27,6 @@ from .models import (
     NetIfaceCounters,
     NetIfaceRates,
 )
-from app.system.api_metrics import ApiMetricsCollector
-from app.system.busy_rating import compute_busy_rating
 
 
 
@@ -118,6 +124,106 @@ def collect_system_stats(api_metrics: Optional[ApiMetricsCollector] = None) -> S
         net=net,
         api=api,
         busy_rating=round(busy_rating, 2),
+    )
+
+
+def collect_process_stats() -> Dict[str, Any]:
+    proc = psutil.Process()
+    rss = None
+    cpu_pct = None
+    fds = None
+    threads = None
+    try:
+        rss = proc.memory_info().rss
+    except Exception:
+        pass
+    try:
+        cpu_pct = proc.cpu_percent(interval=None)
+    except Exception:
+        pass
+    try:
+        fds = proc.num_fds()  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    try:
+        threads = proc.num_threads()
+    except Exception:
+        pass
+    return {
+        "rss_bytes": rss,
+        "cpu_percent": cpu_pct,
+        "open_fds": fds,
+        "threads": threads,
+    }
+
+
+def _runtime_dir_size_bytes(path: Path, max_files: int = 5000) -> Optional[int]:
+    if not path.exists():
+        return 0
+    total = 0
+    seen = 0
+    try:
+        for root, _dirs, files in os.walk(path):
+            for name in files:
+                seen += 1
+                if seen > max_files:
+                    return total
+                fp = os.path.join(root, name)
+                try:
+                    total += os.path.getsize(fp)
+                except OSError:
+                    continue
+    except Exception:
+        return None
+    return total
+
+
+def collect_addon_stats(registry: Optional[AddonRegistry]) -> Dict[str, AddonStatsSnapshot]:
+    if registry is None:
+        return {}
+    addon_ids = set(registry.addons.keys()) | set(registry.errors.keys())
+    out: Dict[str, AddonStatsSnapshot] = {}
+    runtime_root = repo_root() / "data" / "addons"
+    for addon_id in sorted(addon_ids):
+        if addon_id in registry.errors:
+            lifecycle = "error"
+        elif not registry.is_enabled(addon_id):
+            lifecycle = "disabled"
+        else:
+            lifecycle = "loaded"
+
+        runtime_dir = runtime_root / addon_id / "runtime"
+        runtime_bytes = _runtime_dir_size_bytes(runtime_dir)
+
+        out[addon_id] = AddonStatsSnapshot(
+            lifecycle_state=lifecycle,
+            runtime_dir_bytes=runtime_bytes,
+        )
+    return out
+
+
+def collect_system_snapshot(
+    api_metrics: Optional[ApiMetricsCollector] = None,
+    api_snapshot: Optional[Dict[str, Any]] = None,
+    registry: Optional[AddonRegistry] = None,
+) -> SystemStatsSnapshot:
+    sys_snap = collect_system_stats(api_metrics=None)
+    host = sys_snap.model_dump(exclude={"api", "busy_rating", "timestamp"})
+    if api_snapshot is not None:
+        api = api_snapshot
+    else:
+        api = api_metrics.snapshot(window_s=60, top_n=10) if api_metrics else {}
+    process = collect_process_stats()
+    addons = collect_addon_stats(registry)
+
+    return SystemStatsSnapshot(
+        collected_at=datetime.now(timezone.utc),
+        host=host,
+        process=process,
+        api=api,
+        addons=addons,
+        quiet=None,
+        errors={},
     )
 
 

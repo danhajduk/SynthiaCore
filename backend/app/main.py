@@ -54,6 +54,7 @@ def create_app() -> FastAPI:
         log.info("Starting background tasks for stats sampling and API metrics")
         app.state.latest_stats = None
         app.state.latest_api_metrics = None
+        app.state.latest_system_snapshot = None
 
         asyncio.create_task(stats_fast_sampler_loop(app, interval_s=5.0))
         asyncio.create_task(api_metrics_sampler_loop(app, window_s=60, top_n=10))
@@ -131,6 +132,7 @@ def create_app() -> FastAPI:
     # Addons
     log.info("Building addon registry and registering addons")
     registry = build_registry()
+    app.state.addon_registry = registry
     register_addons(app, registry)
 
     # System API using the registry

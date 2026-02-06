@@ -55,3 +55,10 @@ class StatsStore:
         )
         val = cur.fetchone()[0]
         return float(val) if val is not None else 0.0
+
+    def range_points(self, start_ts: float, end_ts: float) -> List[Tuple[float, float]]:
+        cur = self.conn.execute(
+            "SELECT ts, busy FROM stats_minute WHERE ts >= ? AND ts <= ? ORDER BY ts ASC",
+            (start_ts, end_ts),
+        )
+        return cur.fetchall()

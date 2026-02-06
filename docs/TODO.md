@@ -1,6 +1,44 @@
 # Docs TODO Summary
 
 **Completed**
+- `GAME_PLAN.md`: Define core models for stats and quiet assessment.
+- `GAME_PLAN.md`: Implement collectors: host, process, addon, and API middleware stats.
+- `GAME_PLAN.md`: Build in-memory stats snapshot and `/api/system-stats/current`.
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define `SystemStatsSnapshot` Pydantic model:
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `collected_at`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `host` (cpu/mem/disk/net/uptime)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `process` (rss/cpu/fds/threads)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `api` (rps/error_rate/p95_latency) — may be partial in MVP
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `addons` dict keyed by addon_id
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `quiet` (quiet_score + state + reasons)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `errors` (collector errors, optional debug section)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define addon stats model `AddonStatsSnapshot`:
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: lifecycle/runtime state (installed/enabled/loaded/error if available)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: health status + last_checked + last_ok
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: runtime dir size
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional `custom` dict (reserved for addon-provided stats)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define quiet states: `QUIET`, `NORMAL`, `BUSY`, `PANIC`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define `QuietAssessment` model:
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `quiet_score` (0–100)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `state`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `reasons` list (human readable)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `inputs` summary (cpu_avg_2m, mem_pct, rps, p95, disk_free_pct, etc.)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: CPU: total % + load avg (if available)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Memory: used/free %, swap usage
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Disk: usage per mount (at least `/` and project `data/`)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Network: bytes in/out per interface (optional MVP)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Uptime / boot time
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: RSS memory
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Process CPU %
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Threads
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Open file descriptors (if supported)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: installed/enabled/loaded/runtime state
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: per addon: `data/addons/<id>/runtime` (or actual runtime root)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement middleware to record:
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: request count
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: error count
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: latency histogram or rolling p95 approximation
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Expose as in-memory stats for snapshot
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Cooperative scheduling with a **lease** model:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: addons request a lease, must heartbeat, then release
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: leases expire if heartbeat stops (TTL)
@@ -44,47 +82,29 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `POST /api/scheduler/lease/{lease_id}/release`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/scheduler/status` (active + recent leases, quiet info)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Track lease lifecycle in-memory (active + recent)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/current`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/history?group=quiet&range=1h&step=10s`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define models for snapshot + quiet assessment
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Build collectors (host/process/addon)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add API middleware stats
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement in-memory snapshot + `/current`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement SQLite sample storage + `/history`
 
 **Needs Doing**
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define `SystemStatsSnapshot` Pydantic model:
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `collected_at`
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `host` (cpu/mem/disk/net/uptime)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `process` (rss/cpu/fds/threads)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `api` (rps/error_rate/p95_latency) — may be partial in MVP
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `addons` dict keyed by addon_id
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `quiet` (quiet_score + state + reasons)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `errors` (collector errors, optional debug section)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define addon stats model `AddonStatsSnapshot`:
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: lifecycle/runtime state (installed/enabled/loaded/error if available)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: health status + last_checked + last_ok
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: runtime dir size
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional `custom` dict (reserved for addon-provided stats)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define quiet states: `QUIET`, `NORMAL`, `BUSY`, `PANIC`
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define `QuietAssessment` model:
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `quiet_score` (0–100)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `state`
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `reasons` list (human readable)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `inputs` summary (cpu_avg_2m, mem_pct, rps, p95, disk_free_pct, etc.)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: CPU: total % + load avg (if available)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Memory: used/free %, swap usage
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Disk: usage per mount (at least `/` and project `data/`)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Network: bytes in/out per interface (optional MVP)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Uptime / boot time
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: RSS memory
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Process CPU %
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Threads
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Open file descriptors (if supported)
+- `GAME_PLAN.md`: Add SQLite storage for samples and `/api/system-stats/history`.
+- `GAME_PLAN.md`: Implement quiet streak tracking and `/api/system-stats/health`.
+- `GAME_PLAN.md`: Add scheduler missing pieces: capacity headroom calc, concurrency backstops.
+- `GAME_PLAN.md`: Add scheduler endpoints: `report` and `revoke`.
+- `GAME_PLAN.md`: Persist scheduler lease events and expose per-addon decision summary.
+- `GAME_PLAN.md`: Implement queueing: `JobIntent`, queue store, dispatcher, state transitions.
+- `GAME_PLAN.md`: Add queue persistence (SQLite) if required for crash safety.
+- `GAME_PLAN.md`: Add config model and safe defaults for intervals/thresholds/limits.
+- `GAME_PLAN.md`: Add tests: unit for quiet score/policy/token bucket/expiry; integration for snapshot and endpoints.
+- `GAME_PLAN.md`: Tackle future enhancements (custom addon stats, downsampling, Prometheus, UI widgets).
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Pull from addon registry/store:
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: installed/enabled/loaded/runtime state
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: health cache entries (status + timestamps + error codes)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Runtime dir size:
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: per addon: `data/addons/<id>/runtime` (or actual runtime root)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: ensure directory walk is rate-limited / cached
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement middleware to record:
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: request count
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: error count
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: latency histogram or rolling p95 approximation
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Expose as in-memory stats for snapshot
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional future: add a priority queue + dispatcher loop (see 3.6)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional safety caps: global + per-addon concurrency limits (can remain as backstops)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: capacity calculation keeps headroom for the rest of the system (see `calculate_capacity()`)
@@ -113,8 +133,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: addon health snapshot: 15–60s
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: disk/runtime dir size: 60–120s
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Ensure shutdown cancels tasks cleanly
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/current`
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/history?group=quiet&range=1h&step=10s`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/addons`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/health` (rollup ok/warn/error + reasons)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Debug (optional MVP):
@@ -145,11 +163,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: header badge: OK/WARN/ERROR
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: sidebar mini chart
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: settings: maintenance window + allow/block toggle
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define models for snapshot + quiet assessment
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Build collectors (host/process/addon)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add API middleware stats
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement in-memory snapshot + `/current`
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement SQLite sample storage + `/history`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement heavy scheduler lease endpoints + policy
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add quiet streak tracking + `/health` rollup
 - `queueing.md`: Add `JobIntent` model
@@ -161,6 +174,7 @@
 
 **Source Files Scanned**
 - `ARCHITECTURE.md`
+- `GAME_PLAN.md`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`
 - `capacity_model.md`
 - `heartbeat.md`

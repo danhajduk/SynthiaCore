@@ -24,60 +24,60 @@ The smallest implementation that is useful immediately:
 ## 1) Data Model (Core)
 
 ### 1.1 State Tree (in-memory)
-- [ ] Define `SystemStatsSnapshot` Pydantic model:
-  - [ ] `collected_at`
-  - [ ] `host` (cpu/mem/disk/net/uptime)
-  - [ ] `process` (rss/cpu/fds/threads)
-  - [ ] `api` (rps/error_rate/p95_latency) — may be partial in MVP
-  - [ ] `addons` dict keyed by addon_id
-  - [ ] `quiet` (quiet_score + state + reasons)
-  - [ ] `errors` (collector errors, optional debug section)
+- [x] Define `SystemStatsSnapshot` Pydantic model:
+  - [x] `collected_at`
+  - [x] `host` (cpu/mem/disk/net/uptime)
+  - [x] `process` (rss/cpu/fds/threads)
+  - [x] `api` (rps/error_rate/p95_latency) — may be partial in MVP
+  - [x] `addons` dict keyed by addon_id
+  - [x] `quiet` (quiet_score + state + reasons)
+  - [x] `errors` (collector errors, optional debug section)
 
-- [ ] Define addon stats model `AddonStatsSnapshot`:
-  - [ ] lifecycle/runtime state (installed/enabled/loaded/error if available)
-  - [ ] health status + last_checked + last_ok
-  - [ ] runtime dir size
-  - [ ] optional `custom` dict (reserved for addon-provided stats)
+- [x] Define addon stats model `AddonStatsSnapshot`:
+  - [x] lifecycle/runtime state (installed/enabled/loaded/error if available)
+  - [x] health status + last_checked + last_ok
+  - [x] runtime dir size
+  - [x] optional `custom` dict (reserved for addon-provided stats)
 
 ### 1.2 Quiet State Machine
-- [ ] Define quiet states: `QUIET`, `NORMAL`, `BUSY`, `PANIC`
-- [ ] Define `QuietAssessment` model:
-  - [ ] `quiet_score` (0–100)
-  - [ ] `state`
-  - [ ] `reasons` list (human readable)
-  - [ ] `inputs` summary (cpu_avg_2m, mem_pct, rps, p95, disk_free_pct, etc.)
+- [x] Define quiet states: `QUIET`, `NORMAL`, `BUSY`, `PANIC`
+- [x] Define `QuietAssessment` model:
+  - [x] `quiet_score` (0–100)
+  - [x] `state`
+  - [x] `reasons` list (human readable)
+  - [x] `inputs` summary (cpu_avg_2m, mem_pct, rps, p95, disk_free_pct, etc.)
 
 ---
 
 ## 2) Collectors (MVP)
 
 ### 2.1 Host Collector
-- [ ] CPU: total % + load avg (if available)
-- [ ] Memory: used/free %, swap usage
-- [ ] Disk: usage per mount (at least `/` and project `data/`)
-- [ ] Network: bytes in/out per interface (optional MVP)
-- [ ] Uptime / boot time
+- [x] CPU: total % + load avg (if available)
+- [x] Memory: used/free %, swap usage
+- [x] Disk: usage per mount (at least `/` and project `data/`)
+- [x] Network: bytes in/out per interface (optional MVP)
+- [x] Uptime / boot time
 
 ### 2.2 Process Collector (Synthia backend process)
-- [ ] RSS memory
-- [ ] Process CPU %
-- [ ] Threads
-- [ ] Open file descriptors (if supported)
+- [x] RSS memory
+- [x] Process CPU %
+- [x] Threads
+- [x] Open file descriptors (if supported)
 
 ### 2.3 Addon Collector
 - [ ] Pull from addon registry/store:
-  - [ ] installed/enabled/loaded/runtime state
+  - [x] installed/enabled/loaded/runtime state
   - [ ] health cache entries (status + timestamps + error codes)
 - [ ] Runtime dir size:
-  - [ ] per addon: `data/addons/<id>/runtime` (or actual runtime root)
+  - [x] per addon: `data/addons/<id>/runtime` (or actual runtime root)
   - [ ] ensure directory walk is rate-limited / cached
 
 ### 2.4 API Stats Collector (basic)
-- [ ] Implement middleware to record:
-  - [ ] request count
-  - [ ] error count
-  - [ ] latency histogram or rolling p95 approximation
-- [ ] Expose as in-memory stats for snapshot
+- [x] Implement middleware to record:
+  - [x] request count
+  - [x] error count
+  - [x] latency histogram or rolling p95 approximation
+- [x] Expose as in-memory stats for snapshot
 
 ---
 
@@ -199,8 +199,8 @@ If/when we need “guaranteed eventual execution” or fairness across addons:
 
 ## 6) API (Stats)
 
-- [ ] `GET /api/system-stats/current`
-- [ ] `GET /api/system-stats/history?group=quiet&range=1h&step=10s`
+- [x] `GET /api/system-stats/current`
+- [x] `GET /api/system-stats/history?group=quiet&range=1h&step=10s`
 - [ ] `GET /api/system-stats/addons`
 - [ ] `GET /api/system-stats/health` (rollup ok/warn/error + reasons)
 - [ ] Debug (optional MVP):
@@ -252,11 +252,11 @@ If/when we need “guaranteed eventual execution” or fairness across addons:
 
 ## 10) Implementation Order (Recommended)
 
-1. [ ] Define models for snapshot + quiet assessment
-2. [ ] Build collectors (host/process/addon)
-3. [ ] Add API middleware stats
-4. [ ] Implement in-memory snapshot + `/current`
-5. [ ] Implement SQLite sample storage + `/history`
+1. [x] Define models for snapshot + quiet assessment
+2. [x] Build collectors (host/process/addon)
+3. [x] Add API middleware stats
+4. [x] Implement in-memory snapshot + `/current`
+5. [x] Implement SQLite sample storage + `/history`
 6. [ ] Implement heavy scheduler lease endpoints + policy
 7. [ ] Add quiet streak tracking + `/health` rollup
 

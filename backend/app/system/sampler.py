@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from fastapi import FastAPI
 
 from app.system.stats_store import StatsStore
-from app.system.stats.service import collect_system_stats
+from app.system.stats.service import collect_system_stats, collect_system_snapshot
 from app.system.busy_rating import compute_busy_rating
 
 log = logging.getLogger("synthia.system")
@@ -48,6 +48,13 @@ async def stats_fast_sampler_loop(app: FastAPI, interval_s: float = 5.0) -> None
             )
 
             app.state.latest_stats = combined
+
+            registry = getattr(app.state, "addon_registry", None)
+            snapshot = collect_system_snapshot(
+                api_snapshot=api_snap,
+                registry=registry,
+            )
+            app.state.latest_system_snapshot = snapshot
 
         except Exception:
             log.exception("stats_fast_sampler_loop failed; continuing")
