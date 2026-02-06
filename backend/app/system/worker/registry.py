@@ -16,7 +16,7 @@ async def handler_sleep(payload: JobPayload) -> Dict[str, Any]:
     await asyncio.sleep(max(0.0, seconds))
     return {"ok": True, "handler": "sleep", "slept": seconds}
 
-def _burn_cpu(seconds: float, intensity: int = 50000) -> Dict[str, Any]:
+def _burn_cpu(seconds: float, intensity: int = 5000000) -> Dict[str, Any]:
     end = time.perf_counter() + max(0.0, seconds)
     acc = 0.0
     intensity = max(1000, int(intensity))
