@@ -7,6 +7,7 @@ type StatsAddon = {
   states: Record<string, number>;
   avg_runtime_s: number | null;
   p95_runtime_s: number | null;
+  avg_queue_wait_s?: number | null;
 };
 
 type StatsResponse = {
@@ -14,6 +15,8 @@ type StatsResponse = {
   range?: { from: string; to: string; days: number };
   total?: number;
   totals_by_state?: Record<string, number>;
+  success_rate?: number | null;
+  avg_queue_wait_s?: number | null;
   addons?: StatsAddon[];
   error?: string;
 };
@@ -87,6 +90,22 @@ export default function SettingsStatistics() {
                 <span>Total</span>
                 <strong>{stats.total ?? 0}</strong>
               </div>
+              <div className="settings-stats-kv">
+                <span>Success rate</span>
+                <strong>
+                  {typeof stats.success_rate === "number"
+                    ? `${(stats.success_rate * 100).toFixed(1)}%`
+                    : "-"}
+                </strong>
+              </div>
+              <div className="settings-stats-kv">
+                <span>Avg queue wait (s)</span>
+                <strong>
+                  {typeof stats.avg_queue_wait_s === "number"
+                    ? stats.avg_queue_wait_s.toFixed(2)
+                    : "-"}
+                </strong>
+              </div>
               {Object.entries(stats.totals_by_state).map(([state, count]) => (
                 <div key={state} className="settings-stats-kv">
                   <span>{state}</span>
@@ -119,6 +138,7 @@ export default function SettingsStatistics() {
               <span>Completed</span>
               <span>Failed</span>
               <span>Expired</span>
+              <span>Avg queue wait (s)</span>
               <span>Avg runtime (s)</span>
               <span>P95 runtime (s)</span>
             </div>
@@ -129,6 +149,7 @@ export default function SettingsStatistics() {
                 <span>{addon.states?.completed ?? 0}</span>
                 <span>{addon.states?.failed ?? 0}</span>
                 <span>{addon.states?.expired ?? 0}</span>
+                <span>{addon.avg_queue_wait_s ? addon.avg_queue_wait_s.toFixed(2) : "-"}</span>
                 <span>{addon.avg_runtime_s ? addon.avg_runtime_s.toFixed(2) : "-"}</span>
                 <span>{addon.p95_runtime_s ? addon.p95_runtime_s.toFixed(2) : "-"}</span>
               </div>

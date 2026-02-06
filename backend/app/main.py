@@ -27,6 +27,8 @@ from .system.stats.router import router as stats_router
 from app.system.scheduler.store import SchedulerStore
 from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler.history import SchedulerHistoryStore
+from app.system.settings.store import SettingsStore
+from app.system.settings.router import build_settings_router
 from app.system.scheduler import build_scheduler_router
 
 setup_logging()
@@ -94,6 +96,11 @@ def create_app() -> FastAPI:
         os.path.join(os.getcwd(), "var", "scheduler_history.db"),
     )
     history_store = SchedulerHistoryStore(history_db)
+    settings_db = os.getenv(
+        "APP_SETTINGS_DB",
+        os.path.join(os.getcwd(), "var", "app_settings.db"),
+    )
+    settings_store = SettingsStore(settings_db)
 
     def metrics_provider():
         # SchedulerEngine will handle None/staleness conservatively.
@@ -112,6 +119,9 @@ def create_app() -> FastAPI:
     app.state.scheduler_store = store
     app.state.scheduler_engine = engine
     app.state.scheduler_history = history_store
+    app.state.settings_store = settings_store
+
+    app.include_router(build_settings_router(settings_store), prefix="/api/system", tags=["settings"])
 
     scheduler_router = build_scheduler_router(engine)
     app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])

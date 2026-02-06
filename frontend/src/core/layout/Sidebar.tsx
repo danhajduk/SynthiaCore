@@ -15,7 +15,9 @@ const coreItems = [
   { label: "Home", path: "/" },
   { label: "Addons", path: "/addons" },
   { label: "Settings", path: "/settings" },
-  { label: "Statistics", path: "/settings/statistics" },
+  { label: "Settings / Jobs", path: "/settings/jobs" },
+  { label: "Settings / Metrics", path: "/settings/metrics" },
+  { label: "Settings / Statistics", path: "/settings/statistics" },
 ];
 
 export default function Sidebar() {

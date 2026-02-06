@@ -41,6 +41,8 @@ class HistoryStats:
     range_end: datetime
     total: int
     totals_by_state: Dict[str, int]
+    success_rate: Optional[float]
+    avg_queue_wait_s: Optional[float]
     addons: List[Dict[str, Any]]
 
 
@@ -258,6 +260,7 @@ class SchedulerHistoryStore:
 
         totals_by_state: Dict[str, int] = {}
         per_addon: Dict[str, Dict[str, Any]] = {}
+        queue_waits: List[float] = []
 
         for row in rows:
             state = row["state"] or "unknown"
@@ -271,6 +274,7 @@ class SchedulerHistoryStore:
                     "count": 0,
                     "states": {},
                     "durations_s": [],
+                    "queue_waits_s": [],
                 },
             )
             stats["count"] += 1
@@ -281,6 +285,11 @@ class SchedulerHistoryStore:
             finished_at = _from_iso(row["finished_at"])
             if leased_at and finished_at:
                 stats["durations_s"].append((finished_at - leased_at).total_seconds())
+            created_at = _from_iso(row["created_at"])
+            if created_at and leased_at:
+                wait_s = (leased_at - created_at).total_seconds()
+                queue_waits.append(wait_s)
+                stats["queue_waits_s"].append(wait_s)
 
         addons_out: List[Dict[str, Any]] = []
         for addon_id, stats in sorted(per_addon.items(), key=lambda kv: kv[0]):
@@ -290,6 +299,8 @@ class SchedulerHistoryStore:
             if durations:
                 idx = max(0, int(len(durations) * 0.95) - 1)
                 p95 = durations[idx]
+            queue_waits_addon = stats.get("queue_waits_s", [])
+            avg_queue_wait = sum(queue_waits_addon) / len(queue_waits_addon) if queue_waits_addon else None
             addons_out.append(
                 {
                     "addon_id": addon_id,
@@ -297,13 +308,23 @@ class SchedulerHistoryStore:
                     "states": stats["states"],
                     "avg_runtime_s": avg,
                     "p95_runtime_s": p95,
+                    "avg_queue_wait_s": avg_queue_wait,
                 }
             )
+
+        completed = totals_by_state.get("completed", 0)
+        failed = totals_by_state.get("failed", 0)
+        expired = totals_by_state.get("expired", 0)
+        denom = completed + failed + expired
+        success_rate = (completed / denom) if denom > 0 else None
+        avg_queue_wait = sum(queue_waits) / len(queue_waits) if queue_waits else None
 
         return HistoryStats(
             range_start=start,
             range_end=now,
             total=len(rows),
             totals_by_state=totals_by_state,
+            success_rate=success_rate,
+            avg_queue_wait_s=avg_queue_wait,
             addons=addons_out,
         )

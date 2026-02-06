@@ -171,6 +171,8 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             },
             "total": stats.total,
             "totals_by_state": stats.totals_by_state,
+            "success_rate": stats.success_rate,
+            "avg_queue_wait_s": stats.avg_queue_wait_s,
             "addons": stats.addons,
         }
 
