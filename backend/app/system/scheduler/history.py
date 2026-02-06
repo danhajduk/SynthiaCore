@@ -86,6 +86,23 @@ class SchedulerHistoryStore:
         cur.execute("CREATE INDEX IF NOT EXISTS idx_job_history_updated ON job_history(updated_at)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_job_history_addon ON job_history(addon_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_job_history_state ON job_history(state)")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS lease_events (
+              event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+              ts TEXT NOT NULL,
+              event_type TEXT NOT NULL,
+              lease_id TEXT,
+              job_id TEXT,
+              addon_id TEXT,
+              worker_id TEXT,
+              reason TEXT,
+              payload_json TEXT
+            )
+            """
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_lease_events_ts ON lease_events(ts)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_lease_events_addon ON lease_events(addon_id)")
         self._conn.commit()
 
     async def record_lease(self, job: Job, lease: Lease) -> None:
@@ -101,6 +118,28 @@ class SchedulerHistoryStore:
 
     async def record_expired(self, expired: Iterable[Tuple[Lease, Job | None]]) -> None:
         await self._run(self._record_expired_sync, list(expired))
+
+    async def record_event(
+        self,
+        event_type: str,
+        lease_id: str | None = None,
+        job: Job | None = None,
+        worker_id: str | None = None,
+        reason: str | None = None,
+        payload: Dict[str, Any] | None = None,
+    ) -> None:
+        await self._run(
+            self._record_event_sync,
+            event_type,
+            lease_id,
+            job,
+            worker_id,
+            reason,
+            payload,
+        )
+
+    async def decision_summary(self, days: int = 30) -> Dict[str, Any]:
+        return await self._run(self._decision_summary_sync, int(days))
 
     async def cleanup(self, days: int = 30) -> int:
         return await self._run(self._cleanup_sync, int(days))
@@ -229,6 +268,96 @@ class SchedulerHistoryStore:
             if job.state != "expired":
                 continue
             self._update_state_sync(job, lease, finished_at=now)
+            self._record_event_sync(
+                event_type="expired",
+                lease_id=lease.lease_id,
+                job=job,
+                worker_id=lease.worker_id,
+                reason="lease_expired",
+                payload=None,
+            )
+
+    def _record_event_sync(
+        self,
+        event_type: str,
+        lease_id: str | None,
+        job: Job | None,
+        worker_id: str | None,
+        reason: str | None,
+        payload: Dict[str, Any] | None,
+    ) -> None:
+        addon_id = _addon_from_tags(job.tags) if job else None
+        job_id = job.job_id if job else None
+        self._conn.execute(
+            """
+            INSERT INTO lease_events (
+              ts, event_type, lease_id, job_id, addon_id, worker_id, reason, payload_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                _to_iso(_utcnow()),
+                event_type,
+                lease_id,
+                job_id,
+                addon_id,
+                worker_id,
+                reason,
+                json.dumps(payload or {}),
+            ),
+        )
+        self._conn.commit()
+
+    def _decision_summary_sync(self, days: int) -> Dict[str, Any]:
+        cutoff = _utcnow() - timedelta(days=days)
+        cutoff_iso = cutoff.isoformat()
+
+        cur = self._conn.cursor()
+        rows = cur.execute(
+            """
+            SELECT addon_id, event_type, COUNT(*) as count, MAX(ts) as last_ts
+            FROM lease_events
+            WHERE ts >= ?
+            GROUP BY addon_id, event_type
+            """,
+            (cutoff_iso,),
+        ).fetchall()
+
+        by_addon: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            addon_id = row["addon_id"] or "unknown"
+            entry = by_addon.setdefault(
+                addon_id,
+                {"addon_id": addon_id, "counts": {}, "last_event_at": None, "last_reason": None},
+            )
+            entry["counts"][row["event_type"]] = int(row["count"])
+            last_ts = row["last_ts"]
+            if last_ts and (entry["last_event_at"] is None or last_ts > entry["last_event_at"]):
+                entry["last_event_at"] = last_ts
+
+        # Pull last reason per addon from most recent event
+        reason_rows = cur.execute(
+            """
+            SELECT addon_id, reason, ts
+            FROM lease_events
+            WHERE ts >= ? AND reason IS NOT NULL
+            ORDER BY ts DESC
+            """,
+            (cutoff_iso,),
+        ).fetchall()
+        for row in reason_rows:
+            addon_id = row["addon_id"] or "unknown"
+            entry = by_addon.setdefault(
+                addon_id,
+                {"addon_id": addon_id, "counts": {}, "last_event_at": None, "last_reason": None},
+            )
+            if entry.get("last_reason") is None:
+                entry["last_reason"] = row["reason"]
+
+        return {
+            "days": int(days),
+            "addons": list(by_addon.values()),
+        }
 
     def _cleanup_sync(self, days: int) -> int:
         cutoff = _utcnow() - timedelta(days=days)

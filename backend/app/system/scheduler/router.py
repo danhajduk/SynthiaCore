@@ -209,4 +209,12 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
         deleted = await history.cleanup(days=days)
         return {"ok": True, "deleted": deleted, "days": int(days)}
 
+    @router.get("/history/decisions")
+    async def history_decisions(days: int = 30):
+        history = engine.history_store
+        if not history:
+            return {"ok": False, "error": "history_disabled"}
+        summary = await history.decision_summary(days=days)
+        return {"ok": True, **summary}
+
     return router

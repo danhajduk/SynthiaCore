@@ -145,8 +145,8 @@ The smallest implementation that is useful immediately:
 
 ### 3.5 Audit / Visibility
 - [x] Track lease lifecycle in-memory (active + recent)
-- [ ] Persist lease events in SQLite (grant/deny/release/expire)
-- [ ] Expose per-addon decision summary (denies, last reason, cool-down)
+- [x] Persist lease events in SQLite (grant/deny/release/expire)
+- [x] Expose per-addon decision summary (denies, last reason, cool-down)
 
 ### 3.6 Queueing (future, optional)
 If/when we need “guaranteed eventual execution” or fairness across addons:

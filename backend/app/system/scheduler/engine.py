@@ -397,6 +397,23 @@ class SchedulerEngine:
             if lease_job:
                 lease, job = lease_job
                 await self.history_store.record_lease(job, lease)
+                await self.history_store.record_event(
+                    event_type="granted",
+                    lease_id=lease.lease_id,
+                    job=job,
+                    worker_id=lease.worker_id,
+                    reason=None,
+                    payload={"capacity_units": lease.capacity_units},
+                )
+            if denied:
+                await self.history_store.record_event(
+                    event_type="denied",
+                    lease_id=None,
+                    job=None,
+                    worker_id=worker_id,
+                    reason=denied.reason,
+                    payload={"retry_after_ms": denied.retry_after_ms},
+                )
 
         if lease_job:
             return lease_job
@@ -466,6 +483,14 @@ class SchedulerEngine:
                 await self.history_store.record_expired(expired)
             if lease and job:
                 await self.history_store.update_state(job, lease, finished_at=utcnow())
+                await self.history_store.record_event(
+                    event_type=status,
+                    lease_id=lease.lease_id,
+                    job=job,
+                    worker_id=worker_id,
+                    reason=None,
+                    payload=None,
+                )
 
     # ---------- Report ----------
     async def report(
@@ -477,6 +502,7 @@ class SchedulerEngine:
         message: Optional[str] = None,
     ) -> None:
         expired: List[tuple[Lease, Job | None]] = []
+        job: Job | None = None
         async with self.store.lock:
             expired = self._expire_leases_locked()
 
@@ -499,8 +525,17 @@ class SchedulerEngine:
                 "reported_at": now.isoformat(),
             }
 
-        if self.history_store and expired:
-            await self.history_store.record_expired(expired)
+        if self.history_store:
+            if expired:
+                await self.history_store.record_expired(expired)
+            await self.history_store.record_event(
+                event_type="report",
+                lease_id=lease.lease_id,
+                job=job,
+                worker_id=worker_id,
+                reason=message,
+                payload={"progress": progress, "metrics": metrics or {}},
+            )
 
     # ---------- Revoke (core-initiated) ----------
     async def revoke(self, lease_id: str, reason: Optional[str] = None) -> bool:
@@ -532,6 +567,14 @@ class SchedulerEngine:
                 await self.history_store.record_expired(expired)
             if lease and job:
                 await self.history_store.update_state(job, lease, finished_at=utcnow())
+                await self.history_store.record_event(
+                    event_type="revoked",
+                    lease_id=lease.lease_id,
+                    job=job,
+                    worker_id=lease.worker_id,
+                    reason=reason,
+                    payload=None,
+                )
         return True
 
     # ---------- Expiry loop ----------
