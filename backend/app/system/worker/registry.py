@@ -20,16 +20,19 @@ def _burn_cpu(seconds: float) -> Dict[str, Any]:
     end = time.perf_counter() + max(0.0, seconds)
     acc = 0.0
     while time.perf_counter() < end:
-        acc += 1.0
-        acc = acc * 1.0000001
-        if acc > 1e9:
-            acc = acc / 3.14159
+        acc += 1.0000001
+        acc *= 1.0000001
     return {"ok": True, "handler": "cpu", "burned_s": seconds}
 
 
 async def handler_cpu(payload: JobPayload) -> Dict[str, Any]:
     seconds = float(payload.get("seconds", 1))
-    return await asyncio.to_thread(_burn_cpu, seconds)
+    threads = int(payload.get("threads", 1))
+    threads = max(1, min(threads, 16))
+    results = await asyncio.gather(
+        *[asyncio.to_thread(_burn_cpu, seconds) for _ in range(threads)]
+    )
+    return {"ok": True, "handler": "cpu", "burned_s": seconds, "threads": threads, "results": results}
 
 
 # Keep “helloworld.*” as first-class names,
