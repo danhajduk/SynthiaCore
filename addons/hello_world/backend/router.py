@@ -13,7 +13,7 @@ import uuid
 from app.system.scheduler.models import Job, JobPriority, JobState
 from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler.models import RequestLeaseDenied
-from app.system.worker.registry import HANDLERS
+from app.system.worker.registry import HANDLERS, handler_cpu
 
 router = APIRouter()
 
@@ -75,6 +75,12 @@ async def _run_worker(engine: SchedulerEngine, state: WorkerState) -> None:
             handler = HANDLERS.get(job.type)
             if handler is None:
                 raise RuntimeError(f"No handler registered for job type '{job.type}'")
+            # Simulate CPU load whenever a lease is granted.
+            if job.type not in ("helloworld.cpu", "cpu"):
+                payload = job.payload or {}
+                cpu_seconds = float(payload.get("cpu_seconds", payload.get("seconds", 1.0)))
+                if cpu_seconds > 0:
+                    await handler_cpu({"seconds": cpu_seconds})
             t0 = time.time()
             await handler(job.payload or {})
             _ = time.time() - t0
