@@ -84,9 +84,12 @@ async def _run_worker(engine: SchedulerEngine, state: WorkerState) -> None:
                 job_seconds = float(payload.get("seconds", 1.0))
                 target_util = min(1.0, units / 25.0)  # 10 units -> 0.4 core (10% on 4 cores)
                 cpu_seconds = float(payload.get("cpu_seconds", job_seconds * target_util))
-                cpu_threads = int(payload.get("cpu_threads", max(1, min(4, units // 2))))
+                cpu_threads = int(payload.get("cpu_threads", max(1, min(16, units))))
+                cpu_intensity = int(payload.get("cpu_intensity", 50000))
                 if cpu_seconds > 0:
-                    await handler_cpu({"seconds": cpu_seconds, "threads": cpu_threads})
+                    await handler_cpu(
+                        {"seconds": cpu_seconds, "threads": cpu_threads, "intensity": cpu_intensity}
+                    )
             t0 = time.time()
             await handler(job.payload or {})
             _ = time.time() - t0
