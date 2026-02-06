@@ -1,71 +1,102 @@
 # SynthiaCore
 
-SynthiaCore is a modular platform built around a Core + Addons architecture. Core provides the runtime, shared APIs, and system services; addons deliver feature-specific backend routes and frontend pages that can be added or removed independently.
+SynthiaCore is a Core + Addons platform with a built-in scheduler, system metrics, and a frontend that auto-loads addons. This README reflects the current functionality in the repo.
 
-## What It Does
+## Highlights
+- **Core runtime**: FastAPI backend + React frontend with addon discovery and dynamic routing.
+- **Scheduler**: Pull-based leases, capacity-aware, priority queues, idempotent jobs, unique job flag.
+- **History + stats**: SQLite-backed job history (30-day retention), stats by addon, success rate, queue wait.
+- **Settings**: App settings stored in SQLite, plus dedicated Settings pages for Jobs, Metrics, Statistics.
+- **Repo status badge**: Header shows whether `origin/main` is ahead of the local repo.
+- **Hello World addon**: Full UI and backend demo with job enqueue, scheduler controls, and worker simulator.
 
-### Core Runtime
-- FastAPI backend that hosts core system APIs and dynamically mounts addon routers.
-- React frontend that renders core pages and auto-loads addon routes and nav items.
-- Addon discovery and registry: Core scans `addons/*/backend/addon.py`, validates each addon, and exposes a canonical list plus error diagnostics.
+## Core Runtime
+- **Backend**: FastAPI app that mounts core system routes and addon routers.
+- **Frontend**: React app with core pages and dynamically loaded addon routes/links.
+- **Addon discovery**: Core scans `addons/*/backend/addon.py`, validates each addon, and exposes metadata and errors.
 
-### Addon System (Backend + Frontend)
-- Backend contract: Each addon exports an `addon` object from `addons/<id>/backend/addon.py` that includes `meta` (id, name, version, description) and `router` (FastAPI router).
-- Frontend contract: Each addon exports from `addons/<id>/frontend/index.ts` (TSX allowed) the `meta`, `routes`, and `navItem` objects.
-- Dynamic wiring: backend routes mount under `/api/addons/<id>`, and frontend routes are loaded via Vite glob import from `frontend/src/addons/*/index.ts` after sync.
+### Addon Contracts
+- Backend entrypoint: `addons/<id>/backend/addon.py` exporting `addon` (`AddonMeta` + `router`).
+- Frontend entrypoint: `addons/<id>/frontend/index.ts` exporting `meta`, `routes`, and `navItem`.
 
-Addon registry endpoints:
+### Addon Registry Endpoints
 - `GET /api/addons` list addon metadata.
-- `GET /api/addons/errors` list addon load errors without blocking boot.
+- `GET /api/addons/errors` addon load errors without blocking boot.
 
-### System Scheduler (Pull-Based Leasing)
-SynthiaCore includes a built-in capacity-aware job scheduler designed for distributed workers.
+## Scheduler (Pull-Based Leasing)
+- Priority queues: `high`, `normal`, `low`, `background`.
+- Leases: workers request leases and receive a job + capacity allocation.
+- Heartbeats: leases expire if heartbeats stop.
+- Idempotency: optional `idempotency_key` prevents duplicate jobs.
+- **Unique jobs**: `unique=true` prevents a worker from holding multiple active leases.
 
-- Queueing with priorities: `high`, `normal`, `low`, `background`.
-- Lease-based execution: workers request leases and receive a job plus capacity allocation.
-- Heartbeat and expiry: leases expire if workers stop heartbeating.
-- Idempotent submission: optional `idempotency_key` prevents duplicate jobs.
-- Capacity gating: availability is derived from system stats and API metrics.
-
-Key scheduler endpoints:
+### Scheduler Endpoints
 - `POST /api/system/scheduler/jobs` submit a job.
 - `POST /api/system/scheduler/leases/request` request a lease.
 - `POST /api/system/scheduler/leases/{lease_id}/heartbeat` extend a lease.
-- `POST /api/system/scheduler/leases/{lease_id}/complete` finish a lease.
-- `GET /api/system/scheduler/status` system snapshot and queue depths.
+- `POST /api/system/scheduler/leases/{lease_id}/complete` complete a lease.
+- `GET /api/system/scheduler/status` snapshot + queue depths.
+- `GET /api/system/scheduler/jobs` job list (live in-memory).
 
-### System Stats + Busy Rating
-Core continuously samples system health and API performance to drive scheduling decisions.
+## Job History (SQLite)
+- Non-queued jobs are recorded into SQLite (leased/running/completed/failed/expired).
+- Retention: **30 days** (auto-cleaned daily).
+- Manual cleanup endpoint available.
+- Metrics include success rate and average queue wait.
 
-- System stats: CPU, memory, load, disk, network.
-- API metrics: request rates, p95 latency, error rate, inflight.
-- Busy rating: a 0-10 score computed from system and API signals.
-- Persistence: 1-minute snapshots stored in SQLite at `data/system_stats.sqlite3`.
+### History Endpoints
+- `GET /api/system/scheduler/history/stats?days=30`
+- `POST /api/system/scheduler/history/cleanup?days=30`
 
-Key system endpoint:
-- `GET /api/system/stats/current` returns the latest cached snapshot.
+## System Metrics
+- System stats sampling + API metrics aggregation drive scheduler busy rating.
+- Stats snapshots saved to `data/system_stats.sqlite3`.
 
-### Admin Reload Endpoint
-An admin route can trigger a systemd user service to reload or update the app.
+### Metrics Endpoint
+- `GET /api/system/stats/current`
 
-- `POST /api/admin/reload` (requires `SYNTHIA_ADMIN_TOKEN` header).
-- `GET /api/admin/reload/status` returns the last updater log tail.
+## App Settings (SQLite)
+Simple key/value settings stored in SQLite, used by the Settings page.
 
-## Repo Structure (Functional Overview)
-- `backend/app/main.py` wires core APIs, scheduler, stats sampler, and addon registry.
-- `backend/app/addons/` handles addon discovery, validation, and registration.
-- `backend/app/system/` hosts scheduler, stats collection, and metrics.
-- `frontend/src/core/` handles layout, routing, and addon loading.
-- `addons/` contains feature packs (backend + frontend + manifest).
+### Settings Endpoints
+- `GET /api/system/settings`
+- `GET /api/system/settings/{key}`
+- `PUT /api/system/settings/{key}`
 
-## Contracts and Guardrails
-- Addon folder name must match addon `id`.
-- Backend entrypoint is always `backend/addon.py`.
-- Frontend entrypoint is `frontend/index.ts` (TSX allowed).
-- Core never imports addon code directly; it only discovers and mounts.
+## Repo Status (Header Badge)
+Backend checks `HEAD` vs `origin/main` and exposes:
+- `GET /api/system/repo/status`
 
-## Example Addon
-The repo includes `addons/hello_world` which demonstrates:
-- A backend route at `/api/addons/hello_world/status`.
-- A frontend page registered under `/addons/hello_world`.
-- Addon metadata surfaced via `/api/addons`.
+Frontend shows “Update available” / “Up to date” / “Repo status unavailable”.
+
+## Frontend Pages
+- `/settings` — App settings (stored in SQLite).
+- `/settings/jobs` — Live scheduler jobs + filters.
+- `/settings/metrics` — System metrics + job summary (queued/leased).
+- `/settings/statistics` — Job history stats by addon.
+- `/addons` — Addon cards with enable/disable and open links.
+
+## Hello World Addon
+Demonstrates core addon features:
+- Backend status endpoint: `/api/addons/hello_world/status`
+- Job enqueue + burst enqueue
+- Unique job flag
+- Scheduler lease acquisition controls
+- Worker simulator (start/stop/status)
+- CPU burn simulation tied to requested units (target utilization)
+
+### Worker Simulator
+- Starts a simple in-app worker loop that requests leases and executes handlers.
+- Adds a 2s “setup” delay before processing a job.
+- Burns CPU on lease according to units and job duration.
+
+## Repo Layout (Functional)
+- `backend/app/main.py` — core wiring (scheduler, stats, settings, repo status).
+- `backend/app/system/` — scheduler, stats, history, settings.
+- `backend/app/addons/` — addon discovery and registry.
+- `frontend/src/core/` — layout, routing, addon loader, settings pages.
+- `addons/` — addon packages (backend + frontend + manifest).
+
+## Notes
+- Scheduler live state is in-memory; history is persisted to SQLite.
+- If `origin/main` is unreachable, repo status will show as unavailable.
