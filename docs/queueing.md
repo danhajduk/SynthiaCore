@@ -70,7 +70,7 @@ Recommended tables (SQLite):
 
 ### 3.1 Submit a job intent
 ```
-POST /api/scheduler/jobs/submit
+POST /api/system/scheduler/queue/jobs/submit
 ```
 
 Body = same as lease request + optional scheduling fields:
@@ -100,17 +100,17 @@ Response:
 
 ### 3.2 Query job status
 ```
-GET /api/scheduler/jobs/{job_id}
+GET /api/system/scheduler/queue/jobs/{job_id}
 ```
 
 ### 3.3 Cancel a job
 ```
-POST /api/scheduler/jobs/{job_id}/cancel
+POST /api/system/scheduler/queue/jobs/{job_id}/cancel
 ```
 
 ### 3.4 List queue (admin/debug)
 ```
-GET /api/scheduler/jobs?state=QUEUED&limit=50
+GET /api/system/scheduler/queue/jobs?state=QUEUED&limit=50
 ```
 
 ---
@@ -261,10 +261,10 @@ Persist audit events:
 
 ## 10) Minimal MVP Queue Checklist
 
-- [ ] Add `JobIntent` model
-- [ ] Add in-memory queue store + endpoints: submit/get/cancel/list
-- [ ] Add dispatcher loop (timer)
-- [ ] Add “dispatchable jobs” endpoint for addon polling:
-      `GET /api/scheduler/jobs/dispatchable?addon_id=...`
-- [ ] Add job state transitions + events
+- [x] Add `JobIntent` model
+- [x] Add in-memory queue store + endpoints: submit/get/cancel/list
+- [x] Add dispatcher loop (timer)
+- [x] Add “dispatchable jobs” endpoint for addon polling:
+      `GET /api/system/scheduler/queue/dispatchable`
+- [x] Add job state transitions + events
 - [ ] Add persistence (SQLite) once semantics are stable

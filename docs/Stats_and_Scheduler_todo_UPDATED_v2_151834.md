@@ -150,8 +150,8 @@ The smallest implementation that is useful immediately:
 
 ### 3.6 Queueing (future, optional)
 If/when we need “guaranteed eventual execution” or fairness across addons:
-- [ ] Add an internal **priority queue** of job intents (not workers)
-- [ ] A dispatcher loop periodically re-evaluates admission when:
+- [x] Add an internal **priority queue** of job intents (not workers)
+- [x] A dispatcher loop periodically re-evaluates admission when:
   - leases expire/release
   - quiet state improves
   - capacity increases

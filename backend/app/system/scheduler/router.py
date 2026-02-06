@@ -2,15 +2,23 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from .engine import SchedulerEngine
+from .queue_store import QueueStore
 from .models import (
     SubmitJobRequest, SubmitJobResponse, Job,
     RequestLeaseRequest, RequestLeaseDenied, RequestLeaseGranted,
     HeartbeatRequest, HeartbeatResponse,
     CompleteLeaseRequest, CompleteLeaseResponse,
+    JobIntent, QueueJobState, JobPriority,
+    SubmitJobIntentRequest, SubmitJobIntentResponse,
+    CancelJobIntentResponse,
+    AckJobIntentRequest, AckJobIntentResponse,
+    CompleteJobIntentRequest, CompleteJobIntentResponse,
     ReportLeaseRequest, ReportLeaseResponse,
     RevokeLeaseRequest, RevokeLeaseResponse,
     JobState,
@@ -19,10 +27,16 @@ from .models import (
 def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
     router = APIRouter()
     expire_task: asyncio.Task | None = None
+    dispatch_task: asyncio.Task | None = None
+    queue_store = QueueStore()
+
+    def _utcnow() -> datetime:
+        return datetime.now(timezone.utc)
 
     @router.on_event("startup")
     async def _startup() -> None:
         nonlocal expire_task
+        nonlocal dispatch_task
 
         async def loop() -> None:
             while True:
@@ -34,12 +48,26 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
 
         expire_task = asyncio.create_task(loop())
 
+        async def dispatch_loop() -> None:
+            while True:
+                try:
+                    await _dispatch_tick()
+                except Exception:
+                    pass
+                await asyncio.sleep(2.0)
+
+        dispatch_task = asyncio.create_task(dispatch_loop())
+
     @router.on_event("shutdown")
     async def _shutdown() -> None:
         nonlocal expire_task
+        nonlocal dispatch_task
         if expire_task:
             expire_task.cancel()
             expire_task = None
+        if dispatch_task:
+            dispatch_task.cancel()
+            dispatch_task = None
 
     @router.post("/jobs", response_model=SubmitJobResponse)
     async def submit_job(req: SubmitJobRequest) -> SubmitJobResponse:
@@ -216,5 +244,176 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             return {"ok": False, "error": "history_disabled"}
         summary = await history.decision_summary(days=days)
         return {"ok": True, **summary}
+
+    # --------------------
+    # Queueing (Job Intents)
+    # --------------------
+
+    async def _dispatch_tick() -> None:
+        async with queue_store.lock:
+            now = _utcnow()
+
+            # Requeue stuck dispatching jobs
+            for job in queue_store.jobs.values():
+                if job.state == QueueJobState.DISPATCHING:
+                    if (now - job.updated_at) > timedelta(seconds=30):
+                        queue_store.reserved_units = max(0, queue_store.reserved_units - job.cost_units)
+                        job.state = QueueJobState.QUEUED
+                        job.updated_at = now
+                        queue_store.enqueue(job)
+                        queue_store.record_event(job.job_id, QueueJobState.DISPATCHING, QueueJobState.QUEUED, "dispatch_timeout")
+
+            busy = engine.compute_busy_rating()
+            usable = engine.usable_capacity_units(busy)
+            leased = engine.leased_capacity_units()
+            available = max(0, usable - leased - queue_store.reserved_units)
+
+            scanned = 0
+            max_scan = sum(queue_store.queue_depths().values())
+            while scanned < max_scan:
+                jid = queue_store.dequeue_next()
+                if not jid:
+                    break
+                job = queue_store.jobs.get(jid)
+                scanned += 1
+                if not job or job.state != QueueJobState.QUEUED:
+                    continue
+
+                if job.earliest_start_at and now < job.earliest_start_at:
+                    queue_store.enqueue(job)
+                    continue
+                if job.next_earliest_start_at and now < job.next_earliest_start_at:
+                    queue_store.enqueue(job)
+                    continue
+
+                # Simple admission gate based on busy rating
+                if busy >= 8 and job.priority != JobPriority.high:
+                    job.attempts += 1
+                    job.next_earliest_start_at = now + timedelta(seconds=5)
+                    queue_store.enqueue(job)
+                    continue
+
+                if job.cost_units > available:
+                    job.attempts += 1
+                    job.next_earliest_start_at = now + timedelta(seconds=5)
+                    queue_store.enqueue(job)
+                    break
+
+                queue_store.reserved_units += job.cost_units
+                job.state = QueueJobState.DISPATCHING
+                job.updated_at = now
+                queue_store.record_event(job.job_id, QueueJobState.QUEUED, QueueJobState.DISPATCHING, "admitted")
+                available = max(0, available - job.cost_units)
+
+    @router.post("/queue/jobs/submit", response_model=SubmitJobIntentResponse)
+    async def submit_job_intent(req: SubmitJobIntentRequest) -> SubmitJobIntentResponse:
+        now = _utcnow()
+        job = JobIntent(
+            job_id=str(uuid.uuid4()),
+            addon_id=req.addon_id,
+            job_type=req.job_type,
+            cost_units=req.cost_units,
+            priority=req.priority,
+            constraints=req.constraints,
+            expected_duration_sec=req.expected_duration_sec,
+            payload=req.payload,
+            time_sensitive=req.time_sensitive,
+            earliest_start_at=req.earliest_start_at,
+            deadline_at=req.deadline_at,
+            max_runtime_sec=req.max_runtime_sec,
+            tags=req.tags,
+            state=QueueJobState.QUEUED,
+            attempts=0,
+            next_earliest_start_at=None,
+            lease_id=None,
+            created_at=now,
+            updated_at=now,
+        )
+
+        async with queue_store.lock:
+            queue_store.jobs[job.job_id] = job
+            queue_store.enqueue(job)
+            queue_store.record_event(job.job_id, QueueJobState.QUEUED, QueueJobState.QUEUED, "submitted")
+
+        return SubmitJobIntentResponse(job_id=job.job_id, state=job.state)
+
+    @router.get("/queue/jobs/{job_id}")
+    async def get_job_intent(job_id: str):
+        async with queue_store.lock:
+            job = queue_store.jobs.get(job_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="job_not_found")
+            return job.model_dump(mode="json")
+
+    @router.get("/queue/jobs")
+    async def list_job_intents(state: QueueJobState | None = None, limit: int = 200):
+        limit = max(1, min(1000, int(limit)))
+        async with queue_store.lock:
+            jobs_list = list(queue_store.jobs.values())
+            if state is not None:
+                jobs_list = [j for j in jobs_list if j.state == state]
+            jobs_list.sort(key=lambda j: j.updated_at, reverse=True)
+            return {
+                "jobs_len": len(queue_store.jobs),
+                "queue_depths": queue_store.queue_depths(),
+                "reserved_units": queue_store.reserved_units,
+                "jobs": [j.model_dump(mode="json") for j in jobs_list[:limit]],
+            }
+
+    @router.get("/queue/dispatchable")
+    async def list_dispatchable(limit: int = 200):
+        limit = max(1, min(1000, int(limit)))
+        async with queue_store.lock:
+            jobs_list = [j for j in queue_store.jobs.values() if j.state == QueueJobState.DISPATCHING]
+            jobs_list.sort(key=lambda j: j.updated_at, reverse=False)
+            return {"jobs": [j.model_dump(mode="json") for j in jobs_list[:limit]]}
+
+    @router.post("/queue/jobs/{job_id}/cancel", response_model=CancelJobIntentResponse)
+    async def cancel_job_intent(job_id: str) -> CancelJobIntentResponse:
+        async with queue_store.lock:
+            job = queue_store.jobs.get(job_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="job_not_found")
+            if job.state in (QueueJobState.DONE, QueueJobState.FAILED, QueueJobState.CANCELED):
+                return CancelJobIntentResponse(ok=True)
+
+            prev = job.state
+            if job.state == QueueJobState.DISPATCHING:
+                queue_store.reserved_units = max(0, queue_store.reserved_units - job.cost_units)
+            job.state = QueueJobState.CANCELED
+            job.updated_at = _utcnow()
+            queue_store.record_event(job.job_id, prev, QueueJobState.CANCELED, "canceled")
+            return CancelJobIntentResponse(ok=True)
+
+    @router.post("/queue/jobs/{job_id}/ack", response_model=AckJobIntentResponse)
+    async def ack_job_intent(job_id: str, req: AckJobIntentRequest) -> AckJobIntentResponse:
+        async with queue_store.lock:
+            job = queue_store.jobs.get(job_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="job_not_found")
+            if job.state != QueueJobState.DISPATCHING:
+                raise HTTPException(status_code=409, detail="job_not_dispatching")
+            queue_store.reserved_units = max(0, queue_store.reserved_units - job.cost_units)
+            prev = job.state
+            job.state = QueueJobState.RUNNING
+            job.lease_id = req.lease_id
+            job.updated_at = _utcnow()
+            queue_store.record_event(job.job_id, prev, QueueJobState.RUNNING, "ack")
+            return AckJobIntentResponse(ok=True)
+
+    @router.post("/queue/jobs/{job_id}/complete", response_model=CompleteJobIntentResponse)
+    async def complete_job_intent(job_id: str, req: CompleteJobIntentRequest) -> CompleteJobIntentResponse:
+        async with queue_store.lock:
+            job = queue_store.jobs.get(job_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="job_not_found")
+            prev = job.state
+            if req.status == "DONE":
+                job.state = QueueJobState.DONE
+            else:
+                job.state = QueueJobState.FAILED
+            job.updated_at = _utcnow()
+            queue_store.record_event(job.job_id, prev, job.state, "complete")
+            return CompleteJobIntentResponse(ok=True)
 
     return router

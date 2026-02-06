@@ -8,6 +8,8 @@
 - `GAME_PLAN.md`: Implement quiet streak tracking and `/api/system-stats/health`.
 - `GAME_PLAN.md`: Add scheduler missing pieces: capacity headroom calc, concurrency backstops.
 - `GAME_PLAN.md`: Add scheduler endpoints: `report` and `revoke`.
+- `GAME_PLAN.md`: Persist scheduler lease events and expose per-addon decision summary.
+- `GAME_PLAN.md`: Implement queueing: `JobIntent`, queue store, dispatcher, state transitions.
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define `SystemStatsSnapshot` Pydantic model:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `collected_at`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `host` (cpu/mem/disk/net/uptime)
@@ -93,6 +95,8 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Track lease lifecycle in-memory (active + recent)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Persist lease events in SQLite (grant/deny/release/expire)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Expose per-addon decision summary (denies, last reason, cool-down)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add an internal **priority queue** of job intents (not workers)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: A dispatcher loop periodically re-evaluates admission when:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Store derived quiet intervals:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Provide “last 24h quiet streaks” endpoint or computed on demand
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/current`
@@ -104,10 +108,13 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement in-memory snapshot + `/current`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement SQLite sample storage + `/history`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add quiet streak tracking + `/health` rollup
+- `queueing.md`: Add `JobIntent` model
+- `queueing.md`: Add in-memory queue store + endpoints: submit/get/cancel/list
+- `queueing.md`: Add dispatcher loop (timer)
+- `queueing.md`: Add “dispatchable jobs” endpoint for addon polling:
+- `queueing.md`: Add job state transitions + events
 
 **Needs Doing**
-- `GAME_PLAN.md`: Persist scheduler lease events and expose per-addon decision summary.
-- `GAME_PLAN.md`: Implement queueing: `JobIntent`, queue store, dispatcher, state transitions.
 - `GAME_PLAN.md`: Add queue persistence (SQLite) if required for crash safety.
 - `GAME_PLAN.md`: Add config model and safe defaults for intervals/thresholds/limits.
 - `GAME_PLAN.md`: Add tests: unit for quiet score/policy/token bucket/expiry; integration for snapshot and endpoints.
@@ -117,8 +124,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Runtime dir size:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: ensure directory walk is rate-limited / cached
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional future: add a priority queue + dispatcher loop (see 3.6)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add an internal **priority queue** of job intents (not workers)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: A dispatcher loop periodically re-evaluates admission when:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Persistence required if we want crash-safe queues (SQLite)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Create DB schema for time-series-ish samples:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: table `stats_samples`:
@@ -165,11 +170,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: sidebar mini chart
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: settings: maintenance window + allow/block toggle
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement heavy scheduler lease endpoints + policy
-- `queueing.md`: Add `JobIntent` model
-- `queueing.md`: Add in-memory queue store + endpoints: submit/get/cancel/list
-- `queueing.md`: Add dispatcher loop (timer)
-- `queueing.md`: Add “dispatchable jobs” endpoint for addon polling:
-- `queueing.md`: Add job state transitions + events
 - `queueing.md`: Add persistence (SQLite) once semantics are stable
 
 **Source Files Scanned**

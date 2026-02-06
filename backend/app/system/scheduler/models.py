@@ -24,6 +24,15 @@ class JobPriority(str, Enum):
     background = "background"
 
 
+class QueueJobState(str, Enum):
+    QUEUED = "QUEUED"
+    DISPATCHING = "DISPATCHING"
+    RUNNING = "RUNNING"
+    DONE = "DONE"
+    FAILED = "FAILED"
+    CANCELED = "CANCELED"
+
+
 class Job(BaseModel):
     job_id: str
     type: str = "generic"
@@ -140,4 +149,68 @@ class RevokeLeaseRequest(BaseModel):
 
 
 class RevokeLeaseResponse(BaseModel):
+    ok: bool
+
+
+class JobIntent(BaseModel):
+    job_id: str
+    addon_id: str
+    job_type: str
+    cost_units: int = Field(ge=1, le=100)
+    priority: JobPriority = JobPriority.normal
+    constraints: Dict[str, Any] = Field(default_factory=dict)
+    expected_duration_sec: Optional[int] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    time_sensitive: bool = False
+    earliest_start_at: Optional[datetime] = None
+    deadline_at: Optional[datetime] = None
+    max_runtime_sec: Optional[int] = None
+    tags: List[str] = Field(default_factory=list)
+
+    state: QueueJobState = QueueJobState.QUEUED
+    attempts: int = 0
+    next_earliest_start_at: Optional[datetime] = None
+    lease_id: Optional[str] = None
+
+    created_at: datetime
+    updated_at: datetime
+
+
+class SubmitJobIntentRequest(BaseModel):
+    addon_id: str
+    job_type: str
+    cost_units: int = Field(ge=1, le=100)
+    priority: JobPriority = JobPriority.normal
+    constraints: Dict[str, Any] = Field(default_factory=dict)
+    expected_duration_sec: Optional[int] = None
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    time_sensitive: bool = False
+    earliest_start_at: Optional[datetime] = None
+    deadline_at: Optional[datetime] = None
+    max_runtime_sec: Optional[int] = None
+    tags: List[str] = Field(default_factory=list)
+
+
+class SubmitJobIntentResponse(BaseModel):
+    job_id: str
+    state: QueueJobState
+
+
+class CancelJobIntentResponse(BaseModel):
+    ok: bool
+
+
+class AckJobIntentRequest(BaseModel):
+    lease_id: Optional[str] = None
+
+
+class AckJobIntentResponse(BaseModel):
+    ok: bool
+
+
+class CompleteJobIntentRequest(BaseModel):
+    status: str = Field(pattern="^(DONE|FAILED)$")
+
+
+class CompleteJobIntentResponse(BaseModel):
     ok: bool
