@@ -36,6 +36,11 @@ export default function HelloWorldPage() {
   const acquireTimerRef = useRef<number | null>(null);
   const completeTimersRef = useRef<number[]>([]);
 
+  const [workerStatus, setWorkerStatus] = useState<any>(null);
+  const [workerId, setWorkerId] = useState("hello-world-worker");
+  const [workerMaxUnits, setWorkerMaxUnits] = useState("");
+  const [workerHeartbeat, setWorkerHeartbeat] = useState(5);
+
   const canSubmit = useMemo(() => requestedUnits >= 1, [requestedUnits]);
   const statusLabel = status?.status === "ok" ? "Online" : status ? "Degraded" : "Offline";
   const statusLed =
@@ -43,9 +48,12 @@ export default function HelloWorldPage() {
 
   useEffect(() => {
     fetchStatus();
+    fetchWorkerStatus();
     const t = window.setInterval(fetchStatus, 5000);
+    const w = window.setInterval(fetchWorkerStatus, 5000);
     return () => {
       window.clearInterval(t);
+      window.clearInterval(w);
       if (acquireTimerRef.current !== null) {
         window.clearInterval(acquireTimerRef.current);
         acquireTimerRef.current = null;
@@ -107,6 +115,52 @@ export default function HelloWorldPage() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setBurstResult(await res.json());
+    } catch (e: any) {
+      setErr(String(e));
+    }
+  }
+
+  async function fetchWorkerStatus() {
+    try {
+      const res = await fetch("/api/addons/hello_world/worker/status");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setWorkerStatus(await res.json());
+    } catch (e: any) {
+      setErr(String(e));
+    }
+  }
+
+  async function startWorker() {
+    setErr(null);
+    try {
+      const body: { worker_id: string; max_units?: number; heartbeat_interval_s: number } = {
+        worker_id: workerId || "hello-world-worker",
+        heartbeat_interval_s: Number(workerHeartbeat) || 5,
+      };
+      const parsedUnits = Number(workerMaxUnits);
+      if (!Number.isNaN(parsedUnits) && parsedUnits > 0) {
+        body.max_units = parsedUnits;
+      }
+      const res = await fetch("/api/addons/hello_world/worker/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchWorkerStatus();
+    } catch (e: any) {
+      setErr(String(e));
+    }
+  }
+
+  async function stopWorker() {
+    setErr(null);
+    try {
+      const res = await fetch("/api/addons/hello_world/worker/stop", {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchWorkerStatus();
     } catch (e: any) {
       setErr(String(e));
     }
@@ -201,6 +255,57 @@ export default function HelloWorldPage() {
             {JSON.stringify(status, null, 2)}
           </pre>
         )}
+      </section>
+
+      <section className="hw-card">
+        <div className="hw-card-title">Worker Simulator</div>
+        <div className="hw-form">
+          <label className="hw-label">
+            <div className="hw-label-text">Worker id</div>
+            <input
+              value={workerId}
+              onChange={(e) => setWorkerId(e.target.value)}
+              className="hw-input"
+            />
+          </label>
+          <label className="hw-label">
+            <div className="hw-label-text">Max units (optional)</div>
+            <input
+              type="number"
+              min={1}
+              value={workerMaxUnits}
+              onChange={(e) => setWorkerMaxUnits(e.target.value)}
+              className="hw-input"
+            />
+          </label>
+          <label className="hw-label">
+            <div className="hw-label-text">Heartbeat interval (s)</div>
+            <input
+              type="number"
+              min={0.5}
+              step={0.5}
+              value={workerHeartbeat}
+              onChange={(e) => setWorkerHeartbeat(Number(e.target.value))}
+              className="hw-input"
+            />
+          </label>
+          <div className="hw-actions">
+            <button className="hw-btn" onClick={startWorker}>
+              Start worker
+            </button>
+            <button className="hw-btn" onClick={stopWorker}>
+              Stop worker
+            </button>
+            <button className="hw-btn" onClick={fetchWorkerStatus}>
+              Refresh status
+            </button>
+          </div>
+          {workerStatus && (
+            <pre className="hw-pre-tight">
+              {JSON.stringify(workerStatus, null, 2)}
+            </pre>
+          )}
+        </div>
       </section>
 
       <section className="hw-card">
