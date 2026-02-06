@@ -72,6 +72,8 @@ async def _run_worker(engine: SchedulerEngine, state: WorkerState) -> None:
             _heartbeat_loop(engine, lease.lease_id, state.worker_id, state.heartbeat_interval_s)
         )
         try:
+            # Simulate setup time before work begins.
+            await asyncio.sleep(2.0)
             handler = HANDLERS.get(job.type)
             if handler is None:
                 raise RuntimeError(f"No handler registered for job type '{job.type}'")

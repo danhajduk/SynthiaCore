@@ -3,7 +3,7 @@ import "./style.css";
 
 type EnqueueResult = { ok: boolean; job_id?: string; state?: string; error?: string };
 
-const defaultPayload = JSON.stringify({ seconds: 1.5 }, null, 2);
+const defaultPayload = JSON.stringify({ seconds: 5 }, null, 2);
 
 export default function HelloWorldPage() {
   const [status, setStatus] = useState<any>(null);
