@@ -22,6 +22,11 @@ def _burn_cpu(seconds: float) -> Dict[str, Any]:
     while time.perf_counter() < end:
         acc += 1.0000001
         acc *= 1.0000001
+        acc += 3.14159
+        acc *= 0.9999999
+        acc *= 1.0000001
+        acc += 3.14159
+        acc *= 0.9999999
     return {"ok": True, "handler": "cpu", "burned_s": seconds}
 
 
