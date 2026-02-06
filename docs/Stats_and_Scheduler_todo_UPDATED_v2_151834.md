@@ -140,8 +140,8 @@ The smallest implementation that is useful immediately:
 - [x] `POST /api/scheduler/lease/{lease_id}/heartbeat`
 - [x] `POST /api/scheduler/lease/{lease_id}/release`
 - [x] `GET /api/scheduler/status` (active + recent leases, quiet info)
-- [ ] Add `POST /api/scheduler/lease/{lease_id}/report` (progress + accounting)
-- [ ] Add `POST /api/scheduler/lease/{lease_id}/revoke` (core-initiated cancel)
+- [x] Add `POST /api/scheduler/lease/{lease_id}/report` (progress + accounting)
+- [x] Add `POST /api/scheduler/lease/{lease_id}/revoke` (core-initiated cancel)
 
 ### 3.5 Audit / Visibility
 - [x] Track lease lifecycle in-memory (active + recent)

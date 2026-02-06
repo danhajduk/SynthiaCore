@@ -6,7 +6,7 @@
 4. [x] Add SQLite storage for samples and `/api/system-stats/history`.
 5. [x] Implement quiet streak tracking and `/api/system-stats/health`.
 6. [x] Add scheduler missing pieces: capacity headroom calc, concurrency backstops.
-7. [ ] Add scheduler endpoints: `report` and `revoke`.
+7. [x] Add scheduler endpoints: `report` and `revoke`.
 8. [ ] Persist scheduler lease events and expose per-addon decision summary.
 9. [ ] Implement queueing: `JobIntent`, queue store, dispatcher, state transitions.
 10. [ ] Add queue persistence (SQLite) if required for crash safety.

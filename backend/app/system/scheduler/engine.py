@@ -467,6 +467,73 @@ class SchedulerEngine:
             if lease and job:
                 await self.history_store.update_state(job, lease, finished_at=utcnow())
 
+    # ---------- Report ----------
+    async def report(
+        self,
+        lease_id: str,
+        worker_id: str,
+        progress: Optional[float] = None,
+        metrics: Optional[Dict[str, Any]] = None,
+        message: Optional[str] = None,
+    ) -> None:
+        expired: List[tuple[Lease, Job | None]] = []
+        async with self.store.lock:
+            expired = self._expire_leases_locked()
+
+            lease = self.store.leases.get(lease_id)
+            if not lease:
+                raise KeyError("lease_not_found")
+            if lease.worker_id != worker_id:
+                raise PermissionError("worker_mismatch")
+
+            now = utcnow()
+            job = self.store.jobs.get(lease.job_id)
+            if job:
+                job.updated_at = now
+
+            self.store.lease_reports[lease_id] = {
+                "worker_id": worker_id,
+                "progress": progress,
+                "metrics": metrics or {},
+                "message": message,
+                "reported_at": now.isoformat(),
+            }
+
+        if self.history_store and expired:
+            await self.history_store.record_expired(expired)
+
+    # ---------- Revoke (core-initiated) ----------
+    async def revoke(self, lease_id: str, reason: Optional[str] = None) -> bool:
+        expired: List[tuple[Lease, Job | None]] = []
+        lease: Lease | None = None
+        job: Job | None = None
+        async with self.store.lock:
+            expired = self._expire_leases_locked()
+
+            lease = self.store.leases.get(lease_id)
+            if not lease:
+                return False
+
+            now = utcnow()
+            job = self.store.jobs.get(lease.job_id)
+            if job:
+                job.state = JobState.failed
+                job.updated_at = now
+                if reason:
+                    payload = dict(job.payload or {})
+                    payload["revoke_reason"] = reason
+                    job.payload = payload
+
+            self.store.leases.pop(lease_id, None)
+            self.store.lease_reports.pop(lease_id, None)
+
+        if self.history_store:
+            if expired:
+                await self.history_store.record_expired(expired)
+            if lease and job:
+                await self.history_store.update_state(job, lease, finished_at=utcnow())
+        return True
+
     # ---------- Expiry loop ----------
     def _expire_leases_locked(self) -> List[tuple[Lease, Job | None]]:
         now = utcnow()

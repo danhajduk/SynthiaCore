@@ -11,6 +11,8 @@ from .models import (
     RequestLeaseRequest, RequestLeaseDenied, RequestLeaseGranted,
     HeartbeatRequest, HeartbeatResponse,
     CompleteLeaseRequest, CompleteLeaseResponse,
+    ReportLeaseRequest, ReportLeaseResponse,
+    RevokeLeaseRequest, RevokeLeaseResponse,
     JobState,
 )
 
@@ -84,6 +86,29 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             return CompleteLeaseResponse(ok=True)
         except PermissionError:
             raise HTTPException(status_code=403, detail="worker_mismatch")
+
+    @router.post("/leases/{lease_id}/report", response_model=ReportLeaseResponse)
+    async def report(lease_id: str, req: ReportLeaseRequest) -> ReportLeaseResponse:
+        try:
+            await engine.report(
+                lease_id=lease_id,
+                worker_id=req.worker_id,
+                progress=req.progress,
+                metrics=req.metrics,
+                message=req.message,
+            )
+            return ReportLeaseResponse(ok=True)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="lease_not_found")
+        except PermissionError:
+            raise HTTPException(status_code=403, detail="worker_mismatch")
+
+    @router.post("/leases/{lease_id}/revoke", response_model=RevokeLeaseResponse)
+    async def revoke(lease_id: str, req: RevokeLeaseRequest) -> RevokeLeaseResponse:
+        ok = await engine.revoke(lease_id=lease_id, reason=req.reason)
+        if not ok:
+            raise HTTPException(status_code=404, detail="lease_not_found")
+        return RevokeLeaseResponse(ok=True)
 
     @router.get("/status")
     async def status():

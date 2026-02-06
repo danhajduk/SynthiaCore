@@ -27,6 +27,7 @@ class SchedulerStore:
         self.jobs: Dict[str, Job] = {}
         self.leases: Dict[str, Lease] = {}
         self.idempotency_index: Dict[str, str] = {}  # idempotency_key -> job_id
+        self.lease_reports: Dict[str, dict] = {}
 
         self.queues = Queues(
             high=deque(),

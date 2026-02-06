@@ -122,3 +122,22 @@ class CompleteLeaseRequest(BaseModel):
 
 class CompleteLeaseResponse(BaseModel):
     ok: bool
+
+
+class ReportLeaseRequest(BaseModel):
+    worker_id: str
+    progress: Optional[float] = Field(default=None, ge=0, le=1)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+    message: Optional[str] = None
+
+
+class ReportLeaseResponse(BaseModel):
+    ok: bool
+
+
+class RevokeLeaseRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+class RevokeLeaseResponse(BaseModel):
+    ok: bool
