@@ -78,7 +78,8 @@ async def _run_worker(engine: SchedulerEngine, state: WorkerState) -> None:
             # Simulate CPU load whenever a lease is granted.
             if job.type not in ("helloworld.cpu", "cpu"):
                 payload = job.payload or {}
-                cpu_seconds = float(payload.get("cpu_seconds", payload.get("seconds", 1.0)))
+                units = max(1, int(getattr(job, "requested_units", 1) or 1))
+                cpu_seconds = float(payload.get("cpu_seconds", units * 0.2))
                 if cpu_seconds > 0:
                     await handler_cpu({"seconds": cpu_seconds})
             t0 = time.time()
