@@ -176,9 +176,9 @@ If/when we need “guaranteed eventual execution” or fairness across addons:
   - [ ] optional downsample later
 
 ### 4.2 Quiet Streaks
-- [ ] Store derived quiet intervals:
+- [x] Store derived quiet intervals:
   - start_time, end_time, avg_score, min_score
-- [ ] Provide “last 24h quiet streaks” endpoint or computed on demand
+- [x] Provide “last 24h quiet streaks” endpoint or computed on demand
 
 ---
 
@@ -202,7 +202,7 @@ If/when we need “guaranteed eventual execution” or fairness across addons:
 - [x] `GET /api/system-stats/current`
 - [x] `GET /api/system-stats/history?group=quiet&range=1h&step=10s`
 - [ ] `GET /api/system-stats/addons`
-- [ ] `GET /api/system-stats/health` (rollup ok/warn/error + reasons)
+- [x] `GET /api/system-stats/health` (rollup ok/warn/error + reasons)
 - [ ] Debug (optional MVP):
   - [ ] `GET /api/system-stats/debug/collectors`
 
@@ -258,7 +258,7 @@ If/when we need “guaranteed eventual execution” or fairness across addons:
 4. [x] Implement in-memory snapshot + `/current`
 5. [x] Implement SQLite sample storage + `/history`
 6. [ ] Implement heavy scheduler lease endpoints + policy
-7. [ ] Add quiet streak tracking + `/health` rollup
+7. [x] Add quiet streak tracking + `/health` rollup
 
 
 ---

@@ -4,7 +4,7 @@
 2. [x] Implement collectors: host, process, addon, and API middleware stats.
 3. [x] Build in-memory stats snapshot and `/api/system-stats/current`.
 4. [x] Add SQLite storage for samples and `/api/system-stats/history`.
-5. [ ] Implement quiet streak tracking and `/api/system-stats/health`.
+5. [x] Implement quiet streak tracking and `/api/system-stats/health`.
 6. [ ] Add scheduler missing pieces: capacity headroom calc, concurrency backstops.
 7. [ ] Add scheduler endpoints: `report` and `revoke`.
 8. [ ] Persist scheduler lease events and expose per-addon decision summary.

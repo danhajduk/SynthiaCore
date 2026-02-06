@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from .models import SystemStats, SystemStatsSnapshot
 from .service import collect_system_stats, collect_system_snapshot
 from app.system.stats_store import StatsStore
+from .service import compute_quiet_assessment
 
 _stats_store = StatsStore()
 
@@ -87,3 +88,71 @@ def get_system_stats_history(
         "step_s": step_s,
         "points": points,
     }
+
+
+@router.get("/system-stats/health")
+def get_system_stats_health():
+    # Use the most recent minute entry if available.
+    rows = _stats_store.last_n(1)
+    if not rows:
+        raise HTTPException(status_code=503, detail="no_stats")
+
+    ts, busy = rows[-1]
+    quiet = compute_quiet_assessment(busy)
+
+    if quiet.state == "QUIET":
+        status = "ok"
+    elif quiet.state == "NORMAL":
+        status = "ok"
+    elif quiet.state == "BUSY":
+        status = "warn"
+    else:
+        status = "error"
+
+    quiet_streaks = _compute_quiet_streaks(hours=24)
+
+    return {
+        "status": status,
+        "busy_rating": round(float(busy), 2),
+        "quiet_score": quiet.quiet_score,
+        "quiet_state": quiet.state,
+        "reasons": quiet.reasons,
+        "timestamp": ts,
+        "quiet_streaks_24h": quiet_streaks,
+    }
+
+
+def _compute_quiet_streaks(hours: int = 24):
+    now = time.time()
+    start_ts = now - (hours * 3600)
+    rows = _stats_store.range_points(start_ts=start_ts, end_ts=now)
+
+    streaks = []
+    current = None
+    scores = []
+
+    for ts, busy in rows:
+        quiet = compute_quiet_assessment(busy)
+        if quiet.state == "QUIET":
+            if current is None:
+                current = {"start_time": ts, "end_time": ts}
+                scores = [quiet.quiet_score]
+            else:
+                current["end_time"] = ts
+                scores.append(quiet.quiet_score)
+        else:
+            if current is not None:
+                avg_score = sum(scores) / len(scores) if scores else 0
+                current["avg_score"] = round(avg_score, 2)
+                current["min_score"] = min(scores) if scores else 0
+                streaks.append(current)
+                current = None
+                scores = []
+
+    if current is not None:
+        avg_score = sum(scores) / len(scores) if scores else 0
+        current["avg_score"] = round(avg_score, 2)
+        current["min_score"] = min(scores) if scores else 0
+        streaks.append(current)
+
+    return streaks

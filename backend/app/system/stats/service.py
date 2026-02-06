@@ -16,6 +16,8 @@ from app.system.api_metrics import ApiMetricsCollector
 from app.system.busy_rating import compute_busy_rating
 from .models import (
     AddonStatsSnapshot,
+    QuietAssessment,
+    QuietState,
     SystemStatsSnapshot,
     SystemStats,
     LoadAvg,
@@ -202,6 +204,28 @@ def collect_addon_stats(registry: Optional[AddonRegistry]) -> Dict[str, AddonSta
     return out
 
 
+def compute_quiet_assessment(busy_rating: float) -> QuietAssessment:
+    # Simple mapping until a full quiet model exists.
+    busy = max(0.0, min(10.0, float(busy_rating)))
+    quiet_score = int(round(100 - (busy * 10)))
+    if busy <= 2:
+        state = QuietState.QUIET
+    elif busy <= 5:
+        state = QuietState.NORMAL
+    elif busy <= 7:
+        state = QuietState.BUSY
+    else:
+        state = QuietState.PANIC
+
+    reasons = [f"busy_rating={busy:.2f}"]
+    return QuietAssessment(
+        quiet_score=quiet_score,
+        state=state,
+        reasons=reasons,
+        inputs={"busy_rating": busy},
+    )
+
+
 def collect_system_snapshot(
     api_metrics: Optional[ApiMetricsCollector] = None,
     api_snapshot: Optional[Dict[str, Any]] = None,
@@ -215,6 +239,7 @@ def collect_system_snapshot(
         api = api_metrics.snapshot(window_s=60, top_n=10) if api_metrics else {}
     process = collect_process_stats()
     addons = collect_addon_stats(registry)
+    quiet = compute_quiet_assessment(sys_snap.busy_rating)
 
     return SystemStatsSnapshot(
         collected_at=datetime.now(timezone.utc),
@@ -222,7 +247,7 @@ def collect_system_snapshot(
         process=process,
         api=api,
         addons=addons,
-        quiet=None,
+        quiet=quiet,
         errors={},
     )
 

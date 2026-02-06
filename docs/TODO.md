@@ -4,6 +4,7 @@
 - `GAME_PLAN.md`: Define core models for stats and quiet assessment.
 - `GAME_PLAN.md`: Implement collectors: host, process, addon, and API middleware stats.
 - `GAME_PLAN.md`: Build in-memory stats snapshot and `/api/system-stats/current`.
+- `GAME_PLAN.md`: Add SQLite storage for samples and `/api/system-stats/history`.
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define `SystemStatsSnapshot` Pydantic model:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `collected_at`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `host` (cpu/mem/disk/net/uptime)
@@ -82,16 +83,19 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `POST /api/scheduler/lease/{lease_id}/release`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/scheduler/status` (active + recent leases, quiet info)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Track lease lifecycle in-memory (active + recent)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Store derived quiet intervals:
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Provide “last 24h quiet streaks” endpoint or computed on demand
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/current`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/history?group=quiet&range=1h&step=10s`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/health` (rollup ok/warn/error + reasons)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define models for snapshot + quiet assessment
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Build collectors (host/process/addon)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add API middleware stats
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement in-memory snapshot + `/current`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement SQLite sample storage + `/history`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add quiet streak tracking + `/health` rollup
 
 **Needs Doing**
-- `GAME_PLAN.md`: Add SQLite storage for samples and `/api/system-stats/history`.
 - `GAME_PLAN.md`: Implement quiet streak tracking and `/api/system-stats/health`.
 - `GAME_PLAN.md`: Add scheduler missing pieces: capacity headroom calc, concurrency backstops.
 - `GAME_PLAN.md`: Add scheduler endpoints: `report` and `revoke`.
@@ -122,8 +126,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Retention policy (MVP):
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: keep last 7 days raw (configurable)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional downsample later
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Store derived quiet intervals:
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Provide “last 24h quiet streaks” endpoint or computed on demand
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Create stats runner on FastAPI startup:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: collector loops (with jitter)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: each collector isolated with timeout + exception capture
@@ -134,7 +136,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: disk/runtime dir size: 60–120s
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Ensure shutdown cancels tasks cleanly
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/addons`
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/health` (rollup ok/warn/error + reasons)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Debug (optional MVP):
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/debug/collectors`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add config model (env + defaults):
@@ -164,7 +165,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: sidebar mini chart
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: settings: maintenance window + allow/block toggle
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Implement heavy scheduler lease endpoints + policy
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add quiet streak tracking + `/health` rollup
 - `queueing.md`: Add `JobIntent` model
 - `queueing.md`: Add in-memory queue store + endpoints: submit/get/cancel/list
 - `queueing.md`: Add dispatcher loop (timer)
