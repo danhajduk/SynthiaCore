@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request
@@ -9,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from .engine import SchedulerEngine
 from .queue_store import QueueStore
+from .queue_persist import QueuePersistStore
 from .models import (
     SubmitJobRequest, SubmitJobResponse, Job,
     RequestLeaseRequest, RequestLeaseDenied, RequestLeaseGranted,
@@ -29,9 +31,25 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
     expire_task: asyncio.Task | None = None
     dispatch_task: asyncio.Task | None = None
     queue_store = QueueStore()
+    queue_db = os.getenv(
+        "SCHEDULER_QUEUE_DB",
+        os.path.join(os.getcwd(), "var", "scheduler_queue.db"),
+    )
+    queue_persist = QueuePersistStore(queue_db)
 
     def _utcnow() -> datetime:
         return datetime.now(timezone.utc)
+
+    async def _persist_job(job: JobIntent) -> None:
+        await queue_persist.upsert_job(job)
+
+    async def _persist_event(
+        job_id: str,
+        from_state: QueueJobState | None,
+        to_state: QueueJobState | None,
+        reason: str | None,
+    ) -> None:
+        await queue_persist.record_event(job_id, from_state, to_state, reason)
 
     @router.on_event("startup")
     async def _startup() -> None:
@@ -47,6 +65,27 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
                 await asyncio.sleep(2.0)
 
         expire_task = asyncio.create_task(loop())
+
+        async def load_queue() -> None:
+            # Load persisted jobs and requeue safe states
+            jobs = await queue_persist.load_jobs()
+            now = _utcnow()
+            async with queue_store.lock:
+                for job in jobs:
+                    if job.state in (QueueJobState.DISPATCHING, QueueJobState.RUNNING):
+                        prev = job.state
+                        job.state = QueueJobState.QUEUED
+                        job.lease_id = None
+                        job.next_earliest_start_at = None
+                        job.updated_at = now
+                        queue_store.record_event(job.job_id, prev, job.state, "rehydrate_reset")
+                        await queue_persist.record_event(job.job_id, prev, job.state, "rehydrate_reset")
+                    queue_store.jobs[job.job_id] = job
+                    if job.state == QueueJobState.QUEUED:
+                        queue_store.enqueue(job)
+                    await queue_persist.upsert_job(job)
+
+        await load_queue()
 
         async def dispatch_loop() -> None:
             while True:
@@ -258,10 +297,13 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
                 if job.state == QueueJobState.DISPATCHING:
                     if (now - job.updated_at) > timedelta(seconds=30):
                         queue_store.reserved_units = max(0, queue_store.reserved_units - job.cost_units)
+                        prev = job.state
                         job.state = QueueJobState.QUEUED
                         job.updated_at = now
                         queue_store.enqueue(job)
-                        queue_store.record_event(job.job_id, QueueJobState.DISPATCHING, QueueJobState.QUEUED, "dispatch_timeout")
+                        queue_store.record_event(job.job_id, prev, QueueJobState.QUEUED, "dispatch_timeout")
+                        await _persist_job(job)
+                        await _persist_event(job.job_id, prev, QueueJobState.QUEUED, "dispatch_timeout")
 
             busy = engine.compute_busy_rating()
             usable = engine.usable_capacity_units(busy)
@@ -291,18 +333,23 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
                     job.attempts += 1
                     job.next_earliest_start_at = now + timedelta(seconds=5)
                     queue_store.enqueue(job)
+                    await _persist_job(job)
                     continue
 
                 if job.cost_units > available:
                     job.attempts += 1
                     job.next_earliest_start_at = now + timedelta(seconds=5)
                     queue_store.enqueue(job)
+                    await _persist_job(job)
                     break
 
                 queue_store.reserved_units += job.cost_units
+                prev = job.state
                 job.state = QueueJobState.DISPATCHING
                 job.updated_at = now
-                queue_store.record_event(job.job_id, QueueJobState.QUEUED, QueueJobState.DISPATCHING, "admitted")
+                queue_store.record_event(job.job_id, prev, QueueJobState.DISPATCHING, "admitted")
+                await _persist_job(job)
+                await _persist_event(job.job_id, prev, QueueJobState.DISPATCHING, "admitted")
                 available = max(0, available - job.cost_units)
 
     @router.post("/queue/jobs/submit", response_model=SubmitJobIntentResponse)
@@ -334,6 +381,8 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             queue_store.jobs[job.job_id] = job
             queue_store.enqueue(job)
             queue_store.record_event(job.job_id, QueueJobState.QUEUED, QueueJobState.QUEUED, "submitted")
+            await _persist_job(job)
+            await _persist_event(job.job_id, QueueJobState.QUEUED, QueueJobState.QUEUED, "submitted")
 
         return SubmitJobIntentResponse(job_id=job.job_id, state=job.state)
 
@@ -383,6 +432,8 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             job.state = QueueJobState.CANCELED
             job.updated_at = _utcnow()
             queue_store.record_event(job.job_id, prev, QueueJobState.CANCELED, "canceled")
+            await _persist_job(job)
+            await _persist_event(job.job_id, prev, QueueJobState.CANCELED, "canceled")
             return CancelJobIntentResponse(ok=True)
 
     @router.post("/queue/jobs/{job_id}/ack", response_model=AckJobIntentResponse)
@@ -399,6 +450,8 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             job.lease_id = req.lease_id
             job.updated_at = _utcnow()
             queue_store.record_event(job.job_id, prev, QueueJobState.RUNNING, "ack")
+            await _persist_job(job)
+            await _persist_event(job.job_id, prev, QueueJobState.RUNNING, "ack")
             return AckJobIntentResponse(ok=True)
 
     @router.post("/queue/jobs/{job_id}/complete", response_model=CompleteJobIntentResponse)
@@ -414,6 +467,8 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
                 job.state = QueueJobState.FAILED
             job.updated_at = _utcnow()
             queue_store.record_event(job.job_id, prev, job.state, "complete")
+            await _persist_job(job)
+            await _persist_event(job.job_id, prev, job.state, "complete")
             return CompleteJobIntentResponse(ok=True)
 
     return router

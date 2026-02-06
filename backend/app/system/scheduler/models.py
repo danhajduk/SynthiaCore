@@ -24,6 +24,12 @@ class JobPriority(str, Enum):
     background = "background"
 
 
+def _coerce_priority(value: Any) -> JobPriority:
+    if isinstance(value, JobPriority):
+        return value
+    return JobPriority(str(value))
+
+
 class QueueJobState(str, Enum):
     QUEUED = "QUEUED"
     DISPATCHING = "DISPATCHING"
@@ -31,6 +37,12 @@ class QueueJobState(str, Enum):
     DONE = "DONE"
     FAILED = "FAILED"
     CANCELED = "CANCELED"
+
+
+def _coerce_queue_state(value: Any) -> QueueJobState:
+    if isinstance(value, QueueJobState):
+        return value
+    return QueueJobState(str(value))
 
 
 class Job(BaseModel):

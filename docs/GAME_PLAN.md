@@ -9,7 +9,7 @@
 7. [x] Add scheduler endpoints: `report` and `revoke`.
 8. [x] Persist scheduler lease events and expose per-addon decision summary.
 9. [x] Implement queueing: `JobIntent`, queue store, dispatcher, state transitions.
-10. [ ] Add queue persistence (SQLite) if required for crash safety.
+10. [x] Add queue persistence (SQLite) if required for crash safety.
 11. [ ] Add config model and safe defaults for intervals/thresholds/limits.
 12. [ ] Add tests: unit for quiet score/policy/token bucket/expiry; integration for snapshot and endpoints.
 13. [ ] Tackle future enhancements (custom addon stats, downsampling, Prometheus, UI widgets).

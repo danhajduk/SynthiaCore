@@ -267,4 +267,4 @@ Persist audit events:
 - [x] Add “dispatchable jobs” endpoint for addon polling:
       `GET /api/system/scheduler/queue/dispatchable`
 - [x] Add job state transitions + events
-- [ ] Add persistence (SQLite) once semantics are stable
+- [x] Add persistence (SQLite) once semantics are stable

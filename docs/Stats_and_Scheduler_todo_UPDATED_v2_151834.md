@@ -155,7 +155,7 @@ If/when we need “guaranteed eventual execution” or fairness across addons:
   - leases expire/release
   - quiet state improves
   - capacity increases
-- [ ] Persistence required if we want crash-safe queues (SQLite)
+- [x] Persistence required if we want crash-safe queues (SQLite)
 
 ## 4) Persistence (History Storage) — SQLite
  active heavy job(s)
