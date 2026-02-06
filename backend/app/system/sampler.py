@@ -50,9 +50,12 @@ async def stats_fast_sampler_loop(app: FastAPI, interval_s: float = 5.0) -> None
             app.state.latest_stats = combined
 
             registry = getattr(app.state, "addon_registry", None)
+            cfg = getattr(app.state, "system_config", None)
+            quiet_thresholds = getattr(cfg, "quiet_thresholds", None) if cfg else None
             snapshot = collect_system_snapshot(
                 api_snapshot=api_snap,
                 registry=registry,
+                quiet_thresholds=quiet_thresholds,
             )
             app.state.latest_system_snapshot = snapshot
 
@@ -85,7 +88,7 @@ async def api_metrics_sampler_loop(
         await asyncio.sleep(interval_s)
 
 
-async def stats_minute_writer_loop(app: FastAPI) -> None:
+async def stats_minute_writer_loop(app: FastAPI, retention_days: int = 1) -> None:
     """
     Every minute (on the minute), store the latest combined snapshot + busy rating in SQLite.
     Keeps 24h of data.
@@ -119,7 +122,7 @@ async def stats_minute_writer_loop(app: FastAPI) -> None:
             snap_dict["busy_rating"] = round(float(compute_busy_rating(snap_dict, api)), 2)
 
             store.insert_minute(ts=next_min, busy=float(snap_dict["busy_rating"]), snapshot=snap_dict)
-            store.prune_older_than(seconds=24 * 3600)
+            store.prune_older_than(seconds=int(retention_days) * 24 * 3600)
 
         except Exception:
             log.exception("stats_minute_writer_loop failed; continuing")

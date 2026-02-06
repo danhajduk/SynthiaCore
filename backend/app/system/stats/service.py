@@ -14,6 +14,7 @@ from app.addons.discovery import repo_root
 from app.addons.registry import AddonRegistry
 from app.system.api_metrics import ApiMetricsCollector
 from app.system.busy_rating import compute_busy_rating
+from app.system.config import QuietThresholds
 from .models import (
     AddonStatsSnapshot,
     QuietAssessment,
@@ -204,15 +205,20 @@ def collect_addon_stats(registry: Optional[AddonRegistry]) -> Dict[str, AddonSta
     return out
 
 
-def compute_quiet_assessment(busy_rating: float) -> QuietAssessment:
+def compute_quiet_assessment(
+    busy_rating: float,
+    quiet_max: float = 2.0,
+    normal_max: float = 5.0,
+    busy_max: float = 7.0,
+) -> QuietAssessment:
     # Simple mapping until a full quiet model exists.
     busy = max(0.0, min(10.0, float(busy_rating)))
     quiet_score = int(round(100 - (busy * 10)))
-    if busy <= 2:
+    if busy <= quiet_max:
         state = QuietState.QUIET
-    elif busy <= 5:
+    elif busy <= normal_max:
         state = QuietState.NORMAL
-    elif busy <= 7:
+    elif busy <= busy_max:
         state = QuietState.BUSY
     else:
         state = QuietState.PANIC
@@ -230,6 +236,7 @@ def collect_system_snapshot(
     api_metrics: Optional[ApiMetricsCollector] = None,
     api_snapshot: Optional[Dict[str, Any]] = None,
     registry: Optional[AddonRegistry] = None,
+    quiet_thresholds: Optional[QuietThresholds] = None,
 ) -> SystemStatsSnapshot:
     sys_snap = collect_system_stats(api_metrics=None)
     host = sys_snap.model_dump(exclude={"api", "busy_rating", "timestamp"})
@@ -239,7 +246,15 @@ def collect_system_snapshot(
         api = api_metrics.snapshot(window_s=60, top_n=10) if api_metrics else {}
     process = collect_process_stats()
     addons = collect_addon_stats(registry)
-    quiet = compute_quiet_assessment(sys_snap.busy_rating)
+    if quiet_thresholds is None:
+        quiet = compute_quiet_assessment(sys_snap.busy_rating)
+    else:
+        quiet = compute_quiet_assessment(
+            sys_snap.busy_rating,
+            quiet_max=quiet_thresholds.quiet_max,
+            normal_max=quiet_thresholds.normal_max,
+            busy_max=quiet_thresholds.busy_max,
+        )
 
     return SystemStatsSnapshot(
         collected_at=datetime.now(timezone.utc),

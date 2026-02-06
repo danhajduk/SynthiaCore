@@ -36,7 +36,7 @@ This separation keeps the UI responsive and ensures heavy scheduling decisions a
 - busy_rating: 0..10 (derived signal)
 
 ### Update Rate
-- **System sampling**: every **5 seconds** (background sampler)
+- **System sampling**: every **5 seconds** (background sampler, configurable)
 - Endpoint returns **cached snapshot**, not computed on request.
 
 ---
@@ -67,8 +67,8 @@ API metrics are collected by middleware and summarized by the ApiMetricsCollecto
 - top_clients: (client, count)
 
 ### Recommended Schedule
-- window_s: **60s**
-- refresh interval: **10s**
+- window_s: **60s** (configurable)
+- refresh interval: **10s** (configurable)
 This keeps the rolling summary up-to-date without being noisy.
 
 ---
@@ -110,7 +110,7 @@ The score is always clamped:
 ### Schedule
 - Stored every minute, aligned to minute boundaries:
   - `ts = (floor(now/60)+1)*60`
-- Retention: 24 hours (approx 1440 points)
+- Retention: 24 hours (approx 1440 points) by default, configurable
 
 ---
 

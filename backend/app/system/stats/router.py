@@ -46,7 +46,13 @@ def get_current_system_snapshot(request: Request):
 
     api_metrics = getattr(request.app.state, "api_metrics", None)
     registry = getattr(request.app.state, "addon_registry", None)
-    return collect_system_snapshot(api_metrics=api_metrics, registry=registry)
+    cfg = getattr(request.app.state, "system_config", None)
+    quiet_thresholds = getattr(cfg, "quiet_thresholds", None) if cfg else None
+    return collect_system_snapshot(
+        api_metrics=api_metrics,
+        registry=registry,
+        quiet_thresholds=quiet_thresholds,
+    )
 
 
 @router.get("/system-stats/history")
@@ -91,14 +97,24 @@ def get_system_stats_history(
 
 
 @router.get("/system-stats/health")
-def get_system_stats_health():
+def get_system_stats_health(request: Request):
     # Use the most recent minute entry if available.
     rows = _stats_store.last_n(1)
     if not rows:
         raise HTTPException(status_code=503, detail="no_stats")
 
     ts, busy = rows[-1]
-    quiet = compute_quiet_assessment(busy)
+    cfg = getattr(request.app.state, "system_config", None)
+    quiet_thresholds = getattr(cfg, "quiet_thresholds", None) if cfg else None
+    if quiet_thresholds is None:
+        quiet = compute_quiet_assessment(busy)
+    else:
+        quiet = compute_quiet_assessment(
+            busy,
+            quiet_max=quiet_thresholds.quiet_max,
+            normal_max=quiet_thresholds.normal_max,
+            busy_max=quiet_thresholds.busy_max,
+        )
 
     if quiet.state == "QUIET":
         status = "ok"

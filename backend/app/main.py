@@ -19,6 +19,7 @@ from app.system.sampler import (
     api_metrics_sampler_loop,
     stats_minute_writer_loop,
 )
+from app.system.config import load_config
 
 from .api.admin import router as admin_router
 from .system.stats.router import router as stats_router
@@ -52,13 +53,22 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def start_background_tasks():
         log.info("Starting background tasks for stats sampling and API metrics")
+        cfg = load_config()
+        app.state.system_config = cfg
         app.state.latest_stats = None
         app.state.latest_api_metrics = None
         app.state.latest_system_snapshot = None
 
-        asyncio.create_task(stats_fast_sampler_loop(app, interval_s=5.0))
-        asyncio.create_task(api_metrics_sampler_loop(app, window_s=60, top_n=10))
-        asyncio.create_task(stats_minute_writer_loop(app))
+        asyncio.create_task(stats_fast_sampler_loop(app, interval_s=cfg.stats_fast_interval_s))
+        asyncio.create_task(
+            api_metrics_sampler_loop(
+                app,
+                window_s=cfg.api_metrics_window_s,
+                top_n=10,
+                interval_s=cfg.api_metrics_interval_s,
+            )
+        )
+        asyncio.create_task(stats_minute_writer_loop(app, retention_days=cfg.stats_retention_days))
 
         async def history_cleanup_loop() -> None:
             while True:

@@ -11,6 +11,7 @@
 - `GAME_PLAN.md`: Persist scheduler lease events and expose per-addon decision summary.
 - `GAME_PLAN.md`: Implement queueing: `JobIntent`, queue store, dispatcher, state transitions.
 - `GAME_PLAN.md`: Add queue persistence (SQLite) if required for crash safety.
+- `GAME_PLAN.md`: Add config model and safe defaults for intervals/thresholds/limits.
 - `queueing.md`: Add `JobIntent` model
 - `queueing.md`: Add in-memory queue store + endpoints: submit/get/cancel/list
 - `queueing.md`: Add dispatcher loop (timer)
@@ -110,6 +111,12 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/current`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/history?group=quiet&range=1h&step=10s`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/health` (rollup ok/warn/error + reasons)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add config model (env + defaults):
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: intervals
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: retention days
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: quiet thresholds (cpu/mem/rps/p95)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: heavy scheduler limits (concurrency, TTL, token bucket)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Provide safe defaults that work on your dev box and on a small NUC
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define models for snapshot + quiet assessment
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Build collectors (host/process/addon)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add API middleware stats
@@ -118,7 +125,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add quiet streak tracking + `/health` rollup
 
 **Needs Doing**
-- `GAME_PLAN.md`: Add config model and safe defaults for intervals/thresholds/limits.
 - `GAME_PLAN.md`: Add tests: unit for quiet score/policy/token bucket/expiry; integration for snapshot and endpoints.
 - `GAME_PLAN.md`: Tackle future enhancements (custom addon stats, downsampling, Prometheus, UI widgets).
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Pull from addon registry/store:
@@ -144,12 +150,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/addons`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Debug (optional MVP):
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `GET /api/system-stats/debug/collectors`
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add config model (env + defaults):
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: intervals
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: retention days
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: quiet thresholds (cpu/mem/rps/p95)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: heavy scheduler limits (concurrency, TTL, token bucket)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Provide safe defaults that work on your dev box and on a small NUC
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Unit tests:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: quiet score calculation
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: policy decisions under simulated stats

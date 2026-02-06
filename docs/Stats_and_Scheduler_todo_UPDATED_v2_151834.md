@@ -210,13 +210,13 @@ If/when we need “guaranteed eventual execution” or fairness across addons:
 
 ## 7) Config + Defaults
 
-- [ ] Add config model (env + defaults):
-  - [ ] intervals
-  - [ ] retention days
-  - [ ] quiet thresholds (cpu/mem/rps/p95)
-  - [ ] heavy scheduler limits (concurrency, TTL, token bucket)
+- [x] Add config model (env + defaults):
+  - [x] intervals
+  - [x] retention days
+  - [x] quiet thresholds (cpu/mem/rps/p95)
+  - [x] heavy scheduler limits (concurrency, TTL, token bucket)
 
-- [ ] Provide safe defaults that work on your dev box and on a small NUC
+- [x] Provide safe defaults that work on your dev box and on a small NUC
 
 ---
 
