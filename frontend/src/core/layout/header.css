@@ -8,6 +8,12 @@
   backdrop-filter: blur(10px);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .header-title {
   font-weight: 700;
 }
@@ -15,4 +21,22 @@
 .header-subtitle {
   opacity: 0.7;
   font-size: 12px;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+}
+
+.header-badge-warn {
+  background: rgba(255, 200, 80, 0.25);
+}
+
+.header-badge-muted {
+  opacity: 0.7;
 }

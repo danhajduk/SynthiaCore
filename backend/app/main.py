@@ -29,6 +29,7 @@ from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler.history import SchedulerHistoryStore
 from app.system.settings.store import SettingsStore
 from app.system.settings.router import build_settings_router
+from app.system.repo_status import router as repo_status_router
 from app.system.scheduler import build_scheduler_router
 
 setup_logging()
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
     app.state.settings_store = settings_store
 
     app.include_router(build_settings_router(settings_store), prefix="/api/system", tags=["settings"])
+    app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
 
     scheduler_router = build_scheduler_router(engine)
     app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])
