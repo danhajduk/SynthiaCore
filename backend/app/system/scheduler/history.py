@@ -68,7 +68,7 @@ class SchedulerHistoryStore:
               type TEXT,
               priority TEXT,
               requested_units INTEGER,
-              unique INTEGER,
+              unique_flag INTEGER,
               state TEXT,
               payload_json TEXT,
               tags_json TEXT,
@@ -118,7 +118,7 @@ class SchedulerHistoryStore:
         self._conn.execute(
             """
             INSERT INTO job_history (
-              job_id, type, priority, requested_units, unique, state,
+              job_id, type, priority, requested_units, unique_flag, state,
               payload_json, tags_json, addon_id, idempotency_key,
               lease_id, worker_id, created_at, updated_at, leased_at, finished_at
             )
@@ -127,7 +127,7 @@ class SchedulerHistoryStore:
               type=excluded.type,
               priority=excluded.priority,
               requested_units=excluded.requested_units,
-              unique=excluded.unique,
+              unique_flag=excluded.unique_flag,
               state=excluded.state,
               payload_json=excluded.payload_json,
               tags_json=excluded.tags_json,
@@ -178,7 +178,7 @@ class SchedulerHistoryStore:
         self._conn.execute(
             """
             INSERT INTO job_history (
-              job_id, type, priority, requested_units, unique, state,
+              job_id, type, priority, requested_units, unique_flag, state,
               payload_json, tags_json, addon_id, idempotency_key,
               lease_id, worker_id, created_at, updated_at, leased_at, finished_at
             )
@@ -187,7 +187,7 @@ class SchedulerHistoryStore:
               type=excluded.type,
               priority=excluded.priority,
               requested_units=excluded.requested_units,
-              unique=excluded.unique,
+              unique_flag=excluded.unique_flag,
               state=excluded.state,
               payload_json=excluded.payload_json,
               tags_json=excluded.tags_json,
