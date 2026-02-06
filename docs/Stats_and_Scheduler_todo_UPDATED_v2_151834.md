@@ -123,11 +123,11 @@ The smallest implementation that is useful immediately:
 - [x] Soft deny if:
   - [x] quiet_state != QUIET AND priority != HIGH
   - [x] capacity exceeded (units): `used_units + requested_units > capacity_units`
-  - [ ] optional safety caps: global + per-addon concurrency limits (can remain as backstops)
+  - [x] optional safety caps: global + per-addon concurrency limits (can remain as backstops)
 - [x] Default MVP settings (current intent):
   - [x] heartbeat TTL = 30s
-  - [ ] capacity calculation keeps headroom for the rest of the system (see `calculate_capacity()`)
-  - [ ] concurrency backstops (optional): max_global, max_per_addon
+  - [x] capacity calculation keeps headroom for the rest of the system (see `calculate_capacity()`)
+  - [x] concurrency backstops (optional): max_global, max_per_addon
 - [x] Denial reasons should be explicit:
   - [x] `Capacity exceeded: used=…, requested=…, capacity=…`
   - [x] `System is BUSY; waiting for QUIET`

@@ -5,6 +5,7 @@ This document describes how scheduler capacity is calculated and enforced.
 ## Concepts
 - **Total capacity units**: The maximum unit budget (default 100).
 - **Reserve units**: Always held back for core system headroom.
+- **Headroom percent**: A percentage of total capacity withheld before reserve units.
 - **Busy rating**: A 0–10 score from system and API metrics.
 - **Usable capacity**: The portion of total capacity allowed at the current busy rating.
 - **Leased capacity**: Units currently held by active leases.
@@ -30,7 +31,7 @@ Capacity scales down as busy rating increases. The scheduler uses a conservative
 The usable units are computed as:
 
 ```
-usable = floor(total_capacity_units * percent) - reserve_units
+usable = floor(total_capacity_units * percent * (1 - headroom_pct)) - reserve_units
 usable = max(0, usable)
 ```
 
@@ -52,3 +53,4 @@ Capacity appears in the scheduler snapshot as:
 ## Notes
 - Capacity is recomputed on demand during lease requests and snapshots.
 - This model is conservative by design to avoid system overload.
+- `SCHEDULER_CAPACITY_HEADROOM_PCT` controls headroom (default `0.05`).

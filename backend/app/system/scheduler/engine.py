@@ -21,6 +21,16 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _env_int(name: str, default: Optional[int]) -> Optional[int]:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 class SchedulerEngine:
     """
     Core scheduling logic. Conservative and deterministic.
@@ -46,15 +56,19 @@ class SchedulerEngine:
         store: SchedulerStore,
         total_capacity_units: int = 100,
         reserve_units: int = 5,
+        headroom_pct: float = 0.05,
         lease_ttl_s: int = 60,
         heartbeat_grace_s: int = 0,
         failclosed_busy_default: int = 8,
+        max_active_leases: Optional[int] = None,
+        max_active_leases_per_addon: Optional[int] = None,
         metrics_provider: Optional[Callable[[], Tuple[Any | None, Any | None]]] = None,
         history_store: Optional[SchedulerHistoryStore] = None,
     ) -> None:
         self.store = store
         self.total_capacity_units = total_capacity_units
         self.reserve_units = reserve_units
+        self.headroom_pct = headroom_pct
         self.lease_ttl_s = lease_ttl_s
         self.heartbeat_grace_s = heartbeat_grace_s
 
@@ -64,6 +78,14 @@ class SchedulerEngine:
         # env override
         self.failclosed_busy_default = int(
             os.getenv("SCHEDULER_FAILCLOSED_BUSY", str(failclosed_busy_default))
+        )
+        self.headroom_pct = float(
+            os.getenv("SCHEDULER_CAPACITY_HEADROOM_PCT", str(self.headroom_pct))
+        )
+        self.max_active_leases = _env_int("SCHEDULER_MAX_ACTIVE_LEASES", max_active_leases)
+        self.max_active_leases_per_addon = _env_int(
+            "SCHEDULER_MAX_ACTIVE_LEASES_PER_ADDON",
+            max_active_leases_per_addon,
         )
 
     # ---------- Small helpers (router convenience) ----------
@@ -189,11 +211,33 @@ class SchedulerEngine:
     def usable_capacity_units(self, busy: int) -> int:
         busy = max(0, min(10, busy))
         percent = self.BUSY_TO_PERCENT[busy]
-        usable = int(self.total_capacity_units * percent) - self.reserve_units
+        base = self.total_capacity_units * percent
+        if self.headroom_pct > 0:
+            base = base * max(0.0, 1.0 - self.headroom_pct)
+        usable = int(base) - self.reserve_units
         return max(0, usable)
 
     def leased_capacity_units(self) -> int:
         return sum(l.capacity_units for l in self.store.leases.values())
+
+    @staticmethod
+    def _addon_id_for_job(job: Job) -> Optional[str]:
+        for tag in job.tags:
+            if tag.startswith("addon:"):
+                return tag.split(":", 1)[1] or None
+        return None
+
+    def _active_leases_by_addon(self) -> Dict[str, int]:
+        counts: Dict[str, int] = {}
+        for lease in self.store.leases.values():
+            job = self.store.jobs.get(lease.job_id)
+            if not job:
+                continue
+            addon_id = self._addon_id_for_job(job)
+            if not addon_id:
+                continue
+            counts[addon_id] = counts.get(addon_id, 0) + 1
+        return counts
 
     # ---------- Snapshot ----------
     async def snapshot(self) -> SchedulerSnapshot:
@@ -247,12 +291,21 @@ class SchedulerEngine:
             # expire first, so capacity is accurate
             expired = self._expire_leases_locked()
 
+            if self.max_active_leases is not None and len(self.store.leases) >= self.max_active_leases:
+                denied = RequestLeaseDenied(
+                    reason=f"Max active leases reached ({self.max_active_leases})",
+                    retry_after_ms=2000,
+                )
+                lease_job = None
+                # skip further checks
+                pass
+
             busy = self.compute_busy_rating()
             usable = self.usable_capacity_units(busy)
             leased = self.leased_capacity_units()
             available = max(0, usable - leased)
 
-            if available <= 0:
+            if denied is None and available <= 0:
                 denied = RequestLeaseDenied(
                     reason=f"No capacity (busy={busy}, usable={usable}, leased={leased})"
                 )
@@ -262,6 +315,11 @@ class SchedulerEngine:
                 scanned = 0
                 max_scan = sum(self.store.queue_depths().values())
                 worker_has_lease = any(lease.worker_id == worker_id for lease in self.store.leases.values())
+                addon_active = (
+                    self._active_leases_by_addon()
+                    if self.max_active_leases_per_addon is not None
+                    else {}
+                )
 
                 while scanned < max_scan:
                     job_id = self.store.dequeue_next()
@@ -279,6 +337,14 @@ class SchedulerEngine:
                     if job.unique and worker_has_lease:
                         self.store.enqueue(job)
                         continue
+
+                    if self.max_active_leases_per_addon is not None:
+                        addon_id = self._addon_id_for_job(job)
+                        if addon_id:
+                            active_for_addon = addon_active.get(addon_id, 0)
+                            if active_for_addon >= self.max_active_leases_per_addon:
+                                self.store.enqueue(job)
+                                continue
 
                     need = int(job.requested_units)
                     if need <= 0:

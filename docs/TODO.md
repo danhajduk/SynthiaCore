@@ -5,6 +5,7 @@
 - `GAME_PLAN.md`: Implement collectors: host, process, addon, and API middleware stats.
 - `GAME_PLAN.md`: Build in-memory stats snapshot and `/api/system-stats/current`.
 - `GAME_PLAN.md`: Add SQLite storage for samples and `/api/system-stats/history`.
+- `GAME_PLAN.md`: Implement quiet streak tracking and `/api/system-stats/health`.
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Define `SystemStatsSnapshot` Pydantic model:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `collected_at`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `host` (cpu/mem/disk/net/uptime)
@@ -72,8 +73,11 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Soft deny if:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: quiet_state != QUIET AND priority != HIGH
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: capacity exceeded (units): `used_units + requested_units > capacity_units`
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional safety caps: global + per-addon concurrency limits (can remain as backstops)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Default MVP settings (current intent):
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: heartbeat TTL = 30s
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: capacity calculation keeps headroom for the rest of the system (see `calculate_capacity()`)
+- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: concurrency backstops (optional): max_global, max_per_addon
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Denial reasons should be explicit:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `Capacity exceeded: used=…, requested=…, capacity=…`
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: `System is BUSY; waiting for QUIET`
@@ -96,7 +100,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add quiet streak tracking + `/health` rollup
 
 **Needs Doing**
-- `GAME_PLAN.md`: Implement quiet streak tracking and `/api/system-stats/health`.
 - `GAME_PLAN.md`: Add scheduler missing pieces: capacity headroom calc, concurrency backstops.
 - `GAME_PLAN.md`: Add scheduler endpoints: `report` and `revoke`.
 - `GAME_PLAN.md`: Persist scheduler lease events and expose per-addon decision summary.
@@ -110,9 +113,6 @@
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Runtime dir size:
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: ensure directory walk is rate-limited / cached
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional future: add a priority queue + dispatcher loop (see 3.6)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: optional safety caps: global + per-addon concurrency limits (can remain as backstops)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: capacity calculation keeps headroom for the rest of the system (see `calculate_capacity()`)
-- `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: concurrency backstops (optional): max_global, max_per_addon
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add `POST /api/scheduler/lease/{lease_id}/report` (progress + accounting)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Add `POST /api/scheduler/lease/{lease_id}/revoke` (core-initiated cancel)
 - `Stats_and_Scheduler_todo_UPDATED_v2_151834.md`: Persist lease events in SQLite (grant/deny/release/expire)
