@@ -109,7 +109,9 @@ class SubmitJobResponse(BaseModel):
 
 class RequestLeaseRequest(BaseModel):
     worker_id: str
-    capabilities: List[str] = Field(default_factory=list)  # v1 unused, kept for later
+    # Reserved for future capability-based scheduling (multi-queue dispatch).
+    # Current scheduler path safely ignores this field.
+    capabilities: List[str] = Field(default_factory=list)
     max_units: Optional[int] = None  # worker-side cap
 
 
