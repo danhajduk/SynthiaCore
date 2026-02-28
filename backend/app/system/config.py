@@ -37,6 +37,18 @@ def _env_optional_int(name: str, default: Optional[int]) -> Optional[int]:
         return default
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    val = raw.strip().lower()
+    if val in {"1", "true", "yes", "on"}:
+        return True
+    if val in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 class QuietThresholds(BaseModel):
     quiet_max: float = Field(default=2.0, ge=0, le=10)
     normal_max: float = Field(default=5.0, ge=0, le=10)
@@ -63,6 +75,7 @@ class SystemConfig(BaseModel):
     # Queueing
     queue_dispatch_interval_s: float = Field(default=2.0, ge=0.5)
     queue_dispatch_timeout_s: float = Field(default=30.0, ge=5.0)
+    scheduler_debug_enabled: bool = False
 
 
 
@@ -87,4 +100,5 @@ def load_config() -> SystemConfig:
         ),
         queue_dispatch_interval_s=_env_float("QUEUE_DISPATCH_INTERVAL_S", 2.0),
         queue_dispatch_timeout_s=_env_float("QUEUE_DISPATCH_TIMEOUT_S", 30.0),
+        scheduler_debug_enabled=_env_bool("SCHEDULER_DEBUG_ENABLED", False),
     )

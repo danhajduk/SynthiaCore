@@ -34,3 +34,4 @@
 2026-02-28 - B1 cleanup: replaced silent catalog fallback with structured catalog_status and added catalog error test + audit event logging.
 2026-02-28 - B2 cleanup: added store backup/staging retention pruning with env-configurable policy and cleanup test coverage.
 2026-02-28 - C3 cleanup: clarified scheduler lease capabilities as reserved+ignored and added model-level safety tests.
+2026-02-28 - C2 cleanup: gated scheduler debug fields/routes behind SCHEDULER_DEBUG_ENABLED and added default-hidden route test.

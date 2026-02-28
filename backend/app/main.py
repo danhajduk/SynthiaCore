@@ -205,7 +205,11 @@ def create_app() -> FastAPI:
     app.include_router(build_settings_router(settings_store, audit_store), prefix="/api/system", tags=["settings"])
     app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
 
-    scheduler_router = build_scheduler_router(engine)
+    scheduler_cfg = load_config()
+    scheduler_router = build_scheduler_router(
+        engine,
+        debug_enabled=bool(getattr(scheduler_cfg, "scheduler_debug_enabled", False)),
+    )
     app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])
 
     # Addons

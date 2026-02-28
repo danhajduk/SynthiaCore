@@ -63,6 +63,7 @@ Catalog query parameters:
 - Heartbeats: leases expire if heartbeats stop.
 - Idempotency: optional `idempotency_key` prevents duplicate jobs.
 - **Unique jobs**: `unique=true` prevents a worker from holding multiple active leases.
+- Debug scheduler surfaces are gated by `SCHEDULER_DEBUG_ENABLED` (default disabled).
 
 ### Scheduler Endpoints
 - `POST /api/system/scheduler/jobs` submit a job.

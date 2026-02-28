@@ -26,7 +26,7 @@ from .models import (
     JobState,
 )
 
-def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
+def build_scheduler_router(engine: SchedulerEngine, debug_enabled: bool = False) -> APIRouter:
     router = APIRouter()
     expire_task: asyncio.Task | None = None
     dispatch_task: asyncio.Task | None = None
@@ -181,9 +181,10 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
     async def status():
         snap = await engine.snapshot()
         data = snap.model_dump()
-        data["debug_store_id"] = hex(id(engine.store))
-        data["debug_jobs_len"] = len(engine.store.jobs)
-        data["debug_leases_len"] = len(engine.store.leases)
+        if debug_enabled:
+            data["debug_store_id"] = hex(id(engine.store))
+            data["debug_jobs_len"] = len(engine.store.jobs)
+            data["debug_leases_len"] = len(engine.store.leases)
         return JSONResponse(data)
 
     @router.get("/jobs")
@@ -227,26 +228,27 @@ def build_scheduler_router(engine: SchedulerEngine) -> APIRouter:
             "jobs": jobs_payload,
         }
 
-    @router.get("/debug/queue")
-    async def debug_queue(n: int = 20):
-        n = max(1, min(200, int(n)))
-        q = list(engine.store.queues.normal)[:n]
-        sample = []
-        for jid in q:
-            job = engine.store.jobs.get(jid)
-            sample.append({
-                "job_id": jid,
-                "in_jobs": job is not None,
-                "state": job.state if job else None,
-                "type": job.type if job else None,
-            })
-        return {
-            "store_id": hex(id(engine.store)),
-            "jobs_len": len(engine.store.jobs),
-            "queued_ids_len": getattr(engine.store, "queued_ids", None) and len(engine.store.queued_ids),
-            "queue_depths": engine.store.queue_depths(),
-            "sample": sample,
-        }
+    if debug_enabled:
+        @router.get("/debug/queue")
+        async def debug_queue(n: int = 20):
+            n = max(1, min(200, int(n)))
+            q = list(engine.store.queues.normal)[:n]
+            sample = []
+            for jid in q:
+                job = engine.store.jobs.get(jid)
+                sample.append({
+                    "job_id": jid,
+                    "in_jobs": job is not None,
+                    "state": job.state if job else None,
+                    "type": job.type if job else None,
+                })
+            return {
+                "store_id": hex(id(engine.store)),
+                "jobs_len": len(engine.store.jobs),
+                "queued_ids_len": getattr(engine.store, "queued_ids", None) and len(engine.store.queued_ids),
+                "queue_depths": engine.store.queue_depths(),
+                "sample": sample,
+            }
 
     @router.get("/history/stats")
     async def history_stats(days: int = 30):
