@@ -42,3 +42,4 @@
 2026-02-28 - C1 cleanup: split store router internals into lifecycle/extract/audit modules while preserving endpoint behavior and tests.
 2026-02-28 - Phase 2 Task 1: added store sources persistence + endpoints (list/upsert/delete/refresh) with tests and official source defaults.
 2026-02-28 - Phase 2 Task 2: implemented remote catalog fetch+cache status flow, source refresh execution, and last-known-good retention with tests.
+2026-02-28 - Phase 2 Task 3: implemented catalog signature verification with rotation-ready public keys and valid/invalid/missing signature tests.

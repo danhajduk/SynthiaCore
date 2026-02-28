@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import tempfile
+import base64
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,9 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from app.addons.discovery import repo_root
 from .sources import OFFICIAL_SOURCE_ID, StoreSource
@@ -163,22 +167,87 @@ def _safe_json_load(path: Path) -> dict[str, Any]:
     return {}
 
 
+def _load_catalog_public_keys(path: Path | None, inline_json: str | None) -> list[str]:
+    keys: list[str] = []
+
+    def _append_from_obj(obj: Any) -> None:
+        if isinstance(obj, list):
+            for item in obj:
+                if isinstance(item, str) and item.strip():
+                    keys.append(item.strip())
+                elif isinstance(item, dict):
+                    if item.get("enabled", True) is False:
+                        continue
+                    pem = item.get("pem")
+                    if isinstance(pem, str) and pem.strip():
+                        keys.append(pem.strip())
+        elif isinstance(obj, dict):
+            _append_from_obj(obj.get("keys"))
+
+    if inline_json and inline_json.strip():
+        try:
+            _append_from_obj(json.loads(inline_json))
+        except Exception:
+            pass
+
+    if path is not None and path.exists():
+        try:
+            _append_from_obj(json.loads(path.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+
+    deduped: list[str] = []
+    seen = set()
+    for pem in keys:
+        if pem in seen:
+            continue
+        deduped.append(pem)
+        seen.add(pem)
+    return deduped
+
+
+def _verify_detached_signature(payload: bytes, signature_bytes: bytes, public_keys_pem: list[str]) -> None:
+    if not public_keys_pem:
+        raise RuntimeError("catalog_store_public_keys_missing")
+    if not signature_bytes or not signature_bytes.strip():
+        raise RuntimeError("catalog_signature_missing")
+
+    try:
+        signature = base64.b64decode(signature_bytes.strip(), validate=True)
+    except Exception as exc:
+        raise RuntimeError("catalog_signature_invalid_encoding") from exc
+
+    for pem in public_keys_pem:
+        try:
+            key = serialization.load_pem_public_key(pem.encode("utf-8"))
+            if not isinstance(key, rsa.RSAPublicKey):
+                continue
+            key.verify(signature, payload, padding.PKCS1v15(), hashes.SHA256())
+            return
+        except InvalidSignature:
+            continue
+        except Exception:
+            continue
+    raise RuntimeError("catalog_signature_invalid")
+
+
 def _verify_catalog_signatures(
     index_bytes: bytes,
     index_sig_bytes: bytes,
     publishers_bytes: bytes,
     publishers_sig_bytes: bytes,
+    public_keys_pem: list[str],
 ) -> None:
-    # Phase 2 Task 2 verifier hook. Full cryptographic verification is implemented in Task 3.
-    # For now we enforce detached signature artifacts are present and non-empty (fail closed).
     if not index_bytes:
         raise RuntimeError("catalog_index_empty")
-    if not index_sig_bytes or not index_sig_bytes.strip():
-        raise RuntimeError("catalog_index_signature_missing")
     if not publishers_bytes:
         raise RuntimeError("catalog_publishers_empty")
+    if not index_sig_bytes or not index_sig_bytes.strip():
+        raise RuntimeError("catalog_index_signature_missing")
     if not publishers_sig_bytes or not publishers_sig_bytes.strip():
         raise RuntimeError("catalog_publishers_signature_missing")
+    _verify_detached_signature(index_bytes, index_sig_bytes, public_keys_pem)
+    _verify_detached_signature(publishers_bytes, publishers_sig_bytes, public_keys_pem)
 
 
 class CatalogCacheClient:
@@ -196,6 +265,8 @@ class CatalogCacheClient:
         timeout_s: float | None = None,
         max_bytes: int | None = None,
         max_redirects: int | None = None,
+        catalog_public_keys_path: Path | None = None,
+        catalog_public_keys_json: str | None = None,
     ) -> None:
         self.cache_root = cache_root
         self.cache_root.mkdir(parents=True, exist_ok=True)
@@ -204,6 +275,9 @@ class CatalogCacheClient:
         self.max_redirects = (
             max_redirects if max_redirects is not None else _env_int("STORE_CATALOG_MAX_REDIRECTS", 3, min_value=0)
         )
+        if catalog_public_keys_path is None:
+            catalog_public_keys_path = Path(os.getenv("STORE_CATALOG_PUBLIC_KEYS_PATH", "var/store_catalog_public_keys.json"))
+        self.catalog_public_keys = _load_catalog_public_keys(catalog_public_keys_path, catalog_public_keys_json or os.getenv("STORE_CATALOG_PUBLIC_KEYS_JSON"))
 
     @classmethod
     def from_default_path(cls) -> "CatalogCacheClient":
@@ -285,6 +359,7 @@ class CatalogCacheClient:
                 fetched["catalog/v1/index.json.sig"],
                 fetched["catalog/v1/publishers.json"],
                 fetched["catalog/v1/publishers.json.sig"],
+                self.catalog_public_keys,
             )
 
             tmp_dir = Path(tempfile.mkdtemp(prefix=f"catalog-{source_id}-", dir=str(self.cache_root)))

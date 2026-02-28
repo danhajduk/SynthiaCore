@@ -49,6 +49,20 @@ def _env_bool(name: str, default: bool) -> bool:
     return default
 
 
+def _env_str(name: str, default: str) -> str:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    return str(raw)
+
+
+def _env_optional_str(name: str, default: Optional[str]) -> Optional[str]:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    return str(raw)
+
+
 class QuietThresholds(BaseModel):
     quiet_max: float = Field(default=2.0, ge=0, le=10)
     normal_max: float = Field(default=5.0, ge=0, le=10)
@@ -76,6 +90,8 @@ class SystemConfig(BaseModel):
     queue_dispatch_interval_s: float = Field(default=2.0, ge=0.5)
     queue_dispatch_timeout_s: float = Field(default=30.0, ge=5.0)
     scheduler_debug_enabled: bool = False
+    store_catalog_public_keys_path: str = Field(default="var/store_catalog_public_keys.json")
+    store_catalog_public_keys_json: Optional[str] = None
 
 
 
@@ -101,4 +117,6 @@ def load_config() -> SystemConfig:
         queue_dispatch_interval_s=_env_float("QUEUE_DISPATCH_INTERVAL_S", 2.0),
         queue_dispatch_timeout_s=_env_float("QUEUE_DISPATCH_TIMEOUT_S", 30.0),
         scheduler_debug_enabled=_env_bool("SCHEDULER_DEBUG_ENABLED", False),
+        store_catalog_public_keys_path=_env_str("STORE_CATALOG_PUBLIC_KEYS_PATH", "var/store_catalog_public_keys.json"),
+        store_catalog_public_keys_json=_env_optional_str("STORE_CATALOG_PUBLIC_KEYS_JSON", None),
     )

@@ -66,6 +66,10 @@ Store sources endpoints:
 Catalog cache behavior (Phase 2):
 - Source refresh fetches `catalog/v1/index.json`, `index.json.sig`, `publishers.json`, `publishers.json.sig`.
 - Cache path: `runtime/store/cache/<source_id>/` with `metadata.json`.
+- Catalog signatures are verified against configured store public key(s); refresh fails closed and keeps last-known-good cache on invalid/missing signatures.
+- Catalog public key configuration:
+  - `STORE_CATALOG_PUBLIC_KEYS_PATH` (default `var/store_catalog_public_keys.json`)
+  - `STORE_CATALOG_PUBLIC_KEYS_JSON` (inline JSON override; supports multi-key rotation)
 - `GET /api/store/catalog` now reads cached catalog content (source-aware) and returns structured status fields:
   - `status`, `source_id`, `last_success_at`, `last_error_at`, `last_error_message`.
 

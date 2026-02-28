@@ -5,6 +5,7 @@ import asyncio
 import logging
 import os
 from datetime import timedelta
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,7 +41,7 @@ from app.system.telemetry import UsageTelemetryStore, build_telemetry_router
 from app.system.audit import AuditLogStore
 from app.system.repo_status import router as repo_status_router
 from app.system.scheduler import build_scheduler_router
-from app.store import build_store_models_router, StoreAuditLogStore, StoreSourcesStore, build_store_router
+from app.store import CatalogCacheClient, build_store_models_router, StoreAuditLogStore, StoreSourcesStore, build_store_router
 
 setup_logging()
 log = logging.getLogger("synthia.core")
@@ -49,6 +50,7 @@ log = logging.getLogger("synthia.core")
 def create_app() -> FastAPI:
     app = FastAPI(title="Synthia Core", version="0.1.0")
     log.info("Starting Synthia Core")
+    cfg_boot = load_config()
 
     api_metrics = ApiMetricsCollector()
     app.state.api_metrics = api_metrics
@@ -211,10 +213,9 @@ def create_app() -> FastAPI:
     app.include_router(build_settings_router(settings_store, audit_store), prefix="/api/system", tags=["settings"])
     app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
 
-    scheduler_cfg = load_config()
     scheduler_router = build_scheduler_router(
         engine,
-        debug_enabled=bool(getattr(scheduler_cfg, "scheduler_debug_enabled", False)),
+        debug_enabled=bool(getattr(cfg_boot, "scheduler_debug_enabled", False)),
     )
     app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])
 
@@ -246,8 +247,13 @@ def create_app() -> FastAPI:
         tags=["services"],
     )
     app.include_router(build_store_models_router(), prefix="/api/store", tags=["store"])
+    catalog_cache_client = CatalogCacheClient(
+        cache_root=CatalogCacheClient.from_default_path().cache_root,
+        catalog_public_keys_path=Path(cfg_boot.store_catalog_public_keys_path),
+        catalog_public_keys_json=cfg_boot.store_catalog_public_keys_json,
+    )
     app.include_router(
-        build_store_router(registry, store_audit_store, store_sources_store),
+        build_store_router(registry, store_audit_store, store_sources_store, catalog_cache_client),
         prefix="/api/store",
         tags=["store"],
     )
