@@ -12,3 +12,5 @@
 2026-02-28 - Session complete: Task 6 service-token auth implemented.
 2026-02-28 - Added quota grants/revocations policy APIs with retained MQTT publish and polling fallback endpoints.
 2026-02-28 - Session complete: Task 7 policy authority grants and revocations implemented.
+2026-02-28 - Added telemetry usage ingestion, persistent history, and aggregated usage stats endpoints.
+2026-02-28 - Session complete: Task 8 usage telemetry ingestion implemented.

@@ -18,10 +18,7 @@ Date reviewed: 2026-02-28
 
 7) Implement quota grants + revocations (policy authority in Core) - Completed on 02/28/2026 12:28
 
-8) Implement usage telemetry ingestion
-- Add POST /api/telemetry/usage endpoint for service addon reports.
-- Persist usage by service/consumer/grant and expose for dashboard/history.
-- Code areas: new telemetry router/store, optional frontend settings metrics views.
+8) Implement usage telemetry ingestion - Completed on 02/28/2026 12:23
 
 9) Enforce security baseline
 - Separate auth roles: admin, guest, service.
