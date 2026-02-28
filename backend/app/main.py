@@ -40,7 +40,7 @@ from app.system.telemetry import UsageTelemetryStore, build_telemetry_router
 from app.system.audit import AuditLogStore
 from app.system.repo_status import router as repo_status_router
 from app.system.scheduler import build_scheduler_router
-from app.store import build_store_models_router, StoreAuditLogStore, build_store_router
+from app.store import build_store_models_router, StoreAuditLogStore, StoreSourcesStore, build_store_router
 
 setup_logging()
 log = logging.getLogger("synthia.core")
@@ -176,6 +176,11 @@ def create_app() -> FastAPI:
         os.path.join(os.getcwd(), "var", "store_audit.db"),
     )
     store_audit_store = StoreAuditLogStore(store_audit_db)
+    store_sources_path = os.getenv(
+        "STORE_SOURCES_DB",
+        os.path.join(os.getcwd(), "var", "store_sources.json"),
+    )
+    store_sources_store = StoreSourcesStore(store_sources_path)
 
     def metrics_provider():
         # SchedulerEngine will handle None/staleness conservatively.
@@ -201,6 +206,7 @@ def create_app() -> FastAPI:
     app.state.telemetry_store = telemetry_store
     app.state.audit_store = audit_store
     app.state.store_audit_store = store_audit_store
+    app.state.store_sources_store = store_sources_store
 
     app.include_router(build_settings_router(settings_store, audit_store), prefix="/api/system", tags=["settings"])
     app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
@@ -240,7 +246,11 @@ def create_app() -> FastAPI:
         tags=["services"],
     )
     app.include_router(build_store_models_router(), prefix="/api/store", tags=["store"])
-    app.include_router(build_store_router(registry, store_audit_store), prefix="/api/store", tags=["store"])
+    app.include_router(
+        build_store_router(registry, store_audit_store, store_sources_store),
+        prefix="/api/store",
+        tags=["store"],
+    )
 
     return app
 

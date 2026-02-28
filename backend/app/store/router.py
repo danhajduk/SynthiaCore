@@ -26,6 +26,7 @@ from .lifecycle import (
 )
 from .resolver import ResolverError, resolve_manifest_compatibility
 from .signing import VerificationError, verify_release_artifact
+from .sources import StoreSource, StoreSourcesStore
 
 # Backward-compatible wrappers kept for tests and gradual refactor migration.
 def _addons_root():
@@ -50,9 +51,14 @@ def _cleanup_store_workdirs(backup_retention: int, staging_ttl_minutes: int):
         lifecycle_mod.addons_root = orig
 
 
-def build_store_router(registry: AddonRegistry, audit_store: StoreAuditLogStore) -> APIRouter:
+def build_store_router(
+    registry: AddonRegistry,
+    audit_store: StoreAuditLogStore,
+    sources_store: StoreSourcesStore | None = None,
+) -> APIRouter:
     router = APIRouter()
     catalog_store = StaticCatalogStore.from_default_path()
+    sources = sources_store
 
     @router.get("/catalog")
     async def get_catalog(
@@ -84,6 +90,56 @@ def build_store_router(registry: AddonRegistry, audit_store: StoreAuditLogStore)
                 actor="system",
             )
         return payload
+
+    @router.get("/sources")
+    async def list_store_sources():
+        if sources is None:
+            return {"ok": True, "items": []}
+        items = await sources.list_sources()
+        return {"ok": True, "items": [x.model_dump(mode="json") for x in items]}
+
+    @router.post("/sources")
+    async def upsert_store_source(
+        body: StoreSource,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token)
+        if sources is None:
+            raise HTTPException(status_code=500, detail="sources_store_not_configured")
+        try:
+            saved = await sources.upsert_source(body)
+            return {"ok": True, "source": saved.model_dump(mode="json")}
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc) or type(exc).__name__)
+
+    @router.delete("/sources/{source_id}")
+    async def delete_store_source(source_id: str, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token)
+        if sources is None:
+            raise HTTPException(status_code=500, detail="sources_store_not_configured")
+        try:
+            deleted = await sources.delete_source(source_id)
+            if not deleted:
+                raise HTTPException(status_code=404, detail="source_not_found")
+            return {"ok": True, "id": source_id}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc) or type(exc).__name__)
+
+    @router.post("/sources/{source_id}/refresh")
+    async def refresh_store_source(source_id: str, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token)
+        if sources is None:
+            raise HTTPException(status_code=500, detail="sources_store_not_configured")
+        try:
+            saved = await sources.mark_refresh(source_id)
+            return {"ok": True, "source": saved.model_dump(mode="json")}
+        except Exception as exc:
+            msg = str(exc) or type(exc).__name__
+            if msg == "source_not_found":
+                raise HTTPException(status_code=404, detail=msg)
+            raise HTTPException(status_code=400, detail=msg)
 
     @router.post("/install")
     async def install_addon(

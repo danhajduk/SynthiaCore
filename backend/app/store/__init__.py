@@ -17,6 +17,7 @@ from .audit import StoreAuditLogStore
 from .router import build_store_router
 from .catalog import CatalogQuery, StaticCatalogStore
 from .lifecycle import AtomicResult
+from .sources import StoreSource, StoreSourcesStore
 
 __all__ = [
     "AddonManifest",
@@ -37,4 +38,6 @@ __all__ = [
     "CatalogQuery",
     "StaticCatalogStore",
     "AtomicResult",
+    "StoreSource",
+    "StoreSourcesStore",
 ]

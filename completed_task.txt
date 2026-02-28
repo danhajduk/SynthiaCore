@@ -40,3 +40,4 @@
 2026-02-28 - D2 cleanup: updated ARCHITECTURE.md with addon store control-plane flow, trust chain, and lifecycle endpoint model.
 2026-02-28 - E2 cleanup: added request-level store API tests for catalog/install/update/uninstall/status success+failure paths.
 2026-02-28 - C1 cleanup: split store router internals into lifecycle/extract/audit modules while preserving endpoint behavior and tests.
+2026-02-28 - Phase 2 Task 1: added store sources persistence + endpoints (list/upsert/delete/refresh) with tests and official source defaults.

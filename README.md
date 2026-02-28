@@ -57,6 +57,12 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 - Admin audit endpoint:
   - `GET /api/store/admin/audit?addon_id=&action=&status=&page=&page_size=` (admin token required)
 
+Store sources endpoints:
+- `GET /api/store/sources`
+- `POST /api/store/sources` (admin token required)
+- `DELETE /api/store/sources/{id}` (admin token required)
+- `POST /api/store/sources/{id}/refresh` (admin token required)
+
 Catalog query parameters:
 - `q` free-text search over id/name/description/categories
 - `category` category filter
