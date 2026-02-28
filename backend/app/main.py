@@ -37,6 +37,7 @@ from app.system.services import ServiceCatalogStore, build_service_resolution_ro
 from app.system.auth import ServiceTokenKeyStore, build_auth_router
 from app.system.policy import PolicyStore, build_policy_router
 from app.system.telemetry import UsageTelemetryStore, build_telemetry_router
+from app.system.audit import AuditLogStore
 from app.system.repo_status import router as repo_status_router
 from app.system.scheduler import build_scheduler_router
 
@@ -164,6 +165,11 @@ def create_app() -> FastAPI:
         os.path.join(os.getcwd(), "var", "telemetry_usage.db"),
     )
     telemetry_store = UsageTelemetryStore(telemetry_db)
+    audit_log_path = os.getenv(
+        "AUDIT_LOG_PATH",
+        os.path.join(os.getcwd(), "var", "audit.log"),
+    )
+    audit_store = AuditLogStore(audit_log_path)
 
     def metrics_provider():
         # SchedulerEngine will handle None/staleness conservatively.
@@ -187,8 +193,9 @@ def create_app() -> FastAPI:
     app.state.service_catalog_store = service_catalog_store
     app.state.policy_store = policy_store
     app.state.telemetry_store = telemetry_store
+    app.state.audit_store = audit_store
 
-    app.include_router(build_settings_router(settings_store), prefix="/api/system", tags=["settings"])
+    app.include_router(build_settings_router(settings_store, audit_store), prefix="/api/system", tags=["settings"])
     app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
 
     scheduler_router = build_scheduler_router(engine)
@@ -214,8 +221,8 @@ def create_app() -> FastAPI:
     app.include_router(build_admin_registry_router(registry), prefix="/api")
     app.include_router(build_mqtt_router(mqtt_manager), prefix="/api/system", tags=["mqtt"])
     app.include_router(build_auth_router(service_token_keys), prefix="/api/auth", tags=["auth"])
-    app.include_router(build_policy_router(policy_store, mqtt_manager), prefix="/api/policy", tags=["policy"])
-    app.include_router(build_telemetry_router(telemetry_store), prefix="/api/telemetry", tags=["telemetry"])
+    app.include_router(build_policy_router(policy_store, mqtt_manager, audit_store), prefix="/api/policy", tags=["policy"])
+    app.include_router(build_telemetry_router(telemetry_store, service_token_keys), prefix="/api/telemetry", tags=["telemetry"])
     app.include_router(
         build_service_resolution_router(registry, service_catalog_store),
         prefix="/api/services",

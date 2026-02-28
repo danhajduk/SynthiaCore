@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
@@ -38,6 +39,9 @@ class AddonRegistry:
         return sorted(self.registered.values(), key=lambda a: a.id)
 
     def upsert_registered(self, addon: RegisteredAddon) -> RegisteredAddon:
+        addon.tls_warning = _tls_warning_for_base_url(addon.base_url)
+        if addon.tls_warning:
+            log.warning("Registered addon '%s' TLS warning: %s", addon.id, addon.tls_warning)
         errors, observed_capabilities = self._check_registered_contract(addon)
         addon.contract_ok = len(errors) == 0
         addon.contract_errors = errors
@@ -75,6 +79,9 @@ class AddonRegistry:
         addon.name = str(payload.get("name") or addon.name)
         addon.version = str(payload.get("version") or addon.version)
         addon.base_url = base_url
+        addon.tls_warning = _tls_warning_for_base_url(base_url)
+        if addon.tls_warning:
+            log.warning("MQTT announce addon '%s' TLS warning: %s", addon_id, addon.tls_warning)
         raw_caps = payload.get("capabilities")
         if isinstance(raw_caps, list):
             addon.capabilities = [str(x) for x in raw_caps]
@@ -94,6 +101,9 @@ class AddonRegistry:
             version=str(payload.get("version") or "unknown"),
             base_url=str(payload.get("base_url") or payload.get("api_base_url") or "http://localhost"),
         )
+        addon.tls_warning = _tls_warning_for_base_url(addon.base_url)
+        if addon.tls_warning:
+            log.warning("MQTT health addon '%s' TLS warning: %s", addon_id, addon.tls_warning)
         if payload.get("health_status") is not None:
             addon.health_status = str(payload.get("health_status"))
         elif payload.get("status") is not None:
@@ -280,6 +290,22 @@ def _save_registered_addons(registered: Dict[str, RegisteredAddon]) -> None:
     payload = [a.model_dump(mode="json") for a in sorted(registered.values(), key=lambda a: a.id)]
     path.write_text(json.dumps(payload, indent=2, sort_keys=True))
 
+
+def _tls_warning_for_base_url(base_url: str) -> str | None:
+    try:
+        parsed = urlparse(base_url)
+    except Exception:
+        return "invalid_base_url_for_tls_check"
+    scheme = (parsed.scheme or "").lower()
+    host = (parsed.hostname or "").lower()
+    if not scheme:
+        return "missing_url_scheme"
+    if scheme == "https":
+        return None
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        return None
+    return f"non_tls_base_url_for_remote_target:{base_url}"
+
 def build_registry() -> AddonRegistry:
     log.info("Discovering backend addons")
     discovered = discover_backend_addons()
@@ -332,6 +358,7 @@ def list_addons(registry: AddonRegistry) -> List[dict]:
             "health_status": addon.health_status,
             "last_seen": addon.last_seen,
             "auth_mode": addon.auth_mode,
+            "tls_warning": addon.tls_warning,
             "discovery_source": "registered",
         }
 
@@ -348,6 +375,7 @@ def list_addons(registry: AddonRegistry) -> List[dict]:
             meta.setdefault("health_status", "unknown")
             meta.setdefault("last_seen", None)
             meta.setdefault("auth_mode", "none")
+            meta.setdefault("tls_warning", None)
             meta["discovery_source"] = "local"
             out[addon_id] = meta
     return sorted(out.values(), key=lambda x: x["id"])

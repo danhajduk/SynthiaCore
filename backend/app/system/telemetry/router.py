@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
+from app.system.auth import ServiceTokenClaims, ServiceTokenKeyStore, require_service_token
+from app.system.security import AuthRole
 from .store import UsageTelemetryStore
 
 
@@ -19,13 +21,21 @@ class UsageIngestRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-def build_telemetry_router(store: UsageTelemetryStore) -> APIRouter:
+def build_telemetry_router(store: UsageTelemetryStore, key_store: ServiceTokenKeyStore) -> APIRouter:
     router = APIRouter()
+    require_write_scope = require_service_token(
+        key_store=key_store,
+        audience="synthia-core",
+        scopes=["telemetry.write"],
+    )
 
     @router.post("/usage")
-    async def ingest_usage(body: UsageIngestRequest):
+    async def ingest_usage(
+        body: UsageIngestRequest,
+        claims: ServiceTokenClaims = Depends(require_write_scope),
+    ):
         saved = await store.record_usage(body.model_dump(mode="json"))
-        return {"ok": True, "usage": saved}
+        return {"ok": True, "usage": saved, "role": AuthRole.service.value, "sub": claims.sub}
 
     @router.get("/usage")
     async def usage_history(

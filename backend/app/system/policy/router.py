@@ -6,7 +6,9 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.admin import require_admin_token
+from app.system.audit import AuditLogStore
 from app.system.mqtt import MqttManager
+from app.system.security import AuthRole
 from .store import PolicyStore
 
 
@@ -34,7 +36,11 @@ class RevocationUpsertRequest(BaseModel):
     status: str = "revoked"
 
 
-def build_policy_router(store: PolicyStore, mqtt_manager: MqttManager) -> APIRouter:
+def build_policy_router(
+    store: PolicyStore,
+    mqtt_manager: MqttManager,
+    audit_store: AuditLogStore | None = None,
+) -> APIRouter:
     router = APIRouter()
 
     @router.get("/grants")
@@ -47,6 +53,13 @@ def build_policy_router(store: PolicyStore, mqtt_manager: MqttManager) -> APIRou
         grant = await store.upsert_grant(body.model_dump(mode="json"))
         topic = f"synthia/policy/grants/{grant['service']}"
         publish = await mqtt_manager.publish(topic=topic, payload=grant, retain=True, qos=1)
+        if audit_store is not None:
+            await audit_store.record(
+                event_type="grant_changed",
+                actor_role=AuthRole.admin.value,
+                actor_id="admin_token",
+                details={"grant_id": grant["grant_id"], "service": grant["service"], "status": grant["status"]},
+            )
         return {"ok": True, "grant": grant, "mqtt": publish}
 
     @router.get("/revocations")
@@ -59,6 +72,13 @@ def build_policy_router(store: PolicyStore, mqtt_manager: MqttManager) -> APIRou
         item = await store.upsert_revocation(body.model_dump(mode="json"))
         topic = f"synthia/policy/revocations/{item['id']}"
         publish = await mqtt_manager.publish(topic=topic, payload=item, retain=True, qos=1)
+        if audit_store is not None:
+            await audit_store.record(
+                event_type="revocation_changed",
+                actor_role=AuthRole.admin.value,
+                actor_id="admin_token",
+                details={"id": item["id"], "grant_id": item.get("grant_id"), "service": item.get("service")},
+            )
         return {"ok": True, "revocation": item, "mqtt": publish}
 
     return router

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.addons.registry import AddonRegistry
+from app.system.security import redact_secrets
 from app.system.settings.store import SettingsStore
 from app.system.services.store import ServiceCatalogStore
 
@@ -106,6 +107,7 @@ class MqttManager:
             "type": "mqtt-test",
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
+        msg_payload = redact_secrets(msg_payload)
         result = await asyncio.to_thread(
             self._client.publish,
             msg_topic,
@@ -118,10 +120,11 @@ class MqttManager:
     async def publish(self, topic: str, payload: dict[str, Any], retain: bool = True, qos: int = 1) -> dict[str, Any]:
         if self._client is None:
             return {"ok": False, "error": "mqtt_not_initialized", "topic": topic}
+        safe_payload = redact_secrets(payload)
         result = await asyncio.to_thread(
             self._client.publish,
             topic,
-            json.dumps(payload),
+            json.dumps(safe_payload),
             int(qos),
             bool(retain),
         )

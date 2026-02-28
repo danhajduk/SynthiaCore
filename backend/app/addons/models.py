@@ -41,5 +41,6 @@ class RegisteredAddon(BaseModel):
     proxy_circuit_open_seconds: int = 30
     auth_header_name: str | None = None
     auth_header_env: str | None = None
+    tls_warning: str | None = None
     contract_ok: bool = False
     contract_errors: list[str] = Field(default_factory=list)

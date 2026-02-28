@@ -76,6 +76,19 @@ Grant model:
 - `POST /api/telemetry/usage` ingests usage reports from service addons.
 - `GET /api/telemetry/usage` returns persisted usage history with filters (`service`, `consumer_addon_id`, `grant_id`) and `limit`.
 - `GET /api/telemetry/usage/stats?days=30` returns aggregate totals and grouped rollups by service, consumer, and grant.
+- Telemetry ingestion requires service JWT role/scope (`aud=synthia-core`, scope `telemetry.write`).
+
+## Security Baseline
+- Roles are separated as:
+  - `admin`: privileged write operations (`/api/system/settings/*` PUT, policy grant/revocation updates, token issuance)
+  - `service`: service-to-core operations using JWT bearer tokens (telemetry usage ingest)
+  - `guest`: read-only/public endpoints
+- Secret redaction is applied to outbound MQTT payloads before publish.
+- Audit log records are written for:
+  - grant changes
+  - revocation changes
+  - privileged config updates
+- Registered addon `base_url` targets produce TLS warnings for non-HTTPS non-localhost URLs (`tls_warning` field).
 
 ## Repo Status (Header Badge)
 Backend checks `HEAD` vs `origin/main` and exposes:
