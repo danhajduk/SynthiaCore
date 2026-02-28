@@ -8,8 +8,18 @@ from pathlib import Path
 from typing import Any
 import logging
 
+from fastapi.routing import APIRoute
+
 from .models import BackendAddon, AddonMeta
 log = logging.getLogger("synthia.addons")
+
+REQUIRED_CONTRACT_ENDPOINTS: tuple[tuple[str, str], ...] = (
+    ("GET", "/api/addon/meta"),
+    ("GET", "/api/addon/health"),
+    ("GET", "/api/addon/capabilities"),
+    ("GET", "/api/addon/config/effective"),
+    ("POST", "/api/addon/config"),
+)
 
 @dataclass
 class DiscoveredAddon:
@@ -24,6 +34,24 @@ def repo_root() -> Path:
 
 def addons_dir() -> Path:
     return repo_root() / "addons"
+
+
+def _validate_backend_contract(addon: BackendAddon) -> list[str]:
+    available: set[tuple[str, str]] = set()
+    for route in addon.router.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        path = route.path
+        methods = route.methods or set()
+        for method in methods:
+            available.add((method.upper(), path))
+
+    missing: list[str] = []
+    for method, path in REQUIRED_CONTRACT_ENDPOINTS:
+        if (method, path) not in available:
+            missing.append(f"{method} {path}")
+    return missing
+
 
 def discover_backend_addons() -> list[DiscoveredAddon]:
     log.info("Looking for backend addons in %s", addons_dir())
@@ -78,7 +106,21 @@ def discover_backend_addons() -> list[DiscoveredAddon]:
                 raise RuntimeError(
                     f"addon.meta.id='{addon.meta.id}' does not match manifest id '{manifest_meta.id}'"
                 )
-            addon = BackendAddon(meta=manifest_meta, router=addon.router)
+            merged_meta = AddonMeta(
+                id=manifest_meta.id,
+                name=manifest_meta.name,
+                version=manifest_meta.version,
+                description=manifest_meta.description,
+                show_sidebar=manifest_meta.show_sidebar,
+                capabilities=addon.meta.capabilities,
+                auth_modes=addon.meta.auth_modes,
+                limits=addon.meta.limits,
+                ui=addon.meta.ui,
+            )
+            addon = BackendAddon(meta=merged_meta, router=addon.router)
+            missing = _validate_backend_contract(addon)
+            if missing:
+                raise RuntimeError(f"Addon contract endpoints missing: {', '.join(missing)}")
 
             results.append(DiscoveredAddon(addon_id=addon_id, module_path=entry, addon=addon, error=None))
 

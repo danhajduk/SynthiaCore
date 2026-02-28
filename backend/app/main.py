@@ -35,6 +35,7 @@ from app.system.settings.router import build_settings_router
 from app.system.mqtt import MqttManager, build_mqtt_router
 from app.system.services import ServiceCatalogStore, build_service_resolution_router
 from app.system.auth import ServiceTokenKeyStore, build_auth_router
+from app.system.policy import PolicyStore, build_policy_router
 from app.system.repo_status import router as repo_status_router
 from app.system.scheduler import build_scheduler_router
 
@@ -148,6 +149,15 @@ def create_app() -> FastAPI:
         os.path.join(os.getcwd(), "var", "service_catalogs.json"),
     )
     service_catalog_store = ServiceCatalogStore(service_catalog_db)
+    policy_grants_db = os.getenv(
+        "POLICY_GRANTS_DB",
+        os.path.join(os.getcwd(), "var", "policy_grants.json"),
+    )
+    policy_revocations_db = os.getenv(
+        "POLICY_REVOCATIONS_DB",
+        os.path.join(os.getcwd(), "var", "policy_revocations.json"),
+    )
+    policy_store = PolicyStore(policy_grants_db, policy_revocations_db)
 
     def metrics_provider():
         # SchedulerEngine will handle None/staleness conservatively.
@@ -169,6 +179,7 @@ def create_app() -> FastAPI:
     app.state.settings_store = settings_store
     app.state.service_token_keys = service_token_keys
     app.state.service_catalog_store = service_catalog_store
+    app.state.policy_store = policy_store
 
     app.include_router(build_settings_router(settings_store), prefix="/api/system", tags=["settings"])
     app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
@@ -196,6 +207,7 @@ def create_app() -> FastAPI:
     app.include_router(build_admin_registry_router(registry), prefix="/api")
     app.include_router(build_mqtt_router(mqtt_manager), prefix="/api/system", tags=["mqtt"])
     app.include_router(build_auth_router(service_token_keys), prefix="/api/auth", tags=["auth"])
+    app.include_router(build_policy_router(policy_store, mqtt_manager), prefix="/api/policy", tags=["policy"])
     app.include_router(
         build_service_resolution_router(registry, service_catalog_store),
         prefix="/api/services",

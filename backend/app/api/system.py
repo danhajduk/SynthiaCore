@@ -17,7 +17,7 @@ def build_system_router(registry: AddonRegistry) -> APIRouter:
 
     @router.post("/addons/{addon_id}/enable")
     def set_addon_enabled(addon_id: str, body: SetAddonEnabledRequest):
-        if addon_id not in registry.addons:
+        if not registry.has_addon(addon_id):
             raise HTTPException(status_code=404, detail="addon_not_found")
         registry.set_enabled(addon_id, body.enabled)
         return {"ok": True, "id": addon_id, "enabled": registry.is_enabled(addon_id)}

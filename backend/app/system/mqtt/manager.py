@@ -115,6 +115,18 @@ class MqttManager:
         )
         return {"ok": bool(getattr(result, "rc", 1) == 0), "topic": msg_topic, "rc": int(getattr(result, "rc", 1))}
 
+    async def publish(self, topic: str, payload: dict[str, Any], retain: bool = True, qos: int = 1) -> dict[str, Any]:
+        if self._client is None:
+            return {"ok": False, "error": "mqtt_not_initialized", "topic": topic}
+        result = await asyncio.to_thread(
+            self._client.publish,
+            topic,
+            json.dumps(payload),
+            int(qos),
+            bool(retain),
+        )
+        return {"ok": bool(getattr(result, "rc", 1) == 0), "topic": topic, "rc": int(getattr(result, "rc", 1))}
+
     async def _load_config(self) -> MqttConfig:
         mode = str((await self._settings.get("mqtt.mode")) or "local").lower()
         if mode not in {"local", "external"}:

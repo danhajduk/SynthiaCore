@@ -63,6 +63,15 @@ Simple key/value settings stored in SQLite, used by the Settings page.
 - `GET /api/system/settings/{key}`
 - `PUT /api/system/settings/{key}`
 
+## Policy Grants + Revocations
+- `GET /api/policy/grants?service=<name>` polling fallback list for grants.
+- `POST /api/policy/grants` upserts a grant and publishes retained MQTT update on `synthia/policy/grants/{service}`.
+- `GET /api/policy/revocations` polling fallback list for revocations.
+- `POST /api/policy/revocations` upserts a revocation and publishes retained MQTT update on `synthia/policy/revocations/{id}`.
+
+Grant model:
+- `grant_id`, `consumer_addon_id`, `service`, `period_start`, `period_end`, `limits`, `status`
+
 ## Repo Status (Header Badge)
 Backend checks `HEAD` vs `origin/main` and exposes:
 - `GET /api/system/repo/status`
