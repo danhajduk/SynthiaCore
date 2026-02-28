@@ -23,3 +23,4 @@
 2026-02-28 - Added addon store package models with semver/permission validation and /api/store/schema export endpoint.
 2026-02-28 - Added store signing verification (RSA + checksum), fail-closed errors, pre-enable pipeline hook, and unit tests.
 2026-02-28 - Added addon compatibility resolver with deterministic dependency ordering, structured failures, and resolver unit tests.
+2026-02-28 - Added store lifecycle APIs (install/update/uninstall/status/catalog), atomic deploy+rollback, and SQLite store_audit_log.

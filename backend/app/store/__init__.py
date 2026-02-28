@@ -13,6 +13,7 @@ from .signing import (
     verify_rsa_signature,
 )
 from .resolver import ResolverError, ResolutionResult, resolve_manifest_compatibility
+from .router import StoreAuditLogStore, build_store_router
 
 __all__ = [
     "AddonManifest",
@@ -28,4 +29,6 @@ __all__ = [
     "ResolverError",
     "ResolutionResult",
     "resolve_manifest_compatibility",
+    "StoreAuditLogStore",
+    "build_store_router",
 ]

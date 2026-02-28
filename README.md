@@ -34,6 +34,14 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 - `backend/app/store/resolver.py` validates core-version compatibility, dependencies, and conflicts.
 - Resolution is deterministic (sorted dependency/conflict sets) and blocks on validation failures only (no auto-download path).
 
+### Addon Store Lifecycle APIs (Phase 1)
+- `GET /api/store/catalog` (stub in Task 5, backed by catalog module in Task 6)
+- `POST /api/store/install` (admin token required)
+- `POST /api/store/update` (admin token required)
+- `POST /api/store/uninstall` (admin token required)
+- `GET /api/store/status/{addon_id}`
+- Store lifecycle audit events are persisted to SQLite table `store_audit_log` (`STORE_AUDIT_DB`, default `var/store_audit.db`).
+
 ## Scheduler (Pull-Based Leasing)
 - Priority queues: `high`, `normal`, `low`, `background`.
 - Leases: workers request leases and receive a job + capacity allocation.

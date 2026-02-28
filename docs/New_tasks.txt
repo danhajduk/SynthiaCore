@@ -58,48 +58,7 @@ Security-first architecture only.
 
 ---
 
-## 5️⃣ Install / Update / Uninstall Lifecycle APIs
-
-Create:
-
-backend/app/store/router.py
-
-Endpoints:
-
-- GET /api/store/catalog
-- POST /api/store/install
-- POST /api/store/update
-- POST /api/store/uninstall
-- GET /api/store/status/{addon_id}
-
-Requirements:
-
-- Install is atomic.
-- Extract safely into addons/<id>.
-- Backup previous version before update.
-- Rollback on failure.
-- Write structured audit entries to SQLite.
-- Never enable addon until verification passes.
-- Reject partial installs.
-
-Add SQLite table:
-
-store_audit_log
-
-Columns:
-
-- id
-- timestamp
-- action
-- addon_id
-- version
-- status
-- message
-- actor (if available)
-
-Commit after implementation.
-
-Rebuild docker after this step.
+## 5️⃣ Install / Update / Uninstall Lifecycle APIs - Completed on 02/28/2026 14:19
 
 ---
 
