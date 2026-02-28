@@ -59,6 +59,8 @@ Catalog query parameters:
 - `page`, `page_size` pagination
 - Response includes `catalog_status` with `status`, `message`, and `last_successful_load` for operator visibility on catalog read/parse errors.
 
+Store API request-level tests now cover success and failure paths for catalog/install/update/uninstall/status endpoints (`backend/tests/test_store_api_endpoints.py`).
+
 ## Scheduler (Pull-Based Leasing)
 - Priority queues: `high`, `normal`, `low`, `background`.
 - Leases: workers request leases and receive a job + capacity allocation.

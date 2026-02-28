@@ -1,0 +1,170 @@
+from __future__ import annotations
+
+import os
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from app.store.router import AtomicResult, StoreAuditLogStore, build_store_router
+from app.store.signing import VerificationError
+
+
+class _FakeMeta:
+    def __init__(self, version: str = "1.0.0") -> None:
+        self.version = version
+
+
+class _FakeAddon:
+    def __init__(self, version: str = "1.0.0") -> None:
+        self.meta = _FakeMeta(version=version)
+
+
+class _FakeRegistry:
+    def __init__(self) -> None:
+        self.addons = {"hello_world": _FakeAddon("1.0.0")}
+        self.enabled: dict[str, bool] = {}
+
+    def is_enabled(self, addon_id: str) -> bool:
+        return self.enabled.get(addon_id, True)
+
+    def set_enabled(self, addon_id: str, enabled: bool) -> None:
+        self.enabled[addon_id] = enabled
+
+
+def _manifest_payload(addon_id: str = "hello_world") -> dict:
+    return {
+        "id": addon_id,
+        "name": addon_id,
+        "version": "1.0.0",
+        "core_min_version": "0.1.0",
+        "core_max_version": None,
+        "dependencies": [],
+        "conflicts": [],
+        "checksum": "abc123",
+        "publisher_id": "pub-1",
+        "permissions": ["filesystem.read"],
+        "signature": {"publisher_id": "pub-1", "signature": "c2ln"},
+        "compatibility": {
+            "core_min_version": "0.1.0",
+            "core_max_version": None,
+            "dependencies": [],
+            "conflicts": [],
+        },
+    }
+
+
+class TestStoreApiEndpoints(unittest.TestCase):
+    def setUp(self) -> None:
+        self.old_token = os.environ.get("SYNTHIA_ADMIN_TOKEN")
+        os.environ["SYNTHIA_ADMIN_TOKEN"] = "test-token"
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db_path = str(Path(self.tmp.name) / "store_audit.db")
+        self.registry = _FakeRegistry()
+        self.audit = StoreAuditLogStore(self.db_path)
+        self.app = FastAPI()
+        self.app.include_router(build_store_router(self.registry, self.audit), prefix="/api/store")
+        self.client = TestClient(self.app)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+        if self.old_token is None:
+            os.environ.pop("SYNTHIA_ADMIN_TOKEN", None)
+        else:
+            os.environ["SYNTHIA_ADMIN_TOKEN"] = self.old_token
+
+    def test_catalog_endpoint(self) -> None:
+        res = self.client.get("/api/store/catalog")
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertIn("items", payload)
+        self.assertIn("catalog_status", payload)
+
+    def test_install_success_and_invalid_signature(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle.zip"
+        pkg.write_bytes(b"bytes")
+
+        with patch("app.store.router.verify_release_artifact", return_value=None), patch(
+            "app.store.router.resolve_manifest_compatibility", return_value=None
+        ), patch(
+            "app.store.router._atomic_install_or_update",
+            return_value=AtomicResult(
+                addon_dir=Path(self.tmp.name) / "addons" / "hello_world",
+                backup_dir=None,
+                installed_manifest={"id": "hello_world"},
+            ),
+        ):
+            ok_res = self.client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "package_path": str(pkg),
+                    "manifest": _manifest_payload(),
+                    "public_key_pem": "pem",
+                    "enable": True,
+                },
+            )
+        self.assertEqual(ok_res.status_code, 200, ok_res.text)
+
+        with patch(
+            "app.store.router.verify_release_artifact",
+            side_effect=VerificationError(code="signature_invalid", message="bad sig"),
+        ):
+            bad_res = self.client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "package_path": str(pkg),
+                    "manifest": _manifest_payload(),
+                    "public_key_pem": "pem",
+                    "enable": True,
+                },
+            )
+        self.assertEqual(bad_res.status_code, 400, bad_res.text)
+
+    def test_status_and_uninstall_not_found(self) -> None:
+        with patch("app.store.router._addons_root", return_value=Path(self.tmp.name) / "addons"):
+            res = self.client.get("/api/store/status/hello_world")
+            self.assertEqual(res.status_code, 200, res.text)
+            payload = res.json()
+            self.assertIn("installed", payload)
+
+        uninstall_res = self.client.post(
+            "/api/store/uninstall",
+            headers={"X-Admin-Token": "test-token"},
+            json={"addon_id": "missing-addon"},
+        )
+        self.assertEqual(uninstall_res.status_code, 404, uninstall_res.text)
+
+    def test_update_success(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle.zip"
+        pkg.write_bytes(b"bytes")
+
+        with patch("app.store.router.verify_release_artifact", return_value=None), patch(
+            "app.store.router.resolve_manifest_compatibility", return_value=None
+        ), patch(
+            "app.store.router._atomic_install_or_update",
+            return_value=AtomicResult(
+                addon_dir=Path(self.tmp.name) / "addons" / "hello_world",
+                backup_dir=Path(self.tmp.name) / "addons" / ".store_backup" / "x",
+                installed_manifest={"id": "hello_world"},
+            ),
+        ):
+            res = self.client.post(
+                "/api/store/update",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "package_path": str(pkg),
+                    "manifest": _manifest_payload(),
+                    "public_key_pem": "pem",
+                    "enable": True,
+                },
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+
+
+if __name__ == "__main__":
+    unittest.main()
