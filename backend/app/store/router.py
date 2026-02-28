@@ -340,7 +340,9 @@ def build_store_router(registry: AddonRegistry, audit_store: StoreAuditLogStore)
                 "version": body.manifest.version,
                 "installed_path": str(result.addon_dir),
                 "enabled": registry.is_enabled(body.manifest.id),
-                "loaded_now": body.manifest.id in registry.addons,
+                "registry_loaded": body.manifest.id in registry.addons,
+                # TODO(phase3): report true hot-reload runtime status once dynamic module reload is supported.
+                "hot_loaded": False,
             }
         except VerificationError as exc:
             await audit_store.record(
@@ -420,7 +422,9 @@ def build_store_router(registry: AddonRegistry, audit_store: StoreAuditLogStore)
                 "version": body.manifest.version,
                 "installed_path": str(result.addon_dir),
                 "enabled": registry.is_enabled(body.manifest.id),
-                "loaded_now": body.manifest.id in registry.addons,
+                "registry_loaded": body.manifest.id in registry.addons,
+                # TODO(phase3): report true hot-reload runtime status once dynamic module reload is supported.
+                "hot_loaded": False,
             }
         except VerificationError as exc:
             await audit_store.record(

@@ -41,6 +41,7 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 - `POST /api/store/uninstall` (admin token required)
 - `GET /api/store/status/{addon_id}`
 - Store lifecycle audit events are persisted to SQLite table `store_audit_log` (`STORE_AUDIT_DB`, default `var/store_audit.db`).
+- Install/update responses expose `registry_loaded` (present in current registry snapshot) and `hot_loaded` (currently always `false` until runtime hot-reload support exists).
 
 Catalog query parameters:
 - `q` free-text search over id/name/description/categories
