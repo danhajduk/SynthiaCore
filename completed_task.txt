@@ -10,3 +10,5 @@
 2026-02-28 - Session complete: Task 5 service discovery endpoint implemented.
 2026-02-28 - Added JWT service-token auth with keyring rotation and reusable validation dependency.
 2026-02-28 - Session complete: Task 6 service-token auth implemented.
+2026-02-28 - Added quota grants/revocations policy APIs with retained MQTT publish and polling fallback endpoints.
+2026-02-28 - Session complete: Task 7 policy authority grants and revocations implemented.
