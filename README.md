@@ -45,6 +45,9 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 - Store lifecycle audit events are persisted to SQLite table `store_audit_log` (`STORE_AUDIT_DB`, default `var/store_audit.db`).
 - Install/update responses expose `registry_loaded` (present in current registry snapshot) and `hot_loaded` (currently always `false` until runtime hot-reload support exists).
 - Internal lifecycle pipeline keeps parsed `installed_manifest` metadata for future validation/UI enrichments; it is not persisted as a separate DB row in Phase 1.
+- Store workdir cleanup runs at install/update start:
+  - `STORE_BACKUP_RETENTION` (default `3`)
+  - `STORE_STAGING_TTL_MINUTES` (default `60`)
 
 Catalog query parameters:
 - `q` free-text search over id/name/description/categories

@@ -7,6 +7,7 @@ import shutil
 import sqlite3
 import tarfile
 import tempfile
+import time
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -31,6 +32,49 @@ def _utcnow_iso() -> str:
 
 def _addons_root() -> Path:
     return repo_root() / "addons"
+
+
+def _env_int(name: str, default: int, min_value: int = 0) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return max(min_value, int(raw))
+    except ValueError:
+        return default
+
+
+def _store_backup_retention() -> int:
+    return _env_int("STORE_BACKUP_RETENTION", 3, min_value=0)
+
+
+def _store_staging_ttl_minutes() -> int:
+    return _env_int("STORE_STAGING_TTL_MINUTES", 60, min_value=1)
+
+
+def _cleanup_store_workdirs(backup_retention: int, staging_ttl_minutes: int) -> dict[str, int]:
+    addons_root = _addons_root()
+    backup_root = addons_root / ".store_backup"
+    staging_root = addons_root / ".store_staging"
+    backup_root.mkdir(parents=True, exist_ok=True)
+    staging_root.mkdir(parents=True, exist_ok=True)
+
+    backup_dirs = [p for p in backup_root.iterdir() if p.is_dir()]
+    backup_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    backup_pruned = 0
+    if backup_retention >= 0:
+        for old in backup_dirs[backup_retention:]:
+            shutil.rmtree(old, ignore_errors=True)
+            backup_pruned += 1
+
+    staging_pruned = 0
+    cutoff = time.time() - (staging_ttl_minutes * 60)
+    for entry in [p for p in staging_root.iterdir() if p.is_dir()]:
+        if entry.stat().st_mtime < cutoff:
+            shutil.rmtree(entry, ignore_errors=True)
+            staging_pruned += 1
+
+    return {"backup_pruned": backup_pruned, "staging_pruned": staging_pruned}
 
 
 def _safe_extract_zip(zip_path: Path, extract_dir: Path) -> None:
@@ -327,6 +371,20 @@ def build_store_router(registry: AddonRegistry, audit_store: StoreAuditLogStore)
 
         actor = body.actor or "admin_token"
         try:
+            cleanup = _cleanup_store_workdirs(
+                backup_retention=_store_backup_retention(),
+                staging_ttl_minutes=_store_staging_ttl_minutes(),
+            )
+            if cleanup["backup_pruned"] or cleanup["staging_pruned"]:
+                await audit_store.record(
+                    action="maintenance_cleanup",
+                    addon_id=body.manifest.id,
+                    version=None,
+                    status="success",
+                    message=f"backup_pruned={cleanup['backup_pruned']};staging_pruned={cleanup['staging_pruned']}",
+                    actor=actor,
+                )
+
             artifact_bytes = package_path.read_bytes()
             verify_release_artifact(body.manifest, artifact_bytes, body.public_key_pem)
 
@@ -409,6 +467,20 @@ def build_store_router(registry: AddonRegistry, audit_store: StoreAuditLogStore)
 
         actor = body.actor or "admin_token"
         try:
+            cleanup = _cleanup_store_workdirs(
+                backup_retention=_store_backup_retention(),
+                staging_ttl_minutes=_store_staging_ttl_minutes(),
+            )
+            if cleanup["backup_pruned"] or cleanup["staging_pruned"]:
+                await audit_store.record(
+                    action="maintenance_cleanup",
+                    addon_id=body.manifest.id,
+                    version=None,
+                    status="success",
+                    message=f"backup_pruned={cleanup['backup_pruned']};staging_pruned={cleanup['staging_pruned']}",
+                    actor=actor,
+                )
+
             artifact_bytes = package_path.read_bytes()
             verify_release_artifact(body.manifest, artifact_bytes, body.public_key_pem)
 
