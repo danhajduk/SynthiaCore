@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import os
 import tempfile
 import unittest
@@ -7,6 +9,8 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -106,6 +110,12 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.app = FastAPI()
         self.app.include_router(build_store_router(self.registry, self.audit), prefix="/api/store")
         self.client = TestClient(self.app)
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        self._private_key = private_key
+        self._public_key_pem = private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("utf-8")
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -117,6 +127,66 @@ class TestStoreApiEndpoints(unittest.TestCase):
             os.environ.pop("STORE_INSTALL_STATE_PATH", None)
         else:
             os.environ["STORE_INSTALL_STATE_PATH"] = self.old_install_state
+
+    def _sign_artifact(self, artifact_bytes: bytes) -> str:
+        sig = self._private_key.sign(artifact_bytes, padding.PKCS1v15(), hashes.SHA256())
+        return base64.b64encode(sig).decode("utf-8")
+
+    def _build_catalog_client(
+        self,
+        *,
+        artifact_bytes: bytes,
+        release_sig: str,
+        publisher_key_id: str = "key-1",
+        key_enabled: bool = True,
+        signature_type: str = "rsa-sha256",
+    ) -> _FakeCatalogClient:
+        digest = hashlib.sha256(artifact_bytes).hexdigest()
+        return _FakeCatalogClient(
+            index_payload={
+                "addons": [
+                    {
+                        "id": "hello_world",
+                        "name": "hello_world",
+                        "publisher_id": "pub-1",
+                        "permissions": ["filesystem.read"],
+                        "releases": [
+                            {
+                                "version": "1.0.0",
+                                "artifact_url": "https://example.test/hello_world-1.0.0.zip",
+                                "sha256": digest,
+                                "checksum": digest,
+                                "release_sig": release_sig,
+                                "publisher_key_id": publisher_key_id,
+                                "compatibility": {
+                                    "core_min_version": "0.1.0",
+                                    "core_max_version": None,
+                                    "dependencies": [],
+                                    "conflicts": [],
+                                },
+                            }
+                        ],
+                    }
+                ]
+            },
+            publishers_payload={
+                "publishers": [
+                    {
+                        "id": "pub-1",
+                        "enabled": True,
+                        "keys": [
+                            {
+                                "id": "key-1",
+                                "enabled": key_enabled,
+                                "signature_type": signature_type,
+                                "public_key_pem": self._public_key_pem,
+                            }
+                        ],
+                    }
+                ]
+            },
+            artifact_bytes=artifact_bytes,
+        )
 
     def test_catalog_endpoint(self) -> None:
         res = self.client.get("/api/store/catalog")
@@ -217,46 +287,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
             zf.writestr("hello_world/manifest.json", '{"id":"hello_world","name":"hello_world","version":"1.0.0"}')
             zf.writestr("hello_world/backend/addon.py", "addon = None\n")
         artifact_bytes = pkg.read_bytes()
-
-        index_payload = {
-            "addons": [
-                {
-                    "id": "hello_world",
-                    "name": "hello_world",
-                    "publisher_id": "pub-1",
-                    "permissions": ["filesystem.read"],
-                    "releases": [
-                        {
-                            "version": "1.0.0",
-                            "artifact_url": "https://example.test/hello_world-1.0.0.zip",
-                            "sha256": "dummy-checksum",
-                            "checksum": "dummy-checksum",
-                            "release_sig": "c2ln",
-                            "compatibility": {
-                                "core_min_version": "0.1.0",
-                                "core_max_version": None,
-                                "dependencies": [],
-                                "conflicts": [],
-                            },
-                        }
-                    ],
-                }
-            ]
-        }
-        publishers_payload = {
-            "publishers": [
-                {
-                    "id": "pub-1",
-                    "enabled": True,
-                    "public_key_pem": "pem",
-                }
-            ]
-        }
-        fake_catalog = _FakeCatalogClient(
-            index_payload=index_payload,
-            publishers_payload=publishers_payload,
-            artifact_bytes=artifact_bytes,
-        )
+        fake_catalog = self._build_catalog_client(artifact_bytes=artifact_bytes, release_sig=self._sign_artifact(artifact_bytes))
         app = FastAPI()
         app.include_router(
             build_store_router(
@@ -269,11 +300,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
         )
         client = TestClient(app)
 
-        with patch("app.store.router.verify_release_artifact", return_value=None), patch(
-            "app.store.router.resolve_manifest_compatibility", return_value=None
-        ), patch(
-            "app.store.router._hex_sha256", return_value="dummy-checksum"
-        ), patch(
+        with patch("app.store.router.resolve_manifest_compatibility", return_value=None), patch(
             "app.store.router._atomic_install_or_update",
             return_value=AtomicResult(
                 addon_dir=Path(self.tmp.name) / "addons" / "hello_world",
@@ -290,7 +317,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
         payload = res.json()
         self.assertEqual(payload["installed_from_source_id"], "official")
         self.assertEqual(payload["installed_release_url"], "https://example.test/hello_world-1.0.0.zip")
-        self.assertEqual(payload["installed_sha256"], "dummy-checksum")
+        self.assertEqual(payload["installed_sha256"], hashlib.sha256(artifact_bytes).hexdigest())
 
         with patch("app.store.router._addons_root", return_value=Path(self.tmp.name) / "addons"):
             status = client.get("/api/store/status/hello_world")
@@ -298,8 +325,67 @@ class TestStoreApiEndpoints(unittest.TestCase):
         status_payload = status.json()
         self.assertEqual(status_payload["installed_from_source_id"], "official")
         self.assertEqual(status_payload["installed_release_url"], "https://example.test/hello_world-1.0.0.zip")
-        self.assertEqual(status_payload["installed_sha256"], "dummy-checksum")
+        self.assertEqual(status_payload["installed_sha256"], hashlib.sha256(artifact_bytes).hexdigest())
         self.assertIsNotNone(status_payload["installed_at"])
+
+    def test_catalog_install_missing_publisher_key_rejected(self) -> None:
+        artifact_bytes = b"artifact-a"
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            publisher_key_id="missing-key",
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+
+        with patch("app.store.router._atomic_install_or_update"):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+            )
+        self.assertEqual(res.status_code, 400, res.text)
+        self.assertEqual(res.json()["detail"], "catalog_publisher_key_not_found_or_disabled")
+
+    def test_catalog_install_revoked_publisher_key_rejected(self) -> None:
+        artifact_bytes = b"artifact-b"
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            key_enabled=False,
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+
+        with patch("app.store.router._atomic_install_or_update"):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+            )
+        self.assertEqual(res.status_code, 400, res.text)
+        self.assertEqual(res.json()["detail"], "catalog_publisher_key_not_found_or_disabled")
+
+    def test_catalog_install_invalid_signature_rejected(self) -> None:
+        artifact_bytes = b"artifact-c"
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=base64.b64encode(b"invalid").decode("utf-8"),
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+
+        with patch("app.store.router._atomic_install_or_update"):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+            )
+        self.assertEqual(res.status_code, 400, res.text)
+        self.assertEqual(res.json()["detail"]["error"]["code"], "signature_invalid")
 
 
 if __name__ == "__main__":

@@ -75,7 +75,9 @@ Catalog cache behavior (Phase 2):
 - Catalog install flow:
   - resolves release from cached catalog by addon/version (defaults to latest compatible release),
   - downloads artifact with catalog client redirect/timeout/size protections,
-  - verifies SHA256 + release signature before atomic install,
+  - enforces `release.publisher_key_id` lookup in cached `publishers.json` (must exist and be enabled),
+  - enforces detached signature type support (`rsa-sha256` only),
+  - verifies SHA256 + detached `release_sig` over artifact bytes before atomic install,
   - records source metadata used by `GET /api/store/status/{addon_id}`.
 
 Store status response fields (Phase 2):

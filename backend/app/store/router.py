@@ -32,7 +32,7 @@ from .lifecycle import (
 )
 from .models import ReleaseManifest
 from .resolver import ResolverError, resolve_manifest_compatibility
-from .signing import VerificationError, verify_release_artifact
+from .signing import VerificationError, verify_detached_artifact_signature, verify_release_artifact
 from .sources import StoreSource, StoreSourcesStore
 
 # Backward-compatible wrappers kept for tests and gradual refactor migration.
@@ -189,7 +189,12 @@ def _build_release_manifest(addon_id: str, addon_item: dict[str, Any], release_i
     )
 
 
-def _publisher_public_key_from_payload(publishers_payload: Any, publisher_id: str) -> str | None:
+def _publisher_key_from_payload(
+    publishers_payload: Any,
+    *,
+    publisher_id: str,
+    publisher_key_id: str,
+) -> tuple[str, str] | None:
     if not isinstance(publishers_payload, dict):
         return None
     publishers = publishers_payload.get("publishers")
@@ -202,19 +207,25 @@ def _publisher_public_key_from_payload(publishers_payload: Any, publisher_id: st
             continue
         if pub.get("enabled", True) is False:
             continue
-        key = pub.get("public_key_pem")
-        if isinstance(key, str) and key.strip():
-            return key
         keys = pub.get("keys")
         if isinstance(keys, list):
             for item in keys:
                 if not isinstance(item, dict):
                     continue
+                if str(item.get("id", "")).strip() != publisher_key_id:
+                    continue
                 if item.get("enabled", True) is False:
                     continue
                 pem = item.get("public_key_pem") or item.get("pem")
                 if isinstance(pem, str) and pem.strip():
-                    return pem
+                    sig_type = str(item.get("signature_type") or "rsa-sha256").strip().lower()
+                    return pem, sig_type
+        # Backward-compat shape: publisher carries a single key directly.
+        if str(pub.get("key_id", "")).strip() == publisher_key_id:
+            pem = pub.get("public_key_pem")
+            if isinstance(pem, str) and pem.strip():
+                sig_type = str(pub.get("signature_type") or "rsa-sha256").strip().lower()
+                return pem, sig_type
     return None
 
 
@@ -401,6 +412,8 @@ def build_store_router(
             package_path: Path
             manifest: ReleaseManifest
             public_key_pem: str
+            release_signature_b64: str | None = None
+            release_signature_type: str = "rsa-sha256"
 
             if local_install:
                 package_path = Path(str(body.package_path))
@@ -451,9 +464,23 @@ def build_store_router(
                         continue
                 if manifest is None or release_item is None:
                     raise HTTPException(status_code=409, detail="catalog_no_compatible_release")
-                public_key_pem = _publisher_public_key_from_payload(publishers_payload, manifest.publisher_id) or ""
-                if not public_key_pem.strip():
-                    raise HTTPException(status_code=400, detail="catalog_publisher_key_not_found")
+                release_signature_b64 = str(release_item.get("release_sig") or "").strip()
+                publisher_key_id = str(release_item.get("publisher_key_id") or "").strip()
+                if not publisher_key_id:
+                    raise HTTPException(status_code=400, detail="catalog_publisher_key_missing")
+                publisher_key = _publisher_key_from_payload(
+                    publishers_payload,
+                    publisher_id=manifest.publisher_id,
+                    publisher_key_id=publisher_key_id,
+                )
+                if publisher_key is None:
+                    raise HTTPException(status_code=400, detail="catalog_publisher_key_not_found_or_disabled")
+                public_key_pem, key_signature_type = publisher_key
+                release_signature_type = str(
+                    release_item.get("signature_type") or release_item.get("release_sig_type") or "rsa-sha256"
+                ).strip().lower()
+                if key_signature_type != release_signature_type:
+                    raise HTTPException(status_code=400, detail="catalog_signature_type_mismatch")
 
                 source_release_url = str(
                     release_item.get("artifact_url")
@@ -498,7 +525,15 @@ def build_store_router(
                 package_path = temp_install_dir / "artifact.zip"
                 package_path.write_bytes(artifact_bytes)
 
-            verify_release_artifact(manifest, artifact_bytes, public_key_pem)
+            if source_id == "local":
+                verify_release_artifact(manifest, artifact_bytes, public_key_pem)
+            else:
+                verify_detached_artifact_signature(
+                    artifact_bytes=artifact_bytes,
+                    signature_b64=release_signature_b64 or "",
+                    public_key_pem=public_key_pem,
+                    signature_type=release_signature_type,
+                )
             await audit_store.record(
                 action="catalog_verify" if source_id != "local" else "install_verify",
                 addon_id=manifest.id,

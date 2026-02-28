@@ -7,6 +7,7 @@ from .models import (
 )
 from .signing import (
     VerificationError,
+    verify_detached_artifact_signature,
     run_pre_enable_verification,
     verify_checksum,
     verify_release_artifact,
@@ -28,6 +29,7 @@ __all__ = [
     "VerificationError",
     "verify_checksum",
     "verify_rsa_signature",
+    "verify_detached_artifact_signature",
     "verify_release_artifact",
     "run_pre_enable_verification",
     "ResolverError",

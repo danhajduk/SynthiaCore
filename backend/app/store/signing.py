@@ -123,6 +123,65 @@ def verify_rsa_signature(manifest: ReleaseManifest, public_key_pem: str) -> None
         ) from exc
 
 
+def verify_detached_artifact_signature(
+    *,
+    artifact_bytes: bytes,
+    signature_b64: str,
+    public_key_pem: str,
+    signature_type: str,
+) -> None:
+    sig_type = signature_type.strip().lower()
+    if sig_type != "rsa-sha256":
+        raise VerificationError(
+            code="signature_type_unsupported",
+            message="Only rsa-sha256 detached artifact signatures are supported.",
+            details={"signature_type": signature_type},
+        )
+    if not signature_b64.strip():
+        raise VerificationError(
+            code="signature_missing",
+            message="Detached release signature is missing.",
+        )
+    if not public_key_pem.strip():
+        raise VerificationError(
+            code="public_key_missing",
+            message="Publisher public key is missing.",
+        )
+    try:
+        key = serialization.load_pem_public_key(public_key_pem.encode("utf-8"))
+    except Exception as exc:
+        raise VerificationError(
+            code="public_key_invalid",
+            message="Publisher public key is not a valid PEM RSA public key.",
+        ) from exc
+    if not isinstance(key, rsa.RSAPublicKey):
+        raise VerificationError(
+            code="public_key_not_rsa",
+            message="Only RSA public keys are supported for addon package verification.",
+        )
+
+    try:
+        signature = base64.b64decode(signature_b64, validate=True)
+    except Exception as exc:
+        raise VerificationError(
+            code="signature_invalid_encoding",
+            message="Signature must be valid base64.",
+        ) from exc
+
+    try:
+        key.verify(
+            signature,
+            artifact_bytes,
+            padding.PKCS1v15(),
+            hashes.SHA256(),
+        )
+    except InvalidSignature as exc:
+        raise VerificationError(
+            code="signature_invalid",
+            message="Detached artifact signature verification failed.",
+        ) from exc
+
+
 def verify_release_artifact(
     manifest: ReleaseManifest,
     artifact_bytes: bytes,
