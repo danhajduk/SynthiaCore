@@ -116,6 +116,8 @@ def _installed_addons_with_versions(registry: AddonRegistry) -> dict[str, str]:
 class AtomicResult:
     addon_dir: Path
     backup_dir: Path | None
+    # Internal-only metadata for future phases (catalog integrity + UI detail enrichments).
+    # Not persisted in audit DB and not exposed directly to clients in Phase 1.
     installed_manifest: dict[str, Any]
 
 
@@ -125,6 +127,12 @@ def _atomic_install_or_update(
     package_path: Path,
     allow_replace: bool,
 ) -> AtomicResult:
+    """
+    Perform atomic addon install/update with rollback safety.
+
+    Returns AtomicResult where installed_manifest is an internal-only payload
+    kept for forward-compatible post-install validation paths.
+    """
     addons_root = _addons_root()
     addons_root.mkdir(parents=True, exist_ok=True)
     target_dir = addons_root / manifest.id

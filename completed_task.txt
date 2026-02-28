@@ -29,3 +29,4 @@
 2026-02-28 - Phase 1 finalization: files added backend/app/store/{models,signing,resolver,router,catalog}.py + catalog.json + tests; APIs added /api/store/schema,/api/store/catalog,/api/store/install,/api/store/update,/api/store/uninstall,/api/store/status/{addon_id}.
 2026-02-28 - Session complete: Addon Store Phase 1 foundation implementation finalized.
 2026-02-28 - A1 cleanup: replaced loaded_now with registry_loaded + hot_loaded and added API response test coverage.
+2026-02-28 - A2 cleanup: documented AtomicResult.installed_manifest as internal-only forward-compatible metadata.
