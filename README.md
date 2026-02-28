@@ -44,7 +44,7 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 
 ### Addon Store Lifecycle APIs (Phase 1)
 - `GET /api/store/catalog` (stub in Task 5, backed by catalog module in Task 6)
-- `POST /api/store/install` (admin token required)
+- `POST /api/store/install` (admin token required; supports local package install or catalog install by `source_id` + `addon_id` + optional `version`)
 - `POST /api/store/update` (admin token required)
 - `POST /api/store/uninstall` (admin token required)
 - `GET /api/store/status/{addon_id}`
@@ -72,6 +72,18 @@ Catalog cache behavior (Phase 2):
   - `STORE_CATALOG_PUBLIC_KEYS_JSON` (inline JSON override; supports multi-key rotation)
 - `GET /api/store/catalog` now reads cached catalog content (source-aware) and returns structured status fields:
   - `status`, `source_id`, `last_success_at`, `last_error_at`, `last_error_message`.
+- Catalog install flow:
+  - resolves release from cached catalog by addon/version (defaults to latest compatible release),
+  - downloads artifact with catalog client redirect/timeout/size protections,
+  - verifies SHA256 + release signature before atomic install,
+  - records source metadata used by `GET /api/store/status/{addon_id}`.
+
+Store status response fields (Phase 2):
+- `installed_version`
+- `installed_from_source_id`
+- `installed_release_url`
+- `installed_sha256`
+- `installed_at`
 
 Catalog query parameters:
 - `q` free-text search over id/name/description/categories

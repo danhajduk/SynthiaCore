@@ -35,5 +35,6 @@ logs/
 # Runtime state
 data/addons_state.json
 data/addons_registry.json
+var/store_install_state.json
 completed_task.txt
 docs/New_tasks.txt

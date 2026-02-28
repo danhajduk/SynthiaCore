@@ -173,9 +173,12 @@ def atomic_uninstall(addon_id: str) -> None:
 
 
 class StoreInstallRequest(BaseModel):
-    package_path: str = Field(..., min_length=1)
-    manifest: ReleaseManifest
-    public_key_pem: str = Field(..., min_length=1)
+    package_path: str | None = None
+    manifest: ReleaseManifest | None = None
+    public_key_pem: str | None = None
+    source_id: str | None = None
+    addon_id: str | None = None
+    version: str | None = None
     enable: bool = True
     actor: str | None = None
 
@@ -191,4 +194,3 @@ class StoreUpdateRequest(BaseModel):
 class StoreUninstallRequest(BaseModel):
     addon_id: str = Field(..., min_length=1)
     actor: str | None = None
-

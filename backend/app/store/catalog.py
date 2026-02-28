@@ -505,3 +505,20 @@ class CatalogCacheClient:
             if src.id == OFFICIAL_SOURCE_ID:
                 return src
         return enabled[0] if enabled else None
+
+    def load_cached_documents(self, source_id: str) -> tuple[Any | None, Any | None]:
+        source_dir = self._source_dir(source_id)
+        index_path = source_dir / "index.json"
+        publishers_path = source_dir / "publishers.json"
+        try:
+            index_payload = json.loads(index_path.read_text(encoding="utf-8")) if index_path.exists() else None
+        except Exception:
+            index_payload = None
+        try:
+            publishers_payload = json.loads(publishers_path.read_text(encoding="utf-8")) if publishers_path.exists() else None
+        except Exception:
+            publishers_payload = None
+        return index_payload, publishers_payload
+
+    def download_artifact(self, url: str) -> bytes:
+        return self._download_bytes(url)
