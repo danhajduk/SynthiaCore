@@ -15,7 +15,7 @@ from .signing import (
 from .resolver import ResolverError, ResolutionResult, resolve_manifest_compatibility
 from .audit import StoreAuditLogStore
 from .router import build_store_router
-from .catalog import CatalogQuery, StaticCatalogStore
+from .catalog import CatalogCacheClient, CatalogQuery, StaticCatalogStore
 from .lifecycle import AtomicResult
 from .sources import StoreSource, StoreSourcesStore
 
@@ -37,6 +37,7 @@ __all__ = [
     "build_store_router",
     "CatalogQuery",
     "StaticCatalogStore",
+    "CatalogCacheClient",
     "AtomicResult",
     "StoreSource",
     "StoreSourcesStore",

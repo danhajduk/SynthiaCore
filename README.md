@@ -63,6 +63,12 @@ Store sources endpoints:
 - `DELETE /api/store/sources/{id}` (admin token required)
 - `POST /api/store/sources/{id}/refresh` (admin token required)
 
+Catalog cache behavior (Phase 2):
+- Source refresh fetches `catalog/v1/index.json`, `index.json.sig`, `publishers.json`, `publishers.json.sig`.
+- Cache path: `runtime/store/cache/<source_id>/` with `metadata.json`.
+- `GET /api/store/catalog` now reads cached catalog content (source-aware) and returns structured status fields:
+  - `status`, `source_id`, `last_success_at`, `last_error_at`, `last_error_message`.
+
 Catalog query parameters:
 - `q` free-text search over id/name/description/categories
 - `category` category filter

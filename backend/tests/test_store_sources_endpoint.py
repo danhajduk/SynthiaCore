@@ -25,6 +25,17 @@ class _FakeRegistry:
         self.enabled[addon_id] = enabled
 
 
+class _FakeCatalogClient:
+    def refresh_source(self, source):
+        return {"ok": True, "source_id": source.id, "catalog_status": {"status": "ok"}}
+
+    def select_source(self, sources, source_id):
+        return None
+
+    def query_cached(self, source_id, req):
+        return {"ok": True, "items": [], "catalog_status": {"status": "ok"}}
+
+
 class TestStoreSourcesEndpoint(unittest.TestCase):
     def setUp(self) -> None:
         self.old_token = os.environ.get("SYNTHIA_ADMIN_TOKEN")
@@ -33,7 +44,10 @@ class TestStoreSourcesEndpoint(unittest.TestCase):
         audit = StoreAuditLogStore(str(Path(self.tmp.name) / "store_audit.db"))
         sources = StoreSourcesStore(str(Path(self.tmp.name) / "store_sources.json"))
         app = FastAPI()
-        app.include_router(build_store_router(_FakeRegistry(), audit, sources), prefix="/api/store")
+        app.include_router(
+            build_store_router(_FakeRegistry(), audit, sources, catalog_client=_FakeCatalogClient()),
+            prefix="/api/store",
+        )
         self.client = TestClient(app)
 
     def tearDown(self) -> None:

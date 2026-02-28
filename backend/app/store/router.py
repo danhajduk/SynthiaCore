@@ -9,7 +9,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from app.addons.registry import AddonRegistry
 from app.api.admin import require_admin_token
 from .audit import StoreAuditLogStore
-from .catalog import CatalogQuery, StaticCatalogStore
+from .catalog import CatalogCacheClient, CatalogQuery, StaticCatalogStore
 from . import lifecycle as lifecycle_mod
 from .lifecycle import (
     AtomicResult,
@@ -55,13 +55,16 @@ def build_store_router(
     registry: AddonRegistry,
     audit_store: StoreAuditLogStore,
     sources_store: StoreSourcesStore | None = None,
+    catalog_client: CatalogCacheClient | None = None,
 ) -> APIRouter:
     router = APIRouter()
-    catalog_store = StaticCatalogStore.from_default_path()
+    static_catalog = StaticCatalogStore.from_default_path()
+    cache_catalog = catalog_client or CatalogCacheClient.from_default_path()
     sources = sources_store
 
     @router.get("/catalog")
     async def get_catalog(
+        source_id: str | None = Query(default=None),
         q: str | None = Query(default=None),
         category: str | None = Query(default=None),
         featured: bool | None = Query(default=None),
@@ -69,16 +72,40 @@ def build_store_router(
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=20, ge=1, le=100),
     ):
-        payload = catalog_store.query(
-            CatalogQuery(
-                q=q,
-                category=category,
-                featured=featured,
-                sort=sort,
-                page=page,
-                page_size=page_size,
-            )
+        req = CatalogQuery(
+            q=q,
+            category=category,
+            featured=featured,
+            sort=sort,
+            page=page,
+            page_size=page_size,
         )
+        if sources is None:
+            payload = static_catalog.query(req)
+        else:
+            source_items = await sources.list_sources()
+            selected = cache_catalog.select_source(source_items, source_id)
+            if selected is None:
+                payload = {
+                    "ok": True,
+                    "items": [],
+                    "page": page,
+                    "page_size": page_size,
+                    "total": 0,
+                    "has_next": False,
+                    "sort": sort,
+                    "filters": {"q": q, "category": category, "featured": featured},
+                    "categories": [],
+                    "catalog_status": {
+                        "status": "error",
+                        "source_id": source_id,
+                        "last_success_at": None,
+                        "last_error_at": None,
+                        "last_error_message": "store_source_not_found_or_disabled",
+                    },
+                }
+            else:
+                payload = cache_catalog.query_cached(selected.id, req)
         status = payload.get("catalog_status", {})
         if status.get("status") == "error":
             await audit_store.record(
@@ -134,7 +161,8 @@ def build_store_router(
             raise HTTPException(status_code=500, detail="sources_store_not_configured")
         try:
             saved = await sources.mark_refresh(source_id)
-            return {"ok": True, "source": saved.model_dump(mode="json")}
+            refresh = cache_catalog.refresh_source(saved)
+            return {"ok": True, "source": saved.model_dump(mode="json"), "refresh": refresh}
         except Exception as exc:
             msg = str(exc) or type(exc).__name__
             if msg == "source_not_found":
