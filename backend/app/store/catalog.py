@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,28 +22,30 @@ class CatalogQuery:
 class StaticCatalogStore:
     def __init__(self, path: Path) -> None:
         self.path = path
+        self._last_successful_load: str | None = None
 
     @classmethod
     def from_default_path(cls) -> "StaticCatalogStore":
         return cls(repo_root() / "backend" / "app" / "store" / "catalog.json")
 
-    def _load_items(self) -> list[dict[str, Any]]:
+    def _load_items(self) -> tuple[list[dict[str, Any]], str | None]:
         if not self.path.exists():
-            return []
+            return [], "catalog_file_missing"
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
             if not isinstance(data, list):
-                return []
+                return [], "catalog_json_must_be_array"
             out: list[dict[str, Any]] = []
             for raw in data:
                 if isinstance(raw, dict):
                     out.append(raw)
-            return out
+            self._last_successful_load = datetime.now(timezone.utc).isoformat()
+            return out, None
         except Exception:
-            return []
+            return [], "catalog_read_or_parse_error"
 
     def query(self, req: CatalogQuery) -> dict[str, Any]:
-        items = self._load_items()
+        items, load_error = self._load_items()
 
         q = (req.q or "").strip().lower()
         category = (req.category or "").strip().lower()
@@ -109,4 +112,9 @@ class StaticCatalogStore:
                 "featured": req.featured,
             },
             "categories": categories,
+            "catalog_status": {
+                "status": "error" if load_error else "ok",
+                "message": load_error,
+                "last_successful_load": self._last_successful_load,
+            },
         }

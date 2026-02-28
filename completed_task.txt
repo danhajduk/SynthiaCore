@@ -31,3 +31,4 @@
 2026-02-28 - A1 cleanup: replaced loaded_now with registry_loaded + hot_loaded and added API response test coverage.
 2026-02-28 - A2 cleanup: documented AtomicResult.installed_manifest as internal-only forward-compatible metadata.
 2026-02-28 - A3 cleanup: set ReleaseManifest.compatibility as canonical with soft legacy top-level adapter + tests.
+2026-02-28 - B1 cleanup: replaced silent catalog fallback with structured catalog_status and added catalog error test + audit event logging.

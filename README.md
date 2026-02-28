@@ -52,6 +52,7 @@ Catalog query parameters:
 - `featured` featured-only filter
 - `sort` supports `recent`, `name`, fallback `id`
 - `page`, `page_size` pagination
+- Response includes `catalog_status` with `status`, `message`, and `last_successful_load` for operator visibility on catalog read/parse errors.
 
 ## Scheduler (Pull-Based Leasing)
 - Priority queues: `high`, `normal`, `low`, `background`.

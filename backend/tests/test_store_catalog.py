@@ -60,6 +60,15 @@ class TestStoreCatalog(unittest.TestCase):
         self.assertEqual(len(res["items"]), 1)
         self.assertEqual(res["items"][0]["id"], "b")
 
+    def test_returns_structured_error_status_on_invalid_json(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        path = Path(self._tmp.name) / "catalog.json"
+        path.write_text("{not valid json", encoding="utf-8")
+        store = StaticCatalogStore(path)
+        res = store.query(CatalogQuery())
+        self.assertEqual(res["catalog_status"]["status"], "error")
+        self.assertEqual(res["catalog_status"]["message"], "catalog_read_or_parse_error")
+
 
 if __name__ == "__main__":
     unittest.main()

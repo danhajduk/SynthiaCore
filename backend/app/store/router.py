@@ -293,7 +293,7 @@ def build_store_router(registry: AddonRegistry, audit_store: StoreAuditLogStore)
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=20, ge=1, le=100),
     ):
-        return catalog_store.query(
+        payload = catalog_store.query(
             CatalogQuery(
                 q=q,
                 category=category,
@@ -303,6 +303,17 @@ def build_store_router(registry: AddonRegistry, audit_store: StoreAuditLogStore)
                 page_size=page_size,
             )
         )
+        status = payload.get("catalog_status", {})
+        if status.get("status") == "error":
+            await audit_store.record(
+                action="catalog_query",
+                addon_id="__catalog__",
+                version=None,
+                status="failed",
+                message=str(status.get("message") or "catalog_error"),
+                actor="system",
+            )
+        return payload
 
     @router.post("/install")
     async def install_addon(
