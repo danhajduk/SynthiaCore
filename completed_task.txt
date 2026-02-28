@@ -16,3 +16,5 @@
 2026-02-28 - Session complete: Task 8 usage telemetry ingestion implemented.
 2026-02-28 - Enforced auth role separation, secret redaction, audit logs, and TLS warnings for remote addon targets.
 2026-02-28 - Session complete: Task 9 security baseline enforcement implemented.
+2026-02-28 - Added frontend control-plane UI: addon metadata expansion, admin registry CRUD, MQTT status, and service resolver surfaces.
+2026-02-28 - Session complete: Task 10 frontend control-plane updates implemented.

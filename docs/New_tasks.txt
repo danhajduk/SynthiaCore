@@ -22,7 +22,4 @@ Date reviewed: 2026-02-28
 
 9) Enforce security baseline - Completed on 02/28/2026 12:33
 
-10) Frontend updates for new control-plane model
-- Expand Addons page to show remote base_url, capabilities, health, last_seen, auth_mode.
-- Add registry management UI for admin CRUD.
-- Add service resolution and MQTT status surfaces in settings/admin pages.
+10) Frontend updates for new control-plane model - Completed on 02/28/2026 12:39
