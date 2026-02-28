@@ -1,0 +1,110 @@
+.store-page {
+  display: grid;
+  gap: 12px;
+}
+
+.store-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.store-title {
+  margin: 0;
+}
+
+.store-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.store-search {
+  min-width: 240px;
+  max-width: 360px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.store-status-card {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 4px;
+}
+
+.store-status-line {
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+.store-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.store-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 6px;
+}
+
+.store-card-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.store-addon-name {
+  font-weight: 700;
+}
+
+.store-addon-id {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.store-desc,
+.store-meta {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.store-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.store-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  cursor: pointer;
+}
+
+.store-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.store-error-inline {
+  white-space: pre-wrap;
+  color: #ffb4b4;
+}
+
+.store-empty {
+  opacity: 0.85;
+}

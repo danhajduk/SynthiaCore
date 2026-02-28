@@ -13,6 +13,7 @@ type AddonInfo = {
 
 const coreItems = [
   { label: "Home", path: "/" },
+  { label: "Store", path: "/store" },
   { label: "Addons", path: "/addons" },
   { label: "Settings", path: "/settings" },
   { label: "Settings / Jobs", path: "/settings/jobs" },

@@ -173,6 +173,7 @@ Backend checks `HEAD` vs `origin/main` and exposes:
 Frontend shows “Update available” / “Up to date” / “Repo status unavailable”.
 
 ## Frontend Pages
+- `/store` — Addon Store catalog page with refresh, client-side search, and install actions.
 - `/settings` — App settings (stored in SQLite).
 - `/settings/jobs` — Live scheduler jobs + filters.
 - `/settings/metrics` — System metrics + job summary (queued/leased).

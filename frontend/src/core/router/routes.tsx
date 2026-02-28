@@ -5,6 +5,7 @@ import Settings from "../pages/Settings";
 import SettingsJobs from "../pages/SettingsJobs";
 import SettingsMetrics from "../pages/SettingsMetrics";
 import SettingsStatistics from "../pages/SettingsStatistics";
+import AddonStorePage from "../../pages/AddonStorePage";
 import { getAddonRoutes } from "./loadAddons";
 
 export function buildRoutes(): RouteObject[] {
@@ -12,6 +13,7 @@ export function buildRoutes(): RouteObject[] {
 
   return [
     { path: "/", element: <Home /> },
+    { path: "/store", element: <AddonStorePage /> },
     { path: "/addons", element: <Addons /> },
     { path: "/settings", element: <Settings /> },
     { path: "/settings/jobs", element: <SettingsJobs /> },

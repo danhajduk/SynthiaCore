@@ -48,3 +48,4 @@
 2026-02-28 - Phase 2 Task 6: added admin audit time-range filters (from_ts/to_ts) with newest-first query coverage tests.
 2026-02-28 - Phase 2 Task 7: updated addon store architecture and requirements docs for official source, trust model, cache behavior, and install-from-catalog flow.
 2026-02-28 - Session complete: Phase 2 Tasks 6-7 completed (admin audit time-range filters + phase documentation updates).
+2026-02-28 - Step 8: added Store UI page (/store) with catalog status, refresh/install actions, client-side search, and sidebar route wiring.
