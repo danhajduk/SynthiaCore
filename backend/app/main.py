@@ -36,6 +36,7 @@ from app.system.mqtt import MqttManager, build_mqtt_router
 from app.system.services import ServiceCatalogStore, build_service_resolution_router
 from app.system.auth import ServiceTokenKeyStore, build_auth_router
 from app.system.policy import PolicyStore, build_policy_router
+from app.system.telemetry import UsageTelemetryStore, build_telemetry_router
 from app.system.repo_status import router as repo_status_router
 from app.system.scheduler import build_scheduler_router
 
@@ -158,6 +159,11 @@ def create_app() -> FastAPI:
         os.path.join(os.getcwd(), "var", "policy_revocations.json"),
     )
     policy_store = PolicyStore(policy_grants_db, policy_revocations_db)
+    telemetry_db = os.getenv(
+        "TELEMETRY_USAGE_DB",
+        os.path.join(os.getcwd(), "var", "telemetry_usage.db"),
+    )
+    telemetry_store = UsageTelemetryStore(telemetry_db)
 
     def metrics_provider():
         # SchedulerEngine will handle None/staleness conservatively.
@@ -180,6 +186,7 @@ def create_app() -> FastAPI:
     app.state.service_token_keys = service_token_keys
     app.state.service_catalog_store = service_catalog_store
     app.state.policy_store = policy_store
+    app.state.telemetry_store = telemetry_store
 
     app.include_router(build_settings_router(settings_store), prefix="/api/system", tags=["settings"])
     app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
@@ -208,6 +215,7 @@ def create_app() -> FastAPI:
     app.include_router(build_mqtt_router(mqtt_manager), prefix="/api/system", tags=["mqtt"])
     app.include_router(build_auth_router(service_token_keys), prefix="/api/auth", tags=["auth"])
     app.include_router(build_policy_router(policy_store, mqtt_manager), prefix="/api/policy", tags=["policy"])
+    app.include_router(build_telemetry_router(telemetry_store), prefix="/api/telemetry", tags=["telemetry"])
     app.include_router(
         build_service_resolution_router(registry, service_catalog_store),
         prefix="/api/services",

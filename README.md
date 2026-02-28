@@ -72,6 +72,11 @@ Simple key/value settings stored in SQLite, used by the Settings page.
 Grant model:
 - `grant_id`, `consumer_addon_id`, `service`, `period_start`, `period_end`, `limits`, `status`
 
+## Usage Telemetry
+- `POST /api/telemetry/usage` ingests usage reports from service addons.
+- `GET /api/telemetry/usage` returns persisted usage history with filters (`service`, `consumer_addon_id`, `grant_id`) and `limit`.
+- `GET /api/telemetry/usage/stats?days=30` returns aggregate totals and grouped rollups by service, consumer, and grant.
+
 ## Repo Status (Header Badge)
 Backend checks `HEAD` vs `origin/main` and exposes:
 - `GET /api/system/repo/status`
