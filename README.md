@@ -227,3 +227,4 @@ Demonstrates core addon features:
 - Scheduler live state is in-memory; history is persisted to SQLite.
 - If `origin/main` is unreachable, repo status will show as unavailable.
 - Active planning source is `docs/ROADMAP.md`; legacy TODO docs are archived in `docs/archive/`.
+- Service reload helper: `bash scripts/reload-all.sh` (reloads user units, restarts backend/frontend, runs updater oneshot, prints status).
