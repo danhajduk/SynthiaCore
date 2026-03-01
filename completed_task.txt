@@ -86,3 +86,4 @@
 2026-03-01 - Untracked mutable store runtime files (store sources + catalog cache) and added ignore rules/docs to prevent recurring git dirty state.
 2026-03-01 - Session complete: Tasks 29-30 delivered (core-version compatibility wiring and runtime store state untracked/ignored).
 2026-03-01 - Added catalog install artifact 404 self-heal: refresh source, re-resolve release metadata, and retry download once; added API regression coverage.
+2026-03-01 - Session complete: Task 31 delivered with artifact 404 refresh/retry handling for catalog installs and regression coverage.
