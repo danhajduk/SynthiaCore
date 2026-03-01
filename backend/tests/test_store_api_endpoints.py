@@ -1263,7 +1263,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
             )
         self.assertEqual(res.status_code, 200, res.text)
 
-    def test_catalog_install_invalid_layout_returns_structured_diagnostics(self) -> None:
+    def test_catalog_install_service_layout_returns_profile_unsupported_guidance(self) -> None:
         manifest_bytes = b'{"id":"hello_world","name":"hello_world","version":"1.0.0"}'
         app_main_bytes = b"from fastapi import FastAPI\napp = FastAPI()\n"
         pkg = Path(self.tmp.name) / "invalid-layout.tgz"
@@ -1294,14 +1294,12 @@ class TestStoreApiEndpoints(unittest.TestCase):
             )
         self.assertEqual(res.status_code, 400, res.text)
         detail = res.json()["detail"]
-        self.assertEqual(detail["error"], "catalog_package_layout_invalid")
-        self.assertEqual(detail["reason"], "missing_backend_entrypoint")
+        self.assertEqual(detail["error"], "catalog_package_profile_unsupported")
+        self.assertEqual(detail["package_profile"], "standalone_service")
+        self.assertEqual(detail["supported_profiles"], ["embedded_addon"])
         self.assertEqual(detail["source_id"], "official")
         self.assertEqual(detail["resolved_base_url"], "https://raw.githubusercontent.test/catalog")
         self.assertEqual(detail["artifact_url"], "https://example.test/hello_world-1.0.0.tgz")
-        self.assertEqual(detail["expected_package_profile"], "embedded_addon")
-        self.assertEqual(detail["detected_package_profile"], "standalone_service")
-        self.assertEqual(detail["expected_backend_entrypoint"], "backend/addon.py")
         self.assertEqual(detail["layout_hint"], "service_layout_app_main")
         self.assertIn("standalone service package", detail["hint"])
 
@@ -1310,7 +1308,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(status.status_code, 200, status.text)
         status_payload = status.json()
         self.assertIsNotNone(status_payload["last_install_error"])
-        self.assertEqual(status_payload["last_install_error"]["error"], "catalog_package_layout_invalid")
+        self.assertEqual(status_payload["last_install_error"]["error"], "catalog_package_profile_unsupported")
         self.assertEqual(status_payload["last_install_error"]["source_id"], "official")
         self.assertEqual(
             status_payload["last_install_error"]["artifact_url"],

@@ -1192,6 +1192,23 @@ def build_store_router(
                 layout_hint = None
                 if detail == "missing_backend_entrypoint:service_layout_app_main":
                     layout_hint = "service_layout_app_main"
+                if layout_hint == "service_layout_app_main":
+                    unsupported_payload: dict[str, Any] = {
+                        "error": "catalog_package_profile_unsupported",
+                        "package_profile": "standalone_service",
+                        "supported_profiles": ["embedded_addon"],
+                        "source_id": debug_source_id,
+                        "resolved_base_url": debug_resolved_base_url,
+                        "artifact_url": debug_artifact_url,
+                        "layout_hint": layout_hint,
+                        "hint": (
+                            "artifact appears to be a standalone service package (app/main.py); "
+                            "set package_profile=standalone_service and deploy/register externally, "
+                            "or ship embedded_addon layout with backend/addon.py"
+                        ),
+                    }
+                    _persist_last_install_error(error_code="catalog_package_profile_unsupported")
+                    raise HTTPException(status_code=400, detail=unsupported_payload)
                 error_payload: dict[str, Any] = {
                     "error": "catalog_package_layout_invalid",
                     "reason": "missing_backend_entrypoint",
@@ -1201,14 +1218,6 @@ def build_store_router(
                     "expected_package_profile": debug_package_profile or "embedded_addon",
                     "expected_backend_entrypoint": "backend/addon.py",
                 }
-                if layout_hint == "service_layout_app_main":
-                    error_payload["layout_hint"] = layout_hint
-                    error_payload["detected_package_profile"] = "standalone_service"
-                    error_payload["hint"] = (
-                        "artifact appears to be a standalone service package (app/main.py); "
-                        "set package_profile=standalone_service and deploy/register externally, "
-                        "or ship embedded_addon layout with backend/addon.py"
-                    )
                 _persist_last_install_error(error_code="catalog_package_layout_invalid")
                 raise HTTPException(status_code=400, detail=error_payload)
             _persist_last_install_error(error_code=detail)

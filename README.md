@@ -105,7 +105,7 @@ Catalog cache behavior (Phase 2):
   - if artifact `404` persists after retry, install returns `409` with `catalog_artifact_unavailable` including source and artifact URL details,
   - checksum verification accepts `sha256:<hex>` style metadata and returns `409` `catalog_sha256_mismatch` with expected/actual digest details when verification fails,
   - detached signature failures now include source/artifact/publisher key/signature type context to speed `signature_invalid` triage,
-  - package layout failures now return structured `catalog_package_layout_invalid` diagnostics with expected backend entrypoint and layout hints,
+  - package layout failures return structured `catalog_package_layout_invalid` diagnostics for embedded-addon entrypoint issues, and service-layout (`app/main.py`) artifacts now return `catalog_package_profile_unsupported` with standalone-service guidance,
   - compatibility checks use `SYNTHIA_CORE_VERSION` (default `0.1.0` if unset); set this in `scripts/synthia.env` to match deployed core semver,
   - when no compatible release exists, install returns `409` with `catalog_no_compatible_release` plus resolver reasons (for example core-version minimum mismatch),
   - derives missing `publisher_id` from `publisher_key_id` when catalog releases omit explicit publisher id,

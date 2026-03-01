@@ -133,3 +133,4 @@
 2026-03-01 - Added compatibility for ed25519 detached signature labels in catalog install verification with regression tests.
 2026-03-01 - Simplified store UI publisher field to show display name without appending publisher_id when name is available.
 2026-03-01 - Session complete: Tasks 59-61 delivered (repo ignore update, ed25519 signature-label compatibility, and UI publisher label simplification).
+2026-03-01 - Remapped service-layout catalog install failures to catalog_package_profile_unsupported with standalone-service guidance.
