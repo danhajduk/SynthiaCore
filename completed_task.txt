@@ -88,3 +88,4 @@
 2026-03-01 - Added catalog install artifact 404 self-heal: refresh source, re-resolve release metadata, and retry download once; added API regression coverage.
 2026-03-01 - Session complete: Task 31 delivered with artifact 404 refresh/retry handling for catalog installs and regression coverage.
 2026-03-01 - Added persistent artifact-404 handling: after one refresh/retry, install now returns catalog_artifact_unavailable with source/artifact detail; added regression coverage.
+2026-03-01 - Session complete: Task 32 delivered with explicit catalog_artifact_unavailable response after refresh/retry exhaustion.
