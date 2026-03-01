@@ -92,3 +92,4 @@
 2026-03-01 - Reconciled catalog checksum parsing (including sha256-prefixed forms) and changed sha256 mismatch failures to detailed 409 payloads with expected/actual digest diagnostics.
 2026-03-01 - Added operator-visible store status diagnostics with resolved source URL and last catalog install failure checksum/artifact context.
 2026-03-01 - Documented addon store incident runbook for catalog_artifact_unavailable and catalog_sha256_mismatch, including refresh, verification, and rollback procedures.
+2026-03-01 - Session complete: Tasks 35-36 delivered with store debug status diagnostics and incident runbook documentation.
