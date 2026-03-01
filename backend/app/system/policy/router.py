@@ -47,6 +47,7 @@ class GrantUpsertRequest(BaseModel):
 
 class RevocationUpsertRequest(BaseModel):
     id: str = Field(..., min_length=1)
+    consumer_addon_id: str | None = None
     grant_id: str | None = None
     service: str | None = None
     reason: str = ""
@@ -95,15 +96,33 @@ def build_policy_router(
     ):
         require_admin_token(x_admin_token, request)
         item = await store.upsert_revocation(body.model_dump(mode="json"))
-        topic = f"synthia/policy/revocations/{item['id']}"
-        publish = await mqtt_manager.publish(topic=topic, payload=item, retain=True, qos=1)
+        topics: list[str] = []
+        consumer_addon_id = item.get("consumer_addon_id")
+        grant_id = item.get("grant_id")
+        if consumer_addon_id:
+            topics.append(f"synthia/policy/revocations/{consumer_addon_id}")
+        if grant_id:
+            topics.append(f"synthia/policy/revocations/{grant_id}")
+        legacy_topic = f"synthia/policy/revocations/{item['id']}"
+        topics.append(legacy_topic)
+
+        ordered_topics = list(dict.fromkeys(topics))
+        publishes: list[dict[str, Any]] = []
+        for topic in ordered_topics:
+            publishes.append(await mqtt_manager.publish(topic=topic, payload=item, retain=True, qos=1))
+        publish = next((row for row in publishes if row.get("topic") == legacy_topic), publishes[0])
         if audit_store is not None:
             await audit_store.record(
                 event_type="revocation_changed",
                 actor_role=AuthRole.admin.value,
                 actor_id="admin_token",
-                details={"id": item["id"], "grant_id": item.get("grant_id"), "service": item.get("service")},
+                details={
+                    "id": item["id"],
+                    "consumer_addon_id": item.get("consumer_addon_id"),
+                    "grant_id": item.get("grant_id"),
+                    "service": item.get("service"),
+                },
             )
-        return {"ok": True, "revocation": item, "mqtt": publish}
+        return {"ok": True, "revocation": item, "mqtt": publish, "mqtt_publishes": publishes}
 
     return router

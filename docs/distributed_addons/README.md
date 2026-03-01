@@ -22,11 +22,10 @@ This document maps the current implementation to the policy set in `docs/Policie
 | Service resolution | Capability-based service resolution endpoint | `/api/services/resolve` implemented (registry + catalog fallback) | Aligned |
 | Service tokens | Service-to-service JWT issuance | `/api/auth/service-token` exists but is admin-token gated (no service-principal issuance flow) | Partial |
 | Policy grants schema | General limits (`max_requests`, `max_tokens`, `max_cost_cents`, `max_bytes`) | API/persistence/MQTT grant payloads now use the policy limit keys; legacy `max_units`/`burst` inputs are normalized for compatibility | Aligned |
-| Revocation topic model | Revocation keyed by both consumer and grant | Current publish path uses single id topic (`synthia/policy/revocations/{id}`) | Gap |
+| Revocation topic model | Revocation keyed by both consumer and grant | Core now publishes retained revocations on `consumer_addon_id` and `grant_id` topics, plus legacy `{id}` compatibility topic | Aligned |
 | Addon package profiles | Clear embedded-addon vs standalone-service handling | Embedded addon layout enforced; invalid service layout now returns structured diagnostics | Partial |
 
 ## Gap-to-Task Mapping
-- Task 45: Publish revocations by `consumer_addon_id` and `grant_id` (retain legacy compatibility).
 - Task 46: Auto-publish retained `synthia/core/mqtt/info` on connect/restart with sanitized metadata.
 - Task 47: Add service-principal token issuance/auth for `/api/auth/service-token`.
 - Task 48: Formalize package profiles and install-time validation for `embedded addon` vs `standalone service`.

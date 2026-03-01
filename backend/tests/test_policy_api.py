@@ -124,6 +124,55 @@ class TestPolicyApi(unittest.TestCase):
         persisted = json.loads(self.grants_path.read_text(encoding="utf-8"))[0]["limits"]
         self.assertEqual(persisted, {"max_requests": 12, "max_tokens": 777})
 
+    def test_revocation_upsert_publishes_consumer_grant_and_legacy_topics(self) -> None:
+        resp = self.client.post(
+            "/api/policy/revocations",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "id": "revocation-1",
+                "consumer_addon_id": "vision",
+                "grant_id": "grant-ai-1",
+                "service": "ai",
+                "reason": "quota_revoked",
+                "status": "revoked",
+            },
+        )
+        self.assertEqual(resp.status_code, 200, resp.text)
+        payload = resp.json()
+        self.assertEqual(payload["mqtt"]["topic"], "synthia/policy/revocations/revocation-1")
+        published_topics = [row["topic"] for row in self.mqtt.published]
+        self.assertEqual(
+            published_topics,
+            [
+                "synthia/policy/revocations/vision",
+                "synthia/policy/revocations/grant-ai-1",
+                "synthia/policy/revocations/revocation-1",
+            ],
+        )
+        self.assertEqual(
+            [row["topic"] for row in payload["mqtt_publishes"]],
+            [
+                "synthia/policy/revocations/vision",
+                "synthia/policy/revocations/grant-ai-1",
+                "synthia/policy/revocations/revocation-1",
+            ],
+        )
+
+    def test_revocation_publish_deduplicates_identical_keys(self) -> None:
+        resp = self.client.post(
+            "/api/policy/revocations",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "id": "same-id",
+                "consumer_addon_id": "same-id",
+                "grant_id": "same-id",
+                "status": "revoked",
+            },
+        )
+        self.assertEqual(resp.status_code, 200, resp.text)
+        published_topics = [row["topic"] for row in self.mqtt.published]
+        self.assertEqual(published_topics, ["synthia/policy/revocations/same-id"])
+
 
 if __name__ == "__main__":
     unittest.main()
