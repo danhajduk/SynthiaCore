@@ -79,3 +79,4 @@
 2026-03-01 - Fixed catalog install ReleaseManifest publisher_id validation by deriving publisher from publisher_key_id and supporting publisher payload field aliases; added API regression coverage.
 2026-03-01 - Session complete: install_http_400 ReleaseManifest publisher_id validation fixed for publisher_key_id-only catalog entries.
 2026-03-01 - Fixed catalog install compatibility for nested artifact.url releases (plus core_min/core_max aliases) and added regression coverage.
+2026-03-01 - Session complete: install_http_400 catalog_artifact_url_missing fixed by accepting nested artifact.url metadata with regression coverage.
