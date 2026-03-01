@@ -83,3 +83,4 @@
 2026-03-01 - Improved catalog install 409 diagnostics: catalog_no_compatible_release now returns core version + resolver reasons; added API regression test.
 2026-03-01 - Session complete: catalog_no_compatible_release now returns actionable compatibility diagnostics (core version + reason list).
 2026-03-01 - Wired SYNTHIA_CORE_VERSION into runtime config (scripts env + example), documented resolver behavior, and validated catalog compatibility against official release core_min.
+2026-03-01 - Untracked mutable store runtime files (store sources + catalog cache) and added ignore rules/docs to prevent recurring git dirty state.

@@ -82,6 +82,7 @@ Catalog cache behavior (Phase 2):
 - Source refresh fetches `catalog/v1/index.json`, `index.json.sig`, `publishers.json`, `publishers.json.sig`.
 - Official source refresh now retries the alternate branch (`main` <-> `master`) on `catalog_http_error:404` before failing.
 - Cache path: `runtime/store/cache/<source_id>/` with `metadata.json`.
+- Store source/cache runtime state (`backend/var/store_sources.json`, `runtime/store/cache/`) is local-only and ignored by git.
 - Catalog signatures are verified against configured store public key(s); refresh fails closed and keeps last-known-good cache on invalid/missing signatures.
 - Catalog public key configuration:
   - `STORE_CATALOG_PUBLIC_KEYS_PATH` (default `var/store_catalog_public_keys.json`)
