@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-03-01T00:48:12Z",
+  "catalog_id": "official",
+  "addons": [
+    {
+      "addon_id": "mqtt",
+      "name": "Synthia MQTT",
+      "repo": "https://github.com/danhajduk/Synthia-MQTT.git",
+      "releases": [
+        {
+          "version": "0.1.0",
+          "core_min": "0.6.0",
+          "core_max": null,
+          "artifact": {
+            "type": "github_release_asset",
+            "url": "https://github.com/danhajduk/Synthia-MQTT/releases/download/v0.1.0/addon.tgz"
+          },
+          "sha256": "5e0300b94033d614dddd0fb8940242a9bbb8069b059d8cd9a61a5dfc03a369bb",
+          "publisher_key_id": "publisher.danhajduk#2026-02",
+          "release_sig": "QP5YxF6REFGLaF3j/FwcojIodiy4eXxaspsfIbTXfNDlP5hVizmfQgOvNpavTHSjrv5yTNovahdLyjBXYcB0fa5IA75kyotg3Q0NT+6r6QTsXT/dl+nxQzr5rINJvKtysQiL8+NOrrVZXzDU0lLlScGoVMKEG0H48Ork2r+vVrlb5m80jGZ1fEgu/56/RXZLuYuucy+IXRm/qp8lzK0ZK5RilinLNA2JSu5CZhyD4hEtQ+BMA4KUsfWGrMfDhIfwf29IvTe8e+Yz32xz7N68ItPLJ/D5Ec4uYR8sjmgDMlG8YtC7qtZT3h/f1U+Az2qUJ380CNllNjuBqTnIjnMG5qH2MsSTF38icZzIM1IMHCkm/K4FlB0Glz1VPV/ON6BKgcbGtKkeEHO85bCX2KoZTQ8wsg91fzM6iGX/xsQrWuE1NOK3YG/FBHTGJKs5060VvllD2uFPTTbdeiYtKjW+Z1s1ZM+wYvpkTq0mH7vCcU4/na1ykoeUJVotoemWzdXkw0XKiHd9DK+1Idpz5sSD0NCItNA1A6gj8m0mFTtk3y+kxQCaIKyU8hCNBWCcx5az2QBLWH7alrvoVYtbty3E/Y4nLqB4RbuK2mioNn/Fua8Rx8riaLX7N+KDwVaxZbqmL8grHwLZpM7NOMIzmQuVvqnDo9SvQWkXkOmrbMGnBcs="
+        }
+      ]
+    }
+  ]
+}
