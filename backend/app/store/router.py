@@ -536,75 +536,96 @@ def build_store_router(
                     addon_id=body.addon_id.strip(),
                     version=body.version,
                 )
-                release_item: dict[str, Any] | None = None
-                manifest: ReleaseManifest | None = None
                 core_version = _configured_core_version()
-                compatibility_failures: list[dict[str, Any]] = []
-                for candidate in release_candidates:
-                    candidate_manifest = _build_release_manifest(body.addon_id.strip(), addon_item, candidate)
-                    if body.version and body.version.strip():
-                        manifest = candidate_manifest
-                        release_item = candidate
-                        break
+                did_refresh_retry = False
+                while True:
+                    release_item: dict[str, Any] | None = None
+                    manifest = None
+                    compatibility_failures: list[dict[str, Any]] = []
+                    for candidate in release_candidates:
+                        candidate_manifest = _build_release_manifest(body.addon_id.strip(), addon_item, candidate)
+                        if body.version and body.version.strip():
+                            manifest = candidate_manifest
+                            release_item = candidate
+                            break
+                        try:
+                            resolve_manifest_compatibility(
+                                candidate_manifest,
+                                core_version=core_version,
+                                installed_addons=installed_addons_with_versions(registry),
+                            )
+                            manifest = candidate_manifest
+                            release_item = candidate
+                            break
+                        except ResolverError as exc:
+                            compatibility_failures.append(
+                                {
+                                    "version": str(candidate.get("version") or ""),
+                                    "error": exc.to_dict().get("error", {"code": exc.code, "message": exc.message}),
+                                }
+                            )
+                            continue
+                    if manifest is None or release_item is None:
+                        if compatibility_failures:
+                            raise HTTPException(
+                                status_code=409,
+                                detail={
+                                    "error": "catalog_no_compatible_release",
+                                    "core_version": core_version,
+                                    "reasons": compatibility_failures,
+                                },
+                            )
+                        raise HTTPException(status_code=409, detail="catalog_no_compatible_release")
+                    release_signature_b64 = _release_signature_b64(release_item)
+                    publisher_key_id = str(release_item.get("publisher_key_id") or "").strip()
+                    if not publisher_key_id:
+                        raise HTTPException(status_code=400, detail="catalog_publisher_key_missing")
+                    publisher_key = _publisher_key_from_payload(
+                        publishers_payload,
+                        publisher_id=manifest.publisher_id,
+                        publisher_key_id=publisher_key_id,
+                    )
+                    if publisher_key is None:
+                        raise HTTPException(status_code=400, detail="catalog_publisher_key_not_found_or_disabled")
+                    public_key_pem, key_signature_type = publisher_key
+                    release_signature_type = str(
+                        release_item.get("signature_type") or release_item.get("release_sig_type") or "rsa-sha256"
+                    ).strip().lower()
+                    if key_signature_type != release_signature_type:
+                        raise HTTPException(status_code=400, detail="catalog_signature_type_mismatch")
+
+                    source_release_url = _release_artifact_url(release_item)
+                    if not source_release_url:
+                        raise HTTPException(status_code=400, detail="catalog_artifact_url_missing")
+
+                    await audit_store.record(
+                        action="catalog_download",
+                        addon_id=manifest.id,
+                        version=manifest.version,
+                        status="started",
+                        message=source_release_url,
+                        actor=actor,
+                    )
                     try:
-                        resolve_manifest_compatibility(
-                            candidate_manifest,
-                            core_version=core_version,
-                            installed_addons=installed_addons_with_versions(registry),
-                        )
-                        manifest = candidate_manifest
-                        release_item = candidate
+                        artifact_bytes = cache_catalog.download_artifact(source_release_url)
                         break
-                    except ResolverError as exc:
-                        compatibility_failures.append(
-                            {
-                                "version": str(candidate.get("version") or ""),
-                                "error": exc.to_dict().get("error", {"code": exc.code, "message": exc.message}),
-                            }
+                    except Exception as exc:
+                        if str(exc) != "catalog_http_error:404" or did_refresh_retry:
+                            raise
+                        refresh = cache_catalog.refresh_source(selected)
+                        if not bool(refresh.get("ok")):
+                            raise RuntimeError(
+                                str(refresh.get("catalog_status", {}).get("last_error_message") or "catalog_refresh_failed")
+                            )
+                        index_payload, publishers_payload = cache_catalog.load_cached_documents(selected.id)
+                        if index_payload is None:
+                            raise HTTPException(status_code=400, detail="catalog_cache_missing")
+                        addon_item, release_candidates = _resolve_catalog_release(
+                            index_payload=index_payload,
+                            addon_id=body.addon_id.strip(),
+                            version=body.version,
                         )
-                        continue
-                if manifest is None or release_item is None:
-                    if compatibility_failures:
-                        raise HTTPException(
-                            status_code=409,
-                            detail={
-                                "error": "catalog_no_compatible_release",
-                                "core_version": core_version,
-                                "reasons": compatibility_failures,
-                            },
-                        )
-                    raise HTTPException(status_code=409, detail="catalog_no_compatible_release")
-                release_signature_b64 = _release_signature_b64(release_item)
-                publisher_key_id = str(release_item.get("publisher_key_id") or "").strip()
-                if not publisher_key_id:
-                    raise HTTPException(status_code=400, detail="catalog_publisher_key_missing")
-                publisher_key = _publisher_key_from_payload(
-                    publishers_payload,
-                    publisher_id=manifest.publisher_id,
-                    publisher_key_id=publisher_key_id,
-                )
-                if publisher_key is None:
-                    raise HTTPException(status_code=400, detail="catalog_publisher_key_not_found_or_disabled")
-                public_key_pem, key_signature_type = publisher_key
-                release_signature_type = str(
-                    release_item.get("signature_type") or release_item.get("release_sig_type") or "rsa-sha256"
-                ).strip().lower()
-                if key_signature_type != release_signature_type:
-                    raise HTTPException(status_code=400, detail="catalog_signature_type_mismatch")
-
-                source_release_url = _release_artifact_url(release_item)
-                if not source_release_url:
-                    raise HTTPException(status_code=400, detail="catalog_artifact_url_missing")
-
-                await audit_store.record(
-                    action="catalog_download",
-                    addon_id=manifest.id,
-                    version=manifest.version,
-                    status="started",
-                    message=source_release_url,
-                    actor=actor,
-                )
-                artifact_bytes = cache_catalog.download_artifact(source_release_url)
+                        did_refresh_retry = True
                 actual_sha256 = _hex_sha256(artifact_bytes)
                 expected_sha256 = str(_release_checksum(release_item) or manifest.checksum).strip()
                 if not expected_sha256 or not hmac.compare_digest(actual_sha256, expected_sha256.lower()):

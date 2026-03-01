@@ -55,10 +55,25 @@ class _FakeSourcesStore:
 
 
 class _FakeCatalogClient:
-    def __init__(self, *, index_payload: dict, publishers_payload: dict, artifact_bytes: bytes) -> None:
+    def __init__(
+        self,
+        *,
+        index_payload: dict,
+        publishers_payload: dict,
+        artifact_bytes: bytes,
+        fail_first_download_404: bool = False,
+        refreshed_index_payload: dict | None = None,
+        refreshed_publishers_payload: dict | None = None,
+    ) -> None:
         self._index_payload = index_payload
         self._publishers_payload = publishers_payload
         self._artifact_bytes = artifact_bytes
+        self._fail_first_download_404 = fail_first_download_404
+        self._download_calls = 0
+        self._refresh_calls = 0
+        self.downloaded_urls: list[str] = []
+        self._refreshed_index_payload = refreshed_index_payload
+        self._refreshed_publishers_payload = refreshed_publishers_payload
 
     def select_source(self, sources, source_id):
         for src in sources:
@@ -71,7 +86,19 @@ class _FakeCatalogClient:
             return None, None
         return self._index_payload, self._publishers_payload
 
+    def refresh_source(self, source):
+        self._refresh_calls += 1
+        if self._refreshed_index_payload is not None:
+            self._index_payload = self._refreshed_index_payload
+        if self._refreshed_publishers_payload is not None:
+            self._publishers_payload = self._refreshed_publishers_payload
+        return {"ok": True, "source_id": source.id, "catalog_status": {"status": "ok"}}
+
     def download_artifact(self, url: str) -> bytes:
+        self.downloaded_urls.append(url)
+        self._download_calls += 1
+        if self._fail_first_download_404 and self._download_calls == 1:
+            raise RuntimeError("catalog_http_error:404")
         return self._artifact_bytes
 
 
@@ -146,6 +173,9 @@ class TestStoreApiEndpoints(unittest.TestCase):
         omit_publisher_id: bool = False,
         use_nested_artifact_url: bool = False,
         core_min_version: str = "0.1.0",
+        release_url: str = "https://example.test/hello_world-1.0.0.zip",
+        fail_first_download_404: bool = False,
+        refreshed_release_url: str | None = None,
     ) -> _FakeCatalogClient:
         digest = hashlib.sha256(artifact_bytes).hexdigest()
         addon_identity = {"addon_id": "hello_world"} if use_addon_id_field else {"id": "hello_world"}
@@ -166,9 +196,9 @@ class TestStoreApiEndpoints(unittest.TestCase):
             },
         }
         if use_nested_artifact_url:
-            release_payload["artifact"] = {"url": "https://example.test/hello_world-1.0.0.zip"}
+            release_payload["artifact"] = {"url": release_url}
         else:
-            release_payload["artifact_url"] = "https://example.test/hello_world-1.0.0.zip"
+            release_payload["artifact_url"] = release_url
         publisher_record = (
             {
                 "publisher_id": "pub-1",
@@ -196,24 +226,49 @@ class TestStoreApiEndpoints(unittest.TestCase):
                 ],
             }
         )
-        return _FakeCatalogClient(
-            index_payload={
+        index_payload = {
+            "addons": [
+                {
+                    **addon_identity,
+                    "name": "hello_world",
+                    **addon_publisher,
+                    "permissions": ["filesystem.read"],
+                    "releases": [release_payload],
+                }
+            ]
+        }
+        publishers_payload = {
+            "publishers": [
+                publisher_record
+            ]
+        }
+
+        refreshed_index_payload: dict | None = None
+        if refreshed_release_url:
+            refreshed_release = dict(release_payload)
+            if use_nested_artifact_url:
+                refreshed_release["artifact"] = {"url": refreshed_release_url}
+            else:
+                refreshed_release["artifact_url"] = refreshed_release_url
+            refreshed_index_payload = {
                 "addons": [
                     {
                         **addon_identity,
                         "name": "hello_world",
                         **addon_publisher,
                         "permissions": ["filesystem.read"],
-                        "releases": [release_payload],
+                        "releases": [refreshed_release],
                     }
                 ]
-            },
-            publishers_payload={
-                "publishers": [
-                    publisher_record
-                ]
-            },
+            }
+
+        return _FakeCatalogClient(
+            index_payload=index_payload,
+            publishers_payload=publishers_payload,
             artifact_bytes=artifact_bytes,
+            fail_first_download_404=fail_first_download_404,
+            refreshed_index_payload=refreshed_index_payload,
+            refreshed_publishers_payload=publishers_payload if refreshed_index_payload is not None else None,
         )
 
     def test_catalog_endpoint(self) -> None:
@@ -436,6 +491,41 @@ class TestStoreApiEndpoints(unittest.TestCase):
             )
         self.assertEqual(res.status_code, 200, res.text)
         self.assertEqual(res.json()["installed_release_url"], "https://example.test/hello_world-1.0.0.zip")
+
+    def test_catalog_install_refreshes_source_and_retries_after_artifact_404(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-refresh-retry.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr("hello_world/manifest.json", '{"id":"hello_world","name":"hello_world","version":"1.0.0"}')
+            zf.writestr("hello_world/backend/addon.py", "addon = None\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            release_url="https://example.test/stale.zip",
+            fail_first_download_404=True,
+            refreshed_release_url="https://example.test/fresh.zip",
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+
+        with patch("app.store.router.resolve_manifest_compatibility", return_value=None), patch(
+            "app.store.router._atomic_install_or_update",
+            return_value=AtomicResult(
+                addon_dir=Path(self.tmp.name) / "addons" / "hello_world",
+                backup_dir=None,
+                installed_manifest={"id": "hello_world"},
+            ),
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()["installed_release_url"], "https://example.test/fresh.zip")
+        self.assertEqual(fake_catalog._refresh_calls, 1)
+        self.assertEqual(fake_catalog.downloaded_urls, ["https://example.test/stale.zip", "https://example.test/fresh.zip"])
 
     def test_catalog_install_no_compatible_release_includes_reason_details(self) -> None:
         artifact_bytes = b"artifact-incompatible"

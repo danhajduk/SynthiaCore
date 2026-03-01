@@ -85,3 +85,4 @@
 2026-03-01 - Wired SYNTHIA_CORE_VERSION into runtime config (scripts env + example), documented resolver behavior, and validated catalog compatibility against official release core_min.
 2026-03-01 - Untracked mutable store runtime files (store sources + catalog cache) and added ignore rules/docs to prevent recurring git dirty state.
 2026-03-01 - Session complete: Tasks 29-30 delivered (core-version compatibility wiring and runtime store state untracked/ignored).
+2026-03-01 - Added catalog install artifact 404 self-heal: refresh source, re-resolve release metadata, and retry download once; added API regression coverage.
