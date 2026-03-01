@@ -50,3 +50,4 @@ scripts/*.local.env
 *.pfx
 completed_task.txt
 backend/var/store_install_state.json
+completed_task.txt
