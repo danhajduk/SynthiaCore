@@ -419,10 +419,27 @@ def _resolve_catalog_release(
     if addon_item is None:
         raise RuntimeError("catalog_addon_not_found")
 
+    release_items: list[dict[str, Any]] = []
+    channels = addon_item.get("channels")
+    if isinstance(channels, dict):
+        preferred_order = ["stable", "beta", "nightly"]
+        remaining = [name for name in channels.keys() if str(name) not in preferred_order]
+        channel_names = preferred_order + sorted(str(name) for name in remaining)
+        for channel_name in channel_names:
+            entries = channels.get(channel_name)
+            if not isinstance(entries, list):
+                continue
+            for item in entries:
+                if not isinstance(item, dict):
+                    continue
+                row = dict(item)
+                row.setdefault("channel", channel_name)
+                release_items.append(row)
+
     releases = addon_item.get("releases")
-    if not isinstance(releases, list) or not releases:
-        raise RuntimeError("catalog_releases_missing")
-    release_items = [x for x in releases if isinstance(x, dict)]
+    if isinstance(releases, list):
+        release_items.extend([x for x in releases if isinstance(x, dict)])
+
     if not release_items:
         raise RuntimeError("catalog_releases_missing")
 

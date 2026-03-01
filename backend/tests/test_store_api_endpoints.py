@@ -193,6 +193,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
         core_min_version: str = "0.1.0",
         release_url: str = "https://example.test/hello_world-1.0.0.zip",
         package_profile: str = "embedded_addon",
+        use_channels_schema: bool = False,
         fail_first_download_404: bool = False,
         fail_all_download_404: bool = False,
         refreshed_release_url: str | None = None,
@@ -255,17 +256,18 @@ class TestStoreApiEndpoints(unittest.TestCase):
                 ],
             }
         )
-        index_payload = {
-            "addons": [
-                {
-                    **addon_identity,
-                    "name": "hello_world",
-                    **addon_publisher,
-                    "permissions": ["filesystem.read"],
-                    "releases": [release_payload],
-                }
-            ]
+        addon_payload: dict[str, object] = {
+            **addon_identity,
+            "name": "hello_world",
+            **addon_publisher,
+            "permissions": ["filesystem.read"],
         }
+        if use_channels_schema:
+            addon_payload["channels"] = {"stable": [release_payload], "beta": [], "nightly": []}
+        else:
+            addon_payload["releases"] = [release_payload]
+
+        index_payload = {"addons": [addon_payload]}
         publishers_payload = {
             "publishers": [
                 publisher_record
@@ -279,17 +281,17 @@ class TestStoreApiEndpoints(unittest.TestCase):
                 refreshed_release["artifact"] = {"url": refreshed_release_url}
             else:
                 refreshed_release["artifact_url"] = refreshed_release_url
-            refreshed_index_payload = {
-                "addons": [
-                    {
-                        **addon_identity,
-                        "name": "hello_world",
-                        **addon_publisher,
-                        "permissions": ["filesystem.read"],
-                        "releases": [refreshed_release],
-                    }
-                ]
+            refreshed_addon_payload: dict[str, object] = {
+                **addon_identity,
+                "name": "hello_world",
+                **addon_publisher,
+                "permissions": ["filesystem.read"],
             }
+            if use_channels_schema:
+                refreshed_addon_payload["channels"] = {"stable": [refreshed_release], "beta": [], "nightly": []}
+            else:
+                refreshed_addon_payload["releases"] = [refreshed_release]
+            refreshed_index_payload = {"addons": [refreshed_addon_payload]}
 
         return _FakeCatalogClient(
             index_payload=index_payload,
@@ -509,6 +511,37 @@ class TestStoreApiEndpoints(unittest.TestCase):
             artifact_bytes=artifact_bytes,
             release_sig=self._sign_artifact(artifact_bytes),
             use_nested_artifact_url=True,
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+
+        with patch("app.store.router.resolve_manifest_compatibility", return_value=None), patch(
+            "app.store.router._atomic_install_or_update",
+            return_value=AtomicResult(
+                addon_dir=Path(self.tmp.name) / "addons" / "hello_world",
+                backup_dir=None,
+                installed_manifest={"id": "hello_world"},
+            ),
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()["installed_release_url"], "https://example.test/hello_world-1.0.0.zip")
+
+    def test_catalog_install_accepts_channels_stable_release_schema(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-channels-stable.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr("hello_world/manifest.json", '{"id":"hello_world","name":"hello_world","version":"1.0.0"}')
+            zf.writestr("hello_world/backend/addon.py", "addon = None\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            use_channels_schema=True,
         )
         app = FastAPI()
         app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")

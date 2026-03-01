@@ -116,3 +116,4 @@
 2026-03-01 - Added recurrence triage guidance for catalog_package_layout_invalid (v0.1.2), including pre-catalog artifact layout verification commands.
 2026-03-01 - Broke out SAS v1.1 catalog/manifest management into concrete implementation tasks (50-54) and added baseline gap/sequence plan documentation.
 2026-03-01 - Implemented SAS v1.1 permission alias normalization in store manifest models (network.outbound|inbound, mqtt.client) with regression tests.
+2026-03-01 - Added SAS catalog channels support in store release resolution (stable/beta/nightly) with legacy releases[] fallback and regression coverage.
