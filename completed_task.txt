@@ -98,3 +98,4 @@
 2026-03-01 - Added catalog signature_invalid diagnostics with source/artifact/publisher key/signature type context in install responses and persisted store status metadata; added regression coverage.
 2026-03-01 - Session complete: Task 38 delivered with signature_invalid diagnostic context in store install responses and persisted status metadata.
 2026-03-01 - Ignored hidden addon folders (.store_backup/.store_staging) in backend addon discovery to remove noisy missing-entrypoint warnings; added regression test coverage.
+2026-03-01 - Session complete: Task 39 delivered with hidden-folder filtering in addon discovery and regression coverage.
