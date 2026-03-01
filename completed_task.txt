@@ -64,3 +64,4 @@
 2026-02-28 - Implemented addon registry API endpoints (/api/addons/registry/*), persisted discovered/updated/last_health metadata, and added backend API tests.
 2026-02-28 - Session complete: Task 23 backend addon registry persistence and /api/addons/registry endpoints implemented and verified.
 2026-02-28 - Implemented MQTT listener hardening: added MQTT_LISTENER_ENABLED toggle, safe disabled-mode startup, and tests for addon announce/health dispatch.
+2026-02-28 - Session complete: Task 24 MQTT listener optional startup and addon announce/health dispatch hardening delivered.
