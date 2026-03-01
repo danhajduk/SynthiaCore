@@ -7,6 +7,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 
+GRANT_LIMIT_KEYS = ("max_requests", "max_tokens", "max_cost_cents", "max_bytes")
+
+
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -22,13 +25,18 @@ class PolicyStore:
     async def list_grants(self, service: str | None = None) -> list[dict[str, Any]]:
         async with self._lock:
             data = await asyncio.to_thread(self._read_json, self.grants_path, [])
+            normalized, changed = self._normalize_grants(data)
+            if changed:
+                await asyncio.to_thread(self._write_json, self.grants_path, normalized)
         if service:
-            return [g for g in data if str(g.get("service")) == service]
-        return data
+            return [g for g in normalized if str(g.get("service")) == service]
+        return normalized
 
     async def upsert_grant(self, grant: dict[str, Any]) -> dict[str, Any]:
         async with self._lock:
             grants = await asyncio.to_thread(self._read_json, self.grants_path, [])
+            grants, _ = self._normalize_grants(grants)
+            grant = self._normalize_grant(grant)
             grant_id = str(grant["grant_id"])
             found = False
             for idx, item in enumerate(grants):
@@ -83,3 +91,47 @@ class PolicyStore:
     def _write_json(path: str, value: Any) -> None:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(value, f, indent=2, sort_keys=True)
+
+    @classmethod
+    def _normalize_grants(cls, rows: Any) -> tuple[list[dict[str, Any]], bool]:
+        if not isinstance(rows, list):
+            return [], True
+        changed = False
+        normalized: list[dict[str, Any]] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                changed = True
+                continue
+            fixed = cls._normalize_grant(row)
+            if fixed != row:
+                changed = True
+            normalized.append(fixed)
+        return normalized, changed
+
+    @classmethod
+    def _normalize_grant(cls, item: dict[str, Any]) -> dict[str, Any]:
+        out = dict(item)
+        out["limits"] = cls._normalize_limits(out.get("limits"))
+        return out
+
+    @staticmethod
+    def _normalize_limits(raw: Any) -> dict[str, int]:
+        if not isinstance(raw, dict):
+            return {}
+
+        data = dict(raw)
+        if data.get("max_tokens") is None and data.get("max_units") is not None:
+            data["max_tokens"] = data.get("max_units")
+        if data.get("max_requests") is None and data.get("burst") is not None:
+            data["max_requests"] = data.get("burst")
+
+        limits: dict[str, int] = {}
+        for key in GRANT_LIMIT_KEYS:
+            value = data.get(key)
+            if value is None:
+                continue
+            try:
+                limits[key] = int(value)
+            except (TypeError, ValueError):
+                continue
+        return limits

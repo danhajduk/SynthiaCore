@@ -104,3 +104,4 @@
 2026-03-01 - Added structured catalog package-layout diagnostics for missing_backend_entrypoint (including service-layout hint and expected backend entrypoint) and regression coverage.
 2026-03-01 - Added distributed-addon policy alignment baseline doc linking policy references and mapping current implementation gaps/tasks.
 2026-03-01 - Added /addons/{addon_id} UI proxy aliases with legacy /ui/addons compatibility, plus route-level regression tests.
+2026-03-01 - Migrated policy grant limits to max_requests/max_tokens/max_cost_cents/max_bytes across API, persistence, and MQTT payloads with legacy key normalization tests.

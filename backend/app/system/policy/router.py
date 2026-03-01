@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.api.admin import require_admin_token
 from app.system.audit import AuditLogStore
@@ -13,9 +13,26 @@ from .store import PolicyStore
 
 
 class GrantLimits(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     max_requests: int | None = None
-    max_units: int | None = None
-    burst: int | None = None
+    max_tokens: int | None = None
+    max_cost_cents: int | None = None
+    max_bytes: int | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_legacy_fields(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        if data.get("max_tokens") is None and data.get("max_units") is not None:
+            data["max_tokens"] = data.get("max_units")
+        if data.get("max_requests") is None and data.get("burst") is not None:
+            data["max_requests"] = data.get("burst")
+        data.pop("max_units", None)
+        data.pop("burst", None)
+        return data
 
 
 class GrantUpsertRequest(BaseModel):
