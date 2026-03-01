@@ -192,4 +192,12 @@ def build_proxy_router(proxy: AddonProxy) -> APIRouter:
     async def proxy_ui_root(addon_id: str, request: Request):
         return await proxy.forward(request, addon_id, "")
 
+    @router.api_route("/addons/{addon_id}/{path:path}", methods=["GET", "HEAD"])
+    async def proxy_ui_alias(addon_id: str, path: str, request: Request):
+        return await proxy.forward(request, addon_id, path)
+
+    @router.api_route("/addons/{addon_id}", methods=["GET", "HEAD"])
+    async def proxy_ui_alias_root(addon_id: str, request: Request):
+        return await proxy.forward(request, addon_id, "")
+
     return router

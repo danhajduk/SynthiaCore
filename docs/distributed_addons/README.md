@@ -16,7 +16,7 @@ This document maps the current implementation to the policy set in `docs/Policie
 | Core role | Control-plane only | Registry/proxy/policy/auth/telemetry/services implemented; no high-frequency data relay in core | Aligned |
 | Addon contract endpoints | Required addon API endpoints | Discovery enforces required routes in `backend/app/addons/discovery.py` | Aligned |
 | Registry persistence | Persistent addon registry model | Remote registry persistence and CRUD available (`/api/admin/addons/registry`, `/api/addons/registry/*`) | Aligned |
-| Browser proxy | `/api/addons/{id}/*` and UI proxy | API proxy exists at `/api/addons/{id}/*`; UI proxy currently at `/ui/addons/{id}/*` only | Partial |
+| Browser proxy | `/api/addons/{id}/*` and UI proxy | API proxy exists at `/api/addons/{id}/*`; UI proxy now available at both `/addons/{id}/*` and legacy `/ui/addons/{id}/*` | Aligned |
 | MQTT manager | Status/test/restart and subscriptions | `/api/system/mqtt/status|test|restart` plus topic subscriptions implemented | Aligned |
 | Core MQTT info topic | Retained `synthia/core/mqtt/info` publication | Topic used by test publish path; not auto-published on connect/restart heartbeat | Gap |
 | Service resolution | Capability-based service resolution endpoint | `/api/services/resolve` implemented (registry + catalog fallback) | Aligned |
@@ -26,7 +26,6 @@ This document maps the current implementation to the policy set in `docs/Policie
 | Addon package profiles | Clear embedded-addon vs standalone-service handling | Embedded addon layout enforced; invalid service layout now returns structured diagnostics | Partial |
 
 ## Gap-to-Task Mapping
-- Task 43: Add `/addons/{id}/*` UI proxy aliases while preserving `/ui/addons/{id}/*`.
 - Task 44: Align grant schema and payloads to `max_requests|max_tokens|max_cost_cents|max_bytes`.
 - Task 45: Publish revocations by `consumer_addon_id` and `grant_id` (retain legacy compatibility).
 - Task 46: Auto-publish retained `synthia/core/mqtt/info` on connect/restart with sanitized metadata.
