@@ -51,3 +51,4 @@ scripts/*.local.env
 completed_task.txt
 backend/var/store_install_state.json
 completed_task.txt
+docs/Reasoning.txt

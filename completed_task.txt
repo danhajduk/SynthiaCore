@@ -129,3 +129,4 @@
 2026-03-01 - Added publisher_display_name enrichment to /api/store/catalog responses from cached publishers metadata.
 2026-03-01 - Updated Addon Store UI publisher field to show publisher display name with publisher_id fallback.
 2026-03-01 - Session complete: Tasks 57-58 delivered (publisher key alias compatibility + publisher display name UI rendering).
+2026-03-01 - Committed .gitignore update to ignore docs/Reasoning.txt for workflow reasoning logs.
