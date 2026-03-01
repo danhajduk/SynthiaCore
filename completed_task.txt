@@ -60,3 +60,4 @@
 2026-03-01 - Session complete: Added and verified scripts/reload-all.sh helper for service reload workflow.
 2026-02-28 - Fixed Store UI install state and metadata rendering on current HEAD: removed optimistic installing state, normalized partial catalog items, and added safe install guards.
 2026-02-28 - Hardened git ignore policy for private local config: ignored .config and local env/key files, de-tracked local config artifacts, and added scripts/synthia.env.example template.
+2026-02-28 - Fixed backend store catalog mapping for addons[] payloads: normalize addon_id to id and expose version/publisher/release metadata for Store UI.
