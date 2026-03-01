@@ -121,3 +121,4 @@
 2026-03-01 - Added strict catalog release-vs-manifest package_profile cross-check (catalog_manifest_profile_mismatch) with regression coverage.
 2026-03-01 - Expanded SAS v1.1 regression coverage for channel release selection precedence/fallback and aligned channel ordering logic in catalog resolution.
 2026-03-01 - Session complete: Tasks 53-54 delivered (profile mismatch diagnostics and expanded SAS release-selection regression coverage).
+2026-03-01 - Resolved catalog_releases_missing for wrapped channel release schemas in store install flow.

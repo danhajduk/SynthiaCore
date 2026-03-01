@@ -483,6 +483,17 @@ def _resolve_catalog_release(
     if addon_item is None:
         raise RuntimeError("catalog_addon_not_found")
 
+    def _channel_release_entries(raw_channel: Any) -> list[dict[str, Any]]:
+        if isinstance(raw_channel, list):
+            return [dict(item) for item in raw_channel if isinstance(item, dict)]
+        if isinstance(raw_channel, dict):
+            nested = raw_channel.get("releases")
+            if isinstance(nested, list):
+                return [dict(item) for item in nested if isinstance(item, dict)]
+            if "version" in raw_channel:
+                return [dict(raw_channel)]
+        return []
+
     release_items: list[dict[str, Any]] = []
     channels = addon_item.get("channels")
     if isinstance(channels, dict):
@@ -490,13 +501,9 @@ def _resolve_catalog_release(
         remaining = [name for name in channels.keys() if str(name) not in preferred_order]
         channel_names = preferred_order + sorted(str(name) for name in remaining)
         for channel_name in channel_names:
-            entries = channels.get(channel_name)
-            if not isinstance(entries, list):
-                continue
+            entries = _channel_release_entries(channels.get(channel_name))
             channel_release_items: list[dict[str, Any]] = []
             for item in entries:
-                if not isinstance(item, dict):
-                    continue
                 row = dict(item)
                 row.setdefault("channel", channel_name)
                 channel_release_items.append(row)

@@ -194,6 +194,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
         release_url: str = "https://example.test/hello_world-1.0.0.zip",
         package_profile: str = "embedded_addon",
         use_channels_schema: bool = False,
+        use_channels_wrapped_schema: bool = False,
         use_signature_object_schema: bool = False,
         fail_first_download_404: bool = False,
         fail_all_download_404: bool = False,
@@ -270,7 +271,9 @@ class TestStoreApiEndpoints(unittest.TestCase):
             **addon_publisher,
             "permissions": ["filesystem.read"],
         }
-        if use_channels_schema:
+        if use_channels_schema and use_channels_wrapped_schema:
+            addon_payload["channels"] = {"stable": {"releases": [release_payload]}, "beta": [], "nightly": []}
+        elif use_channels_schema:
             addon_payload["channels"] = {"stable": [release_payload], "beta": [], "nightly": []}
         else:
             addon_payload["releases"] = [release_payload]
@@ -295,7 +298,9 @@ class TestStoreApiEndpoints(unittest.TestCase):
                 **addon_publisher,
                 "permissions": ["filesystem.read"],
             }
-            if use_channels_schema:
+            if use_channels_schema and use_channels_wrapped_schema:
+                refreshed_addon_payload["channels"] = {"stable": {"releases": [refreshed_release]}, "beta": [], "nightly": []}
+            elif use_channels_schema:
                 refreshed_addon_payload["channels"] = {"stable": [refreshed_release], "beta": [], "nightly": []}
             else:
                 refreshed_addon_payload["releases"] = [refreshed_release]
@@ -550,6 +555,38 @@ class TestStoreApiEndpoints(unittest.TestCase):
             artifact_bytes=artifact_bytes,
             release_sig=self._sign_artifact(artifact_bytes),
             use_channels_schema=True,
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+
+        with patch("app.store.router.resolve_manifest_compatibility", return_value=None), patch(
+            "app.store.router._atomic_install_or_update",
+            return_value=AtomicResult(
+                addon_dir=Path(self.tmp.name) / "addons" / "hello_world",
+                backup_dir=None,
+                installed_manifest={"id": "hello_world"},
+            ),
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()["installed_release_url"], "https://example.test/hello_world-1.0.0.zip")
+
+    def test_catalog_install_accepts_channels_wrapped_releases_schema(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-channels-wrapped.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr("hello_world/manifest.json", '{"id":"hello_world","name":"hello_world","version":"1.0.0"}')
+            zf.writestr("hello_world/backend/addon.py", "addon = None\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            use_channels_schema=True,
+            use_channels_wrapped_schema=True,
         )
         app = FastAPI()
         app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")

@@ -99,6 +99,7 @@ Catalog cache behavior (Phase 2):
   - when cache uses `addons[]` entries, backend normalizes `addon_id -> id` and includes `version`, `publisher_id`, `release_count`, and `releases` for richer UI metadata.
 - Catalog install flow:
   - resolves release from cached catalog by addon/version (accepts both `id` and `addon_id` source keys; defaults to latest compatible release),
+  - accepts channel release entries from both `channels.<name>[]` and wrapped `channels.<name>.releases[]` schemas,
   - on artifact download `404`, backend performs one source refresh + re-resolve retry before failing install,
   - if artifact `404` persists after retry, install returns `409` with `catalog_artifact_unavailable` including source and artifact URL details,
   - checksum verification accepts `sha256:<hex>` style metadata and returns `409` `catalog_sha256_mismatch` with expected/actual digest details when verification fails,
