@@ -745,7 +745,34 @@ class TestStoreApiEndpoints(unittest.TestCase):
                 json={"source_id": "official", "addon_id": "hello_world", "enable": True},
             )
         self.assertEqual(res.status_code, 400, res.text)
-        self.assertEqual(res.json()["detail"]["error"]["code"], "signature_invalid")
+        detail = res.json()["detail"]
+        self.assertEqual(detail["error"]["code"], "signature_invalid")
+        self.assertEqual(detail["error"]["details"]["source_id"], "official")
+        self.assertEqual(
+            detail["error"]["details"]["resolved_base_url"],
+            "https://raw.githubusercontent.test/catalog",
+        )
+        self.assertEqual(
+            detail["error"]["details"]["artifact_url"],
+            "https://example.test/hello_world-1.0.0.zip",
+        )
+        self.assertEqual(detail["error"]["details"]["publisher_key_id"], "key-1")
+        self.assertEqual(detail["error"]["details"]["signature_type"], "rsa-sha256")
+        self.assertIn("release_sig must match downloaded artifact bytes", detail["error"]["details"]["hint"])
+
+        with patch("app.store.router._addons_root", return_value=Path(self.tmp.name) / "addons"):
+            status = client.get("/api/store/status/hello_world")
+        self.assertEqual(status.status_code, 200, status.text)
+        status_payload = status.json()
+        self.assertIsNotNone(status_payload["last_install_error"])
+        self.assertEqual(status_payload["last_install_error"]["error"], "signature_invalid")
+        self.assertEqual(status_payload["last_install_error"]["source_id"], "official")
+        self.assertEqual(
+            status_payload["last_install_error"]["artifact_url"],
+            "https://example.test/hello_world-1.0.0.zip",
+        )
+        self.assertEqual(status_payload["last_install_error"]["publisher_key_id"], "key-1")
+        self.assertEqual(status_payload["last_install_error"]["signature_type"], "rsa-sha256")
 
     def test_catalog_install_derives_publisher_from_key_id_and_alias_publishers_schema(self) -> None:
         pkg = Path(self.tmp.name) / "bundle-pub-alias.zip"

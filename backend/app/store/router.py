@@ -563,6 +563,8 @@ def build_store_router(
         debug_artifact_url: str | None = None
         debug_expected_sha256: list[str] | None = None
         debug_actual_sha256: str | None = None
+        debug_publisher_key_id: str | None = None
+        debug_signature_type: str | None = None
 
         def _persist_last_install_error(
             *,
@@ -572,6 +574,8 @@ def build_store_router(
             artifact_url: str | None = None,
             expected_sha256: list[str] | None = None,
             actual_sha256: str | None = None,
+            publisher_key_id: str | None = None,
+            signature_type: str | None = None,
         ) -> None:
             if not catalog_install or not target_addon_id:
                 return
@@ -588,6 +592,8 @@ def build_store_router(
                 "artifact_url": artifact_url or debug_artifact_url,
                 "expected_sha256": expected_sha256 if expected_sha256 is not None else debug_expected_sha256,
                 "actual_sha256": actual_sha256 or debug_actual_sha256,
+                "publisher_key_id": publisher_key_id or debug_publisher_key_id,
+                "signature_type": signature_type or debug_signature_type,
                 "occurred_at": _utcnow_iso(),
             }
             _update_install_state(target_addon_id, {"last_install_error": payload})
@@ -690,6 +696,7 @@ def build_store_router(
                     publisher_key_id = str(release_item.get("publisher_key_id") or "").strip()
                     if not publisher_key_id:
                         raise HTTPException(status_code=400, detail="catalog_publisher_key_missing")
+                    debug_publisher_key_id = publisher_key_id
                     publisher_key = _publisher_key_from_payload(
                         publishers_payload,
                         publisher_id=manifest.publisher_id,
@@ -701,6 +708,7 @@ def build_store_router(
                     release_signature_type = str(
                         release_item.get("signature_type") or release_item.get("release_sig_type") or "rsa-sha256"
                     ).strip().lower()
+                    debug_signature_type = release_signature_type
                     if key_signature_type != release_signature_type:
                         raise HTTPException(status_code=400, detail="catalog_signature_type_mismatch")
 
@@ -872,7 +880,11 @@ def build_store_router(
                 "installed_sha256": expected_sha256,
             }
         except VerificationError as exc:
-            _persist_last_install_error(error_code=exc.code)
+            _persist_last_install_error(
+                error_code=exc.code,
+                publisher_key_id=debug_publisher_key_id,
+                signature_type=debug_signature_type,
+            )
             await audit_store.record(
                 action="install",
                 addon_id=(body.manifest.id if body.manifest is not None else (body.addon_id or "__unknown__")),
@@ -881,7 +893,27 @@ def build_store_router(
                 message=exc.code,
                 actor=actor,
             )
-            raise HTTPException(status_code=400, detail=exc.to_dict())
+            detail_payload = exc.to_dict()
+            if catalog_install:
+                err_payload = detail_payload.get("error")
+                if isinstance(err_payload, dict):
+                    raw_details = err_payload.get("details")
+                    details = dict(raw_details) if isinstance(raw_details, dict) else {}
+                    if debug_source_id:
+                        details["source_id"] = debug_source_id
+                    if debug_resolved_base_url:
+                        details["resolved_base_url"] = debug_resolved_base_url
+                    if debug_artifact_url:
+                        details["artifact_url"] = debug_artifact_url
+                    if debug_publisher_key_id:
+                        details["publisher_key_id"] = debug_publisher_key_id
+                    if debug_signature_type:
+                        details["signature_type"] = debug_signature_type
+                    if exc.code == "signature_invalid":
+                        details["hint"] = "release_sig must match downloaded artifact bytes for this artifact_url"
+                    if details:
+                        err_payload["details"] = details
+            raise HTTPException(status_code=400, detail=detail_payload)
         except ResolverError as exc:
             _persist_last_install_error(error_code=exc.code)
             await audit_store.record(
