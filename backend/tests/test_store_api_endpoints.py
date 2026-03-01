@@ -138,19 +138,51 @@ class TestStoreApiEndpoints(unittest.TestCase):
         artifact_bytes: bytes,
         release_sig: str,
         publisher_key_id: str = "key-1",
+        publishers_key_id: str = "key-1",
         key_enabled: bool = True,
         signature_type: str = "rsa-sha256",
         use_addon_id_field: bool = False,
+        use_publishers_alias_schema: bool = False,
+        omit_publisher_id: bool = False,
     ) -> _FakeCatalogClient:
         digest = hashlib.sha256(artifact_bytes).hexdigest()
         addon_identity = {"addon_id": "hello_world"} if use_addon_id_field else {"id": "hello_world"}
+        addon_publisher = {} if omit_publisher_id else {"publisher_id": "pub-1"}
+        release_publisher = {} if omit_publisher_id else {"publisher_id": "pub-1"}
+        publisher_record = (
+            {
+                "publisher_id": "pub-1",
+                "status": "enabled",
+                "keys": [
+                    {
+                        "key_id": publishers_key_id,
+                        "status": "enabled" if key_enabled else "revoked",
+                        "type": signature_type,
+                        "public_key_pem": self._public_key_pem,
+                    }
+                ],
+            }
+            if use_publishers_alias_schema
+            else {
+                "id": "pub-1",
+                "enabled": True,
+                "keys": [
+                    {
+                        "id": publishers_key_id,
+                        "enabled": key_enabled,
+                        "signature_type": signature_type,
+                        "public_key_pem": self._public_key_pem,
+                    }
+                ],
+            }
+        )
         return _FakeCatalogClient(
             index_payload={
                 "addons": [
                     {
                         **addon_identity,
                         "name": "hello_world",
-                        "publisher_id": "pub-1",
+                        **addon_publisher,
                         "permissions": ["filesystem.read"],
                         "releases": [
                             {
@@ -160,6 +192,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
                                 "checksum": digest,
                                 "release_sig": release_sig,
                                 "publisher_key_id": publisher_key_id,
+                                **release_publisher,
                                 "compatibility": {
                                     "core_min_version": "0.1.0",
                                     "core_max_version": None,
@@ -173,18 +206,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
             },
             publishers_payload={
                 "publishers": [
-                    {
-                        "id": "pub-1",
-                        "enabled": True,
-                        "keys": [
-                            {
-                                "id": "key-1",
-                                "enabled": key_enabled,
-                                "signature_type": signature_type,
-                                "public_key_pem": self._public_key_pem,
-                            }
-                        ],
-                    }
+                    publisher_record
                 ]
             },
             artifact_bytes=artifact_bytes,
@@ -438,6 +460,39 @@ class TestStoreApiEndpoints(unittest.TestCase):
             )
         self.assertEqual(res.status_code, 400, res.text)
         self.assertEqual(res.json()["detail"]["error"]["code"], "signature_invalid")
+
+    def test_catalog_install_derives_publisher_from_key_id_and_alias_publishers_schema(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-pub-alias.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr("hello_world/manifest.json", '{"id":"hello_world","name":"hello_world","version":"1.0.0"}')
+            zf.writestr("hello_world/backend/addon.py", "addon = None\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            publisher_key_id="pub-1#2026-03",
+            publishers_key_id="pub-1#2026-03",
+            use_publishers_alias_schema=True,
+            omit_publisher_id=True,
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+
+        with patch("app.store.router.resolve_manifest_compatibility", return_value=None), patch(
+            "app.store.router._atomic_install_or_update",
+            return_value=AtomicResult(
+                addon_dir=Path(self.tmp.name) / "addons" / "hello_world",
+                backup_dir=None,
+                installed_manifest={"id": "hello_world"},
+            ),
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+            )
+        self.assertEqual(res.status_code, 200, res.text)
 
 
 if __name__ == "__main__":

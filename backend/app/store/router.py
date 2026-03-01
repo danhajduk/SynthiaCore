@@ -166,11 +166,20 @@ def _build_release_manifest(addon_id: str, addon_item: dict[str, Any], release_i
         or addon_item.get("conflicts")
         or [],
     }
+    publisher_key_id = str(
+        release_item.get("publisher_key_id")
+        or addon_item.get("publisher_key_id")
+        or release_item.get("key_id")
+        or addon_item.get("key_id")
+        or ""
+    ).strip()
+    publisher_id_from_key = publisher_key_id.split("#", 1)[0].strip() if "#" in publisher_key_id else ""
     publisher_id = str(
         release_item.get("publisher_id")
         or addon_item.get("publisher_id")
         or release_item.get("publisher")
         or addon_item.get("publisher")
+        or publisher_id_from_key
         or ""
     ).strip()
     signature_b64 = str(release_item.get("release_sig") or release_item.get("signature") or "").strip()
@@ -220,28 +229,36 @@ def _publisher_key_from_payload(
     for pub in publishers:
         if not isinstance(pub, dict):
             continue
-        if str(pub.get("id", "")).strip() != publisher_id:
+        pub_id = str(pub.get("id") or pub.get("publisher_id") or "").strip()
+        if pub_id != publisher_id:
             continue
-        if pub.get("enabled", True) is False:
+        pub_enabled = pub.get("enabled")
+        if pub_enabled is False:
+            continue
+        if pub_enabled is None and str(pub.get("status") or "enabled").strip().lower() != "enabled":
             continue
         keys = pub.get("keys")
         if isinstance(keys, list):
             for item in keys:
                 if not isinstance(item, dict):
                     continue
-                if str(item.get("id", "")).strip() != publisher_key_id:
+                item_id = str(item.get("id") or item.get("key_id") or "").strip()
+                if item_id != publisher_key_id:
                     continue
-                if item.get("enabled", True) is False:
+                item_enabled = item.get("enabled")
+                if item_enabled is False:
+                    continue
+                if item_enabled is None and str(item.get("status") or "enabled").strip().lower() != "enabled":
                     continue
                 pem = item.get("public_key_pem") or item.get("pem")
                 if isinstance(pem, str) and pem.strip():
-                    sig_type = str(item.get("signature_type") or "rsa-sha256").strip().lower()
+                    sig_type = str(item.get("signature_type") or item.get("type") or "rsa-sha256").strip().lower()
                     return pem, sig_type
         # Backward-compat shape: publisher carries a single key directly.
         if str(pub.get("key_id", "")).strip() == publisher_key_id:
             pem = pub.get("public_key_pem")
             if isinstance(pem, str) and pem.strip():
-                sig_type = str(pub.get("signature_type") or "rsa-sha256").strip().lower()
+                sig_type = str(pub.get("signature_type") or pub.get("type") or "rsa-sha256").strip().lower()
                 return pem, sig_type
     return None
 

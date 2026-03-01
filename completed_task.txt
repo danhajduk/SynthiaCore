@@ -76,3 +76,4 @@
 2026-02-28 - Added official catalog branch fallback on 404 (main<->master) to prevent catalog_http_error:404 during refresh; added cache-client regression test.
 2026-03-01 - Added ALLOW_INSECURE_CATALOG emergency bypass (with warning metadata), enabled it in runtime admin env, and documented it in README/env example.
 2026-03-01 - Session complete: ALLOW_INSECURE_CATALOG emergency bypass implemented, enabled in runtime admin env, and documented.
+2026-03-01 - Fixed catalog install ReleaseManifest publisher_id validation by deriving publisher from publisher_key_id and supporting publisher payload field aliases; added API regression coverage.
