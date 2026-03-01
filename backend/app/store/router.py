@@ -487,6 +487,45 @@ def _publisher_key_from_payload(
     return None
 
 
+def _publisher_display_name_map(publishers_payload: Any) -> dict[str, str]:
+    if not isinstance(publishers_payload, dict):
+        return {}
+    publishers = publishers_payload.get("publishers")
+    if not isinstance(publishers, list):
+        return {}
+    out: dict[str, str] = {}
+    for pub in publishers:
+        if not isinstance(pub, dict):
+            continue
+        pub_id = str(pub.get("id") or pub.get("publisher_id") or "").strip()
+        if not pub_id:
+            continue
+        display_name = str(pub.get("display_name") or pub.get("name") or "").strip()
+        if not display_name:
+            continue
+        out[pub_id] = display_name
+    return out
+
+
+def _apply_publisher_display_names(items_payload: Any, publishers_payload: Any) -> None:
+    if not isinstance(items_payload, list):
+        return
+    display_names = _publisher_display_name_map(publishers_payload)
+    if not display_names:
+        return
+    for item in items_payload:
+        if not isinstance(item, dict):
+            continue
+        publisher_id = str(item.get("publisher_id") or "").strip()
+        if not publisher_id:
+            continue
+        display_name = display_names.get(publisher_id)
+        if display_name is None and "#" in publisher_id:
+            display_name = display_names.get(publisher_id.split("#", 1)[0].strip())
+        if display_name:
+            item["publisher_display_name"] = display_name
+
+
 def _resolve_catalog_release(
     index_payload: Any,
     addon_id: str,
@@ -605,6 +644,13 @@ def build_store_router(
                 }
             else:
                 payload = cache_catalog.query_cached(selected.id, req)
+                load_cached_docs = getattr(cache_catalog, "load_cached_documents", None)
+                if callable(load_cached_docs):
+                    try:
+                        _, publishers_payload = load_cached_docs(selected.id)
+                    except Exception:
+                        publishers_payload = None
+                    _apply_publisher_display_names(payload.get("items"), publishers_payload)
         status = payload.get("catalog_status", {})
         if status.get("status") == "error":
             await audit_store.record(

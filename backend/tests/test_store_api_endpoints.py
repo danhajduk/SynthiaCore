@@ -345,6 +345,45 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(payload["installed"]["hello_world"]["version"], "1.0.0")
         self.assertEqual(payload["installed"]["hello_world"]["installed_at"], "2026-02-28T15:00:00+00:00")
 
+    def test_catalog_endpoint_includes_publisher_display_name_from_publishers_cache(self) -> None:
+        class _CatalogWithPublishers:
+            def select_source(self, sources, source_id):
+                for src in sources:
+                    if src.id == (source_id or "official"):
+                        return src
+                return None
+
+            def query_cached(self, source_id, req):
+                return {
+                    "ok": True,
+                    "items": [
+                        {
+                            "id": "hello_world",
+                            "name": "hello_world",
+                            "publisher_id": "pub-1",
+                            "releases": [],
+                        }
+                    ],
+                    "catalog_status": {"status": "ok", "source_id": source_id},
+                }
+
+            def load_cached_documents(self, source_id):
+                return (
+                    {"addons": []},
+                    {"publishers": [{"publisher_id": "pub-1", "display_name": "Publisher One"}]},
+                )
+
+        app = FastAPI()
+        app.include_router(
+            build_store_router(self.registry, self.audit, _FakeSourcesStore(), _CatalogWithPublishers()),
+            prefix="/api/store",
+        )
+        client = TestClient(app)
+        res = client.get("/api/store/catalog?source_id=official")
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["items"][0]["publisher_display_name"], "Publisher One")
+
     def test_artifact_temp_filename_infers_tgz_suffix(self) -> None:
         filename = _artifact_temp_filename("https://example.test/releases/download/v1.0.0/addon.tgz")
         self.assertEqual(filename, "artifact.tgz")

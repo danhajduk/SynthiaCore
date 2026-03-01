@@ -126,3 +126,4 @@
 2026-03-01 - Hardened Addon Store UI catalog normalization to display release details from release_count and channel-based payload variants.
 2026-03-01 - Session complete: Tasks 55-56 delivered (catalog wrapped-release install fix and addon store detail rendering fix).
 2026-03-01 - Fixed catalog publisher key lookup for alias schemas using status=active and base64 public_key fields.
+2026-03-01 - Added publisher_display_name enrichment to /api/store/catalog responses from cached publishers metadata.
