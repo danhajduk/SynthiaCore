@@ -64,3 +64,20 @@ Use this if the addon is a separate service process with `app/main.py`.
 1. Confirm `/api/store/install` no longer returns `catalog_package_layout_invalid`.
 2. Confirm `/api/store/status/{addon_id}` has no new layout error in `last_install_error`.
 3. If standalone path was chosen, confirm addon appears in registry and responds through proxy/API.
+
+## Recurrence Check (Example: `v0.1.2`)
+
+If the same error appears for a newer tag (for example `v0.1.2`), it means the newly published artifact still has standalone-service layout while Core install flow expects embedded-addon layout.
+
+Use this quick check on the addon artifact before catalog update:
+
+```bash
+curl -L -o /tmp/addon.tgz https://github.com/danhajduk/Synthia-MQTT/releases/download/v0.1.2/addon.tgz
+tar -tzf /tmp/addon.tgz | head -n 40
+```
+
+Interpretation:
+- If you see `app/main.py` and no `backend/addon.py`, it is `standalone_service`.
+- If you see `backend/addon.py` (with valid `manifest.json`), it can be used as `embedded_addon`.
+
+Only publish catalog metadata that matches the packaged layout (`package_profile` + artifact structure).

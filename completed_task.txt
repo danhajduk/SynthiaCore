@@ -113,3 +113,4 @@
 2026-03-01 - Documented catalog_package_layout_invalid root-cause breakdown for embedded_addon vs standalone_service artifact layout mismatch.
 2026-03-01 - Added concrete remediation checklist for catalog_package_layout_invalid, including embedded_addon packaging path and standalone_service deploy/register path.
 2026-03-01 - Session complete: documented catalog_package_layout_invalid explanation and concrete remediation checklist for embedded_addon vs standalone_service paths.
+2026-03-01 - Added recurrence triage guidance for catalog_package_layout_invalid (v0.1.2), including pre-catalog artifact layout verification commands.
