@@ -69,3 +69,4 @@
 2026-02-28 - Session complete: Task 25 install-session backend state machine and API endpoints delivered with MQTT discovery advancement.
 2026-02-28 - Built frontend Addons install wizard UI for install sessions (start/approve/deploy/poll/configure/verify/open UI) with no-MQTT pending-state support.
 2026-02-28 - Session complete: Task 26 frontend Addons install wizard UI delivered with install-session controls and no-MQTT status polling UX.
+2026-02-28 - Fixed store catalog install lookup to match both id/addon_id keys and added regression coverage for addon_id-only catalog entries.

@@ -253,7 +253,12 @@ def _resolve_catalog_release(
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     addon_item: dict[str, Any] | None = None
     for item in _extract_catalog_items(index_payload):
-        if str(item.get("id", "")).strip() == addon_id:
+        item_id = str(item.get("id") or item.get("addon_id") or "").strip()
+        if not item_id:
+            manifest = item.get("manifest")
+            if isinstance(manifest, dict):
+                item_id = str(manifest.get("id") or "").strip()
+        if item_id == addon_id:
             addon_item = item
             break
     if addon_item is None:
