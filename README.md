@@ -113,6 +113,7 @@ Catalog cache behavior (Phase 2):
   - supports both `.zip` and tar-based addon artifacts (including `.tgz`) for catalog installs,
   - accepts publishers payload aliases (`publisher_id`/`key_id`/`status`/`type`) alongside legacy (`id`/`enabled`/`signature_type`) fields,
   - accepts alias publisher/key `status=active` and `public_key` (base64 SubjectPublicKeyInfo) in addition to PEM key fields,
+  - accepts detached release `signature_type=ed25519` labels for catalog compatibility with existing signed artifact verification flow,
   - accepts publisher public keys encoded with escaped newlines (`\\n`) as well as standard PEM multi-line formatting,
   - downloads artifact with catalog client redirect/timeout/size protections,
   - enforces `release.publisher_key_id` lookup in cached `publishers.json` (must exist and be enabled),

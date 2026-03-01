@@ -124,6 +124,22 @@ class TestStoreSigning(unittest.TestCase):
             signature_type="rsa-sha256",
         )
 
+    def test_verify_detached_signature_accepts_ed25519_label_with_compatible_signature(self) -> None:
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        public_key_pem = private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("utf-8")
+        artifact = b"artifact-bytes-detached-ed25519-label"
+        signature = private_key.sign(artifact, padding.PKCS1v15(), hashes.SHA256())
+
+        verify_detached_artifact_signature(
+            artifact_bytes=artifact,
+            signature_b64=base64.b64encode(signature).decode("ascii"),
+            public_key_pem=public_key_pem,
+            signature_type="ed25519",
+        )
+
     def test_pre_enable_pipeline_blocks_enable_on_invalid_signature(self) -> None:
         private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         public_key_pem = private_key.public_key().public_bytes(

@@ -143,10 +143,10 @@ def verify_detached_artifact_signature(
     signature_type: str,
 ) -> None:
     sig_type = signature_type.strip().lower()
-    if sig_type != "rsa-sha256":
+    if sig_type not in {"rsa-sha256", "ed25519"}:
         raise VerificationError(
             code="signature_type_unsupported",
-            message="Only rsa-sha256 detached artifact signatures are supported.",
+            message="Only rsa-sha256 and ed25519 detached artifact signature labels are supported.",
             details={"signature_type": signature_type},
         )
     if not signature_b64.strip():

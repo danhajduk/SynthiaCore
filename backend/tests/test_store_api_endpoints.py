@@ -1200,6 +1200,36 @@ class TestStoreApiEndpoints(unittest.TestCase):
             )
         self.assertEqual(res.status_code, 200, res.text)
 
+    def test_catalog_install_accepts_ed25519_signature_type_label(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-ed25519-label.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr("hello_world/manifest.json", '{"id":"hello_world","name":"hello_world","version":"1.0.0"}')
+            zf.writestr("hello_world/backend/addon.py", "addon = None\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            signature_type="ed25519",
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+
+        with patch("app.store.router.resolve_manifest_compatibility", return_value=None), patch(
+            "app.store.router._atomic_install_or_update",
+            return_value=AtomicResult(
+                addon_dir=Path(self.tmp.name) / "addons" / "hello_world",
+                backup_dir=None,
+                installed_manifest={"id": "hello_world"},
+            ),
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+
     def test_catalog_install_accepts_active_alias_status_and_public_key_field(self) -> None:
         pkg = Path(self.tmp.name) / "bundle-active-public-key-alias.zip"
         with zipfile.ZipFile(pkg, "w") as zf:
