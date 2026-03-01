@@ -23,6 +23,10 @@ Reference: `docs/Policies/Synthia_Addon_Standard.md`.
 - Task 53: Profile cross-check + improved mismatch diagnostics.
 - Task 54: Regression tests across all above areas.
 
+## Progress Notes
+- Completed: Task 50 (manifest permission alias normalization in store models for `network.outbound|inbound` and `mqtt.client`).
+- Pending: Tasks 51-54.
+
 ## Sequencing
 1. Implement manifest normalization first (local correctness + low blast radius).
 2. Add catalog channel parsing and release selection fallback.

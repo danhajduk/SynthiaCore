@@ -26,12 +26,32 @@ PermissionType = Literal[
 ]
 PackageProfile = Literal["embedded_addon", "standalone_service"]
 
+PERMISSION_ALIASES: dict[str, list[str]] = {
+    "network.outbound": ["network.egress"],
+    "network.inbound": ["network.ingress"],
+    "mqtt.client": ["mqtt.publish", "mqtt.subscribe"],
+}
+
 
 def _validate_semver(value: str, field_name: str) -> str:
     val = value.strip()
     if not SEMVER_RE.fullmatch(val):
         raise ValueError(f"{field_name} must be valid semver")
     return val
+
+
+def _normalize_permissions(value: Any) -> Any:
+    if not isinstance(value, list):
+        return value
+
+    normalized: list[str] = []
+    for raw in value:
+        token = str(raw).strip()
+        expanded = PERMISSION_ALIASES.get(token, [token])
+        for item in expanded:
+            if item and item not in normalized:
+                normalized.append(item)
+    return normalized
 
 
 class SignatureBlock(BaseModel):
@@ -80,6 +100,11 @@ class AddonManifest(BaseModel):
         if value is None:
             return None
         return _validate_semver(value, "core_max_version")
+
+    @field_validator("permissions", mode="before")
+    @classmethod
+    def _normalize_permissions_aliases(cls, value: Any) -> Any:
+        return _normalize_permissions(value)
 
 
 class ReleaseManifest(BaseModel):
@@ -154,6 +179,11 @@ class ReleaseManifest(BaseModel):
             "service": "standalone_service",
         }
         return aliases.get(normalized, normalized)
+
+    @field_validator("permissions", mode="before")
+    @classmethod
+    def _normalize_permissions_aliases(cls, value: Any) -> Any:
+        return _normalize_permissions(value)
 
     @model_validator(mode="after")
     def _canonicalize_top_level_compat(self):

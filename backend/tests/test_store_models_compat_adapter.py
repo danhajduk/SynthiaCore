@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from app.store.models import ReleaseManifest
+from app.store.models import AddonManifest, ReleaseManifest
 
 
 class TestReleaseManifestCompatibilityAdapter(unittest.TestCase):
@@ -49,6 +49,42 @@ class TestReleaseManifestCompatibilityAdapter(unittest.TestCase):
         self.assertEqual(manifest.core_max_version, "0.4.0")
         self.assertEqual(manifest.dependencies, ["dep_real"])
         self.assertEqual(manifest.conflicts, ["conflict_real"])
+
+    def test_release_manifest_permission_aliases_are_normalized(self) -> None:
+        manifest = ReleaseManifest(
+            id="addon_aliases",
+            name="Addon Aliases",
+            version="1.0.0",
+            core_min_version="0.1.0",
+            core_max_version=None,
+            dependencies=[],
+            conflicts=[],
+            checksum="abc123",
+            publisher_id="pub-1",
+            permissions=["network.outbound", "mqtt.client", "network.inbound"],
+            signature={"publisher_id": "pub-1", "signature": "c2ln"},
+        )
+        self.assertEqual(
+            manifest.permissions,
+            ["network.egress", "mqtt.publish", "mqtt.subscribe", "network.ingress"],
+        )
+
+    def test_addon_manifest_permission_aliases_are_normalized(self) -> None:
+        manifest = AddonManifest(
+            id="addon_aliases",
+            name="Addon Aliases",
+            version="1.0.0",
+            core_min_version="0.1.0",
+            core_max_version=None,
+            dependencies=[],
+            conflicts=[],
+            publisher_id="pub-1",
+            permissions=["mqtt.client", "network.outbound"],
+        )
+        self.assertEqual(
+            manifest.permissions,
+            ["mqtt.publish", "mqtt.subscribe", "network.egress"],
+        )
 
 
 if __name__ == "__main__":
