@@ -18,6 +18,7 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 ### Addon Contracts
 - Backend entrypoint: `addons/<id>/backend/addon.py` exporting `addon` (`AddonMeta` + `router`).
 - Frontend entrypoint: `addons/<id>/frontend/index.ts` exporting `meta`, `routes`, and `navItem`.
+- Backend discovery ignores hidden addon folders (for example `.store_backup` and `.store_staging`) to avoid runtime store workdir noise.
 
 ### Addon Registry Endpoints
 - `GET /api/addons` list addon metadata.

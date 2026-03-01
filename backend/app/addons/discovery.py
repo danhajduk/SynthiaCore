@@ -36,6 +36,11 @@ def addons_dir() -> Path:
     return repo_root() / "addons"
 
 
+def _is_hidden_addon_folder(path: Path) -> bool:
+    name = path.name.strip()
+    return not name or name.startswith(".")
+
+
 def _validate_backend_contract(addon: BackendAddon) -> list[str]:
     available: set[tuple[str, str]] = set()
     for route in addon.router.routes:
@@ -60,10 +65,11 @@ def discover_backend_addons() -> list[DiscoveredAddon]:
     if not base.exists():
         log.warning("Addons directory does not exist at %s", base)
         return []
-    log.debug("Found %d addon folders in %s", len([p for p in base.iterdir() if p.is_dir()]), base)  
+    addon_folders = [p for p in base.iterdir() if p.is_dir() and not _is_hidden_addon_folder(p)]
+    log.debug("Found %d addon folders in %s", len(addon_folders), base)
 
     results: list[DiscoveredAddon] = []
-    for addon_folder in sorted([p for p in base.iterdir() if p.is_dir()]):
+    for addon_folder in sorted(addon_folders):
         log.debug("Processing addon folder: %s", addon_folder)
         addon_id = addon_folder.name
         manifest_path = addon_folder / "manifest.json"
