@@ -6,12 +6,29 @@ type InstalledInfo = {
   installed_at?: string;
 };
 
+type RawCatalogItem = {
+  id?: unknown;
+  name?: unknown;
+  description?: unknown;
+  categories?: unknown;
+  featured?: unknown;
+  version?: unknown;
+  published_at?: unknown;
+  publisher_id?: unknown;
+  releases?: unknown;
+};
+
 type CatalogItem = {
   id: string;
-  name?: string;
-  description?: string;
-  categories?: string[];
-  featured?: boolean;
+  addonId: string | null;
+  name: string;
+  description: string;
+  categories: string[];
+  featured: boolean;
+  version: string;
+  publishedAt: string | null;
+  publisherId: string | null;
+  releaseCount: number;
 };
 
 type CatalogStatus = {
@@ -24,7 +41,7 @@ type CatalogStatus = {
 
 type CatalogResponse = {
   ok: boolean;
-  items: CatalogItem[];
+  items: RawCatalogItem[];
   catalog_status?: CatalogStatus;
   installed?: Record<string, InstalledInfo>;
 };
@@ -33,6 +50,46 @@ function formatTs(value?: string | null): string {
   if (!value) return "-";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
+}
+
+function asString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => asString(entry))
+    .filter((entry): entry is string => Boolean(entry));
+}
+
+function normalizeCatalogItem(item: RawCatalogItem, index: number): CatalogItem {
+  const addonId = asString(item.id);
+  const fallbackId = `unknown-${index + 1}`;
+  const releases = Array.isArray(item.releases)
+    ? (item.releases as Array<Record<string, unknown>>)
+    : [];
+  const latestRelease = releases[0] || {};
+  const version =
+    asString(item.version) ||
+    asString(latestRelease.version) ||
+    asString(latestRelease.tag_name) ||
+    "unknown";
+
+  return {
+    id: addonId || fallbackId,
+    addonId,
+    name: asString(item.name) || addonId || fallbackId,
+    description: asString(item.description) || "No description provided.",
+    categories: asStringArray(item.categories),
+    featured: Boolean(item.featured),
+    version,
+    publishedAt: asString(item.published_at),
+    publisherId: asString(item.publisher_id),
+    releaseCount: releases.length,
+  };
 }
 
 export default function AddonStorePage() {
@@ -44,6 +101,7 @@ export default function AddonStorePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyInstall, setBusyInstall] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
   async function loadCatalog() {
     setLoading(true);
     setErr(null);
@@ -51,11 +109,14 @@ export default function AddonStorePage() {
       const res = await fetch("/api/store/catalog?source_id=official");
       if (!res.ok) throw new Error(`catalog_http_${res.status}`);
       const payload = (await res.json()) as CatalogResponse;
-      setItems(Array.isArray(payload.items) ? payload.items : []);
+      const normalized = Array.isArray(payload.items)
+        ? payload.items.map((item, index) => normalizeCatalogItem(item || {}, index))
+        : [];
+      setItems(normalized);
       setCatalogStatus(payload.catalog_status || {});
       setInstalled(payload.installed || {});
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -79,23 +140,21 @@ export default function AddonStorePage() {
         throw new Error(`refresh_http_${res.status}: ${text}`);
       }
       await loadCatalog();
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setRefreshing(false);
     }
   }
 
-  async function installAddon(addonId: string) {
-    setBusyInstall(addonId);
+  async function installAddon(item: CatalogItem) {
+    if (!item.addonId) {
+      setErr("install_unavailable_missing_addon_id");
+      return;
+    }
+
+    setBusyInstall(item.id);
     setErr(null);
-    setInstalled((prev) => ({
-      ...prev,
-      [addonId]: {
-        ...(prev[addonId] || {}),
-        installed_at: new Date().toISOString(),
-      },
-    }));
     try {
       const res = await fetch("/api/store/install", {
         method: "POST",
@@ -103,23 +162,15 @@ export default function AddonStorePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ source_id: "official", addon_id: addonId }),
+        body: JSON.stringify({ source_id: "official", addon_id: item.addonId }),
       });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(`install_http_${res.status}: ${text}`);
       }
-      const payload = await res.json();
-      setInstalled((prev) => ({
-        ...prev,
-        [addonId]: {
-          version: payload?.version || prev[addonId]?.version,
-          installed_at: new Date().toISOString(),
-        },
-      }));
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
       await loadCatalog();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setBusyInstall(null);
     }
@@ -131,8 +182,9 @@ export default function AddonStorePage() {
     return items.filter((item) => {
       const haystack = [
         item.id,
-        item.name || "",
-        item.description || "",
+        item.name,
+        item.description,
+        item.publisherId || "",
         ...(item.categories || []),
       ]
         .join(" ")
@@ -185,27 +237,33 @@ export default function AddonStorePage() {
       ) : (
         <div className="store-grid">
           {filtered.map((item) => {
-            const info = installed[item.id] || {};
+            const info = item.addonId ? installed[item.addonId] || {} : {};
             const isBusy = busyInstall === item.id;
+            const installable = Boolean(item.addonId);
             return (
               <div className="store-card" key={item.id}>
                 <div className="store-card-head">
-                  <div className="store-addon-name">{item.name || item.id}</div>
+                  <div className="store-addon-name">{item.name}</div>
                   <div className="store-addon-id">{item.id}</div>
                 </div>
-                {item.description && <div className="store-desc">{item.description}</div>}
-                {Array.isArray(item.categories) && item.categories.length > 0 && (
+                <div className="store-desc">{item.description}</div>
+                {item.categories.length > 0 && (
                   <div className="store-meta">categories: {item.categories.join(", ")}</div>
                 )}
+                <div className="store-meta">current version: {item.version}</div>
                 <div className="store-meta">installed version: {info.version || "not installed"}</div>
                 <div className="store-meta">installed at: {formatTs(info.installed_at)}</div>
+                <div className="store-meta">published at: {formatTs(item.publishedAt)}</div>
+                <div className="store-meta">publisher: {item.publisherId || "unknown"}</div>
+                <div className="store-meta">releases: {item.releaseCount}</div>
+                {item.featured && <div className="store-meta">featured: yes</div>}
                 <div className="store-row">
                   <button
                     className="store-btn"
-                    disabled={isBusy}
-                    onClick={() => installAddon(item.id)}
+                    disabled={isBusy || !installable}
+                    onClick={() => installAddon(item)}
                   >
-                    {isBusy ? "Installing..." : "Install"}
+                    {isBusy ? "Installing..." : installable ? "Install" : "Install unavailable"}
                   </button>
                 </div>
               </div>
