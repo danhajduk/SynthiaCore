@@ -3,7 +3,7 @@
     "base_url": "https://raw.githubusercontent.com/danhajduk/Synthia-Addon-Catalog/main",
     "enabled": true,
     "id": "official",
-    "last_refresh_requested_at": "2026-03-01T08:29:16.682579+00:00",
+    "last_refresh_requested_at": "2026-03-01T08:34:56.470572+00:00",
     "refresh_seconds": 300,
     "type": "github_raw"
   }
