@@ -55,3 +55,4 @@
 2026-03-01 - Session complete: Production admin session auth and guest-only home access implemented (backend + frontend).
 2026-03-01 - Re-applied backend admin user management and username/password admin login on current HEAD with tests.
 2026-03-01 - Re-applied frontend username/password admin UX and user-management settings card without token exposure.
+2026-03-01 - Session complete: Re-applied backend/frontend admin user management and username/password login flow on current HEAD.
