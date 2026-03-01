@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./admin-reload-card.css";
-import { LS_ADMIN_TOKEN_KEY, LS_API_BASE_KEY, defaultApiBase } from "./localKeys";
+import { LS_API_BASE_KEY, defaultApiBase } from "./localKeys";
 
 type RegisteredAddon = {
   id: string;
@@ -16,7 +16,7 @@ type RegisteredAddon = {
 
 export default function RegistryAdminCard() {
   const [apiBase, setApiBase] = useState<string>(() => localStorage.getItem(LS_API_BASE_KEY) || defaultApiBase());
-  const [token, setToken] = useState<string>(() => localStorage.getItem(LS_ADMIN_TOKEN_KEY) || "");
+  const [token, setToken] = useState<string>("");
   const [items, setItems] = useState<RegisteredAddon[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,10 +27,6 @@ export default function RegistryAdminCard() {
   const [baseUrl, setBaseUrl] = useState("http://localhost:9002");
   const [capabilities, setCapabilities] = useState("");
   const [authMode, setAuthMode] = useState("none");
-
-  useEffect(() => {
-    localStorage.setItem(LS_ADMIN_TOKEN_KEY, token);
-  }, [token]);
 
   useEffect(() => {
     localStorage.setItem(LS_API_BASE_KEY, apiBase);
@@ -45,7 +41,7 @@ export default function RegistryAdminCard() {
   async function loadRegistry() {
     setErr(null);
     try {
-      const res = await fetch(`${apiBase}/api/admin/addons/registry`, { headers });
+      const res = await fetch(`${apiBase}/api/admin/addons/registry`, { headers, credentials: "include" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const payload = (await res.json()) as RegisteredAddon[];
       setItems(payload);
@@ -73,6 +69,7 @@ export default function RegistryAdminCard() {
       const res = await fetch(`${apiBase}/api/admin/addons/registry`, {
         method: "POST",
         headers,
+        credentials: "include",
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -93,6 +90,7 @@ export default function RegistryAdminCard() {
       const res = await fetch(`${apiBase}/api/admin/addons/registry/${encodeURIComponent(id)}`, {
         method: "DELETE",
         headers,
+        credentials: "include",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await loadRegistry();
@@ -120,12 +118,12 @@ export default function RegistryAdminCard() {
           <input value={apiBase} onChange={(e) => setApiBase(e.target.value)} className="admin-input" />
         </label>
         <label className="admin-label">
-          <div className="admin-label-text">Admin Token</div>
+          <div className="admin-label-text">Admin Token (optional legacy header)</div>
           <input value={token} onChange={(e) => setToken(e.target.value)} className="admin-input admin-input-mono" />
         </label>
 
         <div className="admin-actions">
-          <button className="admin-btn" onClick={loadRegistry} disabled={!token.trim()}>
+          <button className="admin-btn" onClick={loadRegistry}>
             Refresh Registry
           </button>
         </div>
@@ -156,7 +154,7 @@ export default function RegistryAdminCard() {
         </label>
 
         <div className="admin-actions">
-          <button className="admin-btn admin-btn-primary" onClick={createOrUpdate} disabled={!token.trim() || !id.trim() || busy}>
+          <button className="admin-btn admin-btn-primary" onClick={createOrUpdate} disabled={!id.trim() || busy}>
             {busy ? "Saving..." : "Create / Update"}
           </button>
         </div>
@@ -174,7 +172,7 @@ export default function RegistryAdminCard() {
                 <div>capabilities: {(x.capabilities || []).join(", ") || "-"}</div>
                 {x.tls_warning && <div className="admin-error">{x.tls_warning}</div>}
                 <div className="admin-actions">
-                  <button className="admin-btn admin-btn-muted" onClick={() => remove(x.id)} disabled={!token.trim()}>
+                  <button className="admin-btn admin-btn-muted" onClick={() => remove(x.id)}>
                     Delete
                   </button>
                 </div>

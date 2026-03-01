@@ -1,22 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./admin-reload-card.css";
-import { LS_ADMIN_TOKEN_KEY, LS_API_BASE_KEY, defaultApiBase } from "./localKeys";
+import { LS_API_BASE_KEY, defaultApiBase } from "./localKeys";
 
 type ReloadStartResponse = { started: boolean; unit?: string; log?: string };
 type ReloadStatusResponse = { exists: boolean; tail: string };
 
 export default function AdminReloadCard() {
   const [apiBase, setApiBase] = useState<string>(() => localStorage.getItem(LS_API_BASE_KEY) || defaultApiBase());
-  const [token, setToken] = useState<string>(() => localStorage.getItem(LS_ADMIN_TOKEN_KEY) || "");
+  const [token, setToken] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [tail, setTail] = useState<string>("");
 
   const pollTimer = useRef<number | null>(null);
-
-  useEffect(() => {
-    localStorage.setItem(LS_ADMIN_TOKEN_KEY, token);
-  }, [token]);
 
   useEffect(() => {
     localStorage.setItem(LS_API_BASE_KEY, apiBase);
@@ -36,7 +32,7 @@ export default function AdminReloadCard() {
   }
 
   async function fetchStatusOnce() {
-    const res = await fetch(`${apiBase}/api/admin/reload/status`, { headers });
+    const res = await fetch(`${apiBase}/api/admin/reload/status`, { headers, credentials: "include" });
     if (!res.ok) throw new Error(`Status failed: HTTP ${res.status}`);
     const data = (await res.json()) as ReloadStatusResponse;
     setTail(data.tail || "");
@@ -57,6 +53,7 @@ export default function AdminReloadCard() {
       const res = await fetch(`${apiBase}/api/admin/reload`, {
         method: "POST",
         headers,
+        credentials: "include",
       });
       if (!res.ok) {
         const txt = await res.text();
@@ -111,11 +108,11 @@ export default function AdminReloadCard() {
         </label>
 
         <label className="admin-label">
-          <div className="admin-label-text">Admin Token (stored in localStorage)</div>
+          <div className="admin-label-text">Admin Token (optional legacy header)</div>
           <input
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder="Paste SYNTHIA_ADMIN_TOKEN here"
+            placeholder="Optional legacy X-Admin-Token"
             className="admin-input admin-input-mono"
           />
         </label>
@@ -123,16 +120,15 @@ export default function AdminReloadCard() {
         <div className="admin-actions">
           <button
             onClick={triggerReload}
-            disabled={!token.trim() || busy}
+            disabled={busy}
             className="admin-btn admin-btn-primary"
-            title={!token.trim() ? "Paste token first" : "Trigger reload"}
+            title="Trigger reload"
           >
             {busy ? "Reloading…" : "Reload Core"}
           </button>
 
           <button
             onClick={refreshStatus}
-            disabled={!token.trim()}
             className="admin-btn"
           >
             Refresh Status

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { LS_ADMIN_TOKEN_KEY } from "../core/pages/settings/localKeys";
 import "./addon-store.css";
 
 type InstalledInfo = {
@@ -45,8 +44,6 @@ export default function AddonStorePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyInstall, setBusyInstall] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const token = localStorage.getItem(LS_ADMIN_TOKEN_KEY) || "";
-
   async function loadCatalog() {
     setLoading(true);
     setErr(null);
@@ -74,10 +71,8 @@ export default function AddonStorePage() {
     try {
       const res = await fetch("/api/store/sources/official/refresh", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token.trim() ? { "X-Admin-Token": token.trim() } : {}),
-        },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
       });
       if (!res.ok) {
         const text = await res.text();
@@ -104,9 +99,9 @@ export default function AddonStorePage() {
     try {
       const res = await fetch("/api/store/install", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          ...(token.trim() ? { "X-Admin-Token": token.trim() } : {}),
         },
         body: JSON.stringify({ source_id: "official", addon_id: addonId }),
       });

@@ -21,7 +21,7 @@ const coreItems = [
   { label: "Settings / Statistics", path: "/settings/statistics" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
   const [backendAddons, setBackendAddons] = useState<AddonInfo[]>([]);
 
   useEffect(() => {
@@ -48,6 +48,7 @@ export default function Sidebar() {
   const backendMap = new Map(backendAddons.map((a) => [a.id, a]));
   const addonItems = loadAddons()
     .filter((mod) => {
+      if (!isAdmin) return false;
       const meta = backendMap.get(mod.meta.id);
       if (!meta) return false;
       if (meta.enabled === false) return false;
@@ -56,7 +57,7 @@ export default function Sidebar() {
     })
     .map((mod) => mod.navItem);
 
-  const items = [...coreItems, ...addonItems];
+  const coreNavItems = isAdmin ? coreItems : [coreItems[0]];
 
   return (
     <aside className="sidebar">
@@ -69,7 +70,7 @@ export default function Sidebar() {
       </div>
       <div className="sidebar-title">Navigation</div>
       <nav className="sidebar-nav">
-        {coreItems.map((it) => (
+        {coreNavItems.map((it) => (
           <NavLink
             key={it.path}
             to={it.path}
@@ -80,8 +81,8 @@ export default function Sidebar() {
             {it.label}
           </NavLink>
         ))}
-        <div className="sidebar-divider" />
-        {addonItems.map((it) => (
+        {isAdmin && addonItems.length > 0 && <div className="sidebar-divider" />}
+        {isAdmin && addonItems.map((it) => (
           <NavLink
             key={it.path}
             to={it.path}
@@ -94,7 +95,7 @@ export default function Sidebar() {
         ))}
       </nav>
       <div className="sidebar-footer">
-        Addon links appear after sync.
+        {isAdmin ? "Addon links appear after sync." : "Guest mode: only Home is available."}
       </div>
     </aside>
   );

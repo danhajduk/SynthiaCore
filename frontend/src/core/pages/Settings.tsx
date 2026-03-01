@@ -3,7 +3,6 @@ import "./settings.css";
 import AdminReloadCard from "./settings/AdminReloadCard";
 import RegistryAdminCard from "./settings/RegistryAdminCard";
 import ControlPlaneCard from "./settings/ControlPlaneCard";
-import { LS_ADMIN_TOKEN_KEY } from "./settings/localKeys";
 
 type SettingsResponse = {
   ok: boolean;
@@ -16,7 +15,6 @@ export default function Settings() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [token] = useState<string>(() => localStorage.getItem(LS_ADMIN_TOKEN_KEY) || "");
 
   async function loadSettings() {
     setErr(null);
@@ -49,9 +47,9 @@ export default function Settings() {
       for (const item of updates) {
         const res = await fetch(`/api/system/settings/${encodeURIComponent(item.key)}`, {
           method: "PUT",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...(token.trim() ? { "X-Admin-Token": token.trim() } : {}),
           },
           body: JSON.stringify({ value: item.value }),
         });

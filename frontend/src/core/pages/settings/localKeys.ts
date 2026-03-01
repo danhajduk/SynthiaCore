@@ -1,4 +1,3 @@
-export const LS_ADMIN_TOKEN_KEY = "synthia_admin_token";
 export const LS_API_BASE_KEY = "synthia_api_base";
 
 export function defaultApiBase(): string {

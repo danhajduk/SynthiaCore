@@ -179,6 +179,8 @@ Backend checks `HEAD` vs `origin/main` and exposes:
 Frontend shows “Update available” / “Up to date” / “Repo status unavailable”.
 
 ## Frontend Pages
+- Guest access is limited to `/` (Home). Non-home routes redirect to `/` until an admin session is active.
+- Home page includes admin sign-in/out controls backed by `/api/admin/session/*` cookie-session endpoints.
 - `/store` — Addon Store catalog page with refresh, client-side search, and install actions.
 - `/settings` — App settings (stored in SQLite).
 - `/settings/jobs` — Live scheduler jobs + filters.

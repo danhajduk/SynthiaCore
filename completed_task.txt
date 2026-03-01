@@ -51,3 +51,4 @@
 2026-02-28 - Step 8: added Store UI page (/store) with catalog status, refresh/install actions, client-side search, and sidebar route wiring.
 2026-02-28 - Session complete: Step 8 Store UI delivered (catalog status, refresh/install actions, installed map, /store route, sidebar nav).
 2026-03-01 - Added backend admin cookie-session auth (login/status/logout) with signed HttpOnly cookie support across privileged endpoints and tests.
+2026-03-01 - Added frontend admin session login on Home, guest-only home route gating, and cookie-based admin API calls.
