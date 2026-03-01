@@ -14,11 +14,15 @@
 .addons-container {
   max-width: 100%;
   min-width: 320px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 16px;
 }
 
 @media (max-width: 900px) {
   .addons-container {
     max-width: 100%;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -28,20 +32,11 @@
 
 .addon-card {
   padding: 12px;
-  width: 50%;
-  max-width: 50%;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   display: grid;
   gap: 8px;
-}
-
-@media (max-width: 900px) {
-  .addon-card {
-    width: 100%;
-    max-width: 100%;
-  }
 }
 
 .addon-card-header {
@@ -90,4 +85,66 @@
 .addon-btn[disabled] {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.addon-installer-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 10px;
+  align-self: start;
+}
+
+.addon-installer-title {
+  font-weight: 800;
+}
+
+.addon-install-body {
+  display: grid;
+  gap: 10px;
+}
+
+.addon-step {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.addon-step-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.addon-input-label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.addon-input {
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+}
+
+.addon-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.addon-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
 }
