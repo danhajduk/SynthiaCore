@@ -1,7 +1,7 @@
 # backend/app/system/settings/router.py
 from __future__ import annotations
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel
 from typing import Any
 
@@ -30,8 +30,13 @@ def build_settings_router(store: SettingsStore, audit_store: AuditLogStore | Non
         return {"ok": True, "key": key, "value": val}
 
     @router.put("/settings/{key}")
-    async def set_one(key: str, body: SetSettingRequest, x_admin_token: str | None = Header(default=None)):
-        require_admin_token(x_admin_token)
+    async def set_one(
+        key: str,
+        body: SetSettingRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
         await store.set(key, body.value)
         if audit_store is not None:
             await audit_store.record(

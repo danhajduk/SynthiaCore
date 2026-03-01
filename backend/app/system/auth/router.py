@@ -3,7 +3,7 @@ from __future__ import annotations
 import secrets
 import time
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.api.admin import require_admin_token
@@ -22,8 +22,12 @@ def build_auth_router(key_store: ServiceTokenKeyStore) -> APIRouter:
     router = APIRouter()
 
     @router.post("/service-token")
-    async def issue_service_token(body: ServiceTokenIssueRequest, x_admin_token: str | None = Header(default=None)):
-        require_admin_token(x_admin_token)
+    async def issue_service_token(
+        body: ServiceTokenIssueRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
         now = int(time.time())
         if body.exp <= now:
             raise HTTPException(status_code=400, detail="exp_must_be_in_future")
@@ -43,8 +47,8 @@ def build_auth_router(key_store: ServiceTokenKeyStore) -> APIRouter:
         return {"ok": True, "token": token, "claims": payload, "kid": key["kid"]}
 
     @router.post("/service-token/rotate")
-    async def rotate_service_token_key(x_admin_token: str | None = Header(default=None)):
-        require_admin_token(x_admin_token)
+    async def rotate_service_token_key(request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
         ring = await key_store.rotate()
         return {"ok": True, "keys": [{"kid": k.get("kid"), "active": bool(k.get("active"))} for k in ring]}
 

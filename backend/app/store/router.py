@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 
 from app.addons.registry import AddonRegistry
 from app.api.admin import require_admin_token
@@ -354,9 +354,10 @@ def build_store_router(
     @router.post("/sources")
     async def upsert_store_source(
         body: StoreSource,
+        request: Request,
         x_admin_token: str | None = Header(default=None),
     ):
-        require_admin_token(x_admin_token)
+        require_admin_token(x_admin_token, request)
         if sources is None:
             raise HTTPException(status_code=500, detail="sources_store_not_configured")
         try:
@@ -366,8 +367,8 @@ def build_store_router(
             raise HTTPException(status_code=400, detail=str(exc) or type(exc).__name__)
 
     @router.delete("/sources/{source_id}")
-    async def delete_store_source(source_id: str, x_admin_token: str | None = Header(default=None)):
-        require_admin_token(x_admin_token)
+    async def delete_store_source(source_id: str, request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
         if sources is None:
             raise HTTPException(status_code=500, detail="sources_store_not_configured")
         try:
@@ -381,8 +382,8 @@ def build_store_router(
             raise HTTPException(status_code=400, detail=str(exc) or type(exc).__name__)
 
     @router.post("/sources/{source_id}/refresh")
-    async def refresh_store_source(source_id: str, x_admin_token: str | None = Header(default=None)):
-        require_admin_token(x_admin_token)
+    async def refresh_store_source(source_id: str, request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
         if sources is None:
             raise HTTPException(status_code=500, detail="sources_store_not_configured")
         try:
@@ -398,9 +399,10 @@ def build_store_router(
     @router.post("/install")
     async def install_addon(
         body: StoreInstallRequest,
+        request: Request,
         x_admin_token: str | None = Header(default=None),
     ):
-        require_admin_token(x_admin_token)
+        require_admin_token(x_admin_token, request)
         actor = body.actor or "admin_token"
         local_install = bool(body.package_path and body.manifest and body.public_key_pem)
         catalog_install = bool(body.addon_id)
@@ -656,9 +658,10 @@ def build_store_router(
     @router.post("/update")
     async def update_addon(
         body: StoreUpdateRequest,
+        request: Request,
         x_admin_token: str | None = Header(default=None),
     ):
-        require_admin_token(x_admin_token)
+        require_admin_token(x_admin_token, request)
         package_path = Path(body.package_path)
         if not package_path.exists() or not package_path.is_file():
             raise HTTPException(status_code=400, detail="package_path_not_found")
@@ -750,9 +753,10 @@ def build_store_router(
     @router.post("/uninstall")
     async def uninstall_addon(
         body: StoreUninstallRequest,
+        request: Request,
         x_admin_token: str | None = Header(default=None),
     ):
-        require_admin_token(x_admin_token)
+        require_admin_token(x_admin_token, request)
         actor = body.actor or "admin_token"
         addon_id = body.addon_id.strip()
 
@@ -819,6 +823,7 @@ def build_store_router(
 
     @router.get("/admin/audit")
     async def store_audit_list(
+        request: Request,
         addon_id: str | None = Query(default=None),
         action: str | None = Query(default=None),
         status: str | None = Query(default=None),
@@ -828,7 +833,7 @@ def build_store_router(
         page_size: int = Query(default=50, ge=1, le=200),
         x_admin_token: str | None = Header(default=None),
     ):
-        require_admin_token(x_admin_token)
+        require_admin_token(x_admin_token, request)
         return await audit_store.list_rows(
             addon_id=addon_id,
             action=action,

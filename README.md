@@ -44,9 +44,9 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 
 ### Addon Store Lifecycle APIs (Phase 1)
 - `GET /api/store/catalog` (stub in Task 5, backed by catalog module in Task 6)
-- `POST /api/store/install` (admin token required; supports local package install or catalog install by `source_id` + `addon_id` + optional `version`)
-- `POST /api/store/update` (admin token required)
-- `POST /api/store/uninstall` (admin token required)
+- `POST /api/store/install` (admin auth required; supports local package install or catalog install by `source_id` + `addon_id` + optional `version`)
+- `POST /api/store/update` (admin auth required)
+- `POST /api/store/uninstall` (admin auth required)
 - `GET /api/store/status/{addon_id}`
 - Store lifecycle audit events are persisted to SQLite table `store_audit_log` (`STORE_AUDIT_DB`, default `var/store_audit.db`).
 - Install/update responses expose `registry_loaded` (present in current registry snapshot) and `hot_loaded` (currently always `false` until runtime hot-reload support exists).
@@ -55,13 +55,13 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
   - `STORE_BACKUP_RETENTION` (default `3`)
   - `STORE_STAGING_TTL_MINUTES` (default `60`)
 - Admin audit endpoint:
-  - `GET /api/store/admin/audit?addon_id=&action=&status=&from_ts=&to_ts=&page=&page_size=` (admin token required)
+  - `GET /api/store/admin/audit?addon_id=&action=&status=&from_ts=&to_ts=&page=&page_size=` (admin auth required)
 
 Store sources endpoints:
 - `GET /api/store/sources`
-- `POST /api/store/sources` (admin token required)
-- `DELETE /api/store/sources/{id}` (admin token required)
-- `POST /api/store/sources/{id}/refresh` (admin token required)
+- `POST /api/store/sources` (admin auth required)
+- `DELETE /api/store/sources/{id}` (admin auth required)
+- `POST /api/store/sources/{id}/refresh` (admin auth required)
 
 Catalog cache behavior (Phase 2):
 - Source refresh fetches `catalog/v1/index.json`, `index.json.sig`, `publishers.json`, `publishers.json.sig`.
@@ -159,6 +159,12 @@ Grant model:
   - `admin`: privileged write operations (`/api/system/settings/*` PUT, policy grant/revocation updates, token issuance)
   - `service`: service-to-core operations using JWT bearer tokens (telemetry usage ingest)
   - `guest`: read-only/public endpoints
+- Admin auth for privileged endpoints supports:
+  - `X-Admin-Token` header (legacy/dev compatibility)
+  - HttpOnly signed cookie session via:
+    - `POST /api/admin/session/login` with `{ "token": "..." }`
+    - `GET /api/admin/session/status`
+    - `POST /api/admin/session/logout`
 - Secret redaction is applied to outbound MQTT payloads before publish.
 - Audit log records are written for:
   - grant changes

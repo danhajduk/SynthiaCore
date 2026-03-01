@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.admin import require_admin_token
@@ -48,8 +48,12 @@ def build_policy_router(
         return {"ok": True, "grants": await store.list_grants(service=service)}
 
     @router.post("/grants")
-    async def upsert_grant(body: GrantUpsertRequest, x_admin_token: str | None = Header(default=None)):
-        require_admin_token(x_admin_token)
+    async def upsert_grant(
+        body: GrantUpsertRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
         grant = await store.upsert_grant(body.model_dump(mode="json"))
         topic = f"synthia/policy/grants/{grant['service']}"
         publish = await mqtt_manager.publish(topic=topic, payload=grant, retain=True, qos=1)
@@ -67,8 +71,12 @@ def build_policy_router(
         return {"ok": True, "revocations": await store.list_revocations()}
 
     @router.post("/revocations")
-    async def upsert_revocation(body: RevocationUpsertRequest, x_admin_token: str | None = Header(default=None)):
-        require_admin_token(x_admin_token)
+    async def upsert_revocation(
+        body: RevocationUpsertRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
         item = await store.upsert_revocation(body.model_dump(mode="json"))
         topic = f"synthia/policy/revocations/{item['id']}"
         publish = await mqtt_manager.publish(topic=topic, payload=item, retain=True, qos=1)
