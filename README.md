@@ -86,6 +86,10 @@ Catalog cache behavior (Phase 2):
 - Catalog public key configuration:
   - `STORE_CATALOG_PUBLIC_KEYS_PATH` (default `var/store_catalog_public_keys.json`)
   - `STORE_CATALOG_PUBLIC_KEYS_JSON` (inline JSON override; supports multi-key rotation)
+- Emergency bypass (temporary only):
+  - `ALLOW_INSECURE_CATALOG=true` skips catalog signature verification during source refresh.
+  - Refresh metadata exposes `catalog_integrity_mode=insecure_bypass` and a warning message when this flag is active.
+  - Keep this disabled in normal operation and rotate valid store public keys instead.
 - `GET /api/store/catalog` now reads cached catalog content (source-aware) and returns structured status fields:
   - `status`, `source_id`, `last_success_at`, `last_error_at`, `last_error_message`.
   - `installed` map payload: `{ [addon_id]: { version, installed_at } }`

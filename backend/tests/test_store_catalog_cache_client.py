@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -197,6 +198,32 @@ class TestCatalogCacheClient(unittest.TestCase):
             result = client.query_cached(source.id, CatalogQuery())
             self.assertEqual(result["catalog_status"]["status"], "ok")
             self.assertEqual(result["items"][0]["id"], "addon_fallback")
+
+    def test_insecure_catalog_bypass_allows_invalid_signatures(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            client = self._client(Path(td))
+            source = self._source()
+
+            index_payload = b'[{"id":"addon_insecure"}]'
+            publishers = b'{"publishers":[]}'
+            bad_fetch = {
+                "catalog/v1/index.json": index_payload,
+                "catalog/v1/index.json.sig": b"invalid-signature",
+                "catalog/v1/publishers.json": publishers,
+                "catalog/v1/publishers.json.sig": b"invalid-signature",
+            }
+
+            with patch.dict(os.environ, {"ALLOW_INSECURE_CATALOG": "true"}, clear=False), patch.object(
+                CatalogCacheClient,
+                "_download_bytes",
+                side_effect=lambda url: bad_fetch[url.split(source.base_url.rstrip("/") + "/")[1]],
+            ):
+                refresh = client.refresh_source(source)
+
+            self.assertTrue(refresh["ok"])
+            status = refresh["catalog_status"]
+            self.assertEqual(status.get("catalog_integrity_mode"), "insecure_bypass")
+            self.assertIn("ALLOW_INSECURE_CATALOG", str(status.get("catalog_integrity_warning")))
 
 
 if __name__ == "__main__":

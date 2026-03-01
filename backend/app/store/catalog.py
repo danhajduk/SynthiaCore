@@ -155,6 +155,18 @@ def _env_float(name: str, default: float, min_value: float = 0.0) -> float:
         return default
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    val = raw.strip().lower()
+    if val in {"1", "true", "yes", "on"}:
+        return True
+    if val in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 def _safe_json_load(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
@@ -408,13 +420,15 @@ class CatalogCacheClient:
             if last_exc is not None:
                 raise last_exc
 
-            _verify_catalog_signatures(
-                fetched["catalog/v1/index.json"],
-                fetched["catalog/v1/index.json.sig"],
-                fetched["catalog/v1/publishers.json"],
-                fetched["catalog/v1/publishers.json.sig"],
-                self.catalog_public_keys,
-            )
+            insecure_catalog_allowed = _env_bool("ALLOW_INSECURE_CATALOG", False)
+            if not insecure_catalog_allowed:
+                _verify_catalog_signatures(
+                    fetched["catalog/v1/index.json"],
+                    fetched["catalog/v1/index.json.sig"],
+                    fetched["catalog/v1/publishers.json"],
+                    fetched["catalog/v1/publishers.json.sig"],
+                    self.catalog_public_keys,
+                )
 
             tmp_dir = Path(tempfile.mkdtemp(prefix=f"catalog-{source_id}-", dir=str(self.cache_root)))
             try:
@@ -428,6 +442,12 @@ class CatalogCacheClient:
                         "source_id": source_id,
                         "status": "ok",
                         "resolved_base_url": selected_base,
+                        "catalog_integrity_mode": "insecure_bypass" if insecure_catalog_allowed else "verified",
+                        "catalog_integrity_warning": (
+                            "ALLOW_INSECURE_CATALOG enabled: catalog signatures were not verified"
+                            if insecure_catalog_allowed
+                            else None
+                        ),
                         "last_success_at": _utcnow_iso(),
                         "last_error_at": None,
                         "last_error_message": None,
