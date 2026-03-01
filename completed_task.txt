@@ -110,3 +110,4 @@
 2026-03-01 - Added service-principal auth flow for /api/auth/service-token (env-configured principals with subject/audience/scope/TTL constraints) while keeping admin issuance, plus auth API tests.
 2026-03-01 - Added explicit release package_profile handling (embedded_addon vs standalone_service) with catalog install-time enforcement and structured deployment guidance, plus store API regression tests.
 2026-03-01 - Session complete: Tasks 42-48 delivered (policy alignment baseline, proxy aliases, grant/revocation model updates, MQTT core-info publish, service-principal token issuance, and package profile enforcement).
+2026-03-01 - Documented catalog_package_layout_invalid root-cause breakdown for embedded_addon vs standalone_service artifact layout mismatch.

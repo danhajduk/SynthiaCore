@@ -31,3 +31,4 @@ This document maps the current implementation to the policy set in `docs/Policie
 ## Notes
 - This baseline is intentionally implementation-focused and is updated as each gap task lands.
 - Policy files remain the source of truth for target architecture decisions.
+- For `catalog_package_layout_invalid` diagnostics, see `docs/distributed_addons/catalog_package_layout_invalid.md`.
