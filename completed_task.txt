@@ -57,3 +57,4 @@
 2026-03-01 - Re-applied frontend username/password admin UX and user-management settings card without token exposure.
 2026-03-01 - Session complete: Re-applied backend/frontend admin user management and username/password login flow on current HEAD.
 2026-03-01 - Added scripts/reload-all.sh to reload user systemd units (backend/frontend/updater) with status output.
+2026-03-01 - Session complete: Added and verified scripts/reload-all.sh helper for service reload workflow.
