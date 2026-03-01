@@ -96,6 +96,7 @@ Catalog cache behavior (Phase 2):
   - when cache uses `addons[]` entries, backend normalizes `addon_id -> id` and includes `version`, `publisher_id`, `release_count`, and `releases` for richer UI metadata.
 - Catalog install flow:
   - resolves release from cached catalog by addon/version (accepts both `id` and `addon_id` source keys; defaults to latest compatible release),
+  - compatibility checks use `SYNTHIA_CORE_VERSION` (default `0.1.0` if unset); set this in `scripts/synthia.env` to match deployed core semver,
   - when no compatible release exists, install returns `409` with `catalog_no_compatible_release` plus resolver reasons (for example core-version minimum mismatch),
   - derives missing `publisher_id` from `publisher_key_id` when catalog releases omit explicit publisher id,
   - accepts release artifact metadata in either top-level (`artifact_url`/`url`/`download_url`) or nested (`artifact.url`) forms,
