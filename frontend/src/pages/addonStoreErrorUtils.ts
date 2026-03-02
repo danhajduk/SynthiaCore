@@ -1,0 +1,61 @@
+export type InstallErrorDetail = {
+  error?: string;
+  code?: string;
+  hint?: string;
+  remediation_path?: string;
+  source_id?: string;
+  artifact_url?: string;
+  layout_hint?: string;
+  catalog_release_package_profile?: string;
+  catalog_release_version?: string;
+};
+
+export type InstallErrorParseResult = {
+  message: string;
+  detail: InstallErrorDetail | null;
+};
+
+function parseJson(value: string): unknown | null {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+export function parseInstallFailure(status: number, payloadText: string): InstallErrorParseResult {
+  const parsed = parseJson(payloadText);
+  if (parsed && typeof parsed === "object") {
+    const asObj = parsed as Record<string, unknown>;
+    const detail = asObj.detail;
+    if (detail && typeof detail === "object") {
+      const typed = detail as InstallErrorDetail;
+      const code = (typed.error || typed.code || "install_failed").trim();
+      return {
+        message: `install_http_${status}: ${code}`,
+        detail: typed,
+      };
+    }
+  }
+  return {
+    message: `install_http_${status}: ${payloadText}`,
+    detail: null,
+  };
+}
+
+export function installActionItems(detail: InstallErrorDetail | null): string[] {
+  if (!detail) return [];
+  if (detail.remediation_path === "embedded_repackage") {
+    return [
+      "Rebuild and publish artifact with embedded layout (backend/addon.py).",
+      "Keep release package_profile=embedded_addon and refresh source before retry.",
+    ];
+  }
+  if (detail.remediation_path === "standalone_deploy_register") {
+    return [
+      "Deploy the service artifact externally (container/systemd/host process).",
+      "Register the service via /api/admin/addons/registry and validate health/proxy.",
+    ];
+  }
+  return [];
+}

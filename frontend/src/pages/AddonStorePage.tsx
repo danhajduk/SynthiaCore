@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./addon-store.css";
+import { installActionItems, parseInstallFailure, type InstallErrorDetail } from "./addonStoreErrorUtils";
 
 type InstalledInfo = {
   version?: string;
@@ -152,10 +153,12 @@ export default function AddonStorePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyInstall, setBusyInstall] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [installErrorDetail, setInstallErrorDetail] = useState<InstallErrorDetail | null>(null);
 
   async function loadCatalog() {
     setLoading(true);
     setErr(null);
+    setInstallErrorDetail(null);
     try {
       const res = await fetch("/api/store/catalog?source_id=official");
       if (!res.ok) throw new Error(`catalog_http_${res.status}`);
@@ -180,6 +183,7 @@ export default function AddonStorePage() {
   async function refreshCatalog() {
     setRefreshing(true);
     setErr(null);
+    setInstallErrorDetail(null);
     try {
       const res = await fetch("/api/store/sources/official/refresh", {
         method: "POST",
@@ -206,6 +210,7 @@ export default function AddonStorePage() {
 
     setBusyInstall(item.id);
     setErr(null);
+    setInstallErrorDetail(null);
     try {
       const res = await fetch("/api/store/install", {
         method: "POST",
@@ -217,7 +222,9 @@ export default function AddonStorePage() {
       });
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`install_http_${res.status}: ${text}`);
+        const parsed = parseInstallFailure(res.status, text);
+        setInstallErrorDetail(parsed.detail);
+        throw new Error(parsed.message);
       }
       await loadCatalog();
     } catch (e: unknown) {
@@ -244,6 +251,8 @@ export default function AddonStorePage() {
       return haystack.includes(q);
     });
   }, [items, query]);
+
+  const installActions = useMemo(() => installActionItems(installErrorDetail), [installErrorDetail]);
 
   return (
     <div className="store-page">
@@ -281,6 +290,59 @@ export default function AddonStorePage() {
       </div>
 
       {err && <div className="store-error-inline">{err}</div>}
+      {installActions.length > 0 && (
+        <div className="store-error-actions">
+          <div className="store-error-actions-title">Recommended actions</div>
+          {installActions.map((action) => (
+            <div className="store-error-action-card" key={action}>
+              {action}
+            </div>
+          ))}
+        </div>
+      )}
+      {installErrorDetail && (
+        <details className="store-diag">
+          <summary>Install diagnostics</summary>
+          <div className="store-diag-line">
+            <strong>error:</strong> {installErrorDetail.error || installErrorDetail.code || "unknown"}
+          </div>
+          {installErrorDetail.remediation_path && (
+            <div className="store-diag-line">
+              <strong>remediation_path:</strong> {installErrorDetail.remediation_path}
+            </div>
+          )}
+          {installErrorDetail.catalog_release_package_profile && (
+            <div className="store-diag-line">
+              <strong>catalog_release_package_profile:</strong> {installErrorDetail.catalog_release_package_profile}
+            </div>
+          )}
+          {installErrorDetail.layout_hint && (
+            <div className="store-diag-line">
+              <strong>layout_hint:</strong> {installErrorDetail.layout_hint}
+            </div>
+          )}
+          {installErrorDetail.catalog_release_version && (
+            <div className="store-diag-line">
+              <strong>catalog_release_version:</strong> {installErrorDetail.catalog_release_version}
+            </div>
+          )}
+          {installErrorDetail.source_id && (
+            <div className="store-diag-line">
+              <strong>source_id:</strong> {installErrorDetail.source_id}
+            </div>
+          )}
+          {installErrorDetail.artifact_url && (
+            <div className="store-diag-line">
+              <strong>artifact_url:</strong> {installErrorDetail.artifact_url}
+            </div>
+          )}
+          {installErrorDetail.hint && (
+            <div className="store-diag-line">
+              <strong>hint:</strong> {installErrorDetail.hint}
+            </div>
+          )}
+        </details>
+      )}
 
       {loading ? (
         <div className="store-empty">Loading catalog...</div>
