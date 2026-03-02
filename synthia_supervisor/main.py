@@ -52,8 +52,8 @@ def reconcile_one(addon_dir: Path):
             artifact_path,
             desired.install_source["release"]["sha256"],
             desired.install_source["release"]["signature"]["value"],
+            desired.install_source["release"]["publisher_key_id"],
         )
-
         ensure_extracted(artifact_path, extracted_dir)
         ensure_compose_files(desired, extracted_dir, compose_file, env_file)
 
