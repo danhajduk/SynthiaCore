@@ -1,0 +1,33 @@
+[Unit]
+Description=Synthia Supervisor (Standalone Addon Orchestrator)
+After=network-online.target
+Wants=network-online.target
+
+# If you already have a docker user service dependency pattern, you can add it.
+# After=docker.service
+# Wants=docker.service
+
+[Service]
+Type=simple
+
+# Keep consistent with the rest of your stack (you likely set this in other units too)
+WorkingDirectory=%h/Projects/SynthiaCore
+
+# Where standalone service addons live (sibling of SynthiaCore)
+Environment=SYNTHIA_ADDONS_DIR=%h/Projects/SynthiaAddons
+
+# Tuning
+Environment=SYNTHIA_SUPERVISOR_INTERVAL_S=5
+
+# Run the supervisor module
+ExecStart=%h/Projects/SynthiaCore/.venv/bin/python -m synthia_supervisor.main
+
+Restart=always
+RestartSec=2
+
+# Logging (optional)
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
