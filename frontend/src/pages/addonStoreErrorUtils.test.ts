@@ -33,7 +33,8 @@ describe("installActionItems", () => {
 
   it("returns standalone remediation actions", () => {
     const actions = installActionItems({ remediation_path: "standalone_deploy_register" });
-    expect(actions).toHaveLength(2);
+    expect(actions).toHaveLength(3);
     expect(actions[0]).toContain("externally");
+    expect(actions[2]).toContain("catalog_package_profile_unsupported.md");
   });
 });

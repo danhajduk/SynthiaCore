@@ -55,6 +55,7 @@ export function installActionItems(detail: InstallErrorDetail | null): string[] 
     return [
       "Deploy the service artifact externally (container/systemd/host process).",
       "Register the service via /api/admin/addons/registry and validate health/proxy.",
+      "See docs/distributed_addons/catalog_package_profile_unsupported.md for triage and remediation details.",
     ];
   }
   return [];
