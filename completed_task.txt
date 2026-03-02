@@ -147,3 +147,7 @@
 2026-03-01 - Session complete: Task 65 backend/catalog/UI profile-layout mismatch prevention and operator guidance delivered.
 2026-03-01 - Added package profile display on Addon Store addon cards using normalized catalog metadata.
 2026-03-01 - Session complete: Task 66 package profile display in Store UI delivered.
+2026-03-01 - Preserved addon-level package_profile in store catalog addons[] normalization payload.
+2026-03-01 - Added regression test coverage for addons[] package_profile passthrough in catalog cache normalization.
+2026-03-01 - Verified mqtt package_profile resolves to standalone_service via catalog cache client query on official source.
+2026-03-01 - Session complete: Task 68 addons package_profile normalization fix and verification delivered.
