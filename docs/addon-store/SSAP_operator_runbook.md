@@ -7,6 +7,7 @@ When `channel` is provided, release selection stays within that channel (`stable
 Artifact staging for standalone installs is atomic (`*.tmp` then replace) and reuses an existing `addon.tgz` when its SHA-256 already matches the resolved release checksum.
 When install request uses `install_mode=standalone_service` and the release profile matches, Core writes `desired.json` directly and returns standalone path metadata instead of rejecting the install.
 Core validates desired payloads before writing and returns `ssap_desired_invalid` if request overrides would produce invalid SSAP state.
+Guardrails are enforced at install-intent time: host networking and privileged overrides are rejected, and `SYNTHIA_SERVICE_TOKEN` is always included in desired config env for supervisor/env-file injection.
 
 ## Paths and Ownership
 

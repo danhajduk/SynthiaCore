@@ -1152,6 +1152,23 @@ def build_store_router(
                 runtime_overrides = body.runtime_overrides if isinstance(body.runtime_overrides, dict) else {}
                 runtime_project_name = str(runtime_overrides.get("project_name") or f"synthia-addon-{manifest.id}").strip()
                 runtime_network = str(runtime_overrides.get("network") or "synthia_net").strip()
+                if runtime_network.lower() in {"host", "host_network"}:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "error": "standalone_runtime_network_unsupported",
+                            "network": runtime_network,
+                            "hint": "host networking is not allowed for standalone_service install runtime intent",
+                        },
+                    )
+                if bool(runtime_overrides.get("privileged", False)):
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "error": "standalone_runtime_privileged_unsupported",
+                            "hint": "privileged runtime override is not allowed for standalone_service install runtime intent",
+                        },
+                    )
                 runtime_ports = runtime_overrides.get("ports")
                 runtime_ports_payload = [dict(item) for item in runtime_ports if isinstance(item, dict)] if isinstance(runtime_ports, list) else []
                 runtime_bind_localhost = bool(runtime_overrides.get("bind_localhost", True))
@@ -1234,6 +1251,12 @@ def build_store_router(
                         "Ensure synthia-supervisor is running and reconciling desired.json.",
                         "Check runtime.json and service logs if runtime_state stays unknown.",
                     ],
+                    "security_guardrails": {
+                        "bind_localhost": runtime_bind_localhost,
+                        "privileged": False,
+                        "network": runtime_network or "synthia_net",
+                        "service_token_env_key": "SYNTHIA_SERVICE_TOKEN",
+                    },
                     "remediation_path": None,
                     "standalone_runtime": runtime_payload.get("standalone_runtime"),
                 }
