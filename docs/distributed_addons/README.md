@@ -35,5 +35,6 @@ This document maps the current implementation to the policy set in `docs/Policie
 - For `catalog_package_profile_unsupported` diagnostics, see `docs/distributed_addons/catalog_package_profile_unsupported.md`.
 - Addon Store standalone remediation action cards now include this diagnostics doc path directly for operator triage.
 - Standalone `/api/store/install` regression coverage now includes mode mismatch, runtime indicator responses, artifact 404, and sha256 mismatch no-partial-write cases.
+- Standalone install API contract and operator ownership boundaries are documented in `docs/addon-store/SSAP_operator_runbook.md`.
 - For release publication profile/layout gating, see `docs/distributed_addons/catalog_release_publish_checklist.md`.
 - For SAS v1.1 backlog sequencing, see `docs/distributed_addons/sas_v1_1_implementation_plan.md`.

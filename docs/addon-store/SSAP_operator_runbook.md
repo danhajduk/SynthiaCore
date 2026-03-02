@@ -11,6 +11,27 @@ Guardrails are enforced at install-intent time: host networking and privileged o
 Install responses now surface supervisor indicators from `runtime.json` (`runtime_state`, `active_version`, `last_action`) and return `supervisor_hint` when runtime state is still unknown.
 Troubleshooting response fields include absolute `desired_path`, `runtime_path`, `staged_artifact_path`, `service_dir`, and minimal `next_steps` guidance.
 
+## Install API Contract
+
+`POST /api/store/install` standalone fields:
+
+- `source_id` (required for catalog installs)
+- `addon_id` (required for catalog installs)
+- `version` (optional exact release)
+- `channel` (`stable|beta|nightly`, default `stable`)
+- `install_mode` (`embedded_addon|standalone_service`)
+- `desired_state` (`running|stopped`, default `running`)
+- `pinned_version` (optional; defaults to resolved release version for standalone mode)
+- `runtime_overrides` (optional `project_name`, `network`, `ports`, `bind_localhost`)
+- `config_env_overrides` (optional env map merged into `config.env`)
+
+Standalone success response fields:
+
+- `mode`, `requested_install_mode`, `version`
+- `desired_path`, `runtime_path`, `staged_artifact_path`, `service_dir`
+- `runtime_state`, `active_version`, `last_action`, `supervisor_hint`
+- `registry_state`, `security_guardrails`, `next_steps`
+
 ## Paths and Ownership
 
 - Desired state file:
@@ -97,3 +118,5 @@ Generated compose/env defaults enforce:
 - Missing MQTT announce/health:
   - Verify service runtime is `running`.
   - Verify addon publishes retained announce/health topics and broker connectivity.
+- Supervisor process logs:
+  - `journalctl --user -u synthia-supervisor -n 200 --no-pager`
