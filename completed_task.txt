@@ -199,3 +199,4 @@
 2026-03-02 - Session complete: Task 78 supervisor publishers path resolution fixed to install-root runtime cache.
 2026-03-02 - Added supervisor signature verification compatibility for rsa-sha256 and legacy mislabeled ed25519 metadata.
 2026-03-02 - Session complete: Task 79 signature verification compatibility fix delivered and validated past crypto stage.
+2026-03-02 - Fixed Addon Store install error parsing to handle non-string detail.error/detail.code values safely.

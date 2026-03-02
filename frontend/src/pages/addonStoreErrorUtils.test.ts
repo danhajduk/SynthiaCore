@@ -22,6 +22,17 @@ describe("parseInstallFailure", () => {
     expect(parsed.message).toBe("install_http_400: install_failed");
     expect(parsed.detail).toBeNull();
   });
+
+  it("handles non-string detail error fields without throwing", () => {
+    const payload = JSON.stringify({
+      detail: {
+        error: { nested: "not-a-string" },
+        code: 404,
+      },
+    });
+    const parsed = parseInstallFailure(400, payload);
+    expect(parsed.message).toBe("install_http_400: install_failed");
+  });
 });
 
 describe("installActionItems", () => {

@@ -24,6 +24,15 @@ function parseJson(value: string): unknown | null {
   }
 }
 
+function firstNonEmptyString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+}
+
 export function parseInstallFailure(status: number, payloadText: string): InstallErrorParseResult {
   const parsed = parseJson(payloadText);
   if (parsed && typeof parsed === "object") {
@@ -31,7 +40,7 @@ export function parseInstallFailure(status: number, payloadText: string): Instal
     const detail = asObj.detail;
     if (detail && typeof detail === "object") {
       const typed = detail as InstallErrorDetail;
-      const code = (typed.error || typed.code || "install_failed").trim();
+      const code = firstNonEmptyString(typed.error, typed.code, "install_failed") || "install_failed";
       return {
         message: `install_http_${status}: ${code}`,
         detail: typed,
