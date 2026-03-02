@@ -1536,6 +1536,38 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(desired["install_source"]["catalog_id"], "official")
         self.assertEqual(desired["install_source"]["release"]["signature"]["type"], "ed25519")
 
+    def test_catalog_install_standalone_service_mode_rejects_invalid_desired_state(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-standalone-invalid-desired.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr("hello_world/manifest.json", '{"id":"hello_world","name":"hello_world","version":"1.0.0"}')
+            zf.writestr("hello_world/app/main.py", "print('ok')\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            package_profile="standalone_service",
+            release_url="https://example.test/hello_world-1.0.0.tgz",
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "source_id": "official",
+                    "addon_id": "hello_world",
+                    "install_mode": "standalone_service",
+                    "desired_state": "broken_state",
+                    "enable": True,
+                },
+            )
+        self.assertEqual(res.status_code, 400, res.text)
+        self.assertIn("ssap_desired_invalid", res.json()["detail"])
+
     def test_catalog_install_rejects_catalog_manifest_profile_mismatch(self) -> None:
         pkg = Path(self.tmp.name) / "bundle-profile-mismatch.zip"
         with zipfile.ZipFile(pkg, "w") as zf:

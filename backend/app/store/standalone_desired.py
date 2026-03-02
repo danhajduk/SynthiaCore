@@ -17,13 +17,13 @@ class SSAPDesiredValidationError(ValueError):
 
 class DesiredSignature(BaseModel):
     type: Literal["ed25519"]
-    value: str
+    value: str = Field(..., min_length=1)
 
 
 class DesiredRelease(BaseModel):
-    artifact_url: str
+    artifact_url: str = Field(..., min_length=1)
     sha256: str
-    publisher_key_id: str
+    publisher_key_id: str = Field(..., min_length=1)
     signature: DesiredSignature
 
     @field_validator("sha256")
@@ -36,14 +36,14 @@ class DesiredRelease(BaseModel):
 
 class DesiredInstallSource(BaseModel):
     type: str = "catalog"
-    catalog_id: str
+    catalog_id: str = Field(..., min_length=1)
     release: DesiredRelease
 
 
 class DesiredRuntime(BaseModel):
     orchestrator: str = "docker_compose"
-    project_name: str
-    network: str
+    project_name: str = Field(..., min_length=1)
+    network: str = Field(..., min_length=1)
     ports: list[dict[str, Any]] = Field(default_factory=list)
     bind_localhost: bool = True
 

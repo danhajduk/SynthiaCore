@@ -176,3 +176,4 @@
 2026-03-01 - Added channel-scoped catalog release resolution for store install path with regression coverage.
 2026-03-01 - Hardened standalone artifact staging with atomic write and checksum-aware reuse.
 2026-03-01 - Implemented direct standalone install success path to write desired.json and return standalone metadata.
+2026-03-01 - Tightened SSAP desired payload validation and surfaced ssap_desired_invalid install errors.

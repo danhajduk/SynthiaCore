@@ -35,7 +35,7 @@ from .lifecycle import (
 from .models import ReleaseManifest
 from .resolver import ResolverError, resolve_manifest_compatibility
 from .signing import VerificationError, verify_detached_artifact_signature, verify_release_artifact
-from .standalone_desired import build_desired_state, write_desired_state_atomic
+from .standalone_desired import SSAPDesiredValidationError, build_desired_state, write_desired_state_atomic
 from .standalone_paths import service_addon_dir, service_version_dir
 from .sources import StoreSource, StoreSourcesStore
 
@@ -1377,6 +1377,17 @@ def build_store_router(
                 actor=actor,
             )
             raise HTTPException(status_code=409, detail=exc.to_dict())
+        except SSAPDesiredValidationError as exc:
+            _persist_last_install_error(error_code=SSAPDesiredValidationError.code)
+            await audit_store.record(
+                action="install",
+                addon_id=(body.manifest.id if body.manifest is not None else (body.addon_id or "__unknown__")),
+                version=(body.manifest.version if body.manifest is not None else body.version),
+                status="failed",
+                message=SSAPDesiredValidationError.code,
+                actor=actor,
+            )
+            raise HTTPException(status_code=400, detail=str(exc))
         except HTTPException as exc:
             detail_source_id: str | None = None
             detail_artifact_url: str | None = None
