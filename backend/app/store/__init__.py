@@ -27,6 +27,7 @@ from .standalone_paths import (
     service_version_dir,
     service_current_link,
 )
+from .standalone_desired import build_desired_state, write_desired_state_atomic
 
 __all__ = [
     "AddonManifest",
@@ -57,4 +58,6 @@ __all__ = [
     "service_versions_dir",
     "service_version_dir",
     "service_current_link",
+    "build_desired_state",
+    "write_desired_state_atomic",
 ]

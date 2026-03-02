@@ -280,6 +280,7 @@ Demonstrates core addon features:
 - Service reload helper: `bash scripts/reload-all.sh` (reloads user units, restarts backend/frontend and supervisor when installed, runs updater oneshot, prints status).
 - Bootstrap installs user unit templates for backend, frontend, updater, and supervisor into `~/.config/systemd/user/`.
 - Settings Metrics (`/settings/metrics`) now includes current backend/frontend/updater/supervisor user-unit status from `/api/system/stats/current`.
+- Standalone-service SSAP helpers now include backend utilities for `desired.json` payload creation and atomic writes.
 - Local operator config should stay untracked:
   - copy `scripts/synthia.env.example` to `scripts/synthia.env` for machine-specific values.
   - set `SYNTHIA_ADDONS_DIR` to override standalone-service state root (default `<repo>/SynthiaAddons`).
