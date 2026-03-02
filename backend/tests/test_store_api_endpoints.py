@@ -1335,15 +1335,17 @@ class TestStoreApiEndpoints(unittest.TestCase):
         app = FastAPI()
         app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
         client = TestClient(app)
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
 
-        with patch("app.store.router.resolve_manifest_compatibility", return_value=None), patch(
-            "app.store.router._atomic_install_or_update"
-        ):
-            res = client.post(
-                "/api/store/install",
-                headers={"X-Admin-Token": "test-token"},
-                json={"source_id": "official", "addon_id": "hello_world", "enable": True},
-            )
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False):
+            with patch("app.store.router.resolve_manifest_compatibility", return_value=None), patch(
+                "app.store.router._atomic_install_or_update"
+            ):
+                res = client.post(
+                    "/api/store/install",
+                    headers={"X-Admin-Token": "test-token"},
+                    json={"source_id": "official", "addon_id": "hello_world", "enable": True},
+                )
         self.assertEqual(res.status_code, 400, res.text)
         detail = res.json()["detail"]
         self.assertEqual(detail["error"], "catalog_package_profile_unsupported")
@@ -1352,6 +1354,10 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(detail["remediation_path"], "standalone_deploy_register")
         self.assertEqual(detail["source_id"], "official")
         self.assertIn("deploy service package externally", detail["hint"])
+        staged_path = Path(detail["staged_artifact_path"])
+        self.assertTrue(staged_path.exists())
+        self.assertTrue(str(staged_path).endswith("services/hello_world/versions/1.0.0/addon.tgz"))
+        self.assertEqual(staged_path.read_bytes(), artifact_bytes)
 
     def test_catalog_install_rejects_catalog_manifest_profile_mismatch(self) -> None:
         pkg = Path(self.tmp.name) / "bundle-profile-mismatch.zip"

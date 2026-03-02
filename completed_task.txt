@@ -160,3 +160,4 @@
 2026-03-01 - Added SSAP standalone path helpers and tests (SYNTHIA_ADDONS_DIR + services/version/current path utilities).
 2026-03-01 - Added SSAP desired-state builder and atomic desired.json writer utilities with regression tests.
 2026-03-01 - Added SSAP desired-state schema validation with ssap_desired_invalid errors and regression coverage.
+2026-03-01 - Added standalone-service artifact staging to SSAP version path during catalog install handling with regression test coverage.

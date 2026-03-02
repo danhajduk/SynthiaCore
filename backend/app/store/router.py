@@ -35,6 +35,7 @@ from .lifecycle import (
 from .models import ReleaseManifest
 from .resolver import ResolverError, resolve_manifest_compatibility
 from .signing import VerificationError, verify_detached_artifact_signature, verify_release_artifact
+from .standalone_paths import service_version_dir
 from .sources import StoreSource, StoreSourcesStore
 
 log = logging.getLogger("synthia.store")
@@ -162,6 +163,14 @@ def _hex_sha256(data: bytes) -> str:
 
 def _configured_core_version() -> str:
     return os.getenv("SYNTHIA_CORE_VERSION", "0.1.0")
+
+
+def _stage_standalone_artifact(addon_id: str, version: str, package_path: Path) -> Path:
+    version_dir = service_version_dir(addon_id, version, create=True)
+    staged_artifact_path = version_dir / "addon.tgz"
+    staged_artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(package_path, staged_artifact_path)
+    return staged_artifact_path
 
 
 def _extract_catalog_items(index_payload: Any) -> list[dict[str, Any]]:
@@ -1048,6 +1057,9 @@ def build_store_router(
             )
 
             if manifest.package_profile != "embedded_addon":
+                staged_artifact_path: str | None = None
+                if manifest.package_profile == "standalone_service":
+                    staged_artifact_path = str(_stage_standalone_artifact(manifest.id, manifest.version, package_path))
                 error_payload: dict[str, Any] = {
                     "error": "catalog_package_profile_unsupported" if catalog_install else "package_profile_unsupported",
                     "package_profile": manifest.package_profile,
@@ -1062,6 +1074,8 @@ def build_store_router(
                     error_payload["source_id"] = debug_source_id
                     error_payload["resolved_base_url"] = debug_resolved_base_url
                     error_payload["artifact_url"] = debug_artifact_url
+                if staged_artifact_path:
+                    error_payload["staged_artifact_path"] = staged_artifact_path
                 raise HTTPException(status_code=400, detail=error_payload)
 
             result = _atomic_install_or_update(
