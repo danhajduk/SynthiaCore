@@ -237,6 +237,7 @@ class TestCatalogCacheClient(unittest.TestCase):
                         "addon_id": "hello_world",
                         "name": "Hello World",
                         "description": "Example addon",
+                        "package_profile": "standalone_service",
                         "channels": {
                             "stable": {
                                 "releases": [
@@ -277,6 +278,7 @@ class TestCatalogCacheClient(unittest.TestCase):
             self.assertEqual(item["version"], "1.2.3")
             self.assertEqual(item["release_count"], 1)
             self.assertEqual(item["publisher_id"], "key-1")
+            self.assertEqual(item["package_profile"], "standalone_service")
             self.assertEqual(item["releases"][0]["channel"], "stable")
 
 

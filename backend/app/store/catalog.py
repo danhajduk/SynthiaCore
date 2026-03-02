@@ -415,6 +415,7 @@ class CatalogCacheClient:
                         "description": raw.get("description") or latest_manifest.get("description") or manifest.get("description") or "",
                         "categories": categories,
                         "featured": bool(raw.get("featured", False)),
+                        "package_profile": raw.get("package_profile"),
                         "version": raw.get("version") or latest_release.get("version"),
                         "published_at": raw.get("published_at") or raw.get("updated_at") or "",
                         "publisher_id": (
