@@ -192,3 +192,4 @@
 2026-03-02 - Validated standalone install-mode mismatch fix with targeted backend install-path tests.
 2026-03-02 - Session complete: Task 75 Addon Store install_mode mismatch fix delivered (75.1-75.5).
 2026-03-02 - Aligned Core default standalone addons path to sibling ../SynthiaAddons and updated docs/tests.
+2026-03-02 - Session complete: Task 76 standalone addons path default aligned to sibling ../SynthiaAddons.
