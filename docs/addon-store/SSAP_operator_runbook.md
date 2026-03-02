@@ -130,6 +130,7 @@ Generated compose/env defaults enforce:
   - Verify addon publishes retained announce/health topics and broker connectivity.
 - UI install diagnostics:
   - Addon Store diagnostics render only string detail fields; malformed/non-string backend detail values are ignored instead of crashing the page.
+  - Nested verification payloads (`detail.error.code`, `detail.error.details.*`) are flattened so operator-facing diagnostics still show error code/source/artifact/hint.
 - Supervisor process logs:
   - `journalctl --user -u synthia-supervisor -n 200 --no-pager`
 - Supervisor signature verification publishers registry:

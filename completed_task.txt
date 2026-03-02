@@ -203,3 +203,4 @@
 2026-03-02 - Session complete: Task 80 Addon Store install error parsing crash fixed.
 2026-03-02 - Fixed Addon Store black-screen crash by sanitizing install diagnostics detail fields before render.
 2026-03-02 - Session complete: Task 81 Addon Store install-click black-screen crash fixed.
+2026-03-02 - Fixed Addon Store install diagnostics to parse nested backend error payloads and show actionable error codes/details.

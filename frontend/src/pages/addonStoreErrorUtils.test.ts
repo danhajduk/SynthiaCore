@@ -33,8 +33,31 @@ describe("parseInstallFailure", () => {
     const parsed = parseInstallFailure(400, payload);
     expect(parsed.message).toBe("install_http_400: install_failed");
     expect(parsed.detail?.error).toBeUndefined();
-    expect(parsed.detail?.code).toBeUndefined();
+    expect(parsed.detail?.code).toBe("install_failed");
     expect(parsed.detail?.remediation_path).toBeUndefined();
+  });
+
+  it("extracts nested verification error code/details payload", () => {
+    const payload = JSON.stringify({
+      detail: {
+        ok: false,
+        error: {
+          code: "signature_invalid",
+          message: "Detached artifact signature verification failed.",
+          details: {
+            source_id: "official",
+            artifact_url: "https://example.test/addon.tgz",
+            hint: "release_sig must match downloaded artifact bytes for this artifact_url",
+          },
+        },
+      },
+    });
+    const parsed = parseInstallFailure(400, payload);
+    expect(parsed.message).toBe("install_http_400: signature_invalid");
+    expect(parsed.detail?.code).toBe("signature_invalid");
+    expect(parsed.detail?.source_id).toBe("official");
+    expect(parsed.detail?.artifact_url).toBe("https://example.test/addon.tgz");
+    expect(parsed.detail?.hint).toContain("release_sig must match");
   });
 });
 

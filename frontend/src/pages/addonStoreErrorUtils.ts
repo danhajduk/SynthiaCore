@@ -39,18 +39,33 @@ function optionalString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function normalizeDetail(detail: Record<string, unknown>): InstallErrorDetail {
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+}
+
+function normalizeDetail(
+  detail: Record<string, unknown>,
+  nestedDetails: Record<string, unknown> | null,
+  resolvedCode: string | null,
+): InstallErrorDetail {
   return {
     error: optionalString(detail.error),
-    code: optionalString(detail.code),
-    hint: optionalString(detail.hint),
-    remediation_path: optionalString(detail.remediation_path),
-    requested_install_mode: optionalString(detail.requested_install_mode),
-    source_id: optionalString(detail.source_id),
-    artifact_url: optionalString(detail.artifact_url),
-    layout_hint: optionalString(detail.layout_hint),
-    catalog_release_package_profile: optionalString(detail.catalog_release_package_profile),
-    catalog_release_version: optionalString(detail.catalog_release_version),
+    code: optionalString(detail.code) || resolvedCode || undefined,
+    hint: optionalString(detail.hint) || optionalString(nestedDetails?.hint),
+    remediation_path:
+      optionalString(detail.remediation_path) || optionalString(nestedDetails?.remediation_path),
+    requested_install_mode:
+      optionalString(detail.requested_install_mode) || optionalString(nestedDetails?.requested_install_mode),
+    source_id: optionalString(detail.source_id) || optionalString(nestedDetails?.source_id),
+    artifact_url: optionalString(detail.artifact_url) || optionalString(nestedDetails?.artifact_url),
+    layout_hint: optionalString(detail.layout_hint) || optionalString(nestedDetails?.layout_hint),
+    catalog_release_package_profile:
+      optionalString(detail.catalog_release_package_profile) ||
+      optionalString(nestedDetails?.catalog_release_package_profile),
+    catalog_release_version:
+      optionalString(detail.catalog_release_version) ||
+      optionalString(nestedDetails?.catalog_release_version),
   };
 }
 
@@ -60,10 +75,20 @@ export function parseInstallFailure(status: number, payloadText: string): Instal
     const asObj = parsed as Record<string, unknown>;
     const detail = asObj.detail;
     if (detail && typeof detail === "object") {
-      const typed = normalizeDetail(detail as Record<string, unknown>);
-      const code = firstNonEmptyString(typed.error, typed.code, "install_failed") || "install_failed";
+      const detailObj = detail as Record<string, unknown>;
+      const nestedError = asObject(detailObj.error);
+      const nestedDetails = asObject(nestedError?.details);
+      const resolvedCode =
+        firstNonEmptyString(
+          detailObj.error,
+          detailObj.code,
+          nestedError?.code,
+          nestedError?.error,
+          "install_failed",
+        ) || "install_failed";
+      const typed = normalizeDetail(detailObj, nestedDetails, resolvedCode);
       return {
-        message: `install_http_${status}: ${code}`,
+        message: `install_http_${status}: ${resolvedCode}`,
         detail: typed,
       };
     }
