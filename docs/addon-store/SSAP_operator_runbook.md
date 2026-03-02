@@ -121,6 +121,7 @@ Generated compose/env defaults enforce:
 - Signature failure:
   - Verify publisher key id and detached signature value in catalog metadata.
   - Confirm `publishers.json` path and active key status.
+  - Supervisor accepts both `ed25519` Option A and `rsa-sha256` detached signatures, including legacy mislabeled `ed25519` metadata when payloads are RSA.
 - Compose startup failure:
   - Inspect Supervisor `runtime.json:last_error`.
   - Inspect `docker compose` logs for service build/start errors.

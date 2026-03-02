@@ -197,3 +197,4 @@
 2026-03-02 - Session complete: Task 77 supervisor publishers runtime cache path wiring delivered.
 2026-03-02 - Fixed supervisor publishers registry fallback to install-root runtime cache path with updated diagnostics/tests.
 2026-03-02 - Session complete: Task 78 supervisor publishers path resolution fixed to install-root runtime cache.
+2026-03-02 - Added supervisor signature verification compatibility for rsa-sha256 and legacy mislabeled ed25519 metadata.
