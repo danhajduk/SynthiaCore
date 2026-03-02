@@ -189,3 +189,4 @@
 2026-03-02 - Added standalone_service_install remediation guidance cards and docs retry note.
 2026-03-02 - Added frontend tests for install_mode mapping and standalone_service_install remediation actions.
 2026-03-02 - Documented Addon Store install_mode selection contract and standalone retry expectation.
+2026-03-02 - Validated standalone install-mode mismatch fix with targeted backend install-path tests.

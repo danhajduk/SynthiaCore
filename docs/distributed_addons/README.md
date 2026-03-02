@@ -38,5 +38,6 @@ This document maps the current implementation to the policy set in `docs/Policie
 - Standalone install API contract and operator ownership boundaries are documented in `docs/addon-store/SSAP_operator_runbook.md`.
 - Addon Store frontend install requests now pass `install_mode` derived from catalog `package_profile` to avoid profile-mode mismatch defaults.
 - Frontend tests cover package-profile to install-mode mapping and `standalone_service_install` remediation action rendering.
+- Validation checks now include standalone mismatch/success install API tests to confirm mode-selection behavior (`test_catalog_install_rejects_standalone_service_profile_with_guidance`, `test_catalog_install_standalone_service_mode_writes_desired_and_returns_paths`).
 - For release publication profile/layout gating, see `docs/distributed_addons/catalog_release_publish_checklist.md`.
 - For SAS v1.1 backlog sequencing, see `docs/distributed_addons/sas_v1_1_implementation_plan.md`.
