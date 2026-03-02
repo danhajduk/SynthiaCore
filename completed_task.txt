@@ -167,3 +167,4 @@
 2026-03-01 - Added standalone runtime.json reader in store status API and exposed runtime_state/standalone_runtime/runtime_path fields with tests.
 2026-03-01 - Added SSAP metadata fields to store install/update responses and standalone unsupported guidance payloads with API regression assertions.
 2026-03-01 - Hardened supervisor compose/env defaults for security guardrails (non-privileged, dedicated network, localhost binds, env-file token injection) with tests.
+2026-03-01 - Expanded SSAP regression coverage for malformed runtime status, upgrade transition metadata, and install/update response field assertions.

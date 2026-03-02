@@ -107,6 +107,32 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             self.assertTrue(runtime["rollback_available"])
             self.assertIn("compose-failed", runtime.get("last_error", ""))
 
+    def test_reconcile_upgrade_success_switches_current_and_records_previous_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            old_version_dir = addon_dir / "versions" / "0.1.1"
+            new_version_dir = addon_dir / "versions" / "0.1.2"
+            old_version_dir.mkdir(parents=True, exist_ok=True)
+            new_version_dir.mkdir(parents=True, exist_ok=True)
+            (new_version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+            (addon_dir / "current").symlink_to(old_version_dir)
+            _write_desired(addon_dir)
+
+            with patch("synthia_supervisor.main.verify_release_option_a"), \
+                patch("synthia_supervisor.main.ensure_extracted"), \
+                patch("synthia_supervisor.main.ensure_compose_files"), \
+                patch("synthia_supervisor.main.compose_up"):
+                reconcile_one(addon_dir)
+
+            current = addon_dir / "current"
+            self.assertTrue(current.is_symlink())
+            self.assertEqual(current.resolve(), new_version_dir.resolve())
+            runtime = json.loads((addon_dir / "runtime.json").read_text(encoding="utf-8"))
+            self.assertEqual(runtime["state"], "running")
+            self.assertEqual(runtime["active_version"], "0.1.2")
+            self.assertEqual(runtime["previous_version"], "0.1.1")
+            self.assertTrue(runtime["rollback_available"])
+
 
 if __name__ == "__main__":
     unittest.main()

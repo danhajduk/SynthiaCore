@@ -289,6 +289,7 @@ Demonstrates core addon features:
 - Store status API (`/api/store/status/{addon_id}`) now reads standalone runtime state from `services/<addon_id>/runtime.json` and exposes `runtime_state`, `standalone_runtime`, and `runtime_path`.
 - Store install/update responses now include SSAP metadata fields (`mode`, `desired_path`, `runtime_path`, `staged_artifact_path`, `runtime_state`, `registry_state`).
 - Supervisor-generated compose defaults now enforce guardrails: `privileged: false`, `no-new-privileges`, dedicated `synthia_net`, localhost-only port binds, and service token/env injection via env file.
+- Regression tests now cover standalone runtime status read paths (missing/valid/malformed), verification-failure stop behavior, and upgrade/rollback metadata transitions.
 - Local operator config should stay untracked:
   - copy `scripts/synthia.env.example` to `scripts/synthia.env` for machine-specific values.
   - set `SYNTHIA_ADDONS_DIR` to override standalone-service state root (default `<repo>/SynthiaAddons`).

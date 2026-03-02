@@ -483,16 +483,22 @@ class TestStoreApiEndpoints(unittest.TestCase):
                 res = self.client.get("/api/store/status/hello_world")
         self.assertEqual(res.status_code, 200, res.text)
         payload = res.json()
-        self.assertEqual(payload["mode"], "embedded_addon")
-        self.assertIn("desired_path", payload)
-        self.assertIn("runtime_path", payload)
-        self.assertIn("staged_artifact_path", payload)
-        self.assertIn("runtime_state", payload)
-        self.assertIn("registry_state", payload)
-        payload = res.json()
         self.assertEqual(payload["runtime_state"], "running")
         self.assertEqual(payload["standalone_runtime"]["active_version"], "1.0.0")
         self.assertEqual(payload["standalone_runtime"]["health"]["status"], "healthy")
+
+    def test_status_handles_malformed_standalone_runtime_json(self) -> None:
+        runtime_path = Path(self.tmp.name) / "SynthiaAddons" / "services" / "hello_world" / "runtime.json"
+        runtime_path.parent.mkdir(parents=True, exist_ok=True)
+        runtime_path.write_text("{not-json", encoding="utf-8")
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(Path(self.tmp.name) / "SynthiaAddons")}, clear=False):
+            with patch("app.store.router._addons_root", return_value=Path(self.tmp.name) / "addons"):
+                res = self.client.get("/api/store/status/hello_world")
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["runtime_state"], "unknown")
+        self.assertIsNone(payload["standalone_runtime"])
+        self.assertIsNotNone(payload["runtime_error"])
 
     def test_update_success(self) -> None:
         pkg = Path(self.tmp.name) / "bundle.zip"
@@ -519,6 +525,13 @@ class TestStoreApiEndpoints(unittest.TestCase):
                 },
             )
         self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["mode"], "embedded_addon")
+        self.assertIn("desired_path", payload)
+        self.assertIn("runtime_path", payload)
+        self.assertIn("staged_artifact_path", payload)
+        self.assertIn("runtime_state", payload)
+        self.assertIn("registry_state", payload)
 
     def test_catalog_install_success_and_status_metadata(self) -> None:
         pkg = Path(self.tmp.name) / "bundle.zip"
