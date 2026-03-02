@@ -282,4 +282,5 @@ Demonstrates core addon features:
 - Settings Metrics (`/settings/metrics`) now includes current backend/frontend/updater/supervisor user-unit status from `/api/system/stats/current`.
 - Local operator config should stay untracked:
   - copy `scripts/synthia.env.example` to `scripts/synthia.env` for machine-specific values.
+  - set `SYNTHIA_ADDONS_DIR` to override standalone-service state root (default `<repo>/SynthiaAddons`).
   - keep per-user systemd overrides under `~/.config/synthia/*.env` (already outside this repo).

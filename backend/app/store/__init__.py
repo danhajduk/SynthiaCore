@@ -19,6 +19,14 @@ from .router import build_store_router
 from .catalog import CatalogCacheClient, CatalogQuery, StaticCatalogStore
 from .lifecycle import AtomicResult
 from .sources import StoreSource, StoreSourcesStore
+from .standalone_paths import (
+    synthia_addons_dir,
+    services_root,
+    service_addon_dir,
+    service_versions_dir,
+    service_version_dir,
+    service_current_link,
+)
 
 __all__ = [
     "AddonManifest",
@@ -43,4 +51,10 @@ __all__ = [
     "AtomicResult",
     "StoreSource",
     "StoreSourcesStore",
+    "synthia_addons_dir",
+    "services_root",
+    "service_addon_dir",
+    "service_versions_dir",
+    "service_version_dir",
+    "service_current_link",
 ]
