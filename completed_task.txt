@@ -202,3 +202,4 @@
 2026-03-02 - Fixed Addon Store install error parsing to handle non-string detail.error/detail.code values safely.
 2026-03-02 - Session complete: Task 80 Addon Store install error parsing crash fixed.
 2026-03-02 - Fixed Addon Store black-screen crash by sanitizing install diagnostics detail fields before render.
+2026-03-02 - Session complete: Task 81 Addon Store install-click black-screen crash fixed.
