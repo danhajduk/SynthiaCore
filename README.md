@@ -281,6 +281,7 @@ Demonstrates core addon features:
 - Bootstrap installs user unit templates for backend, frontend, updater, and supervisor into `~/.config/systemd/user/`.
 - Settings Metrics (`/settings/metrics`) now includes current backend/frontend/updater/supervisor user-unit status from `/api/system/stats/current`.
 - Standalone-service SSAP helpers now include backend utilities for `desired.json` payload creation and atomic writes.
+- SSAP desired-state utilities enforce validation for `ssap_version`, `mode`, `desired_state`, `channel`, `signature.type`, and lowercase SHA-256 format.
 - Local operator config should stay untracked:
   - copy `scripts/synthia.env.example` to `scripts/synthia.env` for machine-specific values.
   - set `SYNTHIA_ADDONS_DIR` to override standalone-service state root (default `<repo>/SynthiaAddons`).

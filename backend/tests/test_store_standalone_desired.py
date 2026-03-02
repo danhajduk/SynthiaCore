@@ -3,7 +3,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.store.standalone_desired import build_desired_state, write_desired_state_atomic
+from app.store.standalone_desired import (
+    SSAPDesiredValidationError,
+    build_desired_state,
+    validate_desired_state,
+    write_desired_state_atomic,
+)
 
 
 class TestStoreStandaloneDesired(unittest.TestCase):
@@ -53,6 +58,39 @@ class TestStoreStandaloneDesired(unittest.TestCase):
             self.assertEqual(loaded["pinned_version"], "0.1.2")
             self.assertEqual(loaded["install_source"]["release"]["sha256"], "b" * 64)
             self.assertFalse(desired_path.with_suffix(".json.tmp").exists())
+
+    def test_validate_desired_state_rejects_invalid_values(self) -> None:
+        payload = build_desired_state(
+            addon_id="mqtt",
+            channel="stable",
+            pinned_version="0.1.2",
+            artifact_url="https://example.test/mqtt-0.1.2.tgz",
+            sha256="c" * 64,
+            publisher_key_id="publisher.dan#2026-02",
+            signature_value="base64-signature",
+            runtime_project_name="synthia-addon-mqtt",
+            runtime_network="synthia_net",
+        )
+        payload["desired_state"] = "invalid-state"
+        with self.assertRaises(SSAPDesiredValidationError) as ctx:
+            validate_desired_state(payload)
+        self.assertIn("ssap_desired_invalid", str(ctx.exception))
+
+    def test_validate_desired_state_rejects_non_lowercase_sha256(self) -> None:
+        payload = build_desired_state(
+            addon_id="mqtt",
+            channel="stable",
+            pinned_version="0.1.2",
+            artifact_url="https://example.test/mqtt-0.1.2.tgz",
+            sha256="d" * 64,
+            publisher_key_id="publisher.dan#2026-02",
+            signature_value="base64-signature",
+            runtime_project_name="synthia-addon-mqtt",
+            runtime_network="synthia_net",
+        )
+        payload["install_source"]["release"]["sha256"] = "A" * 64
+        with self.assertRaises(SSAPDesiredValidationError):
+            validate_desired_state(payload)
 
 
 if __name__ == "__main__":

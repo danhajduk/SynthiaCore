@@ -159,3 +159,4 @@
 2026-03-01 - Session complete: Task 71 service status metrics delivered.
 2026-03-01 - Added SSAP standalone path helpers and tests (SYNTHIA_ADDONS_DIR + services/version/current path utilities).
 2026-03-01 - Added SSAP desired-state builder and atomic desired.json writer utilities with regression tests.
+2026-03-01 - Added SSAP desired-state schema validation with ssap_desired_invalid errors and regression coverage.

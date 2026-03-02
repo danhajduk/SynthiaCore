@@ -27,7 +27,12 @@ from .standalone_paths import (
     service_version_dir,
     service_current_link,
 )
-from .standalone_desired import build_desired_state, write_desired_state_atomic
+from .standalone_desired import (
+    SSAPDesiredValidationError,
+    build_desired_state,
+    validate_desired_state,
+    write_desired_state_atomic,
+)
 
 __all__ = [
     "AddonManifest",
@@ -58,6 +63,8 @@ __all__ = [
     "service_versions_dir",
     "service_version_dir",
     "service_current_link",
+    "SSAPDesiredValidationError",
     "build_desired_state",
+    "validate_desired_state",
     "write_desired_state_atomic",
 ]
