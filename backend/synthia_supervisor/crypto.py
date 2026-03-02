@@ -26,14 +26,13 @@ def _sha256_hex_and_bytes(path: Path) -> Tuple[str, bytes]:
 def _load_publishers_registry() -> dict:
     """
     Loads publishers.json.
-    Default path: $SYNTHIA_CATALOG_PUBLISHERS or ../Synthia-Addon-Catalog/catalog/v1/publishers.json
+    Default path: $SYNTHIA_CATALOG_PUBLISHERS or ./runtime/store/cache/official/publishers.json
     """
     p = os.environ.get("SYNTHIA_CATALOG_PUBLISHERS")
     if p:
         path = Path(p).expanduser()
     else:
-        # reasonable default for your repo layout
-        path = Path("../Synthia-Addon-Catalog/catalog/v1/publishers.json").expanduser().resolve()
+        path = Path("./runtime/store/cache/official/publishers.json").expanduser().resolve()
 
     if not path.exists():
         raise CryptoError(

@@ -9,6 +9,7 @@ EnvironmentFile=-@INSTALL_DIR@/scripts/synthia.env
 
 # Where standalone services live (sibling folder to SynthiaCore)
 Environment=SYNTHIA_ADDONS_DIR=%h/Projects/SynthiaAddons
+Environment=SYNTHIA_CATALOG_PUBLISHERS=@INSTALL_DIR@/runtime/store/cache/official/publishers.json
 Environment=SYNTHIA_SUPERVISOR_INTERVAL_S=5
 Environment=PYTHONUNBUFFERED=1
 

@@ -129,3 +129,5 @@ Generated compose/env defaults enforce:
   - Verify addon publishes retained announce/health topics and broker connectivity.
 - Supervisor process logs:
   - `journalctl --user -u synthia-supervisor -n 200 --no-pager`
+- Supervisor signature verification publishers registry:
+  - `SYNTHIA_CATALOG_PUBLISHERS` now points to `./runtime/store/cache/official/publishers.json` by default/service env wiring.
