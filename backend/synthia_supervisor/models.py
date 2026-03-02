@@ -38,6 +38,9 @@ class RuntimeState(BaseModel):
     active_version: Optional[str] = None
     state: str
     error: Optional[str] = None
+    previous_version: Optional[str] = None
+    rollback_available: bool = False
+    last_error: Optional[str] = None
 
     @classmethod
     def new(cls, addon_id: str):

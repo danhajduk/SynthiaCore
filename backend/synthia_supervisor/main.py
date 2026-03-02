@@ -29,6 +29,19 @@ def activate_current_symlink(addon_dir: Path, version_dir: Path) -> None:
     # Atomic replace: current now points to the newly-started version
     next_link.replace(current)
 
+
+def resolve_current_version(addon_dir: Path) -> str | None:
+    current = addon_dir / "current"
+    if not current.is_symlink():
+        return None
+    try:
+        target = current.resolve()
+    except OSError:
+        return None
+    if target.parent.name != "versions":
+        return None
+    return target.name
+
 def reconcile_one(addon_dir: Path):
     desired_path = addon_dir / "desired.json"
     runtime_path = addon_dir / "runtime.json"
@@ -36,6 +49,7 @@ def reconcile_one(addon_dir: Path):
         return
     desired = DesiredState(**load_json(desired_path))
     rt = RuntimeState.new(desired.addon_id)
+    previous_version = resolve_current_version(addon_dir)
 
     try:
         if desired.desired_state == "stopped":
@@ -73,10 +87,17 @@ def reconcile_one(addon_dir: Path):
 
         rt.state = "running"
         rt.active_version = version
+        rt.previous_version = previous_version
+        rt.rollback_available = bool(previous_version and previous_version != version)
+        rt.last_error = None
 
     except Exception as e:
         rt.state = "error"
-        rt.error = str(e)
+        message = str(e)
+        rt.error = message
+        rt.last_error = message
+        rt.previous_version = previous_version
+        rt.rollback_available = bool(previous_version)
 
     write_json_atomic(runtime_path, rt.model_dump())
 

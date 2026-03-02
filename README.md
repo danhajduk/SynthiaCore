@@ -285,6 +285,7 @@ Demonstrates core addon features:
 - Catalog installs for `standalone_service` now stage verified artifacts under `SynthiaAddons/services/<addon_id>/versions/<version>/addon.tgz` (no container start from Core).
 - Supervisor reconciliation enforces verification-first order for standalone services: verify checksum/signature, then extract, then generate compose files, then `docker compose up`.
 - Supervisor only switches `current` to the new version after successful `docker compose up`, using rename-based atomic symlink replacement.
+- On activation failure, supervisor runtime state includes rollback metadata (`previous_version`, `rollback_available`, `last_error`).
 - Local operator config should stay untracked:
   - copy `scripts/synthia.env.example` to `scripts/synthia.env` for machine-specific values.
   - set `SYNTHIA_ADDONS_DIR` to override standalone-service state root (default `<repo>/SynthiaAddons`).

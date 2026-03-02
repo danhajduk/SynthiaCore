@@ -53,6 +53,8 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             runtime = json.loads((addon_dir / "runtime.json").read_text(encoding="utf-8"))
             self.assertEqual(runtime["state"], "running")
             self.assertEqual(runtime["active_version"], "0.1.2")
+            self.assertFalse(runtime["rollback_available"])
+            self.assertIsNone(runtime["last_error"])
 
     def test_reconcile_stops_when_verify_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -74,6 +76,9 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             runtime = json.loads((addon_dir / "runtime.json").read_text(encoding="utf-8"))
             self.assertEqual(runtime["state"], "error")
             self.assertIn("bad-signature", runtime.get("error", ""))
+            self.assertFalse(runtime["rollback_available"])
+            self.assertIsNone(runtime["previous_version"])
+            self.assertIn("bad-signature", runtime.get("last_error", ""))
 
     def test_reconcile_does_not_activate_new_current_when_compose_up_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -98,6 +103,9 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             runtime = json.loads((addon_dir / "runtime.json").read_text(encoding="utf-8"))
             self.assertEqual(runtime["state"], "error")
             self.assertIn("compose-failed", runtime.get("error", ""))
+            self.assertEqual(runtime.get("previous_version"), "0.1.1")
+            self.assertTrue(runtime["rollback_available"])
+            self.assertIn("compose-failed", runtime.get("last_error", ""))
 
 
 if __name__ == "__main__":
