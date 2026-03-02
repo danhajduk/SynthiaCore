@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import os
 import tarfile
 import tempfile
@@ -442,6 +443,10 @@ class TestStoreApiEndpoints(unittest.TestCase):
             self.assertIn("installed_sha256", payload)
             self.assertIn("installed_at", payload)
             self.assertIn("last_install_error", payload)
+            self.assertIn("runtime_path", payload)
+            self.assertIn("runtime_state", payload)
+            self.assertIn("standalone_runtime", payload)
+            self.assertEqual(payload["runtime_state"], "unknown")
 
         uninstall_res = self.client.post(
             "/api/store/uninstall",
@@ -449,6 +454,31 @@ class TestStoreApiEndpoints(unittest.TestCase):
             json={"addon_id": "missing-addon"},
         )
         self.assertEqual(uninstall_res.status_code, 404, uninstall_res.text)
+
+    def test_status_reads_standalone_runtime_json(self) -> None:
+        runtime_path = Path(self.tmp.name) / "SynthiaAddons" / "services" / "hello_world" / "runtime.json"
+        runtime_path.parent.mkdir(parents=True, exist_ok=True)
+        runtime_path.write_text(
+            json.dumps(
+                {
+                    "ssap_version": "1.0",
+                    "addon_id": "hello_world",
+                    "active_version": "1.0.0",
+                    "state": "running",
+                    "last_action": {"type": "start", "ok": True},
+                    "health": {"status": "healthy"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(Path(self.tmp.name) / "SynthiaAddons")}, clear=False):
+            with patch("app.store.router._addons_root", return_value=Path(self.tmp.name) / "addons"):
+                res = self.client.get("/api/store/status/hello_world")
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["runtime_state"], "running")
+        self.assertEqual(payload["standalone_runtime"]["active_version"], "1.0.0")
+        self.assertEqual(payload["standalone_runtime"]["health"]["status"], "healthy")
 
     def test_update_success(self) -> None:
         pkg = Path(self.tmp.name) / "bundle.zip"

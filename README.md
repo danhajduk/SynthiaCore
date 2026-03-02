@@ -286,6 +286,7 @@ Demonstrates core addon features:
 - Supervisor reconciliation enforces verification-first order for standalone services: verify checksum/signature, then extract, then generate compose files, then `docker compose up`.
 - Supervisor only switches `current` to the new version after successful `docker compose up`, using rename-based atomic symlink replacement.
 - On activation failure, supervisor runtime state includes rollback metadata (`previous_version`, `rollback_available`, `last_error`).
+- Store status API (`/api/store/status/{addon_id}`) now reads standalone runtime state from `services/<addon_id>/runtime.json` and exposes `runtime_state`, `standalone_runtime`, and `runtime_path`.
 - Local operator config should stay untracked:
   - copy `scripts/synthia.env.example` to `scripts/synthia.env` for machine-specific values.
   - set `SYNTHIA_ADDONS_DIR` to override standalone-service state root (default `<repo>/SynthiaAddons`).

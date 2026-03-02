@@ -35,7 +35,7 @@ from .lifecycle import (
 from .models import ReleaseManifest
 from .resolver import ResolverError, resolve_manifest_compatibility
 from .signing import VerificationError, verify_detached_artifact_signature, verify_release_artifact
-from .standalone_paths import service_version_dir
+from .standalone_paths import service_addon_dir, service_version_dir
 from .sources import StoreSource, StoreSourcesStore
 
 log = logging.getLogger("synthia.store")
@@ -171,6 +171,34 @@ def _stage_standalone_artifact(addon_id: str, version: str, package_path: Path) 
     staged_artifact_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(package_path, staged_artifact_path)
     return staged_artifact_path
+
+
+def _read_standalone_runtime(addon_id: str) -> dict[str, Any]:
+    runtime_path = service_addon_dir(addon_id, create=False) / "runtime.json"
+    payload: dict[str, Any] = {
+        "runtime_path": str(runtime_path),
+        "runtime_state": "unknown",
+        "standalone_runtime": None,
+    }
+    if not runtime_path.exists():
+        return payload
+    try:
+        raw = json.loads(runtime_path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            payload["runtime_error"] = "runtime_json_invalid"
+            return payload
+        state = str(raw.get("state") or "unknown")
+        payload["runtime_state"] = state
+        payload["standalone_runtime"] = {
+            "state": state,
+            "active_version": raw.get("active_version"),
+            "last_action": raw.get("last_action"),
+            "health": raw.get("health"),
+        }
+        return payload
+    except Exception as exc:
+        payload["runtime_error"] = str(exc) or type(exc).__name__
+        return payload
 
 
 def _extract_catalog_items(index_payload: Any) -> list[dict[str, Any]]:
@@ -1445,6 +1473,7 @@ def build_store_router(
         last_install_error = install_state.get("last_install_error")
         if not isinstance(last_install_error, dict):
             last_install_error = None
+        runtime_payload = _read_standalone_runtime(addon_id)
 
         return {
             "ok": True,
@@ -1460,6 +1489,10 @@ def build_store_router(
             "installed_sha256": install_state.get("installed_sha256"),
             "installed_at": install_state.get("installed_at"),
             "last_install_error": last_install_error,
+            "runtime_path": runtime_payload.get("runtime_path"),
+            "runtime_state": runtime_payload.get("runtime_state"),
+            "standalone_runtime": runtime_payload.get("standalone_runtime"),
+            "runtime_error": runtime_payload.get("runtime_error"),
         }
 
     @router.get("/admin/audit")

@@ -164,3 +164,4 @@
 2026-03-01 - Enforced supervisor verification-first order for standalone artifacts and added regression tests for verify/extract/compose/start sequencing.
 2026-03-01 - Switched supervisor current-version activation to post-compose success with atomic symlink replacement and failure-path regression tests.
 2026-03-01 - Added supervisor rollback metadata in runtime.json (previous_version, rollback_available, last_error) with failure-path tests.
+2026-03-01 - Added standalone runtime.json reader in store status API and exposed runtime_state/standalone_runtime/runtime_path fields with tests.
