@@ -196,3 +196,4 @@
 2026-03-02 - Set supervisor publishers default/env to runtime cache official publishers.json with regression test.
 2026-03-02 - Session complete: Task 77 supervisor publishers runtime cache path wiring delivered.
 2026-03-02 - Fixed supervisor publishers registry fallback to install-root runtime cache path with updated diagnostics/tests.
+2026-03-02 - Session complete: Task 78 supervisor publishers path resolution fixed to install-root runtime cache.
