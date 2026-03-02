@@ -293,5 +293,5 @@ Demonstrates core addon features:
 - SSAP operator lifecycle and troubleshooting runbook: `docs/addon-store/SSAP_operator_runbook.md`.
 - Local operator config should stay untracked:
   - copy `scripts/synthia.env.example` to `scripts/synthia.env` for machine-specific values.
-  - set `SYNTHIA_ADDONS_DIR` to override standalone-service state root (default `<repo>/SynthiaAddons`).
+  - set `SYNTHIA_ADDONS_DIR` to override standalone-service state root; prefer an external path like `~/.local/share/synthia/SynthiaAddons` (default is `<repo>/SynthiaAddons`).
   - keep per-user systemd overrides under `~/.config/synthia/*.env` (already outside this repo).

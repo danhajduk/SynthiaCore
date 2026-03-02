@@ -183,3 +183,4 @@
 2026-03-01 - Normalized standalone install troubleshooting paths to absolute values and added service_dir coverage.
 2026-03-01 - Expanded standalone install API regression coverage for mismatch/runtime/download/checksum paths.
 2026-03-01 - Documented standalone store-install API contract, ownership boundaries, and troubleshooting workflow.
+2026-03-01 - Added updater/bootstrap SSAP path warnings and documented external SYNTHIA_ADDONS_DIR guidance.

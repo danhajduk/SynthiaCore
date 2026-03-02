@@ -90,6 +90,17 @@ if [[ "$MODE" == "install" ]]; then
 fi
 
 cd "$INSTALL_DIR"
+RAW_ADDONS_DIR="${SYNTHIA_ADDONS_DIR:-../SynthiaAddons}"
+if [[ "$RAW_ADDONS_DIR" = /* ]]; then
+  RESOLVED_ADDONS_DIR="$(realpath -m "$RAW_ADDONS_DIR")"
+else
+  RESOLVED_ADDONS_DIR="$(realpath -m "$INSTALL_DIR/backend/$RAW_ADDONS_DIR")"
+fi
+if [[ "$RESOLVED_ADDONS_DIR" == "$INSTALL_DIR"* ]]; then
+  echo "[bootstrap] WARN: SYNTHIA_ADDONS_DIR resolves inside repo ($RESOLVED_ADDONS_DIR)."
+  echo "[bootstrap] WARN: use an external path (for example ~/.local/share/synthia/SynthiaAddons) to keep SSAP state isolated from updater resets."
+fi
+
 echo "[bootstrap] Updating code"
 git fetch --all --prune
 git reset --hard origin/main

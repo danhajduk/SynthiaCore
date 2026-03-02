@@ -46,6 +46,8 @@ Standalone success response fields:
 - Active pointer:
   - `SynthiaAddons/services/<addon_id>/current` symlink
   - Switched by Supervisor only after successful `docker compose up`.
+- Deployment recommendation:
+  - Prefer `SYNTHIA_ADDONS_DIR` outside the Core repo (for example `~/.local/share/synthia/SynthiaAddons`) so updater `git reset --hard` operations remain isolated from SSAP runtime state.
 
 ## Install
 
