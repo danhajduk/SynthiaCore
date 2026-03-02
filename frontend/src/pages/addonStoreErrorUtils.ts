@@ -33,13 +33,34 @@ function firstNonEmptyString(...values: unknown[]): string | null {
   return null;
 }
 
+function optionalString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeDetail(detail: Record<string, unknown>): InstallErrorDetail {
+  return {
+    error: optionalString(detail.error),
+    code: optionalString(detail.code),
+    hint: optionalString(detail.hint),
+    remediation_path: optionalString(detail.remediation_path),
+    requested_install_mode: optionalString(detail.requested_install_mode),
+    source_id: optionalString(detail.source_id),
+    artifact_url: optionalString(detail.artifact_url),
+    layout_hint: optionalString(detail.layout_hint),
+    catalog_release_package_profile: optionalString(detail.catalog_release_package_profile),
+    catalog_release_version: optionalString(detail.catalog_release_version),
+  };
+}
+
 export function parseInstallFailure(status: number, payloadText: string): InstallErrorParseResult {
   const parsed = parseJson(payloadText);
   if (parsed && typeof parsed === "object") {
     const asObj = parsed as Record<string, unknown>;
     const detail = asObj.detail;
     if (detail && typeof detail === "object") {
-      const typed = detail as InstallErrorDetail;
+      const typed = normalizeDetail(detail as Record<string, unknown>);
       const code = firstNonEmptyString(typed.error, typed.code, "install_failed") || "install_failed";
       return {
         message: `install_http_${status}: ${code}`,

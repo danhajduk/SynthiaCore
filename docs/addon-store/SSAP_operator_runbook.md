@@ -128,6 +128,8 @@ Generated compose/env defaults enforce:
 - Missing MQTT announce/health:
   - Verify service runtime is `running`.
   - Verify addon publishes retained announce/health topics and broker connectivity.
+- UI install diagnostics:
+  - Addon Store diagnostics render only string detail fields; malformed/non-string backend detail values are ignored instead of crashing the page.
 - Supervisor process logs:
   - `journalctl --user -u synthia-supervisor -n 200 --no-pager`
 - Supervisor signature verification publishers registry:

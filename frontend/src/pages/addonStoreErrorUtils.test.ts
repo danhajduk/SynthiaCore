@@ -32,6 +32,9 @@ describe("parseInstallFailure", () => {
     });
     const parsed = parseInstallFailure(400, payload);
     expect(parsed.message).toBe("install_http_400: install_failed");
+    expect(parsed.detail?.error).toBeUndefined();
+    expect(parsed.detail?.code).toBeUndefined();
+    expect(parsed.detail?.remediation_path).toBeUndefined();
   });
 });
 
