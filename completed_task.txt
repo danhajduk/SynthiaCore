@@ -153,3 +153,5 @@
 2026-03-01 - Session complete: Task 68 addons package_profile normalization fix and verification delivered.
 2026-03-01 - Updated bootstrap to install synthia-supervisor.service user unit from template.
 2026-03-01 - Session complete: Task 69 bootstrap supervisor unit installation delivered.
+2026-03-01 - Updated service scripts to include synthia-supervisor install/restart handling with compatibility checks.
+2026-03-01 - Session complete: Task 70 supervisor service-management coverage delivered.

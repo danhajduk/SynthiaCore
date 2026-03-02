@@ -64,6 +64,7 @@ if [[ "$SERVICE_UPDATE" == "true" ]]; then
   echo "[update] reinstalling systemd user units"
   UNIT_SRC_DIR="$REPO_DIR/systemd/user"
   UNIT_DST_DIR="$HOME/.config/systemd/user"
+  SUPERVISOR_UNIT="synthia-supervisor.service"
   mkdir -p "$UNIT_DST_DIR"
 
   install_unit() {
@@ -79,15 +80,26 @@ if [[ "$SERVICE_UPDATE" == "true" ]]; then
   install_unit "$UNIT_SRC_DIR/synthia-backend.service.in" "$UNIT_DST_DIR/synthia-backend.service"
   install_unit "$UNIT_SRC_DIR/synthia-frontend-dev.service.in" "$UNIT_DST_DIR/synthia-frontend-dev.service"
   install_unit "$UNIT_SRC_DIR/synthia-updater.service.in" "$UNIT_DST_DIR/synthia-updater.service"
+  if [[ -f "$UNIT_SRC_DIR/${SUPERVISOR_UNIT}.in" ]]; then
+    install_unit "$UNIT_SRC_DIR/${SUPERVISOR_UNIT}.in" "$UNIT_DST_DIR/${SUPERVISOR_UNIT}"
+  else
+    echo "[update] WARN: missing optional unit template: $UNIT_SRC_DIR/${SUPERVISOR_UNIT}.in"
+  fi
 
   systemctl --user daemon-reload
   systemctl --user restart synthia-backend.service
   systemctl --user restart synthia-frontend-dev.service
+  if [[ -f "$UNIT_DST_DIR/${SUPERVISOR_UNIT}" ]]; then
+    systemctl --user restart "$SUPERVISOR_UNIT"
+  fi
 fi
 
 echo "[update] restart services"
 systemctl --user restart synthia-backend.service
 systemctl --user restart synthia-frontend-dev.service
+if systemctl --user cat synthia-supervisor.service >/dev/null 2>&1; then
+  systemctl --user restart synthia-supervisor.service
+fi
 
 
 echo "=== [update] $(date -Is) finished ==="
