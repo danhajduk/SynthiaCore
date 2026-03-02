@@ -25,6 +25,13 @@ Troubleshooting response fields include absolute `desired_path`, `runtime_path`,
 - `runtime_overrides` (optional `project_name`, `network`, `ports`, `bind_localhost`)
 - `config_env_overrides` (optional env map merged into `config.env`)
 
+Frontend contract:
+
+- Addon Store maps catalog `package_profile` to install request `install_mode`.
+- `standalone_service` profile cards send `install_mode=standalone_service`.
+- `embedded_addon` (or unknown profile fallback) cards send `install_mode=embedded_addon`.
+- If backend returns `remediation_path=standalone_service_install`, retry from Addon Store should succeed without manual payload edits.
+
 Standalone success response fields:
 
 - `mode`, `requested_install_mode`, `version`
