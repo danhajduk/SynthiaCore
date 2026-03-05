@@ -1,4 +1,5 @@
 :root[data-theme="light"] {
+  color-scheme: light;
   --color-bg: 0 0% 100%;
   --color-panel: 210 40% 98%;
   --color-border: 214 32% 91%;
