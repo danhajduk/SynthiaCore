@@ -1,0 +1,24 @@
+.card {
+  background: hsl(var(--color-panel));
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.btn {
+  border-radius: var(--radius-sm);
+  border: none;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: hsl(var(--color-primary));
+  color: white;
+}
+
+.pill {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}

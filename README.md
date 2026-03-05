@@ -271,6 +271,7 @@ Demonstrates core addon features:
 - `backend/app/system/` — scheduler, stats, history, settings.
 - `backend/app/addons/` — addon discovery and registry.
 - `frontend/src/core/` — layout, routing, addon loader, settings pages.
+- `frontend/src/theme/` — token-based theme CSS entrypoint, base/component primitives, and dark/light theme overrides.
 - `addons/` — addon packages (backend + frontend + manifest).
 
 ## Notes

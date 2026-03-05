@@ -1,0 +1,16 @@
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: hsl(var(--color-bg));
+  color: hsl(var(--color-text));
+}
+
+a {
+  color: hsl(var(--color-primary));
+  text-decoration: none;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid hsl(var(--color-border));
+}

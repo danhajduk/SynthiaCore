@@ -1,0 +1,26 @@
+:root {
+  /* colors */
+  --color-bg: 222 84% 5%;
+  --color-panel: 222 50% 10%;
+  --color-border: 217 20% 20%;
+
+  --color-text: 210 40% 98%;
+  --color-text-muted: 215 20% 65%;
+
+  --color-primary: 262 83% 58%;
+  --color-success: 142 71% 45%;
+  --color-warning: 38 92% 50%;
+  --color-danger: 0 84% 60%;
+
+  /* radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.35);
+
+  /* typography */
+  --font-sans: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
