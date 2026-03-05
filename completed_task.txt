@@ -209,3 +209,4 @@
 2026-03-05 - Implemented runtime theme switching initialization with persisted dark/light selection (Task 84).
 2026-03-05 - Session complete: Task 84 runtime theme switching implemented.
 2026-03-05 - Migrated initial global styling to theme tokens (style.css root colors + dark/light color-scheme) for Task 85.
+2026-03-05 - Session complete: Task 85 token-based style migration baseline implemented.
