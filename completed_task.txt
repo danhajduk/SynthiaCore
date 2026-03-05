@@ -214,3 +214,4 @@
 2026-03-05 - Session complete: Task 86 settings theme selector implemented.
 2026-03-05 - Removed legacy global style.css and consolidated global styles into theme/base.css (Task 87).
 2026-03-05 - Session complete: Task 87 legacy global styling removal completed.
+2026-03-05 - Documented addon theme contract in docs/theme.md with shared CSS path and token usage rules (Task 88).
