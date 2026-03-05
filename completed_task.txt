@@ -219,3 +219,4 @@
 2026-03-05 - Fixed backend route precedence so /api/addons/registry/{id}/register no longer collides with proxy catch-all (Task 89).
 2026-03-05 - Session complete: Task 89 registry route precedence conflict fixed.
 2026-03-05 - Added unified addon reference documentation (docs/addons.md) for registration, auth, proxy, MQTT, and troubleshooting (Task 90).
+2026-03-05 - Session complete: Task 90 unified addon reference documentation completed.
