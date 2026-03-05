@@ -217,3 +217,4 @@
 2026-03-05 - Documented addon theme contract in docs/theme.md with shared CSS path and token usage rules (Task 88).
 2026-03-05 - Session complete: Task 88 addon theme contract documentation completed.
 2026-03-05 - Fixed backend route precedence so /api/addons/registry/{id}/register no longer collides with proxy catch-all (Task 89).
+2026-03-05 - Session complete: Task 89 registry route precedence conflict fixed.
