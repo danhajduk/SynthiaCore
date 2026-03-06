@@ -224,3 +224,5 @@
 2026-03-05 - Session complete: Task 91 supervisor reconciliation logging enhancement completed.
 2026-03-05 - Added explicit supervisor unit template env for signature bypass visibility (Task 93).
 2026-03-05 - Session complete: Task 93 explicit supervisor unit env visibility added.
+2026-03-05 - Task 94: removed signature verification enforcement across store and supervisor flows
+2026-03-05 - Session complete: removed project-wide signature verification and aligned docs/tests

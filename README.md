@@ -45,8 +45,7 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 - Legacy top-level compatibility fields are soft-deprecated and adapter-backed for backward compatibility.
 
 ### Addon Store Signing (Phase 1)
-- `backend/app/store/signing.py` enforces pre-enable verification: SHA256 checksum + RSA signature validation.
-- Verification fails closed with structured error payloads (`code`, `message`, `details`).
+- `backend/app/store/signing.py` enforces pre-enable SHA256 checksum validation.
 
 ### Addon Store Resolver (Phase 1)
 - `backend/app/store/resolver.py` validates core-version compatibility, dependencies, and conflicts.
@@ -85,14 +84,8 @@ Catalog cache behavior (Phase 2):
 - Official source refresh now retries the alternate branch (`main` <-> `master`) on `catalog_http_error:404` before failing.
 - Cache path: `runtime/store/cache/<source_id>/` with `metadata.json`.
 - Store source/cache runtime state (`backend/var/store_sources.json`, `runtime/store/cache/`) is local-only and ignored by git.
-- Catalog signatures are verified against configured store public key(s); refresh fails closed and keeps last-known-good cache on invalid/missing signatures.
-- Catalog public key configuration:
-  - `STORE_CATALOG_PUBLIC_KEYS_PATH` (default `var/store_catalog_public_keys.json`)
-  - `STORE_CATALOG_PUBLIC_KEYS_JSON` (inline JSON override; supports multi-key rotation)
-- Emergency bypass (temporary only):
-  - `ALLOW_INSECURE_CATALOG=true` skips catalog signature verification during source refresh.
-  - Refresh metadata exposes `catalog_integrity_mode=insecure_bypass` and a warning message when this flag is active.
-  - Keep this disabled in normal operation and rotate valid store public keys instead.
+- Catalog signature verification is disabled during source refresh.
+- Refresh metadata exposes `catalog_integrity_mode=signature_disabled`.
 - `GET /api/store/catalog` now reads cached catalog content (source-aware) and returns structured status fields:
   - `status`, `source_id`, `last_success_at`, `last_error_at`, `last_error_message`.
   - `installed` map payload: `{ [addon_id]: { version, installed_at } }`
@@ -104,21 +97,14 @@ Catalog cache behavior (Phase 2):
   - on artifact download `404`, backend performs one source refresh + re-resolve retry before failing install,
   - if artifact `404` persists after retry, install returns `409` with `catalog_artifact_unavailable` including source and artifact URL details,
   - checksum verification accepts `sha256:<hex>` style metadata and returns `409` `catalog_sha256_mismatch` with expected/actual digest details when verification fails,
-  - detached signature failures now include source/artifact/publisher key/signature type context to speed `signature_invalid` triage,
   - package/layout consistency failures return structured diagnostics: `catalog_package_layout_invalid` for generic embedded entrypoint issues, `catalog_profile_layout_mismatch` when catalog metadata says `embedded_addon` but artifact layout is service-style (`app/main.py`), and `catalog_package_profile_unsupported` with `remediation_path=standalone_deploy_register` when standalone packages are intentionally unsupported by embedded install flow,
   - compatibility checks use `SYNTHIA_CORE_VERSION` (default `0.1.0` if unset); set this in `scripts/synthia.env` to match deployed core semver,
   - when no compatible release exists, install returns `409` with `catalog_no_compatible_release` plus resolver reasons (for example core-version minimum mismatch),
   - derives missing `publisher_id` from `publisher_key_id` when catalog releases omit explicit publisher id,
   - accepts release artifact metadata in either top-level (`artifact_url`/`url`/`download_url`) or nested (`artifact.url`) forms,
   - supports both `.zip` and tar-based addon artifacts (including `.tgz`) for catalog installs,
-  - accepts publishers payload aliases (`publisher_id`/`key_id`/`status`/`type`) alongside legacy (`id`/`enabled`/`signature_type`) fields,
-  - accepts alias publisher/key `status=active` and `public_key` (base64 SubjectPublicKeyInfo) in addition to PEM key fields,
-  - accepts detached release `signature_type=ed25519` labels for catalog compatibility with existing signed artifact verification flow,
-  - accepts publisher public keys encoded with escaped newlines (`\\n`) as well as standard PEM multi-line formatting,
   - downloads artifact with catalog client redirect/timeout/size protections,
-  - enforces `release.publisher_key_id` lookup in cached `publishers.json` (must exist and be enabled),
-  - enforces detached signature type support (`rsa-sha256` only),
-  - verifies SHA256 + detached `release_sig` over artifact bytes before atomic install,
+  - verifies SHA256 over artifact bytes before atomic install,
   - records source metadata used by `GET /api/store/status/{addon_id}`,
   - persists `last_install_error` debug context after catalog install failures (error code, source id, resolved base URL, artifact URL, expected/actual SHA256, remediation_path when available).
 
@@ -283,9 +269,9 @@ Demonstrates core addon features:
 - Bootstrap installs user unit templates for backend, frontend, updater, and supervisor into `~/.config/systemd/user/`.
 - Settings Metrics (`/settings/metrics`) now includes current backend/frontend/updater/supervisor user-unit status from `/api/system/stats/current`.
 - Standalone-service SSAP helpers now include backend utilities for `desired.json` payload creation and atomic writes.
-- SSAP desired-state utilities enforce validation for `ssap_version`, `mode`, `desired_state`, `channel`, `signature.type`, and lowercase SHA-256 format.
+- SSAP desired-state utilities enforce validation for `ssap_version`, `mode`, `desired_state`, `channel`, and lowercase SHA-256 format.
 - Catalog installs for `standalone_service` now stage verified artifacts under `SynthiaAddons/services/<addon_id>/versions/<version>/addon.tgz` (no container start from Core).
-- Supervisor reconciliation enforces verification-first order for standalone services: verify checksum/signature, then extract, then generate compose files, then `docker compose up`.
+- Supervisor reconciliation runs extract, compose file generation, and `docker compose up` for standalone services.
 - Supervisor only switches `current` to the new version after successful `docker compose up`, using rename-based atomic symlink replacement.
 - On activation failure, supervisor runtime state includes rollback metadata (`previous_version`, `rollback_available`, `last_error`).
 - Store status API (`/api/store/status/{addon_id}`) now reads standalone runtime state from `services/<addon_id>/runtime.json` and exposes `runtime_state`, `standalone_runtime`, and `runtime_path`.
@@ -299,7 +285,6 @@ Demonstrates core addon features:
 - Registry API route precedence is enforced so `/api/addons/registry/{id}/register` is handled by registry endpoints before addon proxy catch-all routing.
 - Unified addon integration and registration reference is documented in `docs/addons.md`.
 - Supervisor reconciliation now emits step-by-step logs (desired load, verify, extract, compose, start/stop); set `SYNTHIA_SUPERVISOR_LOG_LEVEL` (default `INFO`) for verbosity.
-- Temporary local-debug bypass for signature verification is controlled by `SYNTHIA_SUPERVISOR_SKIP_SIGNATURE_VERIFY` and is now explicitly present in the supervisor unit template.
 - SSAP operator lifecycle and troubleshooting runbook: `docs/addon-store/SSAP_operator_runbook.md`.
 - Local operator config should stay untracked:
   - copy `scripts/synthia.env.example` to `scripts/synthia.env` for machine-specific values.

@@ -16,15 +16,15 @@ class SSAPDesiredValidationError(ValueError):
 
 
 class DesiredSignature(BaseModel):
-    type: Literal["ed25519"]
-    value: str = Field(..., min_length=1)
+    type: str = "none"
+    value: str = ""
 
 
 class DesiredRelease(BaseModel):
     artifact_url: str = Field(..., min_length=1)
     sha256: str
-    publisher_key_id: str = Field(..., min_length=1)
-    signature: DesiredSignature
+    publisher_key_id: str = ""
+    signature: DesiredSignature = Field(default_factory=DesiredSignature)
 
     @field_validator("sha256")
     @classmethod
@@ -79,8 +79,8 @@ def build_desired_state(
     pinned_version: str | None,
     artifact_url: str,
     sha256: str,
-    publisher_key_id: str,
-    signature_value: str,
+    publisher_key_id: str = "",
+    signature_value: str = "",
     runtime_project_name: str,
     runtime_network: str,
     runtime_ports: list[dict[str, Any]] | None = None,
@@ -103,7 +103,7 @@ def build_desired_state(
                 "sha256": sha256,
                 "publisher_key_id": publisher_key_id,
                 "signature": {
-                    "type": "ed25519",
+                    "type": "none",
                     "value": signature_value,
                 },
             },

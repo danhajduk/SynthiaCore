@@ -33,7 +33,7 @@ class TestStoreStandaloneDesired(unittest.TestCase):
         self.assertEqual(payload["desired_state"], "running")
         self.assertEqual(payload["install_source"]["type"], "catalog")
         self.assertEqual(payload["install_source"]["catalog_id"], "official")
-        self.assertEqual(payload["install_source"]["release"]["signature"]["type"], "ed25519")
+        self.assertEqual(payload["install_source"]["release"]["signature"]["type"], "none")
         self.assertEqual(payload["runtime"]["project_name"], "synthia-addon-mqtt")
         self.assertEqual(payload["runtime"]["network"], "synthia_net")
         self.assertEqual(payload["config"]["env"]["CORE_URL"], "http://127.0.0.1:9001")

@@ -55,8 +55,8 @@ def _normalize_permissions(value: Any) -> Any:
 
 
 class SignatureBlock(BaseModel):
-    publisher_id: str = Field(..., min_length=1)
-    signature: str = Field(..., min_length=1)
+    publisher_id: str = ""
+    signature: str = ""
 
 
 class CompatibilitySpec(BaseModel):
@@ -121,7 +121,7 @@ class ReleaseManifest(BaseModel):
     publisher_id: str = Field(..., min_length=1)
     package_profile: PackageProfile = Field(default="embedded_addon")
     permissions: list[PermissionType] = Field(...)
-    signature: SignatureBlock = Field(...)
+    signature: SignatureBlock = Field(default_factory=SignatureBlock)
     compatibility: CompatibilitySpec = Field(...)
 
     @model_validator(mode="before")

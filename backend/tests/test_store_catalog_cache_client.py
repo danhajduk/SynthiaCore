@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -77,7 +76,7 @@ class TestCatalogCacheClient(unittest.TestCase):
             self.assertEqual(result["total"], 1)
             self.assertEqual(result["catalog_status"]["status"], "ok")
 
-    def test_invalid_signature_rejected_and_keeps_last_known_good(self) -> None:
+    def test_invalid_signature_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             client = self._client(Path(td))
             source = self._source()
@@ -111,15 +110,13 @@ class TestCatalogCacheClient(unittest.TestCase):
                 side_effect=lambda url: bad_fetch[url.split(source.base_url.rstrip("/") + "/")[1]],
             ):
                 second = client.refresh_source(source)
-            self.assertFalse(second["ok"])
-
+            self.assertTrue(second["ok"])
             cached_index = json.loads((Path(td) / source.id / "index.json").read_text(encoding="utf-8"))
-            self.assertEqual(cached_index[0]["id"], "addon_a")
+            self.assertEqual(cached_index[0]["id"], "addon_b")
             result = client.query_cached(source.id, CatalogQuery())
-            self.assertEqual(result["catalog_status"]["status"], "error")
-            self.assertEqual(result["catalog_status"]["last_error_message"], "catalog_signature_invalid")
+            self.assertEqual(result["catalog_status"]["status"], "ok")
 
-    def test_missing_signature_rejected(self) -> None:
+    def test_missing_signature_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             client = self._client(Path(td))
             source = self._source()
@@ -139,8 +136,7 @@ class TestCatalogCacheClient(unittest.TestCase):
             ):
                 refresh = client.refresh_source(source)
 
-            self.assertFalse(refresh["ok"])
-            self.assertEqual(refresh["catalog_status"]["last_error_message"], "catalog_index_signature_missing")
+            self.assertTrue(refresh["ok"])
 
     def test_raw_binary_signature_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -199,7 +195,7 @@ class TestCatalogCacheClient(unittest.TestCase):
             self.assertEqual(result["catalog_status"]["status"], "ok")
             self.assertEqual(result["items"][0]["id"], "addon_fallback")
 
-    def test_insecure_catalog_bypass_allows_invalid_signatures(self) -> None:
+    def test_catalog_integrity_metadata_reports_signature_disabled(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             client = self._client(Path(td))
             source = self._source()
@@ -213,7 +209,7 @@ class TestCatalogCacheClient(unittest.TestCase):
                 "catalog/v1/publishers.json.sig": b"invalid-signature",
             }
 
-            with patch.dict(os.environ, {"ALLOW_INSECURE_CATALOG": "true"}, clear=False), patch.object(
+            with patch.object(
                 CatalogCacheClient,
                 "_download_bytes",
                 side_effect=lambda url: bad_fetch[url.split(source.base_url.rstrip("/") + "/")[1]],
@@ -222,8 +218,8 @@ class TestCatalogCacheClient(unittest.TestCase):
 
             self.assertTrue(refresh["ok"])
             status = refresh["catalog_status"]
-            self.assertEqual(status.get("catalog_integrity_mode"), "insecure_bypass")
-            self.assertIn("ALLOW_INSECURE_CATALOG", str(status.get("catalog_integrity_warning")))
+            self.assertEqual(status.get("catalog_integrity_mode"), "signature_disabled")
+            self.assertIn("disabled", str(status.get("catalog_integrity_warning")).lower())
 
     def test_query_cached_normalizes_channels_wrapped_release_details(self) -> None:
         with tempfile.TemporaryDirectory() as td:

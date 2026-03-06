@@ -34,7 +34,7 @@ from .lifecycle import (
 )
 from .models import ReleaseManifest
 from .resolver import ResolverError, resolve_manifest_compatibility
-from .signing import VerificationError, verify_detached_artifact_signature, verify_release_artifact
+from .signing import VerificationError, verify_checksum, verify_release_artifact
 from .standalone_desired import SSAPDesiredValidationError, build_desired_state, write_desired_state_atomic
 from .standalone_paths import service_addon_dir, service_version_dir
 from .sources import StoreSource, StoreSourcesStore
@@ -1001,22 +1001,9 @@ def build_store_router(
                             },
                         )
                     release_signature_b64 = _release_signature_b64(release_item)
-                    publisher_key_id = str(release_item.get("publisher_key_id") or "").strip()
-                    if not publisher_key_id:
-                        raise HTTPException(status_code=400, detail="catalog_publisher_key_missing")
-                    debug_publisher_key_id = publisher_key_id
-                    publisher_key = _publisher_key_from_payload(
-                        publishers_payload,
-                        publisher_id=manifest.publisher_id,
-                        publisher_key_id=publisher_key_id,
-                    )
-                    if publisher_key is None:
-                        raise HTTPException(status_code=400, detail="catalog_publisher_key_not_found_or_disabled")
-                    public_key_pem, key_signature_type = publisher_key
+                    debug_publisher_key_id = str(release_item.get("publisher_key_id") or "").strip() or None
                     release_signature_type = _release_signature_type(release_item)
                     debug_signature_type = release_signature_type
-                    if key_signature_type != release_signature_type:
-                        raise HTTPException(status_code=400, detail="catalog_signature_type_mismatch")
 
                     source_release_url = _release_artifact_url(release_item)
                     if not source_release_url:
@@ -1123,18 +1110,13 @@ def build_store_router(
             if source_id == "local":
                 verify_release_artifact(manifest, artifact_bytes, public_key_pem)
             else:
-                verify_detached_artifact_signature(
-                    artifact_bytes=artifact_bytes,
-                    signature_b64=release_signature_b64 or "",
-                    public_key_pem=public_key_pem,
-                    signature_type=release_signature_type,
-                )
+                verify_checksum(artifact_bytes, expected_sha256)
             await audit_store.record(
                 action="catalog_verify" if source_id != "local" else "install_verify",
                 addon_id=manifest.id,
                 version=manifest.version,
                 status="success",
-                message="signature_and_checksum_verified",
+                message="checksum_verified",
                 actor=actor,
             )
 

@@ -460,15 +460,7 @@ class CatalogCacheClient:
             if last_exc is not None:
                 raise last_exc
 
-            insecure_catalog_allowed = _env_bool("ALLOW_INSECURE_CATALOG", False)
-            if not insecure_catalog_allowed:
-                _verify_catalog_signatures(
-                    fetched["catalog/v1/index.json"],
-                    fetched["catalog/v1/index.json.sig"],
-                    fetched["catalog/v1/publishers.json"],
-                    fetched["catalog/v1/publishers.json.sig"],
-                    self.catalog_public_keys,
-                )
+            insecure_catalog_allowed = True
 
             tmp_dir = Path(tempfile.mkdtemp(prefix=f"catalog-{source_id}-", dir=str(self.cache_root)))
             try:
@@ -482,11 +474,9 @@ class CatalogCacheClient:
                         "source_id": source_id,
                         "status": "ok",
                         "resolved_base_url": selected_base,
-                        "catalog_integrity_mode": "insecure_bypass" if insecure_catalog_allowed else "verified",
+                        "catalog_integrity_mode": "signature_disabled",
                         "catalog_integrity_warning": (
-                            "ALLOW_INSECURE_CATALOG enabled: catalog signatures were not verified"
-                            if insecure_catalog_allowed
-                            else None
+                            "Catalog signature verification is disabled."
                         ),
                         "last_success_at": _utcnow_iso(),
                         "last_error_at": None,

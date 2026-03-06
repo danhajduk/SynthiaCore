@@ -4,15 +4,15 @@ from typing import Optional
 
 
 class DesiredSignature(BaseModel):
-    type: str
-    value: str
+    type: str = "none"
+    value: str = ""
 
 
 class DesiredRelease(BaseModel):
     artifact_url: str
     sha256: str
-    publisher_key_id: str
-    signature: DesiredSignature
+    publisher_key_id: str = ""
+    signature: DesiredSignature = Field(default_factory=DesiredSignature)
 
 
 class DesiredInstallSource(BaseModel):
