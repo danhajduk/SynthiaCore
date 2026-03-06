@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import logging
 import os
@@ -35,7 +33,7 @@ from .lifecycle import (
 )
 from .models import ReleaseManifest
 from .resolver import ResolverError, resolve_manifest_compatibility
-from .signing import VerificationError, verify_checksum, verify_release_artifact
+from .signing import VerificationError, verify_release_artifact
 from .standalone_desired import SSAPDesiredValidationError, build_desired_state, write_desired_state_atomic
 from .standalone_paths import service_addon_dir, service_version_dir
 from .sources import StoreSource, StoreSourcesStore
@@ -197,21 +195,6 @@ def _installed_summary_map() -> dict[str, dict[str, Any]]:
     return out
 
 
-def _hex_sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while True:
-            chunk = handle.read(1024 * 1024)
-            if not chunk:
-                break
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def _configured_core_version() -> str:
     return os.getenv("SYNTHIA_CORE_VERSION", "0.1.0")
 
@@ -226,15 +209,10 @@ def _stage_standalone_artifact(
     addon_id: str,
     version: str,
     artifact_bytes: bytes,
-    expected_sha256_candidates: list[str],
 ) -> Path:
     version_dir = service_version_dir(addon_id, version, create=True)
     staged_artifact_path = version_dir / "addon.tgz"
     staged_artifact_path.parent.mkdir(parents=True, exist_ok=True)
-    if staged_artifact_path.exists() and staged_artifact_path.is_file():
-        existing_sha = _file_sha256(staged_artifact_path)
-        if expected_sha256_candidates and any(hmac.compare_digest(existing_sha, item) for item in expected_sha256_candidates):
-            return staged_artifact_path
     tmp_path = staged_artifact_path.with_suffix(staged_artifact_path.suffix + ".tmp")
     tmp_path.write_bytes(artifact_bytes)
     tmp_path.replace(staged_artifact_path)
@@ -1043,7 +1021,7 @@ def build_store_router(
             expected_sha256_candidates: list[str] = []
             package_path: Path
             manifest: ReleaseManifest
-            public_key_pem: str
+            public_key_pem: str = ""
             release_signature_b64: str | None = None
             release_signature_type: str = "rsa-sha256"
 
@@ -1210,40 +1188,9 @@ def build_store_router(
                             channel=requested_channel,
                         )
                         did_refresh_retry = True
-                actual_sha256 = _hex_sha256(artifact_bytes)
                 expected_sha256_candidates = _release_checksum_candidates(release_item, manifest.checksum)
                 expected_sha256 = expected_sha256_candidates[0] if expected_sha256_candidates else ""
                 debug_expected_sha256 = expected_sha256_candidates
-                debug_actual_sha256 = actual_sha256
-                checksum_match = any(hmac.compare_digest(actual_sha256, candidate) for candidate in expected_sha256_candidates)
-                if not checksum_match:
-                    log.error(
-                        "Catalog sha256 mismatch addon_id=%s version=%s source_id=%s release_url=%s expected=%s actual=%s",
-                        manifest.id,
-                        manifest.version,
-                        source_id,
-                        source_release_url,
-                        expected_sha256_candidates,
-                        actual_sha256,
-                    )
-                    await audit_store.record(
-                        action="catalog_verify",
-                        addon_id=manifest.id,
-                        version=manifest.version,
-                        status="failed",
-                        message="catalog_sha256_mismatch",
-                        actor=actor,
-                    )
-                    raise HTTPException(
-                        status_code=409,
-                        detail={
-                            "error": "catalog_sha256_mismatch",
-                            "source_id": source_id,
-                            "artifact_url": source_release_url,
-                            "expected_sha256": expected_sha256_candidates,
-                            "actual_sha256": actual_sha256,
-                        },
-                    )
                 await audit_store.record(
                     action="catalog_download",
                     addon_id=manifest.id,
@@ -1257,16 +1204,13 @@ def build_store_router(
                 package_path = temp_install_dir / _artifact_temp_filename(source_release_url)
                 package_path.write_bytes(artifact_bytes)
 
-            if source_id == "local":
-                verify_release_artifact(manifest, artifact_bytes, public_key_pem)
-            else:
-                verify_checksum(artifact_bytes, expected_sha256)
+            verify_release_artifact(manifest, artifact_bytes, public_key_pem)
             await audit_store.record(
                 action="catalog_verify" if source_id != "local" else "install_verify",
                 addon_id=manifest.id,
                 version=manifest.version,
                 status="success",
-                message="checksum_verified",
+                message="verification_skipped",
                 actor=actor,
             )
 
@@ -1340,7 +1284,6 @@ def build_store_router(
                         manifest.id,
                         manifest.version,
                         artifact_bytes,
-                        expected_sha256_candidates,
                     )
                 )
                 service_dir = service_addon_dir(manifest.id, create=True)
@@ -1475,7 +1418,6 @@ def build_store_router(
                             manifest.id,
                             manifest.version,
                             artifact_bytes,
-                            expected_sha256_candidates,
                         )
                     )
                 standalone_dir = service_addon_dir(manifest.id, create=False)

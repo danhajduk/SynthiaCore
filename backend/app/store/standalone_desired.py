@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError
 
 
 class SSAPDesiredValidationError(ValueError):
@@ -22,16 +21,9 @@ class DesiredSignature(BaseModel):
 
 class DesiredRelease(BaseModel):
     artifact_url: str = Field(..., min_length=1)
-    sha256: str
+    sha256: str = ""
     publisher_key_id: str = ""
     signature: DesiredSignature = Field(default_factory=DesiredSignature)
-
-    @field_validator("sha256")
-    @classmethod
-    def _validate_sha256(cls, value: str) -> str:
-        if not re.fullmatch(r"[0-9a-f]{64}", value):
-            raise ValueError("sha256_must_be_64_lowercase_hex")
-        return value
 
 
 class DesiredInstallSource(BaseModel):
@@ -78,7 +70,7 @@ def build_desired_state(
     channel: str,
     pinned_version: str | None,
     artifact_url: str,
-    sha256: str,
+    sha256: str = "",
     publisher_key_id: str = "",
     signature_value: str = "",
     runtime_project_name: str,

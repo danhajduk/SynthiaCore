@@ -2,7 +2,6 @@
 
 This runbook covers store install incidents returning:
 - `catalog_artifact_unavailable`
-- `catalog_sha256_mismatch`
 
 Use it during operator triage and recovery for `POST /api/store/install`.
 
@@ -57,36 +56,7 @@ curl -I "<artifact_url>"
    - install pinned previous known-good addon release,
    - if official catalog is wrong upstream, wait for catalog correction and avoid repeated retries.
 
-## 4. Incident: `catalog_sha256_mismatch`
-
-Meaning: downloaded artifact bytes hash does not match expected catalog digest.
-
-1. Capture mismatch fields from install response or status:
-   - `expected_sha256`
-   - `actual_sha256`
-   - `artifact_url`
-   - `source_id`
-   - `resolved_base_url`
-2. Download artifact and compute hash independently:
-
-```bash
-curl -L "<artifact_url>" -o /tmp/addon.tgz
-sha256sum /tmp/addon.tgz
-```
-
-3. Compare local hash with:
-   - `last_install_error.actual_sha256`
-   - digest values in `runtime/store/cache/<source_id>/index.json`
-4. Validate catalog integrity artifacts from cache:
-   - `runtime/store/cache/<source_id>/index.json.sig`
-   - `runtime/store/cache/<source_id>/publishers.json`
-   - `runtime/store/cache/<source_id>/publishers.json.sig`
-5. If mismatch persists:
-   - treat as release integrity incident,
-   - do not install,
-   - escalate to catalog/release publisher owner.
-
-## 5. Rollback Path
+## 4. Rollback Path
 
 If production is impacted:
 
@@ -94,19 +64,17 @@ If production is impacted:
 2. If a bad install already occurred, uninstall and reinstall known-good package:
    - `POST /api/store/uninstall`
    - `POST /api/store/install` (local package mode using verified artifact + manifest + key)
-3. Re-enable addon only after signature/checksum verification passes.
+3. Re-enable addon only after artifact URL and release metadata are verified by operator checks.
 4. Record incident notes with:
    - failing source id,
    - resolved base URL,
    - artifact URL,
-   - expected/actual sha256,
    - timestamp and operator actions.
 
-## 6. Exit Criteria
+## 5. Exit Criteria
 
 Incident is closed only when:
 - source refresh is healthy,
 - artifact URL is reachable,
-- checksum/signature verification passes,
 - install returns `200`,
 - `/api/store/status/{addon_id}` has `last_install_error = null`.

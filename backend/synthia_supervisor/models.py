@@ -10,7 +10,7 @@ class DesiredSignature(BaseModel):
 
 class DesiredRelease(BaseModel):
     artifact_url: str
-    sha256: str
+    sha256: str = ""
     publisher_key_id: str = ""
     signature: DesiredSignature = Field(default_factory=DesiredSignature)
 

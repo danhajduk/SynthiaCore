@@ -237,3 +237,4 @@
 2026-03-05 - Task 102: added /api/store/sources/{id}/validate endpoint with catalog schema/version checks
 2026-03-05 - Task 103: added store status summary endpoint and Addon Store triage card
 2026-03-05 - Session complete: finished tasks 101-103 (quick links, source validate API, status aggregation card)
+2026-03-05 - Task 108: removed SHA/checksum enforcement in store install and standalone desired-state validation.

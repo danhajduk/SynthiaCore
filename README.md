@@ -100,7 +100,7 @@ Catalog cache behavior (Phase 2):
   - accepts channel release entries from both `channels.<name>[]` and wrapped `channels.<name>.releases[]` schemas,
   - on artifact download `404`, backend performs one source refresh + re-resolve retry before failing install,
   - if artifact `404` persists after retry, install returns `409` with `catalog_artifact_unavailable` including source and artifact URL details,
-  - checksum verification accepts `sha256:<hex>` style metadata and returns `409` `catalog_sha256_mismatch` with expected/actual digest details when verification fails,
+  - checksum metadata (`sha256`, `checksum`) is accepted as informational install metadata only (not enforced),
   - package/layout consistency failures return structured diagnostics: `catalog_package_layout_invalid` for generic embedded entrypoint issues, `catalog_profile_layout_mismatch` when catalog metadata says `embedded_addon` but artifact layout is service-style (`app/main.py`), and `catalog_package_profile_unsupported` with `remediation_path=standalone_deploy_register` when standalone packages are intentionally unsupported by embedded install flow,
   - compatibility checks use `SYNTHIA_CORE_VERSION` (default `0.1.0` if unset); set this in `scripts/synthia.env` to match deployed core semver,
   - when no compatible release exists, install returns `409` with `catalog_no_compatible_release` plus resolver reasons (for example core-version minimum mismatch),
@@ -109,9 +109,9 @@ Catalog cache behavior (Phase 2):
   - accepts release artifact metadata in either top-level (`artifact_url`/`url`/`download_url`) or nested (`artifact.url`) forms,
   - supports both `.zip` and tar-based addon artifacts (including `.tgz`) for catalog installs,
   - downloads artifact with catalog client redirect/timeout/size protections,
-  - verifies SHA256 over artifact bytes before atomic install,
+  - skips checksum and signature verification during artifact install,
   - records source metadata used by `GET /api/store/status/{addon_id}`,
-  - persists `last_install_error` debug context after catalog install failures (error code, source id, resolved base URL, artifact URL, expected/actual SHA256, remediation_path when available).
+  - persists `last_install_error` debug context after catalog install failures (error code, source id, resolved base URL, artifact URL, remediation_path when available).
 
 Store status response fields (Phase 2):
 - `installed_version`
@@ -123,7 +123,7 @@ Store status response fields (Phase 2):
 - `last_install_error` (or `null` after successful install)
 
 Store incident runbook:
-- `docs/addon-store/incident-runbook.md` covers `catalog_artifact_unavailable` and `catalog_sha256_mismatch` triage/recovery.
+- `docs/addon-store/incident-runbook.md` covers `catalog_artifact_unavailable` triage/recovery.
 - `scripts/validate-catalog-package-profile.sh <package_profile> <artifact_path>` enforces release profile/layout alignment before catalog publication.
 
 Catalog query parameters:

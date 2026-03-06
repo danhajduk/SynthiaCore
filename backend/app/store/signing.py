@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -27,18 +25,8 @@ class VerificationError(Exception):
         return payload
 
 
-def _hex_sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
 def verify_checksum(artifact_bytes: bytes, expected_checksum: str) -> None:
-    actual = _hex_sha256(artifact_bytes)
-    if not hmac.compare_digest(actual, expected_checksum.lower().strip()):
-        raise VerificationError(
-            code="checksum_mismatch",
-            message="Artifact checksum does not match release manifest checksum.",
-            details={"expected": expected_checksum, "actual": actual},
-        )
+    return None
 
 
 def verify_rsa_signature(manifest: ReleaseManifest, public_key_pem: str) -> None:
@@ -60,8 +48,8 @@ def verify_release_artifact(
     artifact_bytes: bytes,
     public_key_pem: str,
 ) -> None:
-    # Keep checksum validation, signature verification is disabled.
-    verify_checksum(artifact_bytes, manifest.checksum)
+    # Signature and checksum verification are disabled.
+    return None
 
 
 def run_pre_enable_verification(
