@@ -11,6 +11,7 @@ EnvironmentFile=-@INSTALL_DIR@/scripts/synthia.env
 Environment=SYNTHIA_ADDONS_DIR=%h/Projects/SynthiaAddons
 Environment=SYNTHIA_CATALOG_PUBLISHERS=@INSTALL_DIR@/runtime/store/cache/official/publishers.json
 Environment=SYNTHIA_SUPERVISOR_INTERVAL_S=5
+Environment=SYNTHIA_SUPERVISOR_SKIP_SIGNATURE_VERIFY=true
 Environment=PYTHONUNBUFFERED=1
 
 ExecStart=@INSTALL_DIR@/backend/.venv/bin/python -m synthia_supervisor.main
