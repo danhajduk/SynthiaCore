@@ -30,6 +30,16 @@ Verify catalog release fields match published artifact bytes:
 - `sha256`/`checksum` correspond to that artifact.
 - detached signature metadata corresponds to that artifact.
 
+Validate release version fields before publish:
+
+```bash
+scripts/validate-catalog-release-versions.py /path/to/catalog/v1/index.json
+```
+
+Gate:
+- every release `version` must be semver (`1.2.3`) or semver+suffix (`1.2.3d`).
+- if validator exits non-zero, do not publish.
+
 ## 3) Rollback Safety (Required)
 
 If a profile/layout mismatch is discovered after publication:
