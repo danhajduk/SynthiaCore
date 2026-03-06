@@ -25,6 +25,19 @@ def load_json(path: Path) -> Dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    val = raw.strip().lower()
+    if val in {"1", "true", "yes", "on"}:
+        return True
+    if val in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 def write_json_atomic(path: Path, data: Dict[str, Any]) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     with tmp.open("w", encoding="utf-8") as f:
@@ -98,15 +111,22 @@ def reconcile_one(addon_dir: Path):
             raise RuntimeError("Artifact missing")
 
         # Enforce SSAP verification order: verify -> extract -> compose files -> compose up
-        log.info("verify_start addon_id=%s artifact=%s", desired.addon_id, artifact_path)
-        verify_release_option_a(
-            artifact_path,
-            desired.install_source.release.sha256,
-            desired.install_source.release.signature.value,
-            desired.install_source.release.publisher_key_id,
-            desired.install_source.release.signature.type,
-        )
-        log.info("verify_done addon_id=%s", desired.addon_id)
+        skip_signature_verify = _env_bool("SYNTHIA_SUPERVISOR_SKIP_SIGNATURE_VERIFY", False)
+        if skip_signature_verify:
+            log.warning(
+                "verify_skipped addon_id=%s reason=SYNTHIA_SUPERVISOR_SKIP_SIGNATURE_VERIFY enabled",
+                desired.addon_id,
+            )
+        else:
+            log.info("verify_start addon_id=%s artifact=%s", desired.addon_id, artifact_path)
+            verify_release_option_a(
+                artifact_path,
+                desired.install_source.release.sha256,
+                desired.install_source.release.signature.value,
+                desired.install_source.release.publisher_key_id,
+                desired.install_source.release.signature.type,
+            )
+            log.info("verify_done addon_id=%s", desired.addon_id)
         ensure_extracted(artifact_path, extracted_dir)
         ensure_compose_files(desired, extracted_dir, compose_file, env_file)
 
