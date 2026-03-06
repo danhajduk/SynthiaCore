@@ -546,6 +546,24 @@ class TestStoreApiEndpoints(unittest.TestCase):
         )
         self.assertEqual(uninstall_res.status_code, 404, uninstall_res.text)
 
+    def test_status_summary_reports_top_install_error_codes(self) -> None:
+        with patch(
+            "app.store.router._load_install_state",
+            return_value={
+                "a": {"last_install_error": {"error": "catalog_release_version_invalid"}},
+                "b": {"last_install_error": {"error": "catalog_release_version_invalid"}},
+                "c": {"last_install_error": {"error": "catalog_sha256_mismatch"}},
+                "d": {"installed_version": "1.0.0"},
+            },
+        ):
+            res = self.client.get("/api/store/status/summary")
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["tracked_addons"], 4)
+        self.assertEqual(payload["addons_with_errors"], 3)
+        self.assertEqual(payload["top_errors"][0]["code"], "catalog_release_version_invalid")
+        self.assertEqual(payload["top_errors"][0]["count"], 2)
+
     def test_status_reads_standalone_runtime_json(self) -> None:
         runtime_path = Path(self.tmp.name) / "SynthiaAddons" / "services" / "hello_world" / "runtime.json"
         runtime_path.parent.mkdir(parents=True, exist_ok=True)

@@ -235,3 +235,5 @@
 2026-03-05 - Task 100: added pre-publish catalog release version validator script and checklist gate
 2026-03-05 - Task 101: added Addon Store quick-action remediation links for version/profile docs
 2026-03-05 - Task 102: added /api/store/sources/{id}/validate endpoint with catalog schema/version checks
+2026-03-05 - Task 103: added store status summary endpoint and Addon Store triage card
+2026-03-05 - Session complete: finished tasks 101-103 (quick links, source validate API, status aggregation card)

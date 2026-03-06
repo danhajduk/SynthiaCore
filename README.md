@@ -64,6 +64,7 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 - `POST /api/store/update` (admin auth required)
 - `POST /api/store/uninstall` (admin auth required)
 - `GET /api/store/status/{addon_id}`
+- `GET /api/store/status/summary`
 - `GET /api/store/status/{addon_id}/diagnostics`
 - Store lifecycle audit events are persisted to SQLite table `store_audit_log` (`STORE_AUDIT_DB`, default `var/store_audit.db`).
 - Install/update responses expose `registry_loaded` (present in current registry snapshot) and `hot_loaded` (currently always `false` until runtime hot-reload support exists).
@@ -229,6 +230,7 @@ Frontend shows “Update available” / “Up to date” / “Repo status unavai
 - Guest access is limited to `/` (Home). Non-home routes redirect to `/` until an admin session is active.
 - Home page includes admin username/password sign-in and sign-out controls backed by `/api/admin/session/*` cookie-session endpoints.
 - `/store` — Addon Store catalog page with refresh, client-side search, install actions, channel-aware release detail rendering, package-profile field on addon cards, profile-mismatch action cards, expandable install diagnostics, display-name-first publisher rendering, and quick-action remediation links to docs for version/profile issues.
+- `/store` status card now includes install-failure triage summary (`tracked_addons`, `addons_with_errors`, top failure code) from `/api/store/status/summary`.
 - `/addons` — Addons inventory plus distributed install wizard (install session start, permissions, deployment choice, discovery polling, configure, verify, and UI link).
 - `/settings` — App settings (stored in SQLite).
 - `/settings/jobs` — Live scheduler jobs + filters.

@@ -135,6 +135,31 @@ def _get_install_state(addon_id: str) -> dict[str, Any] | None:
     return None
 
 
+def _install_error_summary() -> dict[str, Any]:
+    state = _load_install_state()
+    counts: dict[str, int] = {}
+    with_error = 0
+    for value in state.values():
+        if not isinstance(value, dict):
+            continue
+        err = value.get("last_install_error")
+        if not isinstance(err, dict):
+            continue
+        code = str(err.get("error") or "unknown").strip() or "unknown"
+        counts[code] = counts.get(code, 0) + 1
+        with_error += 1
+    top_errors = [
+        {"code": code, "count": count}
+        for code, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
+    return {
+        "ok": True,
+        "tracked_addons": len(state),
+        "addons_with_errors": with_error,
+        "top_errors": top_errors,
+    }
+
+
 def _resolved_base_url_for_source(
     cache_catalog: CatalogCacheClient,
     source_id: str | None,
@@ -1883,6 +1908,10 @@ def build_store_router(
             if detail == "addon_not_installed":
                 raise HTTPException(status_code=404, detail=detail)
             raise HTTPException(status_code=400, detail=detail)
+
+    @router.get("/status/summary")
+    async def addon_store_status_summary():
+        return _install_error_summary()
 
     @router.get("/status/{addon_id}")
     async def addon_store_status(addon_id: str):

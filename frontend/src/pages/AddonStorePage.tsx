@@ -58,6 +58,12 @@ type CatalogResponse = {
   installed?: Record<string, InstalledInfo>;
 };
 
+type StoreStatusSummary = {
+  tracked_addons?: number;
+  addons_with_errors?: number;
+  top_errors?: Array<{ code: string; count: number }>;
+};
+
 function formatTs(value?: string | null): string {
   if (!value) return "-";
   const d = new Date(value);
@@ -174,6 +180,7 @@ export default function AddonStorePage() {
   const [busyInstall, setBusyInstall] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [installErrorDetail, setInstallErrorDetail] = useState<InstallErrorDetail | null>(null);
+  const [statusSummary, setStatusSummary] = useState<StoreStatusSummary>({});
 
   async function loadCatalog() {
     setLoading(true);
@@ -196,8 +203,20 @@ export default function AddonStorePage() {
     }
   }
 
+  async function loadStatusSummary() {
+    try {
+      const res = await fetch("/api/store/status/summary");
+      if (!res.ok) return;
+      const payload = (await res.json()) as StoreStatusSummary;
+      setStatusSummary(payload || {});
+    } catch {
+      // Keep page usable even when summary endpoint is unavailable.
+    }
+  }
+
   useEffect(() => {
     loadCatalog();
+    loadStatusSummary();
   }, []);
 
   async function refreshCatalog() {
@@ -311,6 +330,17 @@ export default function AddonStorePage() {
         </div>
         {!!catalogStatus.last_error_message && (
           <div className="store-error-inline">{catalogStatus.last_error_message}</div>
+        )}
+        <div className="store-status-line">
+          <strong>Tracked addons:</strong> {statusSummary.tracked_addons ?? 0}
+        </div>
+        <div className="store-status-line">
+          <strong>Addons with install errors:</strong> {statusSummary.addons_with_errors ?? 0}
+        </div>
+        {Array.isArray(statusSummary.top_errors) && statusSummary.top_errors.length > 0 && (
+          <div className="store-status-line">
+            <strong>Top error:</strong> {statusSummary.top_errors[0].code} ({statusSummary.top_errors[0].count})
+          </div>
         )}
       </div>
 
