@@ -15,6 +15,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request
 
 from app.addons.registry import AddonRegistry
 from app.api.admin import require_admin_token
+from app.system.runtime import StandaloneRuntimeService
 from .audit import StoreAuditLogStore
 from .catalog import CatalogCacheClient, CatalogQuery, StaticCatalogStore
 from . import lifecycle as lifecycle_mod
@@ -219,34 +220,66 @@ def _stage_standalone_artifact(
     return staged_artifact_path
 
 
-def _read_standalone_runtime(addon_id: str) -> dict[str, Any]:
-    runtime_path = service_addon_dir(addon_id, create=False) / "runtime.json"
-    payload: dict[str, Any] = {
-        "runtime_path": str(runtime_path),
-        "runtime_state": "unknown",
-        "standalone_runtime": None,
-    }
-    if not runtime_path.exists():
-        return payload
-    try:
-        raw = json.loads(runtime_path.read_text(encoding="utf-8"))
-        if not isinstance(raw, dict):
-            payload["runtime_error"] = "runtime_json_invalid"
-            return payload
-        state = str(raw.get("state") or "unknown")
-        payload["runtime_state"] = state
-        payload["standalone_runtime"] = {
-            "state": state,
-            "active_version": raw.get("active_version"),
-            "last_action": raw.get("last_action"),
-            "health": raw.get("health"),
-            "error": raw.get("error"),
-            "last_error": raw.get("last_error"),
+def _read_standalone_runtime(
+    addon_id: str,
+    runtime_service: StandaloneRuntimeService | None = None,
+) -> dict[str, Any]:
+    runtime = runtime_service or StandaloneRuntimeService()
+    snapshot = runtime.get_standalone_addon_runtime_snapshot(addon_id)
+    runtime_data = snapshot.runtime.model_dump(mode="python")
+    raw_runtime = snapshot.raw_runtime if isinstance(snapshot.raw_runtime, dict) else None
+    health_payload = None
+    if raw_runtime is not None:
+        health_payload = raw_runtime.get("health")
+    if health_payload is None and runtime_data.get("health_status") != "unknown":
+        health_payload = {
+            "status": runtime_data.get("health_status"),
+            "detail": runtime_data.get("health_detail"),
         }
-        return payload
-    except Exception as exc:
-        payload["runtime_error"] = str(exc) or type(exc).__name__
-        return payload
+
+    payload: dict[str, Any] = {
+        "runtime_path": snapshot.runtime_path,
+        "runtime_state": runtime_data.get("runtime_state") or "unknown",
+        "standalone_runtime": (
+            {
+                "state": runtime_data.get("runtime_state") or "unknown",
+                "active_version": (
+                    raw_runtime.get("active_version")
+                    if raw_runtime is not None
+                    else runtime_data.get("active_version")
+                ),
+                "target_version": runtime_data.get("target_version"),
+                "last_action": raw_runtime.get("last_action") if raw_runtime is not None else None,
+                "health": health_payload,
+                "error": (
+                    raw_runtime.get("error")
+                    if raw_runtime is not None
+                    else runtime_data.get("last_error")
+                ),
+                "last_error": (
+                    raw_runtime.get("last_error")
+                    if raw_runtime is not None
+                    else runtime_data.get("last_error")
+                ),
+                "container_name": runtime_data.get("container_name"),
+                "container_status": runtime_data.get("container_status"),
+                "running": runtime_data.get("running"),
+                "restart_count": runtime_data.get("restart_count"),
+                "started_at": runtime_data.get("started_at"),
+                "published_ports": runtime_data.get("published_ports") or [],
+                "network": runtime_data.get("network"),
+            }
+            if raw_runtime is not None
+            else None
+        ),
+    }
+    if snapshot.runtime_error:
+        payload["runtime_error"] = snapshot.runtime_error
+    if snapshot.docker_error:
+        payload["docker_error"] = snapshot.docker_error
+    if snapshot.desired_error:
+        payload["desired_error"] = snapshot.desired_error
+    return payload
 
 
 def _runtime_error_summary(runtime_payload: dict[str, Any]) -> str | None:
@@ -791,11 +824,13 @@ def build_store_router(
     audit_store: StoreAuditLogStore,
     sources_store: StoreSourcesStore | None = None,
     catalog_client: CatalogCacheClient | None = None,
+    runtime_service: StandaloneRuntimeService | None = None,
 ) -> APIRouter:
     router = APIRouter()
     static_catalog = StaticCatalogStore.from_default_path()
     cache_catalog = catalog_client or CatalogCacheClient.from_default_path()
     sources = sources_store
+    standalone_runtime = runtime_service or StandaloneRuntimeService()
 
     @router.get("/catalog")
     async def get_catalog(
@@ -1221,7 +1256,7 @@ def build_store_router(
             )
 
             if requested_install_mode != manifest.package_profile:
-                runtime_payload = _read_standalone_runtime(manifest.id)
+                runtime_payload = _read_standalone_runtime(manifest.id, standalone_runtime)
                 mismatch_payload: dict[str, Any] = {
                     "error": "catalog_package_profile_unsupported" if catalog_install else "package_profile_unsupported",
                     "mode": manifest.package_profile,
@@ -1343,7 +1378,7 @@ def build_store_router(
                     desired_state=body.desired_state,
                 )
                 write_desired_state_atomic(desired_path, desired_payload)
-                runtime_payload = _read_standalone_runtime(manifest.id)
+                runtime_payload = _read_standalone_runtime(manifest.id, standalone_runtime)
                 standalone_runtime = runtime_payload.get("standalone_runtime")
                 active_version = standalone_runtime.get("active_version") if isinstance(standalone_runtime, dict) else None
                 last_action = standalone_runtime.get("last_action") if isinstance(standalone_runtime, dict) else None
@@ -1422,7 +1457,7 @@ def build_store_router(
                     )
                 standalone_dir = service_addon_dir(manifest.id, create=False)
                 desired_path = standalone_dir / "desired.json"
-                runtime_payload = _read_standalone_runtime(manifest.id)
+                runtime_payload = _read_standalone_runtime(manifest.id, standalone_runtime)
                 error_payload: dict[str, Any] = {
                     "error": "catalog_package_profile_unsupported" if catalog_install else "package_profile_unsupported",
                     "mode": manifest.package_profile,
@@ -1869,7 +1904,7 @@ def build_store_router(
         last_install_error = install_state.get("last_install_error")
         if not isinstance(last_install_error, dict):
             last_install_error = None
-        runtime_payload = _read_standalone_runtime(addon_id)
+        runtime_payload = _read_standalone_runtime(addon_id, standalone_runtime)
 
         return {
             "ok": True,
@@ -1893,7 +1928,7 @@ def build_store_router(
 
     @router.get("/status/{addon_id}/diagnostics")
     async def addon_store_status_diagnostics(addon_id: str):
-        runtime_payload = _read_standalone_runtime(addon_id)
+        runtime_payload = _read_standalone_runtime(addon_id, standalone_runtime)
         return {
             "ok": True,
             "addon_id": addon_id,

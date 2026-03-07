@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 14:51 US/Pacific
+Last Updated: 2026-03-07 15:42 US/Pacific
 
 ## Conventions
 
@@ -13,7 +13,7 @@ Last Updated: 2026-03-07 14:51 US/Pacific
 - `/api/health`
 - `/api/addons*` (core addon listing, enablement, registry, install sessions, proxy aliases)
 - `/api/admin/*` (session + reload + users/admin registry)
-- `/api/system/*` (stats/settings/mqtt/repo)
+- `/api/system/*` (stats/settings/mqtt/repo/runtime)
 - `/api/system/scheduler/*` (jobs/leases/history/queue/debug)
 - `/api/auth/*` (service token operations)
 - `/api/policy/*` (grants/revocations)
@@ -26,6 +26,10 @@ Last Updated: 2026-03-07 14:51 US/Pacific
 - Admin-protected endpoints require admin session/token checks.
 - Service-oriented endpoints require service token scope checks.
 - Public/read endpoints remain accessible without admin privilege where designed.
+
+Implemented admin-protected runtime endpoints:
+- `GET /api/system/addons/runtime`
+- `GET /api/system/addons/runtime/{addon_id}`
 
 ## Error Format
 

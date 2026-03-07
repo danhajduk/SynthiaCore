@@ -1,6 +1,6 @@
 # Synthia Supervisor Runtime Specification (Code-Verified)
 
-Last Updated: 2026-03-07 14:51 US/Pacific
+Last Updated: 2026-03-07 15:42 US/Pacific
 
 This document only describes behavior that is present in code today. Any missing capability is explicitly labeled **Not developed**.
 
@@ -18,6 +18,7 @@ Code sources used:
 - `backend/synthia_supervisor/models.py`
 - `backend/synthia_supervisor/crypto.py`
 - `backend/app/store/router.py`
+- `backend/app/system/runtime/service.py`
 - `backend/app/store/standalone_desired.py`
 - `backend/app/store/standalone_paths.py`
 - `backend/app/system/stats/service.py`
@@ -173,6 +174,20 @@ Implemented:
 
 Not developed:
 - Historical event log in `runtime.json`.
+
+## 12.1) Core Runtime Aggregation Interface
+
+Implemented in Core (outside supervisor process):
+- `GET /api/system/addons/runtime`
+- `GET /api/system/addons/runtime/{addon_id}`
+- Runtime payloads are merged from:
+  - supervisor `runtime.json`
+  - Core-written `desired.json`
+  - Docker container inspect metadata (when Docker is reachable)
+
+Boundary clarification:
+- This runtime aggregation is read-only and does not mutate supervisor state.
+- Store status/diagnostics runtime fields are sourced through the same aggregation service.
 
 ## 13) Concurrency / Locking (Important)
 

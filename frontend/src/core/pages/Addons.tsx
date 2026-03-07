@@ -38,6 +38,24 @@ type InstallSession = {
   updated_at: string;
 };
 
+type StandaloneAddonRuntime = {
+  addon_id: string;
+  desired_state: string;
+  runtime_state: string;
+  active_version: string | null;
+  target_version: string | null;
+  container_name: string | null;
+  container_status: string | null;
+  running: boolean | null;
+  restart_count: number | null;
+  started_at: string | null;
+  health_status: string;
+  health_detail: string | null;
+  published_ports: string[];
+  network: string | null;
+  last_error: string | null;
+};
+
 const POLLABLE_STATES = new Set(["pending_deployment", "discovered", "configured"]);
 
 async function readError(res: Response): Promise<string> {
@@ -61,6 +79,26 @@ export default function Addons() {
   const [brokerTls, setBrokerTls] = useState(false);
   const [brokerUsername, setBrokerUsername] = useState("");
   const [brokerPassword, setBrokerPassword] = useState("");
+  const [runtimeItems, setRuntimeItems] = useState<StandaloneAddonRuntime[]>([]);
+  const [runtimeErr, setRuntimeErr] = useState<string | null>(null);
+  const [runtimeBusy, setRuntimeBusy] = useState(false);
+
+  async function refreshRuntime() {
+    setRuntimeBusy(true);
+    setRuntimeErr(null);
+    try {
+      const res = await fetch("/api/system/addons/runtime", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await readError(res));
+      const payload = (await res.json()) as { items?: StandaloneAddonRuntime[] };
+      setRuntimeItems(Array.isArray(payload.items) ? payload.items : []);
+    } catch (e: any) {
+      setRuntimeErr(e?.message ?? String(e));
+    } finally {
+      setRuntimeBusy(false);
+    }
+  }
 
   useEffect(() => {
     apiGet<AddonInfo[]>("/api/addons")
@@ -74,6 +112,7 @@ export default function Addons() {
         }
       })
       .catch((e) => setErr(String(e)));
+    void refreshRuntime();
   }, []);
 
   useEffect(() => {
@@ -291,6 +330,50 @@ export default function Addons() {
               </div>
             ))
           )}
+            <div className="addon-runtime-panel">
+              <div className="addon-runtime-header">
+                <div className="addon-installer-title">Standalone Runtime</div>
+                <button className="addon-btn" onClick={() => void refreshRuntime()} disabled={runtimeBusy}>
+                  {runtimeBusy ? "Refreshing..." : "Refresh Runtime"}
+                </button>
+              </div>
+              <div className="addon-meta">
+                Canonical runtime view from desired state, runtime state, and container metadata.
+              </div>
+              {runtimeErr && <pre className="addons-error">{runtimeErr}</pre>}
+              {runtimeItems.length === 0 ? (
+                <div className="addon-meta">No standalone runtime entries found.</div>
+              ) : (
+                <div className="addon-runtime-list">
+                  {runtimeItems.map((item) => (
+                    <div key={item.addon_id} className="addon-runtime-card">
+                      <div className="addon-card-header">
+                        <div className="addon-name">{item.addon_id}</div>
+                        <div className="addon-status">runtime: {item.runtime_state}</div>
+                      </div>
+                      <div className="addon-meta">
+                        desired: {item.desired_state} • health: {item.health_status}
+                      </div>
+                      <div className="addon-meta">
+                        active: {item.active_version ?? "unknown"} • target: {item.target_version ?? "none"}
+                      </div>
+                      <div className="addon-meta">
+                        container: {item.container_name ?? "none"} • status: {item.container_status ?? "unknown"}
+                        {typeof item.running === "boolean" ? ` • running: ${item.running ? "yes" : "no"}` : ""}
+                      </div>
+                      <div className="addon-meta">
+                        network: {item.network ?? "unknown"} • restarts: {item.restart_count ?? 0}
+                      </div>
+                      {item.published_ports.length > 0 && (
+                        <div className="addon-desc">ports: {item.published_ports.join(", ")}</div>
+                      )}
+                      {item.health_detail && <div className="addon-desc">health detail: {item.health_detail}</div>}
+                      {item.last_error && <div className="addons-error">last error: {item.last_error}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="addon-installer-card">
             <div className="addon-installer-title">Install Wizard</div>

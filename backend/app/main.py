@@ -43,6 +43,7 @@ from app.system.policy import PolicyStore, build_policy_router
 from app.system.telemetry import UsageTelemetryStore, build_telemetry_router
 from app.system.audit import AuditLogStore
 from app.system.users import UsersStore, build_users_router
+from app.system.runtime import StandaloneRuntimeService
 from app.system.repo_status import router as repo_status_router
 from app.system.scheduler import build_scheduler_router
 from app.store import CatalogCacheClient, build_store_models_router, StoreAuditLogStore, StoreSourcesStore, build_store_router
@@ -255,7 +256,9 @@ def create_app() -> FastAPI:
     app.state.addon_proxy = addon_proxy
 
     # System API using the registry
-    app.include_router(build_system_router(registry), prefix="/api")
+    runtime_service = StandaloneRuntimeService()
+    app.state.standalone_runtime_service = runtime_service
+    app.include_router(build_system_router(registry, runtime_service), prefix="/api")
     app.include_router(build_addons_registry_router(registry), prefix="/api")
     app.include_router(build_addons_install_router(registry, install_sessions_store), prefix="/api")
     app.include_router(build_admin_registry_router(registry), prefix="/api")

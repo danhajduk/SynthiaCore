@@ -1,6 +1,6 @@
 # Synthia Core Documentation
 
-Last Updated: 2026-03-07 14:51 US/Pacific
+Last Updated: 2026-03-07 15:42 US/Pacific
 
 ## Documentation Contract
 
@@ -25,6 +25,7 @@ Core owns:
 - Scheduler state and lifecycle APIs
 - Addon registry, install sessions, store/catalog flows
 - Desired state generation for standalone services
+- Canonical standalone runtime aggregation (`desired.json` + `runtime.json` + Docker metadata)
 - UI routing, settings, metrics, and store pages
 
 Core does not own:
@@ -48,7 +49,7 @@ Core
 └── Addon Runtime Integration
     ├── Core writes desired.json and stages addon.tgz
     ├── Supervisor reconciles runtime.json and compose execution
-    └── Standalone addon containers run under Docker
+    └── Core runtime API exposes normalized standalone runtime status
 ```
 
 ## Documentation Index

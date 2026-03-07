@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 14:51 US/Pacific
+Last Updated: 2026-03-07 15:42 US/Pacific
 
 ## Overview
 
@@ -11,7 +11,7 @@ It mounts core routers, addon routers, and store/scheduler/auth subsystems.
 
 - `app/main.py`: app factory, middleware, router wiring, background tasks
 - `app/api/*`: top-level routers (system, admin, addon registry/install)
-- `app/system/*`: scheduler, stats, auth, users, policy, telemetry, mqtt, services
+- `app/system/*`: scheduler, stats, auth, users, policy, telemetry, mqtt, services, runtime aggregation
 - `app/store/*`: catalog/store lifecycle, source management, install/update/uninstall
 - `app/addons/*`: discovery, registry, proxy, install sessions
 - `synthia_supervisor/*`: standalone service reconciler (separate process)
@@ -28,6 +28,7 @@ It mounts core routers, addon routers, and store/scheduler/auth subsystems.
   - settings
   - mqtt controls
   - repo status
+  - standalone runtime aggregation (`/system/addons/runtime*`, admin-protected)
 - `/api/system/scheduler`:
   - job submit, lease request/heartbeat/complete/report/revoke
   - queue endpoints and history endpoints
@@ -63,7 +64,8 @@ Backend uses mixed persistence:
 - Store -> supervisor integration:
   - Core stages `addon.tgz`
   - Core writes `desired.json`
-  - Core reads `runtime.json` and diagnostics
+  - Core runtime aggregation service merges `desired.json`, `runtime.json`, and Docker container metadata
+  - Store status/diagnostics endpoints read runtime data through the same runtime aggregation service
 - Scheduler -> stats integration:
   - engine metrics provider uses sampled system metrics and API metrics
 - Auth/user integration:
@@ -73,3 +75,4 @@ Backend uses mixed persistence:
 
 - Hot runtime addon backend reload in-process (`hot_loaded` remains false in store responses)
 - Strong distributed coordination primitives for scheduler/supervisor
+- Active addon HTTP health probing in runtime aggregation (`/api/addon/health`) is not developed
