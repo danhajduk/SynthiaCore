@@ -249,3 +249,5 @@
 2026-03-07 - Session complete: Task 112 documentation contract update completed.
 2026-03-07 - Task 113: Refined supervisor spec with development policy, out-of-scope boundaries, and runtime assumptions.
 2026-03-07 - Session complete: Task 113 supervisor boundary/assumption update completed.
+2026-03-07 - Task 114: Compared supervisor.md vs standalone-addon.md and documented mismatches.
+2026-03-07 - Session complete: Task 114 mismatch comparison report completed.
