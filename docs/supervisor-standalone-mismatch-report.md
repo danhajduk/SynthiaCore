@@ -96,3 +96,26 @@ Aligned between both docs:
 ## Recommended next action
 
 Update `docs/standalone-addon.md` to soften absolute prohibitions into code-verified scope language (template/default behavior vs globally enforced behavior).
+
+---
+
+## Re-Check (Task 116, 2026-03-07)
+
+Compared current versions of:
+- `docs/supervisor.md`
+- `docs/standalone-addon.md`
+
+Result:
+- No material mismatches found in runtime-enforcement boundaries.
+- Prior absolute claims identified in Task 114 were corrected in `docs/standalone-addon.md`.
+
+Alignment confirmed on key points:
+- Documentation contract language uses implemented-only guarantees.
+- Polling reconcile model is documented.
+- Health probing is not developed.
+- Resource limits are not developed.
+- Runtime is not sandboxed.
+- Development policy states verification/checksum enforcement is intentionally disabled.
+
+Residual difference (non-conflicting):
+- `docs/standalone-addon.md` is addon-author-facing and less exhaustive than `docs/supervisor.md` on internals (for example detailed locking/failure metadata mechanics). This is a scope difference, not a contradiction.
