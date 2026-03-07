@@ -239,3 +239,5 @@
 2026-03-05 - Session complete: finished tasks 101-103 (quick links, source validate API, status aggregation card)
 2026-03-05 - Task 108: removed SHA/checksum enforcement in store install and standalone desired-state validation.
 2026-03-05 - Session complete: Task 108 checksum enforcement removal finished.
+2026-03-07 - Documented supervisor architecture and core integration in supervisor.md
+2026-03-07 - Session complete: Added supervisor.md documentation for supervisor internals and core integration
