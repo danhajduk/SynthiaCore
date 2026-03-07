@@ -352,7 +352,7 @@ export default function Addons() {
                         <div className="addon-status">runtime: {item.runtime_state}</div>
                       </div>
                       <div className="addon-meta">
-                        desired: {item.desired_state} • health: {item.health_status}
+                        desired state: {item.desired_state} • service health: {item.health_status}
                       </div>
                       <div className="addon-meta">
                         active: {item.active_version ?? "unknown"} • target: {item.target_version ?? "none"}

@@ -260,3 +260,4 @@
 2026-03-07 - Task 118: Added Last Updated date/time metadata to all non-archived docs markdown files.
 2026-03-07 - Session complete: Task 118 documentation timestamp metadata update completed.
 2026-03-07 - Task 119: added canonical standalone runtime aggregation service, runtime APIs, store diagnostics integration, and admin UI runtime visibility.
+2026-03-07 - Task 120: implemented optional addon health probing and health/liveness model integration in runtime aggregation and docs.

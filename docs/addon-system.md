@@ -1,6 +1,6 @@
 # Addon System Documentation
 
-Last Updated: 2026-03-07 14:51 US/Pacific
+Last Updated: 2026-03-07 15:54 US/Pacific
 
 ## Core Perspective
 
@@ -29,6 +29,22 @@ Addon system includes discovery, registry, proxying, install-session orchestrati
 - standalone desired state built via `standalone_desired.py`
 - paths resolved via `standalone_paths.py`
 - staged artifacts written under service version directories
+
+## Health and Liveness Model
+
+Implemented health states:
+- `healthy`
+- `unhealthy`
+- `unknown`
+
+State boundary:
+- `runtime_state` describes container/runtime execution state.
+- `health_status` describes service-level health from runtime metadata and optional health probing.
+
+Optional probing behavior:
+- Core runtime aggregation may probe `GET /api/addon/health` when probe is enabled and a published TCP port is available.
+- Probing is optional and disabled by default (`SYNTHIA_RUNTIME_HEALTH_PROBE_ENABLED`).
+- If endpoint is missing (`404`), `health_status` is `unknown`.
 
 ## UI Integration
 

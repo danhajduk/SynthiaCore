@@ -120,6 +120,74 @@ class TestStandaloneRuntimeService(unittest.TestCase):
         self.assertEqual(payload["health_status"], "healthy")
         self.assertIn("127.0.0.1:1883->1883/tcp", payload["published_ports"])
 
+    def test_health_probe_404_sets_unknown(self) -> None:
+        addon_dir = self.root / "mqtt"
+        addon_dir.mkdir(parents=True, exist_ok=True)
+        (addon_dir / "runtime.json").write_text(
+            json.dumps({"addon_id": "mqtt", "state": "running", "active_version": "1.0.0"}),
+            encoding="utf-8",
+        )
+        (addon_dir / "desired.json").write_text(
+            json.dumps(
+                {
+                    "addon_id": "mqtt",
+                    "desired_state": "running",
+                    "runtime": {
+                        "project_name": "synthia-addon-mqtt",
+                        "network": "synthia_net",
+                        "ports": [{"host": 1883, "container": 1883, "protocol": "tcp"}],
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        runtime = StandaloneRuntimeService(
+            cmd_runner=lambda _cmd: None,
+            health_probe_runner=lambda _url, _timeout: (404, "", None),
+            health_probe_enabled=True,
+            services_root_resolver=lambda create=False: self.root,
+            service_addon_dir_resolver=lambda addon_id, create=False: self.root / addon_id,
+        )
+        snapshot = runtime.get_standalone_addon_runtime_snapshot("mqtt")
+        payload = snapshot.runtime.model_dump(mode="python")
+        self.assertEqual(payload["health_status"], "unknown")
+        self.assertEqual(payload["health_detail"], "health_endpoint_missing")
+
+    def test_health_probe_json_status_sets_health(self) -> None:
+        addon_dir = self.root / "mqtt"
+        addon_dir.mkdir(parents=True, exist_ok=True)
+        (addon_dir / "runtime.json").write_text(
+            json.dumps({"addon_id": "mqtt", "state": "running", "active_version": "1.0.0"}),
+            encoding="utf-8",
+        )
+        (addon_dir / "desired.json").write_text(
+            json.dumps(
+                {
+                    "addon_id": "mqtt",
+                    "desired_state": "running",
+                    "runtime": {
+                        "project_name": "synthia-addon-mqtt",
+                        "network": "synthia_net",
+                        "ports": [{"host": 1883, "container": 1883, "protocol": "tcp"}],
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        runtime = StandaloneRuntimeService(
+            cmd_runner=lambda _cmd: None,
+            health_probe_runner=lambda _url, _timeout: (200, '{"status":"unhealthy","detail":"dependency_down"}', None),
+            health_probe_enabled=True,
+            services_root_resolver=lambda create=False: self.root,
+            service_addon_dir_resolver=lambda addon_id, create=False: self.root / addon_id,
+        )
+        snapshot = runtime.get_standalone_addon_runtime_snapshot("mqtt")
+        payload = snapshot.runtime.model_dump(mode="python")
+        self.assertEqual(payload["health_status"], "unhealthy")
+        self.assertEqual(payload["health_detail"], "dependency_down")
+
 
 if __name__ == "__main__":
     unittest.main()

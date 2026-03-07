@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 15:42 US/Pacific
+Last Updated: 2026-03-07 15:54 US/Pacific
 
 ## Conventions
 
@@ -30,6 +30,12 @@ Last Updated: 2026-03-07 15:42 US/Pacific
 Implemented admin-protected runtime endpoints:
 - `GET /api/system/addons/runtime`
 - `GET /api/system/addons/runtime/{addon_id}`
+
+Runtime health model (implemented in runtime payload):
+- `runtime_state`: container/process runtime state (`running|stopped|error|unknown`)
+- `health_status`: service health state (`healthy|unhealthy|unknown`)
+- runtime aggregation may call addon endpoint `GET /api/addon/health` when probe is enabled and a published TCP port exists
+- runtime health probing is optional and disabled by default (`SYNTHIA_RUNTIME_HEALTH_PROBE_ENABLED`)
 
 ## Error Format
 

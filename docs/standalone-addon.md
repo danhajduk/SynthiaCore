@@ -1,6 +1,6 @@
 # Synthia Standalone Addon Specification
 
-Last Updated: 2026-03-07 14:51 US/Pacific
+Last Updated: 2026-03-07 15:54 US/Pacific
 
 Version: 0.1 (development phase)
 
@@ -247,15 +247,24 @@ Structured logging is recommended but not required.
 
 Supervisor currently **does not perform HTTP health checks**.
 
-Addons may optionally expose endpoints such as:
+Core runtime aggregation adds optional service probing for standalone
+addons:
+
+- probe endpoint: `GET /api/addon/health`
+- probe runs only when runtime aggregation health probing is enabled and
+  a published TCP port is available
+- probing is optional and disabled by default (`SYNTHIA_RUNTIME_HEALTH_PROBE_ENABLED`)
+- missing endpoint (`404`) results in health state `unknown`
+
+Health model exposed by Core runtime aggregation:
+
+- `runtime_state`: runtime/container execution state
+- `health_status`: service-level health (`healthy|unhealthy|unknown`)
+
+Addons may expose:
 
 GET /api/addon/meta\
 GET /api/addon/health
-
-However these are **not required** and are not monitored by the
-supervisor.
-
-Status: Not developed
 
 ------------------------------------------------------------------------
 

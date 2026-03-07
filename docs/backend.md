@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 15:42 US/Pacific
+Last Updated: 2026-03-07 15:54 US/Pacific
 
 ## Overview
 
@@ -29,6 +29,7 @@ It mounts core routers, addon routers, and store/scheduler/auth subsystems.
   - mqtt controls
   - repo status
   - standalone runtime aggregation (`/system/addons/runtime*`, admin-protected)
+  - optional service health probing (`GET /api/addon/health`) through runtime aggregation
 - `/api/system/scheduler`:
   - job submit, lease request/heartbeat/complete/report/revoke
   - queue endpoints and history endpoints
@@ -75,4 +76,5 @@ Backend uses mixed persistence:
 
 - Hot runtime addon backend reload in-process (`hot_loaded` remains false in store responses)
 - Strong distributed coordination primitives for scheduler/supervisor
-- Active addon HTTP health probing in runtime aggregation (`/api/addon/health`) is not developed
+- Health probing is optional and disabled by default (`SYNTHIA_RUNTIME_HEALTH_PROBE_ENABLED=false` by default)
+- Probing requires a reachable published TCP port; addons without probe endpoint report health as `unknown`

@@ -5,12 +5,15 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Any, Callable
+from urllib import error as urlerror
+from urllib import request as urlrequest
 
 from app.addons.discovery import repo_root
 
 from .models import StandaloneAddonRuntime, StandaloneAddonRuntimeSnapshot
 
 CommandRunner = Callable[[list[str]], tuple[int, str, str] | None]
+HealthProbeRunner = Callable[[str, float], tuple[int | None, str | None, str | None]]
 ServicesRootResolver = Callable[..., Path]
 ServiceAddonDirResolver = Callable[..., Path]
 
@@ -69,6 +72,48 @@ def _default_command_runner(cmd: list[str]) -> tuple[int, str, str] | None:
     except Exception as exc:  # pragma: no cover - defensive
         return 1, "", str(exc) or type(exc).__name__
     return proc.returncode, proc.stdout, proc.stderr
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        parsed = float(raw.strip())
+    except Exception:
+        return default
+    if parsed <= 0:
+        return default
+    return parsed
+
+
+def _default_health_probe(url: str, timeout_s: float) -> tuple[int | None, str | None, str | None]:
+    req = urlrequest.Request(url, method="GET")
+    try:
+        with urlrequest.urlopen(req, timeout=timeout_s) as resp:
+            body = resp.read().decode("utf-8", errors="ignore")
+            return int(resp.status), body, None
+    except urlerror.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8", errors="ignore")
+        except Exception:
+            body = ""
+        return int(exc.code), body, None
+    except Exception as exc:
+        return None, None, str(exc) or type(exc).__name__
 
 
 def _normalize_health(value: Any) -> tuple[str, str | None]:
@@ -142,6 +187,28 @@ def _ports_from_inspect(payload: dict[str, Any]) -> list[str]:
     return ports
 
 
+def _health_probe_url_from_ports(published_ports: list[str]) -> str | None:
+    for entry in published_ports:
+        text = str(entry).strip()
+        if not text:
+            continue
+        try:
+            mapping, container = text.split("->", 1)
+            host, host_port = mapping.rsplit(":", 1)
+            container_port, proto = container.split("/", 1)
+        except ValueError:
+            continue
+        if str(proto).strip().lower() != "tcp":
+            continue
+        host = host.strip()
+        host_port = host_port.strip()
+        if not host_port.isdigit() or not str(container_port).strip().isdigit():
+            continue
+        probe_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+        return f"http://{probe_host}:{host_port}/api/addon/health"
+    return None
+
+
 def _last_health_log_detail(health_payload: dict[str, Any]) -> str | None:
     logs = health_payload.get("Log")
     if not isinstance(logs, list) or not logs:
@@ -160,10 +227,24 @@ class StandaloneRuntimeService:
         self,
         *,
         cmd_runner: CommandRunner | None = None,
+        health_probe_runner: HealthProbeRunner | None = None,
+        health_probe_enabled: bool | None = None,
+        health_probe_timeout_s: float | None = None,
         services_root_resolver: ServicesRootResolver = _default_services_root,
         service_addon_dir_resolver: ServiceAddonDirResolver = _default_service_addon_dir,
     ) -> None:
         self._cmd_runner = cmd_runner or _default_command_runner
+        self._health_probe_runner = health_probe_runner or _default_health_probe
+        self._health_probe_enabled = (
+            _env_flag("SYNTHIA_RUNTIME_HEALTH_PROBE_ENABLED", False)
+            if health_probe_enabled is None
+            else bool(health_probe_enabled)
+        )
+        self._health_probe_timeout_s = (
+            _env_float("SYNTHIA_RUNTIME_HEALTH_PROBE_TIMEOUT_S", 2.0)
+            if health_probe_timeout_s is None
+            else float(health_probe_timeout_s)
+        )
         self._services_root_resolver = services_root_resolver
         self._service_addon_dir_resolver = service_addon_dir_resolver
 
@@ -250,6 +331,15 @@ class StandaloneRuntimeService:
             if runtime_state == "unknown" and running is not None:
                 runtime_state = "running" if running else "stopped"
 
+        probe_status, probe_detail = self._probe_service_health(
+            runtime_state=runtime_state,
+            running=running,
+            published_ports=published_ports,
+        )
+        if probe_status is not None:
+            health_status = probe_status
+            health_detail = probe_detail
+
         runtime = StandaloneAddonRuntime(
             addon_id=addon_id,
             desired_state=desired_state,
@@ -279,6 +369,48 @@ class StandaloneRuntimeService:
             raw_desired=desired_payload,
             raw_runtime=runtime_payload,
         )
+
+    def _probe_service_health(
+        self,
+        *,
+        runtime_state: str,
+        running: bool | None,
+        published_ports: list[str],
+    ) -> tuple[str | None, str | None]:
+        if not self._health_probe_enabled:
+            return None, None
+        if running is False:
+            return None, None
+        if running is None and runtime_state != "running":
+            return None, None
+
+        probe_url = _health_probe_url_from_ports(published_ports)
+        if not probe_url:
+            return None, None
+
+        status_code, body, probe_error = self._health_probe_runner(probe_url, self._health_probe_timeout_s)
+        if probe_error:
+            return "unhealthy", f"probe_error: {probe_error}"
+
+        if status_code is None:
+            return "unknown", "probe_no_status"
+        if status_code == 404:
+            return "unknown", "health_endpoint_missing"
+        if status_code >= 500:
+            return "unhealthy", f"probe_http_{status_code}"
+        if status_code >= 400:
+            return "unhealthy", f"probe_http_{status_code}"
+
+        body_text = str(body or "").strip()
+        if body_text:
+            try:
+                payload = json.loads(body_text)
+            except Exception:
+                payload = body_text
+            status, detail = _normalize_health(payload)
+            if status != "unknown":
+                return status, detail
+        return "healthy", f"probe_http_{status_code}"
 
     def _inspect_compose_container(self, project_name: str | None) -> tuple[dict[str, Any] | None, str | None]:
         if not project_name:
