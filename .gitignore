@@ -54,3 +54,4 @@ backend/var/store_install_state.json
 completed_task.txt
 docs/Reasoning.txt
 data/addons_state.json
+AGENTS.md
