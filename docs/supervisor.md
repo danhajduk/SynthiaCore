@@ -1,6 +1,6 @@
-# Synthia Supervisor: Code-Verified Behavior and Gaps
+# Synthia Supervisor Runtime Specification (Code-Verified)
 
-This document is intentionally limited to what is present in code today. If a capability is not implemented in code, it is marked as **Not developed**.
+This document only describes behavior that is present in code today. Any missing capability is explicitly labeled **Not developed**.
 
 Code sources used:
 - `backend/synthia_supervisor/main.py`
@@ -15,21 +15,100 @@ Code sources used:
 - `backend/tests/test_synthia_supervisor_main.py`
 - `backend/tests/test_synthia_supervisor_compose.py`
 
-## 1) Version Resolution Logic
+## 1) Reconcile Timing Model
+
+Implemented:
+- Supervisor is polling-based (`while True` loop in `main.py`).
+- Default poll interval is 5 seconds (`DEFAULT_INTERVAL_S=5`, overridable by `SYNTHIA_SUPERVISOR_INTERVAL_S`).
+- Addons are reconciled sequentially (single loop over `services_dir.iterdir()` and synchronous `reconcile_one`).
+
+Worst-case reaction delay (code-derived):
+- `poll interval + time spent reconciling earlier addon directories in that loop iteration`.
+- There is no parallel reconcile worker pool.
+
+## 2) Addon Directory Discovery
+
+Implemented:
+- Each direct subdirectory under `SYNTHIA_ADDONS_DIR/services/` is treated as a candidate addon.
+- If a candidate directory has no `desired.json`, it is skipped.
+
+Not developed:
+- Explicit addon directory registration/allowlist.
+- Recursive nested directory discovery.
+
+## 3) Version Resolution Logic
 
 ### Important questions
 
 - Does Core translate `latest` into a real version before writing `desired.json`?
-  - **Answer (code):** In the normal store install path, Core writes `pinned_version=body.pinned_version or manifest.version` (`backend/app/store/router.py`), so it usually writes a concrete version.
-  - **Edge case present in code:** if `pinned_version` is absent/`null`, supervisor falls back to the string `latest` (`version = desired.pinned_version or "latest"` in `main.py`).
+  - **Answer (code):** In normal store install flow, Core writes `pinned_version=body.pinned_version or manifest.version` (`router.py`), so usually a concrete version is written.
+  - **Edge case present in code:** if `pinned_version` is missing/`null`, supervisor falls back to string `latest` (`version = desired.pinned_version or "latest"`).
 
 - Does the supervisor ever resolve catalog versions?
-  - **Answer (code):** **No.** Supervisor never talks to catalog APIs and never translates channels/tags to versions.
+  - **Answer (code):** **No.** Supervisor does not query catalog state.
 
 - What happens if `latest` changes?
-  - **Answer (code):** **Not developed** as catalog-aware behavior. Supervisor treats `latest` as a directory name under `versions/latest/`; it does not track remote version drift.
+  - **Answer (code):** **Not developed** as catalog-aware behavior. `latest` is treated as a literal local version directory name (`versions/latest`).
 
-## 2) Health Check Model (Missing)
+## 4) Docker Compose Project Naming
+
+Implemented:
+- Supervisor passes `desired.runtime.project_name` to Docker Compose `-p` in both `up` and `down` calls.
+
+Operational implication from Docker Compose behavior:
+- `project_name` defines compose stack identity (resource naming scope).
+- If project name changes between desired states/versions, cleanup continuity can change because `down` targets the project name in the current desired runtime payload.
+
+Not developed:
+- Project-name migration safeguards/warnings.
+
+## 5) Artifact Extraction Behavior
+
+Implemented:
+- Artifact extraction target is `versions/<version>/extracted/`.
+- Extraction is one-time per version directory in current logic:
+  - if `extracted/` already exists, extraction is skipped.
+  - otherwise `tar -xzf addon.tgz -C extracted/` is executed.
+
+Not developed:
+- Automatic re-extract when `addon.tgz` changes in-place while `extracted/` already exists.
+
+## 6) Environment Variable Handling
+
+Implemented:
+- `runtime.env` is rewritten each running reconcile from `desired.config.env` values.
+- Keys are sorted before write.
+- If `SYNTHIA_SERVICE_TOKEN` exists in supervisor process environment, it is injected unless already present in desired env.
+
+Important handling detail:
+- Supervisor writes raw `KEY=VALUE` lines; it does not perform shell evaluation/expansion itself.
+- Any runtime expansion behavior is left to Docker Compose/container runtime semantics.
+
+## 7) Compose File Ownership
+
+Implemented:
+- Supervisor generates `versions/<version>/docker-compose.yml` only if missing.
+- If compose file already exists, supervisor leaves it unchanged.
+
+Implication:
+- Custom compose file content in that path is preserved and used on future reconciles.
+
+Not developed:
+- Compose template versioning/validation against expected schema.
+
+## 8) Container Build Model
+
+Implemented:
+- Generated compose template uses `build: <versions/<version>/extracted>`.
+
+Implication:
+- Artifact must expand into a valid Docker build context.
+- Build context must contain what Docker needs (for example Dockerfile and referenced files).
+
+Not developed:
+- Preflight validation of build context before invoking `docker compose up`.
+
+## 9) Health Check Model (Missing)
 
 ### Important questions
 
@@ -37,110 +116,154 @@ Code sources used:
   - **Answer (code):** **No active health checks implemented.**
 
 - Does it call `/health` endpoints?
-  - **Answer (code):** **No.** No HTTP probing exists in supervisor code.
+  - **Answer (code):** **No.**
 
 - Does it only rely on Docker?
-  - **Answer (code):** Yes for runtime actions (`docker compose up/down`).
-  - Health status model in `runtime.json` is not actively populated by current supervisor runtime model.
+  - **Answer (code):** Runtime actions are Docker Compose `up/down`.
+  - Runtime model includes no active supervisor-managed HTTP probing.
 
-## 3) Upgrade Semantics (Partially Defined)
+## 10) Upgrade Semantics (Partially Defined)
 
 ### Important questions
 
 - Does supervisor automatically upgrade when desired version changes?
-  - **Answer (code):** Yes, when `desired.pinned_version` points to a different version and required files exist.
+  - **Answer (code):** Yes, if target version artifact exists and reconcile succeeds.
 
 - Is old container stopped first?
-  - **Answer (code):** **No explicit `compose down` before upgrade.** Current flow performs `compose up -d` for target version/project and switches `current` symlink only after success.
+  - **Answer (code):** **No explicit pre-stop path** for upgrade. Running path performs `compose up -d` for target compose/project and switches `current` symlink after success.
 
 - Is rollback automatic or manual?
   - **Answer (code):** **Automatic rollback execution is not developed.**
   - Implemented today: rollback metadata only (`previous_version`, `rollback_available`, `last_error`).
 
-## 4) Concurrency / Locking (Important)
+## 11) Failure Retry Model
+
+Implemented:
+- Reconcile errors set `runtime.json` to `state="error"`.
+- Addon is retried automatically on next polling cycle because it remains in directory iteration.
+- There is no permanent quarantine list in supervisor code.
+
+Not developed:
+- Retry backoff per-addon.
+- Circuit-breaker/quarantine state.
+
+## 12) `runtime.json` Lifecycle
+
+Implemented:
+- Runtime object starts in-memory as `installing` at reconcile start.
+- `runtime.json` is atomically rewritten at the end of reconcile attempt for directories with `desired.json`.
+- Stable persisted states confirmed by code paths:
+  - `running`
+  - `stopped`
+  - `error`
+- `installing` is initialization state used during reconcile execution, then replaced by terminal state write.
+
+Not developed:
+- Historical event log in `runtime.json`.
+
+## 13) Concurrency / Locking (Important)
 
 ### Important questions
 
 - What if Core writes `desired.json` mid-reconcile?
-  - **Answer (code):** No locking/transaction boundary between Core write and supervisor read.
-  - Core writes desired atomically (`*.tmp` then replace), so supervisor reads a complete file snapshot, but no reconcile-level version lock exists.
+  - **Answer (code):** No cross-process lock/transaction contract. Core uses atomic replace for desired writes; supervisor reads a file snapshot.
 
 - What if multiple supervisors run?
-  - **Answer (code):** **Not developed** multi-supervisor coordination. No leader election or distributed lock.
+  - **Answer (code):** **Not developed** multi-supervisor coordination (no leader election/lock manager).
 
 - Is `runtime.json` locked?
-  - **Answer (code):** No lock file/mutex. Supervisor writes atomically (`write_json_atomic`), but no multi-writer lock protocol exists.
+  - **Answer (code):** No explicit lock. Writes are atomic replace.
 
-## 5) Artifact Integrity Model
+## 14) Artifact Integrity Model
 
-Current behavior in reconcile path (`main.py`):
-- Requires artifact file existence (`addon.tgz`); missing file -> runtime error.
-- Logs `verify_skipped ... signature_checks_disabled`.
-- Does not call verification logic during reconcile.
-
-Verification utilities exist (`crypto.py`) but are **not invoked** by current reconciliation flow.
+Current reconcile path behavior:
+- Requires artifact file existence.
+- Logs verification skipped.
+- Does not call signature/checksum verification in reconcile loop.
 
 Status:
-- SHA/signature enforcement in runtime reconcile: **Not developed (disabled in current path).**
+- Runtime verification enforcement in reconcile: **Not developed (disabled in current path).**
+- Verification utility code exists in `crypto.py` but is not used by current reconcile flow.
 
-## 6) Resource Limits (Missing)
+## 15) Resource Limits (Missing)
 
-Generated compose template (`docker_compose.py`) does not set:
+Generated compose does not set:
 - CPU limits/reservations
 - memory limits/reservations
 - pids limits
-- io limits
+- IO limits
 
 Status:
-- Resource governance: **Not developed** in generated runtime compose.
+- Resource governance policy in supervisor compose generation: **Not developed**.
 
-## 7) Network Isolation Model (Partial)
+## 16) Network Isolation Model (Partial)
 
 Implemented:
-- Dedicated named network from desired runtime (`runtime.network`, default `synthia_net`).
-- `network_mode: host` is not generated by supervisor compose writer.
-- Ports are explicitly published only if listed in desired runtime.
-- Host bind defaults to localhost (`127.0.0.1`) unless `bind_localhost=false`, then `0.0.0.0`.
+- Explicit network name from desired runtime (`runtime.network`, default `synthia_net`).
+- Generated template does not set `network_mode: host`.
+- Ports are only published when specified.
+- Bind defaults to `127.0.0.1`; optional `0.0.0.0` when `bind_localhost=false`.
 
 Not developed:
-- Network policies / ACL / egress restrictions.
-- Segmented per-addon isolation beyond named network selection.
+- Network policy engine (ACL/egress controls).
+- Per-addon hard isolation policy beyond compose network selection.
 
 ### Important questions
 
 - Does container auto restart?
-  - **Answer (code):** Yes, compose template sets `restart: unless-stopped`.
+  - **Answer (code):** Yes, generated compose sets `restart: unless-stopped`.
 
 - Only supervisor restart?
-  - **Answer (code):** Supervisor process itself also restarts (`Restart=always` in systemd unit template).
+  - **Answer (code):** Supervisor process is also restart-managed by systemd (`Restart=always`).
 
-## 8) Disk Growth / Cleanup (Important)
+## 17) Disk Growth / Cleanup (Important)
 
-Observed behavior:
-- Versions are created and retained under `services/<addon>/versions/<version>/`.
-- Extracted directories and compose/env files are retained.
-- No pruning/retention/GC logic in supervisor.
+Implemented behavior:
+- Version folders, extracted trees, runtime env files, and compose files persist.
+- No automatic cleanup/pruning in supervisor code.
 
 Status:
-- Automatic cleanup policy: **Not developed.**
+- Retention and garbage collection policy: **Not developed**.
 
-## 9) Supervisor Failure Recovery
+## 18) Security Boundary Model
 
-Implemented:
-- Per-addon reconcile exceptions are caught and written to `runtime.json` (`state=error`, `last_error`).
-- Supervisor loop continues for next addons/iterations.
-- Systemd unit restarts supervisor process on crash (`Restart=always`).
+Implemented controls in generated compose:
+- `privileged: false`
+- `security_opt: no-new-privileges:true`
+
+Explicit boundary statement:
+- Supervisor is orchestration glue, **not a sandbox**.
+- Standalone addon containers are trusted to the level allowed by host Docker daemon policy and supplied compose/build content.
 
 Not developed:
-- Journaling/replay state machine
-- backoff strategy tuning in code (other than systemd restart delay)
-- self-heal beyond retrying next poll cycle
+- Independent policy sandbox beyond compose defaults.
 
-## 10) Configuration Schema (Desired State Example)
+## 19) Supervisor Failure Recovery
+
+Implemented:
+- Reconcile exceptions are caught per addon.
+- Error state is persisted to `runtime.json` and loop continues.
+- systemd can restart supervisor process if it exits.
+
+Not developed:
+- Replayable reconcile journal.
+- Fine-grained backoff/circuit-breaker controls.
+
+## 20) Supervisor Upgrade Safety
+
+Implemented behavior from process model:
+- Supervisor restart/upgrade does not explicitly stop running addon containers in code.
+- Running containers remain managed by Docker (`restart: unless-stopped`) unless external actions stop them.
+- After restart, supervisor resumes polling and reconciling current desired state.
+
+Not developed:
+- Explicit supervisor upgrade transaction protocol.
+
+## 21) Configuration Schema (Desired State Example)
 
 Core writes desired payload with strict validation in `standalone_desired.py`.
 
-Current shape written by Core (example):
+Example shape:
 
 ```json
 {
@@ -183,38 +306,38 @@ Current shape written by Core (example):
 ```
 
 Note:
-- Supervisor model currently consumes only needed fields (it does not use `mode`/`channel` in runtime logic).
+- Supervisor runtime model consumes fields required for reconciliation; some Core payload fields (for example `mode`, `channel`) are not used in current supervisor logic.
 
-## 11) Addon Contract (Container Expectations)
+## 22) Addon Contract (Container Expectations)
 
-From compose generation + reconcile behavior, container package expectations are:
-- `versions/<version>/addon.tgz` must exist.
-- Artifact must extract via `tar -xzf`.
-- Extracted directory must be a valid Docker build context because compose template uses `build: <extracted_dir>`.
-- Addon runtime should tolerate env-file injection (`runtime.env`).
+Expected by current code path:
+- `versions/<version>/addon.tgz` exists.
+- Artifact can be extracted by `tar -xzf`.
+- Extracted directory is a valid Docker build context.
+- Runtime accepts env-file based configuration.
 
 Not developed in supervisor:
-- Formal runtime contract enforcement for addon HTTP endpoints.
-- Liveness/readiness checks for addon-specific APIs.
+- Explicit runtime endpoint contract enforcement.
+- Built-in addon liveness/readiness contract checks.
 
-## 12) Observability (Metrics)
+## 23) Observability (Metrics)
 
 Implemented:
-- Structured logging under logger `synthia.supervisor`.
-- Runtime status output in `runtime.json` (`state`, `active_version`, `last_error`, rollback metadata).
-- Core system metrics endpoint includes user-unit state visibility for `synthia-supervisor.service`.
+- Structured logging via `synthia.supervisor` logger.
+- `runtime.json` status with key operational fields (`state`, `active_version`, `last_error`, rollback metadata).
+- Core system stats service reports supervisor unit status (`synthia-supervisor.service`).
 
 Not developed:
-- Native supervisor Prometheus/OpenMetrics endpoint.
-- Built-in reconcile duration metrics/counters/histograms.
+- Native Prometheus/OpenMetrics endpoint.
+- Reconcile latency/counter metrics endpoint.
 
-## 13) Supervisor API (Missing)
+## 24) Supervisor API (Missing)
 
 Status:
-- Supervisor exposes **no direct HTTP API** in current code.
-- Control plane is file-based (`desired.json` in, `runtime.json` out) plus process control through systemd.
+- No direct HTTP API exposed by supervisor.
+- Control plane is file-based (`desired.json` input, `runtime.json` output) plus systemd process control.
 
-## 14) Architecture Diagram
+## 25) Architecture Diagram
 
 ```text
 +--------------------+                              +---------------------------+
@@ -248,9 +371,7 @@ Status:
                           +----------------------+
 ```
 
-## 15) Important Questions Checklist (Preserved)
-
-This section keeps the requested question list explicitly so it is not lost in future edits.
+## 26) Important Questions Checklist (Preserved)
 
 1. Version Resolution Logic
 - Does Core translate `latest` into a real version before writing `desired.json`?

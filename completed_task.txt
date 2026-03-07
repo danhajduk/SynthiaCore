@@ -243,3 +243,5 @@
 2026-03-07 - Session complete: Added supervisor.md documentation for supervisor internals and core integration
 2026-03-07 - Task 110: Reworked supervisor documentation with code-only answers and moved file to docs/supervisor.md.
 2026-03-07 - Session complete: Task 110 supervisor documentation expansion and relocation to docs complete.
+2026-03-07 - Task 111: Expanded supervisor doc with timing/discovery/retry/lifecycle/security semantics.
+2026-03-07 - Session complete: Task 111 supervisor runtime spec update completed.
