@@ -1,6 +1,6 @@
 # Theme System Contract for Addons
 
-Last Updated: 2026-03-08 15:33 US/Pacific
+Last Updated: 2026-03-08 15:49 US/Pacific
 
 ## Scope
 
@@ -44,6 +44,27 @@ Implemented tokens from `frontend/src/theme/tokens.css`:
   - `--shadow-md`
 - typography:
   - `--font-sans`
+
+## Shared CSS Selectors
+
+Code-verified selectors currently defined in Core theme styles:
+
+From `frontend/src/theme/components.css`:
+
+- `.card`
+- `.btn`
+- `.btn-primary`
+- `.pill`
+
+From `frontend/src/theme/base.css`:
+
+- element selectors: `:root`, `body`, `h1`, `a`, `hr`
+- theme mode selectors: `:root[data-theme="dark"]`, `:root[data-theme="light"]`
+
+Contract boundary:
+
+- Addons should treat `components.css` selectors as reusable theme primitives.
+- Page-specific selectors under `frontend/src/core/pages/*.css` are not a stable addon contract.
 
 ## Addon-Safe Usage Rules
 
