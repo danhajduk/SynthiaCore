@@ -213,6 +213,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
         release_sha256: str | None = None,
         release_checksum: str | None = None,
         release_manifest_package_profile: str | None = None,
+        release_manifest_extra: dict | None = None,
         escape_publishers_public_key_pem: bool = False,
     ) -> _FakeCatalogClient:
         digest = hashlib.sha256(artifact_bytes).hexdigest()
@@ -250,6 +251,11 @@ class TestStoreApiEndpoints(unittest.TestCase):
             release_payload["signature_type"] = signature_type
         if release_manifest_package_profile is not None:
             release_payload["manifest"] = {"package_profile": release_manifest_package_profile}
+        if isinstance(release_manifest_extra, dict):
+            existing_manifest = release_payload.get("manifest")
+            merged_manifest = dict(existing_manifest) if isinstance(existing_manifest, dict) else {}
+            merged_manifest.update(release_manifest_extra)
+            release_payload["manifest"] = merged_manifest
         if use_nested_artifact_url:
             release_payload["artifact"] = {"url": release_url}
         else:
@@ -1695,6 +1701,52 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(desired["runtime"]["cpu"], 1.5)
         self.assertEqual(desired["runtime"]["memory"], "512m")
         self.assertEqual(desired["config"]["env"]["SYNTHIA_SERVICE_TOKEN"], "${SYNTHIA_SERVICE_TOKEN}")
+
+    def test_catalog_install_standalone_service_mode_uses_manifest_runtime_default_ports(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-standalone-runtime-default-ports.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr("hello_world/manifest.json", '{"id":"hello_world","name":"hello_world","version":"1.0.0"}')
+            zf.writestr("hello_world/app/main.py", "print('ok')\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            package_profile="standalone_service",
+            release_url="https://example.test/hello_world-1.0.0.tgz",
+            release_manifest_extra={
+                "runtime_defaults": {
+                    "bind_localhost": False,
+                    "ports": [{"host": 18081, "container": 8080, "proto": "tcp", "purpose": "http_api"}],
+                }
+            },
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
+            "app.store.router.resolve_manifest_compatibility", return_value=None
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "source_id": "official",
+                    "addon_id": "hello_world",
+                    "install_mode": "standalone_service",
+                    "enable": True,
+                },
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        desired_path = Path(payload["desired_path"])
+        desired = json.loads(desired_path.read_text(encoding="utf-8"))
+        self.assertEqual(desired["runtime"]["bind_localhost"], False)
+        self.assertEqual(
+            desired["runtime"]["ports"],
+            [{"host": 18081, "container": 8080, "proto": "tcp", "purpose": "http_api"}],
+        )
 
     def test_catalog_install_standalone_service_mode_preserves_runtime_project_override(self) -> None:
         pkg = Path(self.tmp.name) / "bundle-standalone-project-override.zip"

@@ -598,6 +598,7 @@ def _build_release_manifest(addon_id: str, addon_item: dict[str, Any], release_i
     signature_b64 = _release_signature_b64(release_item)
     checksum = _release_checksum(release_item)
     package_profile = _release_package_profile(addon_item, release_item)
+    runtime_defaults = release_item.get("runtime_defaults") or addon_item.get("runtime_defaults")
 
     manifest_payload = release_item.get("manifest")
     if isinstance(manifest_payload, dict):
@@ -610,6 +611,7 @@ def _build_release_manifest(addon_id: str, addon_item: dict[str, Any], release_i
         data.setdefault("package_profile", package_profile)
         data.setdefault("signature", {"publisher_id": publisher_id, "signature": signature_b64})
         data.setdefault("compatibility", compat)
+        data.setdefault("runtime_defaults", runtime_defaults)
         data.setdefault("permissions", addon_item.get("permissions") or release_item.get("permissions") or [])
         return ReleaseManifest.model_validate(data)
 
@@ -625,6 +627,7 @@ def _build_release_manifest(addon_id: str, addon_item: dict[str, Any], release_i
             "checksum": checksum,
             "publisher_id": publisher_id,
             "package_profile": package_profile,
+            "runtime_defaults": runtime_defaults,
             "permissions": addon_item.get("permissions") or release_item.get("permissions") or [],
             "signature": {"publisher_id": publisher_id, "signature": signature_b64},
             "compatibility": compat,
@@ -1393,6 +1396,7 @@ def build_store_router(
                 service_dir = service_addon_dir(manifest.id, create=True)
                 desired_path = service_dir / "desired.json"
                 runtime_overrides = body.runtime_overrides if isinstance(body.runtime_overrides, dict) else {}
+                manifest_runtime_defaults = manifest.runtime_defaults
                 runtime_project_name = _compose_safe_project_name(
                     runtime_overrides.get("project_name") or f"synthia-addon-{manifest.id}",
                     manifest.id,
@@ -1416,8 +1420,18 @@ def build_store_router(
                         },
                     )
                 runtime_ports = runtime_overrides.get("ports")
-                runtime_ports_payload = [dict(item) for item in runtime_ports if isinstance(item, dict)] if isinstance(runtime_ports, list) else []
-                runtime_bind_localhost = bool(runtime_overrides.get("bind_localhost", True))
+                if isinstance(runtime_ports, list):
+                    runtime_ports_payload = [dict(item) for item in runtime_ports if isinstance(item, dict)]
+                elif manifest_runtime_defaults is not None:
+                    runtime_ports_payload = [item.model_dump(mode="python") for item in manifest_runtime_defaults.ports]
+                else:
+                    runtime_ports_payload = []
+                if "bind_localhost" in runtime_overrides:
+                    runtime_bind_localhost = bool(runtime_overrides.get("bind_localhost", True))
+                elif manifest_runtime_defaults is not None:
+                    runtime_bind_localhost = bool(manifest_runtime_defaults.bind_localhost)
+                else:
+                    runtime_bind_localhost = True
                 raw_runtime_cpu = runtime_overrides.get("cpu")
                 runtime_cpu: float | None = None
                 if raw_runtime_cpu is not None and str(raw_runtime_cpu).strip() != "":

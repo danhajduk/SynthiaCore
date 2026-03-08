@@ -1,6 +1,6 @@
 # Store and Catalog Documentation
 
-Last Updated: 2026-03-07 16:08 US/Pacific
+Last Updated: 2026-03-08 09:52 US/Pacific
 
 ## Scope
 
@@ -30,6 +30,7 @@ Implemented:
 - compatibility checks
 - install/update/uninstall endpoint flows
 - standalone install mode writes `desired.json` and stages `addon.tgz`
+- standalone release manifests may define `runtime_defaults` (`ports`, `bind_localhost`); these defaults are used when `runtime_overrides` are not provided at install time
 - standalone runtime overrides support optional `cpu` and `memory` values for desired runtime intent
 - status/diagnostic endpoints read runtime state and summarize errors
 - diagnostics expose standalone retention policy and retained/prunable version lists

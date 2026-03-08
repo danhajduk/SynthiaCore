@@ -300,3 +300,4 @@
 2026-03-07 - Task 146 completed: added MQTT approval governance regression tests and explicit HA discovery mode validation constraints.
 2026-03-08 - Task 147 completed: normalized standalone runtime project_name to Docker Compose-safe lowercase format, added regression tests, and updated standalone docs.
 2026-03-08 - Fixed supervisor standalone build-prep to ensure extracted runtime/ directory exists, preventing compose_up_failed "/runtime not found" for addon Dockerfiles that COPY runtime.
+2026-03-08 - Added ReleaseManifest runtime_defaults schema (ports/bind_localhost) and applied standalone install fallback to manifest defaults when runtime_overrides are absent.

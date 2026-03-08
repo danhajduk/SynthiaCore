@@ -6,6 +6,38 @@ from app.store.models import AddonManifest, ReleaseManifest
 
 
 class TestReleaseManifestCompatibilityAdapter(unittest.TestCase):
+    def test_release_manifest_accepts_runtime_defaults_ports(self) -> None:
+        manifest = ReleaseManifest(
+            id="addon_ports",
+            name="Addon Ports",
+            version="1.0.0",
+            core_min_version="0.1.0",
+            core_max_version=None,
+            dependencies=[],
+            conflicts=[],
+            checksum="abc123",
+            publisher_id="pub-1",
+            package_profile="standalone_service",
+            runtime_defaults={
+                "bind_localhost": False,
+                "ports": [{"host": 18081, "container": 8080, "proto": "tcp", "purpose": "http_api"}],
+            },
+            permissions=["filesystem.read"],
+            compatibility={
+                "core_min_version": "0.1.0",
+                "core_max_version": None,
+                "dependencies": [],
+                "conflicts": [],
+            },
+        )
+        self.assertIsNotNone(manifest.runtime_defaults)
+        assert manifest.runtime_defaults is not None
+        self.assertFalse(manifest.runtime_defaults.bind_localhost)
+        self.assertEqual(len(manifest.runtime_defaults.ports), 1)
+        self.assertEqual(manifest.runtime_defaults.ports[0].host, 18081)
+        self.assertEqual(manifest.runtime_defaults.ports[0].container, 8080)
+        self.assertEqual(manifest.runtime_defaults.ports[0].proto, "tcp")
+
     def test_legacy_top_level_fields_backfill_nested_compatibility(self) -> None:
         manifest = ReleaseManifest(
             id="addon_x",
