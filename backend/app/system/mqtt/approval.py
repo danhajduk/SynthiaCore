@@ -6,7 +6,13 @@ from typing import Any
 
 import httpx
 
-from .integration_models import MqttAddonGrant, MqttRegistrationApprovalResult, MqttRegistrationRequest
+from .integration_models import (
+    MqttAddonGrant,
+    MqttBrokerModeSummary,
+    MqttRegistrationApprovalResult,
+    MqttRegistrationRequest,
+    MqttSetupCapabilitySummary,
+)
 from .integration_state import MqttIntegrationStateStore
 from .topic_policy import validate_topic_scopes
 
@@ -138,6 +144,31 @@ class MqttRegistrationApprovalService:
             next_grant.revocation_pending = True
         await self._state_store.upsert_grant(next_grant)
         return {"ok": ok, "addon_id": addon_id, "status": next_grant.status, "details": details}
+
+    async def list_grants(self) -> list[dict[str, Any]]:
+        state = await self._state_store.get_state()
+        return [item.model_dump(mode="json") for item in sorted(state.active_grants.values(), key=lambda x: x.addon_id)]
+
+    async def get_grant(self, addon_id: str) -> dict[str, Any] | None:
+        state = await self._state_store.get_state()
+        item = state.active_grants.get(addon_id)
+        return item.model_dump(mode="json") if item is not None else None
+
+    async def broker_summary(self) -> MqttBrokerModeSummary:
+        state = await self._state_store.get_state()
+        return MqttBrokerModeSummary(
+            broker_mode=state.broker_mode,
+            direct_mqtt_supported=state.direct_mqtt_supported,
+        )
+
+    async def setup_summary(self) -> MqttSetupCapabilitySummary:
+        state = await self._state_store.get_state()
+        return MqttSetupCapabilitySummary(
+            requires_setup=True,
+            setup_complete=state.setup_status == "ready",
+            setup_status=state.setup_status,
+            direct_mqtt_supported=state.direct_mqtt_supported,
+        )
 
     def _control_base_url(self) -> str | None:
         addon = self._registry.registered.get(self._control_addon_id)

@@ -1,10 +1,12 @@
 from .approval import MqttRegistrationApprovalService
 from .integration_models import (
     MqttAddonGrant,
+    MqttBrokerModeSummary,
     MqttCapabilityFlags,
     MqttIntegrationState,
     MqttRegistrationApprovalResult,
     MqttRegistrationRequest,
+    MqttSetupCapabilitySummary,
 )
 from .integration_state import MqttIntegrationStateStore
 from .manager import MqttManager
@@ -17,7 +19,9 @@ __all__ = [
     "MqttIntegrationStateStore",
     "MqttIntegrationState",
     "MqttAddonGrant",
+    "MqttBrokerModeSummary",
     "MqttCapabilityFlags",
     "MqttRegistrationRequest",
     "MqttRegistrationApprovalResult",
+    "MqttSetupCapabilitySummary",
 ]

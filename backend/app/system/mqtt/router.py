@@ -119,4 +119,29 @@ def build_mqtt_router(
             return {"ok": False, "addon_id": addon_id, "status": "rejected", "error": "request_subject_mismatch"}
         return await approval.revoke_or_mark(addon_id, reason="api_request")
 
+    @router.get("/mqtt/grants")
+    async def mqtt_grants(request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
+        items = await approval.list_grants()
+        return {"ok": True, "items": items}
+
+    @router.get("/mqtt/grants/{addon_id}")
+    async def mqtt_grant(addon_id: str, request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
+        item = await approval.get_grant(addon_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="mqtt_grant_not_found")
+        return {"ok": True, "grant": item}
+
+    @router.get("/mqtt/setup-summary")
+    async def mqtt_setup_summary(request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
+        setup = await approval.setup_summary()
+        broker = await approval.broker_summary()
+        return {
+            "ok": True,
+            "setup": setup.model_dump(mode="json"),
+            "broker": broker.model_dump(mode="json"),
+        }
+
     return router

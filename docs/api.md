@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 21:44 US/Pacific
+Last Updated: 2026-03-07 21:49 US/Pacific
 
 ## Conventions
 
@@ -45,6 +45,10 @@ Implemented MQTT provisioning handshake APIs:
 - `POST /api/system/mqtt/registrations/{addon_id}/revoke`
   - calls MQTT addon revoke endpoint and updates grant status
   - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.revoke`)
+- `GET /api/system/mqtt/grants`
+- `GET /api/system/mqtt/grants/{addon_id}`
+- `GET /api/system/mqtt/setup-summary`
+  - exposes setup state and broker capability summary for operators/UI
 
 Implemented admin-protected runtime endpoints:
 - `GET /api/system/addons/runtime`

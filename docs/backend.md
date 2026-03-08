@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 21:44 US/Pacific
+Last Updated: 2026-03-07 21:49 US/Pacific
 
 ## Overview
 
@@ -73,6 +73,7 @@ Backend uses mixed persistence:
 - JSON files (install state, policy files, registry, store source metadata)
 - MQTT integration state file (`var/mqtt_integration_state.json` via `MQTT_INTEGRATION_STATE_DB`)
   - stores grant status and provisioning/revocation result metadata per addon
+  - inspection endpoints expose full grant list, per-addon grant, and setup/broker summary
 
 ## Integration Points
 

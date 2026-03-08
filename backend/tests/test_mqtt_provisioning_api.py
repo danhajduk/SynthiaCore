@@ -148,6 +148,31 @@ class TestMqttProvisioningApi(unittest.TestCase):
             self.assertTrue(revoked.json()["ok"])
             self.assertEqual(revoked.json()["status"], "revoked")
 
+    def test_grant_and_setup_inspection_endpoints(self) -> None:
+        approved = self.client.post(
+            "/api/system/mqtt/registrations/approve",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "addon_id": "vision",
+                "access_mode": "both",
+                "publish_topics": ["synthia/addons/vision/event/#"],
+                "subscribe_topics": ["synthia/system/#"],
+            },
+        )
+        self.assertEqual(approved.status_code, 200, approved.text)
+        grants = self.client.get("/api/system/mqtt/grants", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(grants.status_code, 200, grants.text)
+        self.assertEqual(len(grants.json()["items"]), 1)
+
+        one = self.client.get("/api/system/mqtt/grants/vision", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(one.status_code, 200, one.text)
+        self.assertEqual(one.json()["grant"]["addon_id"], "vision")
+
+        summary = self.client.get("/api/system/mqtt/setup-summary", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(summary.status_code, 200, summary.text)
+        self.assertIn("setup", summary.json())
+        self.assertIn("broker", summary.json())
+
     def test_provision_scope_checks_for_service_token(self) -> None:
         no_scope = self.client.post(
             "/api/system/mqtt/registrations/vision/provision",

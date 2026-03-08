@@ -65,3 +65,17 @@ class MqttIntegrationState(BaseModel):
     direct_mqtt_supported: bool = False
     active_grants: dict[str, MqttAddonGrant] = Field(default_factory=dict)
     updated_at: str = Field(default_factory=_utcnow_iso)
+
+
+class MqttBrokerModeSummary(BaseModel):
+    schema_version: int = Field(default=1, ge=1)
+    broker_mode: str = "local"
+    direct_mqtt_supported: bool = False
+
+
+class MqttSetupCapabilitySummary(BaseModel):
+    schema_version: int = Field(default=1, ge=1)
+    requires_setup: bool = True
+    setup_complete: bool = False
+    setup_status: MQTT_SETUP_STATES = "unconfigured"
+    direct_mqtt_supported: bool = False
