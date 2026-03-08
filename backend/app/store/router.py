@@ -261,6 +261,11 @@ def _read_standalone_runtime(
                     if raw_runtime is not None
                     else runtime_data.get("last_error")
                 ),
+                "previous_version": (
+                    raw_runtime.get("previous_version")
+                    if raw_runtime is not None
+                    else None
+                ),
                 "container_name": runtime_data.get("container_name"),
                 "container_status": runtime_data.get("container_status"),
                 "running": runtime_data.get("running"),
@@ -292,6 +297,56 @@ def _runtime_error_summary(runtime_payload: dict[str, Any]) -> str | None:
     if ":" in last_error:
         return last_error.split(":", 1)[1].strip() or last_error
     return last_error
+
+
+def _standalone_retention_diagnostics(addon_id: str, runtime_payload: dict[str, Any]) -> dict[str, Any]:
+    keep_versions_raw = str(os.environ.get("SYNTHIA_SUPERVISOR_KEEP_VERSIONS", "")).strip()
+    try:
+        keep_versions = int(keep_versions_raw) if keep_versions_raw else 3
+    except Exception:
+        keep_versions = 3
+    keep_versions = max(keep_versions, 2)
+
+    versions_root = service_addon_dir(addon_id, create=False) / "versions"
+    version_entries: list[tuple[str, float]] = []
+    if versions_root.exists():
+        for entry in versions_root.iterdir():
+            if not entry.is_dir():
+                continue
+            try:
+                mtime = entry.stat().st_mtime
+            except Exception:
+                mtime = 0.0
+            version_entries.append((entry.name, mtime))
+    version_entries.sort(key=lambda item: item[1], reverse=True)
+    available_versions = [name for name, _mtime in version_entries]
+
+    runtime = runtime_payload.get("standalone_runtime")
+    active_version = None
+    previous_version = None
+    if isinstance(runtime, dict):
+        active_version = str(runtime.get("active_version") or "").strip() or None
+        previous_version = str(runtime.get("previous_version") or "").strip() or None
+
+    retained: list[str] = []
+    for candidate in (active_version, previous_version):
+        if candidate and candidate not in retained:
+            retained.append(candidate)
+    for version in available_versions:
+        if len(retained) >= keep_versions:
+            break
+        if version not in retained:
+            retained.append(version)
+    prunable_versions = [name for name in available_versions if name not in retained]
+
+    return {
+        "keep_versions": keep_versions,
+        "active_version": active_version,
+        "previous_version": previous_version,
+        "available_versions": available_versions,
+        "retained_versions": retained,
+        "prunable_versions": prunable_versions,
+    }
 
 
 def _registry_state_for_addon(registry: AddonRegistry, addon_id: str) -> str:
@@ -1977,6 +2032,7 @@ def build_store_router(
             "runtime_error": runtime_payload.get("runtime_error"),
             "last_error_summary": _runtime_error_summary(runtime_payload),
             "standalone_runtime": runtime_payload.get("standalone_runtime"),
+            "retention": _standalone_retention_diagnostics(addon_id, runtime_payload),
         }
 
     @router.get("/admin/audit")

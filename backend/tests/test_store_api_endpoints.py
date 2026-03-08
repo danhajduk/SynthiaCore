@@ -628,6 +628,46 @@ class TestStoreApiEndpoints(unittest.TestCase):
             payload["standalone_runtime"]["last_error"],
             "compose_up_failed: failed to solve: missing Dockerfile",
         )
+        self.assertIn("retention", payload)
+
+    def test_status_diagnostics_includes_retention_versions(self) -> None:
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+        addon_dir = standalone_root / "services" / "hello_world"
+        versions_dir = addon_dir / "versions"
+        versions_dir.mkdir(parents=True, exist_ok=True)
+        for idx, version in enumerate(("0.8.0", "0.9.0", "1.0.0", "1.1.0"), start=1):
+            version_dir = versions_dir / version
+            version_dir.mkdir(parents=True, exist_ok=True)
+            ts = 1700000000 + idx
+            os.utime(version_dir, (ts, ts))
+        runtime_path = addon_dir / "runtime.json"
+        runtime_path.write_text(
+            json.dumps(
+                {
+                    "ssap_version": "1.0",
+                    "addon_id": "hello_world",
+                    "active_version": "1.1.0",
+                    "previous_version": "1.0.0",
+                    "state": "running",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with patch.dict(
+            os.environ,
+            {"SYNTHIA_ADDONS_DIR": str(standalone_root), "SYNTHIA_SUPERVISOR_KEEP_VERSIONS": "3"},
+            clear=False,
+        ):
+            res = self.client.get("/api/store/status/hello_world/diagnostics")
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        retention = payload["retention"]
+        self.assertEqual(retention["keep_versions"], 3)
+        self.assertEqual(retention["active_version"], "1.1.0")
+        self.assertEqual(retention["previous_version"], "1.0.0")
+        self.assertEqual(retention["retained_versions"], ["1.1.0", "1.0.0", "0.9.0"])
+        self.assertEqual(retention["prunable_versions"], ["0.8.0"])
 
     def test_update_success(self) -> None:
         pkg = Path(self.tmp.name) / "bundle.zip"

@@ -1,6 +1,6 @@
 # Deployment Documentation
 
-Last Updated: 2026-03-07 14:51 US/Pacific
+Last Updated: 2026-03-07 16:08 US/Pacific
 
 ## Environments
 
@@ -39,6 +39,15 @@ Commonly used:
 - backend DB/state paths (`APP_SETTINGS_DB`, `APP_USERS_DB`, `SCHEDULER_HISTORY_DB`, `STORE_*`)
 - standalone path override (`SYNTHIA_ADDONS_DIR`)
 - supervisor poll/log settings (`SYNTHIA_SUPERVISOR_INTERVAL_S`, `SYNTHIA_SUPERVISOR_LOG_LEVEL`)
+- supervisor retention policy (`SYNTHIA_SUPERVISOR_KEEP_VERSIONS`, default `3`, minimum effective `2`)
+
+## Standalone Retention
+
+Implemented behavior:
+- Supervisor prunes older standalone version directories after successful reconcile.
+- Active and previous versions are always retained.
+- Additional recent versions are retained up to configured keep-count.
+- Retention diagnostics are available from store status diagnostics endpoint (`/api/store/status/{addon_id}/diagnostics`).
 
 ## Rebuild/Restart
 

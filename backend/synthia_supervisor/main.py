@@ -1,6 +1,6 @@
 
 from __future__ import annotations
-import json, os, time, logging
+import json, os, time, logging, shutil
 from pathlib import Path
 from typing import Dict, Any
 from .models import DesiredState, RuntimeState
@@ -8,6 +8,8 @@ from .docker_compose import compose_up, compose_down, ensure_extracted, ensure_c
 
 DEFAULT_INTERVAL_S = 5
 DEFAULT_LOG_LEVEL = "INFO"
+DEFAULT_KEEP_VERSIONS = 3
+MIN_KEEP_VERSIONS = 2
 log = logging.getLogger("synthia.supervisor")
 
 
@@ -54,6 +56,63 @@ def resolve_current_version(addon_dir: Path) -> str | None:
     if target.parent.name != "versions":
         return None
     return target.name
+
+
+def _retention_keep_versions() -> int:
+    raw = os.environ.get("SYNTHIA_SUPERVISOR_KEEP_VERSIONS", "").strip()
+    if not raw:
+        return DEFAULT_KEEP_VERSIONS
+    try:
+        parsed = int(raw)
+    except Exception:
+        return DEFAULT_KEEP_VERSIONS
+    return max(parsed, MIN_KEEP_VERSIONS)
+
+
+def _version_entries(addon_dir: Path) -> list[tuple[str, Path, float]]:
+    versions_root = addon_dir / "versions"
+    if not versions_root.exists():
+        return []
+    out: list[tuple[str, Path, float]] = []
+    for entry in versions_root.iterdir():
+        if not entry.is_dir():
+            continue
+        try:
+            mtime = entry.stat().st_mtime
+        except Exception:
+            mtime = 0.0
+        out.append((entry.name, entry, mtime))
+    out.sort(key=lambda item: item[2], reverse=True)
+    return out
+
+
+def _cleanup_old_versions(addon_dir: Path, *, active_version: str | None, previous_version: str | None) -> dict[str, Any]:
+    keep_versions = _retention_keep_versions()
+    entries = _version_entries(addon_dir)
+    keep_set: set[str] = set()
+    if active_version:
+        keep_set.add(active_version)
+    if previous_version:
+        keep_set.add(previous_version)
+    for name, _path, _mtime in entries:
+        if len(keep_set) >= keep_versions:
+            break
+        keep_set.add(name)
+
+    pruned: list[str] = []
+    for name, path, _mtime in entries:
+        if name in keep_set:
+            continue
+        shutil.rmtree(path, ignore_errors=True)
+        pruned.append(name)
+
+    return {
+        "keep_versions": keep_versions,
+        "active_version": active_version,
+        "previous_version": previous_version,
+        "retained_versions": sorted(keep_set),
+        "pruned_versions": sorted(pruned),
+    }
 
 def reconcile_one(addon_dir: Path):
     desired_path = addon_dir / "desired.json"
@@ -109,11 +168,18 @@ def reconcile_one(addon_dir: Path):
         rt.previous_version = previous_version
         rt.rollback_available = bool(previous_version and previous_version != version)
         rt.last_error = None
+        cleanup_result = _cleanup_old_versions(
+            addon_dir,
+            active_version=rt.active_version,
+            previous_version=rt.previous_version,
+        )
         log.info(
-            "reconcile_done addon_id=%s state=running active_version=%s rollback_available=%s",
+            "reconcile_done addon_id=%s state=running active_version=%s rollback_available=%s retained_versions=%s pruned_versions=%s",
             desired.addon_id,
             rt.active_version,
             rt.rollback_available,
+            cleanup_result.get("retained_versions"),
+            cleanup_result.get("pruned_versions"),
         )
 
     except Exception as e:

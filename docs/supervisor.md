@@ -1,6 +1,6 @@
 # Synthia Supervisor Runtime Specification (Code-Verified)
 
-Last Updated: 2026-03-07 16:03 US/Pacific
+Last Updated: 2026-03-07 16:08 US/Pacific
 
 This document only describes behavior that is present in code today. Any missing capability is explicitly labeled **Not developed**.
 
@@ -260,14 +260,20 @@ Not developed:
 - Only supervisor restart?
   - **Answer (code):** Supervisor process is also restart-managed by systemd (`Restart=always`).
 
-## 18) Disk Growth / Cleanup (Important)
+## 18) Disk Growth / Cleanup
 
 Implemented behavior:
-- Version folders, extracted trees, runtime env files, and compose files persist.
-- No automatic cleanup/pruning in supervisor code.
+- Supervisor performs post-success version retention cleanup after running reconcile.
+- Cleanup keeps:
+  - active version
+  - previous version (when present)
+  - additional newest versions until keep-count target is met
+- Default keep-count is `3`; configurable via `SYNTHIA_SUPERVISOR_KEEP_VERSIONS` (minimum enforced keep-count: `2`).
+- Cleanup runs only after successful reconcile; failure paths do not prune versions.
+- Pruning removes old version directories (including unused extracted/build-context artifacts inside pruned versions).
 
-Status:
-- Retention and garbage collection policy: **Not developed**.
+Not developed:
+- Docker image pruning/cleanup in supervisor code.
 
 ## 19) Security Boundary Model
 

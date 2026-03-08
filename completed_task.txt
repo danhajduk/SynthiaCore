@@ -262,3 +262,4 @@
 2026-03-07 - Task 119: added canonical standalone runtime aggregation service, runtime APIs, store diagnostics integration, and admin UI runtime visibility.
 2026-03-07 - Task 120: implemented optional addon health probing and health/liveness model integration in runtime aggregation and docs.
 2026-03-07 - Task 121: added optional standalone runtime cpu/memory governance in desired intent, install flow, compose generation, tests, and docs.
+2026-03-07 - Task 122: implemented standalone version retention cleanup policy and retention diagnostics with tests/docs.

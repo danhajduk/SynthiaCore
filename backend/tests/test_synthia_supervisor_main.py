@@ -4,17 +4,18 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+import os
 from unittest.mock import patch
 
 from synthia_supervisor.main import reconcile_one
 
 
-def _write_desired(addon_dir: Path) -> None:
+def _write_desired(addon_dir: Path, version: str = "0.1.2") -> None:
     desired = {
         "ssap_version": "1.0",
         "addon_id": "mqtt",
         "desired_state": "running",
-        "pinned_version": "0.1.2",
+        "pinned_version": version,
         "install_source": {
             "type": "catalog",
             "release": {
@@ -128,6 +129,52 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             self.assertEqual(runtime["active_version"], "0.1.2")
             self.assertEqual(runtime["previous_version"], "0.1.1")
             self.assertTrue(runtime["rollback_available"])
+
+    def test_reconcile_prunes_old_versions_after_success(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            versions = []
+            for version in ("0.1.1", "0.1.2", "0.1.3", "0.1.4"):
+                version_dir = addon_dir / "versions" / version
+                version_dir.mkdir(parents=True, exist_ok=True)
+                (version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+                versions.append(version_dir)
+            for idx, version_dir in enumerate(versions, start=1):
+                ts = 1700000000 + idx
+                os.utime(version_dir, (ts, ts))
+            (addon_dir / "current").symlink_to(addon_dir / "versions" / "0.1.3")
+            _write_desired(addon_dir, version="0.1.4")
+
+            with patch.dict("os.environ", {"SYNTHIA_SUPERVISOR_KEEP_VERSIONS": "3"}, clear=False), \
+                patch("synthia_supervisor.main.ensure_extracted"), \
+                patch("synthia_supervisor.main.ensure_compose_files"), \
+                patch("synthia_supervisor.main.compose_up"):
+                reconcile_one(addon_dir)
+
+            remaining = sorted(
+                p.name for p in (addon_dir / "versions").iterdir() if p.is_dir()
+            )
+            self.assertEqual(remaining, ["0.1.2", "0.1.3", "0.1.4"])
+
+    def test_reconcile_does_not_prune_versions_when_reconcile_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            for version in ("0.1.1", "0.1.2", "0.1.3", "0.1.4"):
+                version_dir = addon_dir / "versions" / version
+                version_dir.mkdir(parents=True, exist_ok=True)
+                (version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+            _write_desired(addon_dir, version="0.1.4")
+
+            with patch.dict("os.environ", {"SYNTHIA_SUPERVISOR_KEEP_VERSIONS": "3"}, clear=False), \
+                patch("synthia_supervisor.main.ensure_extracted"), \
+                patch("synthia_supervisor.main.ensure_compose_files"), \
+                patch("synthia_supervisor.main.compose_up", side_effect=RuntimeError("compose-failed")):
+                reconcile_one(addon_dir)
+
+            remaining = sorted(
+                p.name for p in (addon_dir / "versions").iterdir() if p.is_dir()
+            )
+            self.assertEqual(remaining, ["0.1.1", "0.1.2", "0.1.3", "0.1.4"])
 
 
 if __name__ == "__main__":
