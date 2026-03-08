@@ -46,7 +46,7 @@ from app.system.audit import AuditLogStore
 from app.system.users import UsersStore, build_users_router
 from app.system.runtime import StandaloneRuntimeService
 from app.system.repo_status import router as repo_status_router
-from app.system.stack_health import build_stack_health_router
+from app.system.stack_health import build_stack_health_router, speed_sampler_loop
 from app.system.scheduler import build_scheduler_router
 from app.store import CatalogCacheClient, build_store_models_router, StoreAuditLogStore, StoreSourcesStore, build_store_router
 
@@ -111,6 +111,7 @@ def create_app() -> FastAPI:
                 await asyncio.sleep(30.0)
 
         asyncio.create_task(addon_health_poll_loop())
+        asyncio.create_task(speed_sampler_loop())
         users_store = getattr(app.state, "users_store", None)
         if users_store is not None:
             await users_store.ensure_admin_user(seeded_admin_username, seeded_admin_password)

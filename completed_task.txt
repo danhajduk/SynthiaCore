@@ -277,3 +277,4 @@
 2026-03-07 - Fixed stack summary network probe fallback to use MQTT_HOST when local host env is unset
 2026-03-07 - Added passive internet speed fallback from throughput when speedtest sample is unavailable
 2026-03-07 - Added multi-runner active speedtest support (cli/module/ookla) with schema parsing fallbacks
+2026-03-07 - Enforced backend-scheduled speed sampling and cached-only speed reads in stack summary

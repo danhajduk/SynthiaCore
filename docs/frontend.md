@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-07 18:11 US/Pacific
+Last Updated: 2026-03-07 18:16 US/Pacific
 
 ## Stack
 
@@ -40,7 +40,7 @@ Last Updated: 2026-03-07 18:11 US/Pacific
   - Recent Activity panel (platform events feed)
   - System Metrics panel (CPU/memory/disk + network/internet/speed status + throughput sample + network I/O/error counters)
   - compact admin session strip (sign-in or sign-out state)
-  - data refresh interval: 10s polling for dashboard cards
+  - data refresh interval: 10s polling for dashboard cards (`/api/system/stack/summary` reads backend cached speed values only and does not trigger new speedtest runs)
 - Store: catalog browsing, install actions, diagnostics and remediation UX
 - Addons:
   - inventory and control-plane metadata/actions

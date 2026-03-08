@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 18:11 US/Pacific
+Last Updated: 2026-03-07 18:16 US/Pacific
 
 ## Conventions
 
@@ -47,7 +47,10 @@ Implemented dashboard summary endpoint:
     - `subsystems`: core/supervisor/mqtt/scheduler/workers/addons
     - `connectivity`: local network + internet state
       - local network probe target precedence: `SYNTHIA_LOCAL_NETWORK_CHECK_HOST` -> `MQTT_HOST` -> `not_configured`
-    - `samples.internet_speed`: cached active speed sample (supports `speedtest-cli`, python module fallback `python -m speedtest`, and Ookla `speedtest --format=json`) sampled every 30 minutes by default; when active speedtest is unavailable but throughput exists, backend returns `source=passive_estimate`
+    - `samples.internet_speed`: cached active speed sample only; `/stack/summary` never starts a new speedtest run
+      - backend refreshes speed cache in startup background loop every `SYNTHIA_SPEEDTEST_SAMPLE_SECONDS` (default 1800 seconds / 30 minutes)
+      - active runners supported: `SYNTHIA_SPEEDTEST_CLI_BIN`, python module fallback `python -m speedtest`, Ookla `speedtest --format=json`
+      - when active speedtest is unavailable but throughput exists, backend returns `source=passive_estimate`
     - `samples.network_throughput`: live host RX/TX throughput sample from system stats (`rx_Bps`, `tx_Bps`)
     - `samples.network_metrics`: host cumulative network counters (`bytes_*`, `packets_*`, `err*`, `drop*`)
   - missing capability semantics may return `unknown`, `unavailable`, or `warming_up`

@@ -48,6 +48,39 @@ class _CachedSampler:
             self._speed_cache = {"ts": now, "payload": payload}
             return dict(payload)
 
+    async def speed_cached(self) -> dict[str, Any]:
+        now = time.time()
+        async with self._lock:
+            if not self._speed_cache:
+                return {
+                    "state": "unavailable",
+                    "source": "speedtest_cli",
+                    "download_mbps": None,
+                    "upload_mbps": None,
+                    "latency_ms": None,
+                    "sampled_at": _now_iso(),
+                    "age_s": 0,
+                }
+            cached = dict(self._speed_cache["payload"])
+            sampled_at = cached.get("sampled_at")
+            if sampled_at:
+                age = max(0, int(now - datetime.fromisoformat(str(sampled_at)).timestamp()))
+                cached["age_s"] = age
+            return cached
+
+
+async def speed_sampler_loop(interval_s: float | None = None) -> None:
+    delay = interval_s
+    if delay is None:
+        delay = float(os.getenv("SYNTHIA_SPEEDTEST_SAMPLE_SECONDS", "1800") or 1800)
+    delay = max(60.0, float(delay))
+    while True:
+        try:
+            await _sampler.speed()
+        except Exception:
+            pass
+        await asyncio.sleep(delay)
+
 
 _sampler = _CachedSampler()
 
@@ -443,7 +476,7 @@ def build_stack_health_router() -> APIRouter:
 
         connectivity = await _sampler.connectivity()
         throughput = _throughput_from_stats(stats)
-        speed = await _sampler.speed()
+        speed = await _sampler.speed_cached()
         if str(speed.get("state") or "").strip().lower() != "ok":
             passive_speed = _speed_from_throughput_fallback(throughput)
             if passive_speed is not None:
