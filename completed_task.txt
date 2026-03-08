@@ -294,3 +294,4 @@
 2026-03-07 - Task 140 completed: added MQTT grant and setup inspection endpoints backed by persisted integration state.
 2026-03-07 - Task 141 completed: added MQTT grant lifecycle revoke/reconcile hooks across addon enable/disable/install/update/uninstall flows and lifecycle regression tests.
 2026-03-07 - Task 142 completed: added persisted MQTT setup-awareness state, setup-state update API, and setup-readiness gating for provisioning.
+2026-03-07 - Task 143 completed: documented API-first MQTT control-plane behavior and clarified MQTT topic usage as async visibility only.

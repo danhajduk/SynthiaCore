@@ -1,6 +1,6 @@
 # Addons Reference (Core + Addon Workspace)
 
-Last Updated: 2026-03-07 14:51 US/Pacific
+Last Updated: 2026-03-07 21:48 US/Pacific
 
 This document is the single handoff reference for building, registering, and operating addons with Synthia Core.
 
@@ -130,6 +130,10 @@ Addon can auto-publish to broker:
 - Health updates: `synthia/addons/{addon_id}/health`
 
 Core subscribes and updates registry `last_seen`/health metadata from these topics.
+
+Control-plane boundary:
+- Use Core HTTP APIs for control actions (registration approval/provision/revoke/setup-state/admin flows).
+- Use MQTT topics for asynchronous events and runtime visibility, not deterministic control transactions.
 
 ## 10) MQTT Broker Setup in Core
 

@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 21:43 US/Pacific
+Last Updated: 2026-03-07 21:48 US/Pacific
 
 ## Overview
 
@@ -85,6 +85,10 @@ Backend uses mixed persistence:
   - Store status/diagnostics endpoints read runtime data through the same runtime aggregation service
 - Scheduler -> stats integration:
   - engine metrics provider uses sampled system metrics and API metrics
+- MQTT control-plane integration:
+  - deterministic operations use HTTP control endpoints on Core and MQTT addon APIs
+    - approval/provision/revoke/setup-state update
+  - MQTT broker topics are used for async events/visibility (announce, health, retained core info), not primary control transactions
 - Auth/user integration:
   - admin session + seeded admin user + service token key store
 - Service registry integration:

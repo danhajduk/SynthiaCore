@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 21:43 US/Pacific
+Last Updated: 2026-03-07 21:48 US/Pacific
 
 ## Conventions
 
@@ -53,6 +53,10 @@ Implemented MQTT provisioning handshake APIs:
   - updates Core-side MQTT setup awareness (`requires_setup`, `setup_complete`, `setup_status`, `broker_mode`, `direct_mqtt_supported`, `setup_error`)
   - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.setup.write`, subject `mqtt`)
   - provisioning endpoints are gated until setup is ready when setup is required
+
+MQTT control-plane rule (implemented contract):
+- Core uses HTTP APIs for deterministic control transactions (registration approval, provisioning, revocation, setup-state updates, admin actions).
+- MQTT topics are treated as async/event transport only (announce, health, telemetry, retained info), not as the primary control transaction channel.
 
 Implemented admin-protected runtime endpoints:
 - `GET /api/system/addons/runtime`

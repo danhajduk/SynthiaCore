@@ -1,6 +1,6 @@
 # Addon System Documentation
 
-Last Updated: 2026-03-07 17:00 US/Pacific
+Last Updated: 2026-03-07 21:48 US/Pacific
 
 ## Core Perspective
 
@@ -67,6 +67,12 @@ Implemented lifecycle events emitted by core integrations:
 Not developed:
 - Guaranteed exactly-once delivery for addon lifecycle events
 - Persistent historical lifecycle timeline beyond process memory
+
+## MQTT Control-Plane Rule
+
+Implemented API-first behavior for MQTT integration:
+- Core executes control transactions by API (approval, provisioning, revocation, setup-state, and admin lifecycle actions).
+- MQTT topics are for asynchronous visibility and telemetry only (announce/health/lifecycle/core info), not for primary control operations that require deterministic request/response semantics.
 
 ## Related Documents
 
