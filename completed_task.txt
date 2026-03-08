@@ -268,3 +268,4 @@
 2026-03-07 - Refactored supervisor reconcile to return ReconcileResult and added post-reconcile hooks for retention cleanup and lifecycle event emission.
 2026-03-07 - Redesigned Home into a guest/admin operational dashboard with status widgets, addons/activity/metrics panels, compact session strip, and theme-aligned layout.
 2026-03-07 - Added admin-only Addons page uninstall flow with confirmation states, standalone remediation messaging, inventory/runtime refresh, and frontend regression tests (Task 127).
+2026-03-07 - Completed Task 127.1 audit of Home/dashboard and sidebar data coverage; identified existing health signals and backend gaps for network/internet/speed.
