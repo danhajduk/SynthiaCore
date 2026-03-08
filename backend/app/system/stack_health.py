@@ -135,6 +135,7 @@ def _sample_speed() -> dict[str, Any]:
         upload_mbps = _upload_speed_mbps(upload_url, timeout_s, upload_bytes)
         return {
             "state": "ok",
+            "source": "active_probe",
             "download_mbps": download_mbps,
             "upload_mbps": upload_mbps,
             "latency_ms": latency_ms,
@@ -144,12 +145,59 @@ def _sample_speed() -> dict[str, Any]:
     except Exception:
         return {
             "state": "unavailable",
+            "source": "active_probe",
             "download_mbps": None,
             "upload_mbps": None,
             "latency_ms": None,
             "sampled_at": sampled_at,
             "age_s": 0,
         }
+
+
+def _throughput_from_stats(stats: Any) -> dict[str, Any]:
+    sampled_at = _now_iso()
+    if stats is None:
+        return {
+            "state": "unavailable",
+            "rx_Bps": None,
+            "tx_Bps": None,
+            "sampled_at": sampled_at,
+        }
+
+    net = getattr(stats, "net", None)
+    total_rate = getattr(net, "total_rate", None) if net is not None else None
+    if total_rate is None:
+        return {
+            "state": "warming_up",
+            "rx_Bps": None,
+            "tx_Bps": None,
+            "sampled_at": sampled_at,
+        }
+
+    rx_bps = float(getattr(total_rate, "rx_Bps", 0.0) or 0.0)
+    tx_bps = float(getattr(total_rate, "tx_Bps", 0.0) or 0.0)
+    return {
+        "state": "ok",
+        "rx_Bps": round(max(rx_bps, 0.0), 2),
+        "tx_Bps": round(max(tx_bps, 0.0), 2),
+        "sampled_at": sampled_at,
+    }
+
+
+def _speed_from_throughput(throughput: dict[str, Any]) -> dict[str, Any] | None:
+    if str(throughput.get("state", "")).lower() != "ok":
+        return None
+    rx_bps = float(throughput.get("rx_Bps") or 0.0)
+    tx_bps = float(throughput.get("tx_Bps") or 0.0)
+    return {
+        "state": "ok",
+        "source": "passive_estimate",
+        "download_mbps": round((rx_bps * 8.0) / 1_000_000.0, 2),
+        "upload_mbps": round((tx_bps * 8.0) / 1_000_000.0, 2),
+        "latency_ms": None,
+        "sampled_at": throughput.get("sampled_at") or _now_iso(),
+        "age_s": 0,
+    }
 
 
 def _state_from_bool(value: bool | None, healthy: str, unhealthy: str, unknown: str = "unknown") -> str:
@@ -218,6 +266,7 @@ def build_stack_health_router() -> APIRouter:
 
         core_state = "healthy"
         supervisor_running: bool | None = None
+        stats = None
         try:
             stats = getattr(request.app.state, "latest_stats", None)
             services = stats.services if stats is not None else None
@@ -299,6 +348,11 @@ def build_stack_health_router() -> APIRouter:
 
         connectivity = await _sampler.connectivity()
         speed = await _sampler.speed()
+        throughput = _throughput_from_stats(stats)
+        if str(speed.get("state", "")).lower() == "not_configured":
+            derived_speed = _speed_from_throughput(throughput)
+            if derived_speed is not None:
+                speed = derived_speed
 
         payload = {
             "subsystems": {
@@ -323,6 +377,7 @@ def build_stack_health_router() -> APIRouter:
             "connectivity": connectivity,
             "samples": {
                 "internet_speed": speed,
+                "network_throughput": throughput,
             },
         }
         payload["status"] = _derive_overall_status(payload)

@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-07 17:31 US/Pacific
+Last Updated: 2026-03-07 22:05 US/Pacific
 
 ## Stack
 
@@ -34,10 +34,11 @@ Last Updated: 2026-03-07 17:31 US/Pacific
   - full-stack status widget driven by `GET /api/system/stack/summary`
   - subsystem pills: core, supervisor, mqtt, scheduler, workers, addons, network, internet
   - compact status row with scheduler/network/internet/speed visibility
+    - speed label reflects active probe sample or passive estimated sample
   - degraded/attention reason details (expand/collapse)
   - Installed Addons panel
   - Recent Activity panel (platform events feed)
-  - System Metrics panel (CPU/memory/disk + network/internet/speed status)
+  - System Metrics panel (CPU/memory/disk + network/internet/speed status + throughput sample)
   - compact admin session strip (sign-in or sign-out state)
   - data refresh interval: 10s polling for dashboard cards
 - Store: catalog browsing, install actions, diagnostics and remediation UX

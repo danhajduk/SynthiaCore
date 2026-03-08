@@ -59,11 +59,18 @@ type StackSummary = {
   samples: {
     internet_speed: {
       state: string;
+      source?: string;
       download_mbps?: number | null;
       upload_mbps?: number | null;
       latency_ms?: number | null;
       sampled_at?: string | null;
       age_s?: number;
+    };
+    network_throughput?: {
+      state: string;
+      rx_Bps?: number | null;
+      tx_Bps?: number | null;
+      sampled_at?: string | null;
     };
   };
 };
@@ -117,6 +124,22 @@ function speedValue(speed: StackSummary["samples"]["internet_speed"] | undefined
   const down = typeof speed.download_mbps === "number" ? speed.download_mbps.toFixed(1) : "-";
   const up = typeof speed.upload_mbps === "number" ? speed.upload_mbps.toFixed(1) : "-";
   return `↓${down} ↑${up} Mbps`;
+}
+
+function fmtBps(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return "0 B/s";
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)} GB/s`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)} MB/s`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)} KB/s`;
+  return `${value.toFixed(0)} B/s`;
+}
+
+function throughputValue(throughput: StackSummary["samples"]["network_throughput"] | undefined): string {
+  if (!throughput) return "unknown";
+  if (throughput.state !== "ok") return throughput.state;
+  const rx = typeof throughput.rx_Bps === "number" ? fmtBps(throughput.rx_Bps) : "-";
+  const tx = typeof throughput.tx_Bps === "number" ? fmtBps(throughput.tx_Bps) : "-";
+  return `↓${rx} ↑${tx}`;
 }
 
 export default function Home() {
@@ -291,7 +314,7 @@ export default function Home() {
           value={speedValue(stack?.samples.internet_speed)}
           sub={
             stack?.samples.internet_speed?.sampled_at
-              ? `sample ${relative(stack.samples.internet_speed.sampled_at)}`
+              ? `${stack.samples.internet_speed.source === "passive_estimate" ? "estimated" : "sample"} ${relative(stack.samples.internet_speed.sampled_at)}`
               : undefined
           }
         />
@@ -393,6 +416,7 @@ export default function Home() {
                 )}
               />
               <MetricRow label="Network" value={stack?.connectivity.network.state || "unknown"} />
+              <MetricRow label="Throughput" value={throughputValue(stack?.samples.network_throughput)} />
               <MetricRow label="Internet" value={stack?.connectivity.internet.state || "unknown"} />
               <MetricRow label="Speed" value={speedValue(stack?.samples.internet_speed)} />
             </div>

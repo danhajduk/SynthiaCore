@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 17:31 US/Pacific
+Last Updated: 2026-03-07 22:05 US/Pacific
 
 ## Overview
 
@@ -30,6 +30,8 @@ It mounts core routers, addon routers, and store/scheduler/auth subsystems.
   - platform events (`/system/events`)
   - repo status
   - stack summary (`/stack/summary`) for Home dashboard health/connectivity/speed view
+    - provides `samples.network_throughput` from `latest_stats.net.total_rate` when available
+    - provides `samples.internet_speed` from active probe URLs when configured, otherwise passive estimated Mbps from throughput
   - standalone runtime aggregation (`/system/addons/runtime*`, admin-protected)
   - optional service health probing (`GET /api/addon/health`) through runtime aggregation
 - `/api/system/scheduler`:

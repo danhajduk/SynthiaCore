@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 17:31 US/Pacific
+Last Updated: 2026-03-07 22:05 US/Pacific
 
 ## Conventions
 
@@ -46,7 +46,8 @@ Implemented dashboard summary endpoint:
     - `status`: overall state + concise reasons
     - `subsystems`: core/supervisor/mqtt/scheduler/workers/addons
     - `connectivity`: local network + internet state
-    - `samples.internet_speed`: cached lightweight snapshot
+    - `samples.internet_speed`: cached snapshot from active probe when configured, otherwise passive estimate from host throughput
+    - `samples.network_throughput`: live host RX/TX throughput sample from system stats (`rx_Bps`, `tx_Bps`)
   - missing capability semantics may return `unknown`, `unavailable`, or `not_configured`
 
 Runtime health model (implemented in runtime payload):

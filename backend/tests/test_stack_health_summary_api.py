@@ -46,6 +46,23 @@ class _FakeRegistry:
         return addon_id != "disabled_addon"
 
 
+class _FakeRate:
+    def __init__(self, rx_Bps: float, tx_Bps: float) -> None:
+        self.rx_Bps = rx_Bps
+        self.tx_Bps = tx_Bps
+
+
+class _FakeNet:
+    def __init__(self, total_rate: _FakeRate | None = None) -> None:
+        self.total_rate = total_rate
+
+
+class _FakeStats:
+    def __init__(self, total_rate: _FakeRate | None = None) -> None:
+        self.net = _FakeNet(total_rate=total_rate)
+        self.services = {}
+
+
 class TestStackHealthSummaryApi(unittest.TestCase):
     def setUp(self) -> None:
         self.old_local = os.environ.get("SYNTHIA_LOCAL_NETWORK_CHECK_HOST")
@@ -85,6 +102,7 @@ class TestStackHealthSummaryApi(unittest.TestCase):
         app.state.scheduler_engine = _FakeScheduler()
         app.state.mqtt_manager = _FakeMqtt()
         app.state.addon_registry = _FakeRegistry()
+        app.state.latest_stats = _FakeStats()
 
         client = TestClient(app)
         res = client.get("/api/system/stack/summary")
@@ -105,6 +123,29 @@ class TestStackHealthSummaryApi(unittest.TestCase):
         self.assertEqual(payload["connectivity"]["network"]["state"], "not_configured")
         self.assertEqual(payload["connectivity"]["internet"]["state"], "not_configured")
         self.assertEqual(payload["samples"]["internet_speed"]["state"], "not_configured")
+        self.assertEqual(payload["samples"]["network_throughput"]["state"], "warming_up")
+
+    def test_stack_summary_derives_passive_speed_when_active_probe_not_configured(self) -> None:
+        app = FastAPI()
+        app.include_router(build_stack_health_router(), prefix="/api/system")
+        app.state.scheduler_engine = _FakeScheduler()
+        app.state.mqtt_manager = _FakeMqtt()
+        app.state.addon_registry = _FakeRegistry()
+        app.state.latest_stats = _FakeStats(total_rate=_FakeRate(rx_Bps=1_250_000.0, tx_Bps=625_000.0))
+
+        client = TestClient(app)
+        res = client.get("/api/system/stack/summary")
+        self.assertEqual(res.status_code, 200, res.text)
+
+        payload = res.json()
+        self.assertEqual(payload["samples"]["network_throughput"]["state"], "ok")
+        self.assertEqual(payload["samples"]["network_throughput"]["rx_Bps"], 1250000.0)
+        self.assertEqual(payload["samples"]["network_throughput"]["tx_Bps"], 625000.0)
+
+        self.assertEqual(payload["samples"]["internet_speed"]["state"], "ok")
+        self.assertEqual(payload["samples"]["internet_speed"]["source"], "passive_estimate")
+        self.assertEqual(payload["samples"]["internet_speed"]["download_mbps"], 10.0)
+        self.assertEqual(payload["samples"]["internet_speed"]["upload_mbps"], 5.0)
 
 
 if __name__ == "__main__":
