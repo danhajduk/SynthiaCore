@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any, Literal
 
@@ -51,6 +52,7 @@ class DesiredStatePayload(BaseModel):
     addon_id: str
     mode: Literal["standalone_service"]
     desired_state: Literal["running", "stopped"]
+    desired_revision: str = Field(..., min_length=1)
     channel: Literal["stable", "beta", "nightly"]
     pinned_version: str | None = None
     install_source: DesiredInstallSource
@@ -83,12 +85,17 @@ def build_desired_state(
     runtime_memory: str | None = None,
     config_env: dict[str, str] | None = None,
     desired_state: str = "running",
+    desired_revision: str | None = None,
 ) -> dict[str, Any]:
+    revision_value = str(desired_revision).strip() if desired_revision is not None else ""
+    if not revision_value:
+        revision_value = str(time.time_ns())
     payload = {
         "ssap_version": "1.0",
         "addon_id": addon_id,
         "mode": "standalone_service",
         "desired_state": desired_state,
+        "desired_revision": revision_value,
         "channel": channel,
         "pinned_version": pinned_version,
         "install_source": {

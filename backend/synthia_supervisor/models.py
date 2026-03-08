@@ -37,6 +37,7 @@ class DesiredState(BaseModel):
     ssap_version: str
     addon_id: str
     desired_state: str
+    desired_revision: Optional[str] = None
     pinned_version: Optional[str] = None
     install_source: DesiredInstallSource
     runtime: DesiredRuntime
@@ -51,6 +52,8 @@ class RuntimeState(BaseModel):
     previous_version: Optional[str] = None
     rollback_available: bool = False
     last_error: Optional[str] = None
+    last_applied_desired_revision: Optional[str] = None
+    last_applied_compose_digest: Optional[str] = None
 
     @classmethod
     def new(cls, addon_id: str):

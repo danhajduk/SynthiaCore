@@ -1,5 +1,6 @@
 
 from __future__ import annotations
+import hashlib
 import json, os, time, logging, shutil
 from pathlib import Path
 from typing import Dict, Any
@@ -124,6 +125,20 @@ def _safe_load_runtime_state(runtime_path: Path) -> RuntimeState | None:
         return None
 
 
+def _compose_input_digest(desired: DesiredState) -> str:
+    runtime = desired.runtime
+    payload = {
+        "addon_id": desired.addon_id,
+        "network": runtime.network or "synthia_net",
+        "bind_localhost": bool(getattr(runtime, "bind_localhost", True)),
+        "ports": list(getattr(runtime, "ports", []) or []),
+        "cpu": getattr(runtime, "cpu", None),
+        "memory": getattr(runtime, "memory", None),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
 def _build_reconcile_result(
     *,
     desired: DesiredState,
@@ -229,11 +244,28 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
             if compose_file.exists():
                 compose_down(compose_file, desired.runtime.project_name)
             rt.state = "stopped"
+            rt.last_applied_desired_revision = desired.desired_revision
             write_json_atomic(runtime_path, rt.model_dump())
             log.info("reconcile_done addon_id=%s state=stopped", desired.addon_id)
             return _build_reconcile_result(desired=desired, runtime=rt, prior_runtime=prior_runtime)
 
         version = desired.pinned_version or "latest"
+        desired_revision = str(desired.desired_revision or "").strip() or None
+        compose_digest = _compose_input_digest(desired)
+        if (
+            prior_runtime is not None
+            and prior_runtime.state == "running"
+            and prior_runtime.active_version == version
+            and desired_revision is not None
+            and prior_runtime.last_applied_desired_revision == desired_revision
+        ):
+            log.info(
+                "reconcile_noop addon_id=%s version=%s desired_revision=%s",
+                desired.addon_id,
+                version,
+                desired_revision,
+            )
+            return _build_reconcile_result(desired=desired, runtime=prior_runtime, prior_runtime=prior_runtime)
         version_dir = addon_dir / "versions" / version
         version_dir.mkdir(parents=True, exist_ok=True)
 
@@ -248,6 +280,21 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
 
         log.info("verify_skipped addon_id=%s reason=signature_checks_disabled", desired.addon_id)
         ensure_extracted(artifact_path, extracted_dir)
+        if (
+            compose_file.exists()
+            and prior_runtime is not None
+            and prior_runtime.active_version == version
+            and prior_runtime.last_applied_compose_digest is not None
+            and prior_runtime.last_applied_compose_digest != compose_digest
+        ):
+            compose_file.unlink()
+            log.info(
+                "compose_file_regen addon_id=%s version=%s reason=compose_digest_changed old=%s new=%s",
+                desired.addon_id,
+                version,
+                prior_runtime.last_applied_compose_digest,
+                compose_digest,
+            )
         ensure_compose_files(desired, extracted_dir, compose_file, env_file)
 
         compose_up(compose_file, desired.runtime.project_name)
@@ -258,6 +305,8 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
         rt.previous_version = previous_version
         rt.rollback_available = bool(previous_version and previous_version != version)
         rt.last_error = None
+        rt.last_applied_desired_revision = desired_revision
+        rt.last_applied_compose_digest = compose_digest
         log.info(
             "reconcile_done addon_id=%s state=running active_version=%s rollback_available=%s",
             desired.addon_id,

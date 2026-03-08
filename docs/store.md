@@ -1,6 +1,6 @@
 # Store and Catalog Documentation
 
-Last Updated: 2026-03-08 11:57 US/Pacific
+Last Updated: 2026-03-08 12:07 US/Pacific
 
 ## Scope
 
@@ -60,7 +60,7 @@ Store expectations/behavior:
 - Written by Store for `install_mode=standalone_service`.
 - Validated against `DesiredStatePayload` schema before write.
 - Key required fields written:
-  - `ssap_version`, `addon_id`, `mode`, `desired_state`, `channel`
+  - `ssap_version`, `addon_id`, `mode`, `desired_state`, `desired_revision`, `channel`
   - `install_source` (`type`, `catalog_id`, `release`)
   - `runtime` (`project_name`, `network`, `ports`, `bind_localhost`, optional `cpu`, `memory`)
   - `config.env`
@@ -75,7 +75,8 @@ Desired-state handoff behavior:
 - Store writes `desired.json` by atomic replace (`write_desired_state_atomic`).
 - There is no direct Store -> Supervisor notify API.
 - Supervisor picks up desired changes on its next poll cycle.
-- Rebuilds that require a new compose file must use a new `pinned_version` directory; updating `desired.json` only is not enough when `versions/<version>/docker-compose.yml` already exists.
+- Store writes a `desired_revision` marker so supervisor can detect desired changes deterministically.
+- Same-version compose-affecting desired changes are applied by supervisor via compose-file regeneration/reconcile.
 
 ### `runtime.json` (Supervisor-owned runtime state)
 

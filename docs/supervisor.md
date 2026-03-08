@@ -1,6 +1,6 @@
 # Synthia Supervisor Runtime Specification (Code-Verified)
 
-Last Updated: 2026-03-08 11:57 US/Pacific
+Last Updated: 2026-03-08 12:07 US/Pacific
 
 This document only describes behavior that is present in code today. Any missing capability is explicitly labeled **Not developed**.
 
@@ -127,7 +127,8 @@ Important handling detail:
 
 Implemented:
 - Supervisor generates `versions/<version>/docker-compose.yml` only if missing.
-- If compose file already exists, supervisor leaves it unchanged.
+- If compose file already exists and compose-impacting desired inputs are unchanged, supervisor leaves it unchanged.
+- If compose file already exists and compose-impacting desired inputs change for the same active version, supervisor regenerates compose by replacing the file before template write.
 
 Implication:
 - Custom compose file content in that path is preserved and used on future reconciles.
@@ -144,9 +145,9 @@ Implemented:
 
 Important rebuild boundary:
 - `runtime.env` is rewritten each running reconcile, so desired env changes are applied.
-- Compose-affecting desired fields (`runtime.ports`, `runtime.bind_localhost`, `runtime.network`, `runtime.cpu`, `runtime.memory`) only affect generated templates when `versions/<version>/docker-compose.yml` does not already exist.
-- If a compose file already exists for the pinned version, desired-only updates do not regenerate compose.
-- To force compose regeneration in current implementation, Core must reconcile to a new `pinned_version` directory where compose is not present yet.
+- Core writes `desired_revision`; supervisor persists the last applied marker in `runtime.json`.
+- When `desired_revision` is unchanged and runtime is already `running` on the same version, supervisor no-ops (skips extract/compose/up).
+- Compose-affecting desired fields are digested by supervisor; if digest changes on same version, supervisor regenerates compose before `compose up`.
 
 ## 8) Container Build Model
 
@@ -212,6 +213,7 @@ Implemented:
   - `stopped`
   - `error`
 - `installing` is initialization state used during reconcile execution, then replaced by terminal state write.
+- Runtime state includes last-applied desired metadata (`last_applied_desired_revision`, `last_applied_compose_digest`) for deterministic change detection.
 
 Not developed:
 - Historical event log in `runtime.json`.
@@ -370,6 +372,7 @@ Example shape:
   "addon_id": "mqtt",
   "mode": "standalone_service",
   "desired_state": "running",
+  "desired_revision": "1741464210123456789",
   "channel": "stable",
   "pinned_version": "0.1.2",
   "install_source": {
@@ -529,7 +532,7 @@ Ownership:
 - Supervisor reads `desired.json` as reconcile input.
 
 Supervisor-required fields (from current `DesiredState` model usage):
-- top-level: `ssap_version`, `addon_id`, `desired_state`, `pinned_version` (optional), `install_source`, `runtime`, `config`
+- top-level: `ssap_version`, `addon_id`, `desired_state`, `desired_revision`, `pinned_version` (optional), `install_source`, `runtime`, `config`
 - runtime fields consumed for reconcile behavior: `project_name`, `network`, `ports`, `bind_localhost`, `cpu`, `memory`
 - install source release field used by model: `artifact_url` (artifact file path is still sourced from staged local `addon.tgz`)
 
@@ -551,3 +554,5 @@ Supervisor-written state fields:
 - `previous_version`
 - `rollback_available`
 - `last_error`
+- `last_applied_desired_revision`
+- `last_applied_compose_digest`

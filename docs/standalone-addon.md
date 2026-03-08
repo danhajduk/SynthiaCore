@@ -1,6 +1,6 @@
 # Synthia Standalone Addon Specification
 
-Last Updated: 2026-03-08 11:57 US/Pacific
+Last Updated: 2026-03-08 12:07 US/Pacific
 
 Version: 0.1 (development phase)
 
@@ -233,8 +233,11 @@ What triggers rebuild/recompose today:
 
 - Changing `pinned_version` to a new version directory triggers a new
   extract/build/reconcile path.
-- Updating only `desired.json` for an already-generated version does not
-  regenerate `versions/<version>/docker-compose.yml`.
+- Core also writes `desired_revision`; if unchanged for same running
+  version, supervisor no-ops.
+- For same-version updates, compose-impacting desired changes
+  (`network`, `bind_localhost`, `ports`, `cpu`, `memory`) trigger
+  compose regeneration/reconcile.
 
 Addon author guidance:
 
@@ -242,7 +245,8 @@ Addon author guidance:
   (and optional `runtime_defaults.bind_localhost`) so Core can write
   desired runtime intent correctly.
 - For runtime topology changes that require a different compose file,
-  publish a new addon version and let Core set that as `pinned_version`.
+  you can either publish a new addon version or update desired runtime
+  inputs so Core writes a new `desired_revision`.
 
 Not developed:
 

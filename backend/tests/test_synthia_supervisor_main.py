@@ -10,11 +10,12 @@ from unittest.mock import patch
 from synthia_supervisor.main import reconcile_one, run_post_reconcile_hooks
 
 
-def _write_desired(addon_dir: Path, version: str = "0.1.2") -> None:
+def _write_desired(addon_dir: Path, version: str = "0.1.2", revision: str = "rev-1", ports: list[dict] | None = None) -> None:
     desired = {
         "ssap_version": "1.0",
         "addon_id": "mqtt",
         "desired_state": "running",
+        "desired_revision": revision,
         "pinned_version": version,
         "install_source": {
             "type": "catalog",
@@ -27,6 +28,9 @@ def _write_desired(addon_dir: Path, version: str = "0.1.2") -> None:
         },
         "runtime": {
             "project_name": "synthia-addon-mqtt",
+            "network": "synthia_net",
+            "ports": list(ports or []),
+            "bind_localhost": True,
         },
     }
     (addon_dir / "desired.json").write_text(json.dumps(desired), encoding="utf-8")
@@ -65,6 +69,8 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             self.assertEqual(runtime["active_version"], "0.1.2")
             self.assertFalse(runtime["rollback_available"])
             self.assertIsNone(runtime["last_error"])
+            self.assertEqual(runtime["last_applied_desired_revision"], "rev-1")
+            self.assertTrue(str(runtime.get("last_applied_compose_digest", "")).strip())
             self.assertEqual(result.final_state, "running")  # type: ignore[union-attr]
             self.assertEqual(result.desired_state, "running")  # type: ignore[union-attr]
 
@@ -150,6 +156,74 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             self.assertEqual(runtime["active_version"], "0.1.2")
             self.assertEqual(runtime["previous_version"], "0.1.1")
             self.assertTrue(runtime["rollback_available"])
+
+    def test_reconcile_noop_when_desired_revision_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            version_dir = addon_dir / "versions" / "0.1.2"
+            version_dir.mkdir(parents=True, exist_ok=True)
+            (version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+            runtime_path = addon_dir / "runtime.json"
+            runtime_path.write_text(
+                json.dumps(
+                    {
+                        "ssap_version": "1.0",
+                        "addon_id": "mqtt",
+                        "active_version": "0.1.2",
+                        "state": "running",
+                        "last_applied_desired_revision": "rev-1",
+                        "last_applied_compose_digest": "abc",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            _write_desired(addon_dir, revision="rev-1")
+            with patch("synthia_supervisor.main.ensure_extracted") as extract_mock, \
+                patch("synthia_supervisor.main.ensure_compose_files") as compose_mock, \
+                patch("synthia_supervisor.main.compose_up") as up_mock:
+                result = reconcile_one(addon_dir)
+            self.assertIsNotNone(result)
+            extract_mock.assert_not_called()
+            compose_mock.assert_not_called()
+            up_mock.assert_not_called()
+            runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+            self.assertEqual(runtime["last_applied_desired_revision"], "rev-1")
+
+    def test_reconcile_regenerates_compose_when_same_version_compose_inputs_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            version_dir = addon_dir / "versions" / "0.1.2"
+            extracted_dir = version_dir / "extracted"
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+            (version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+            compose_file = version_dir / "docker-compose.yml"
+            compose_file.write_text("services:\n  mqtt:\n    image: old\n", encoding="utf-8")
+            runtime_path = addon_dir / "runtime.json"
+            runtime_path.write_text(
+                json.dumps(
+                    {
+                        "ssap_version": "1.0",
+                        "addon_id": "mqtt",
+                        "active_version": "0.1.2",
+                        "state": "running",
+                        "last_applied_desired_revision": "rev-1",
+                        "last_applied_compose_digest": "old-digest",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            _write_desired(addon_dir, revision="rev-2", ports=[{"host": 18080, "container": 8080, "proto": "tcp"}])
+
+            with patch("synthia_supervisor.main.ensure_extracted"), \
+                patch("synthia_supervisor.main.compose_up"):
+                result = reconcile_one(addon_dir)
+            self.assertIsNotNone(result)
+            compose_text = compose_file.read_text(encoding="utf-8")
+            self.assertIn("18080:8080/tcp", compose_text)
+            self.assertNotIn("image: old", compose_text)
+            runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+            self.assertEqual(runtime["last_applied_desired_revision"], "rev-2")
+            self.assertNotEqual(runtime["last_applied_compose_digest"], "old-digest")
 
     def test_reconcile_prunes_old_versions_after_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
