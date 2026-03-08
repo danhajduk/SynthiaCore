@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -230,6 +231,84 @@ def _stage_standalone_artifact(
     tmp_path.write_bytes(artifact_bytes)
     tmp_path.replace(staged_artifact_path)
     return staged_artifact_path
+
+
+def _load_json_file(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    return None
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def _standalone_compose_file(service_dir: Path, active_version: str | None) -> Path | None:
+    current_compose = service_dir / "current" / "docker-compose.yml"
+    if current_compose.exists():
+        return current_compose
+    if active_version:
+        version_compose = service_dir / "versions" / active_version / "docker-compose.yml"
+        if version_compose.exists():
+            return version_compose
+    versions_dir = service_dir / "versions"
+    if versions_dir.exists():
+        for candidate in sorted(versions_dir.glob("*/docker-compose.yml"), reverse=True):
+            if candidate.exists():
+                return candidate
+    return None
+
+
+def _uninstall_standalone_service(addon_id: str) -> dict[str, Any]:
+    service_dir = service_addon_dir(addon_id, create=False)
+    if not service_dir.exists():
+        return {"removed": False, "reason": "standalone_not_installed"}
+
+    desired_path = service_dir / "desired.json"
+    runtime_path = service_dir / "runtime.json"
+    desired_payload = _load_json_file(desired_path) or {}
+    runtime_payload = _load_json_file(runtime_path) or {}
+
+    runtime_cfg = desired_payload.get("runtime") if isinstance(desired_payload.get("runtime"), dict) else {}
+    project_name = str(runtime_cfg.get("project_name") or f"synthia-addon-{addon_id}").strip() or f"synthia-addon-{addon_id}"
+    active_version = str(runtime_payload.get("active_version") or "").strip() or None
+    compose_file = _standalone_compose_file(service_dir, active_version)
+
+    if desired_payload:
+        desired_payload["desired_state"] = "stopped"
+        _write_json_atomic(desired_path, desired_payload)
+
+    compose_down_error: str | None = None
+    if compose_file is not None:
+        try:
+            proc = subprocess.run(
+                ["docker", "compose", "-f", str(compose_file), "-p", project_name, "down", "--remove-orphans"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+            if proc.returncode != 0:
+                compose_down_error = (proc.stderr or proc.stdout or f"exit_{proc.returncode}").strip() or f"exit_{proc.returncode}"
+        except Exception as exc:
+            compose_down_error = str(exc) or type(exc).__name__
+
+    shutil.rmtree(service_dir, ignore_errors=False)
+    return {
+        "removed": True,
+        "compose_file": _abs_path_str(compose_file),
+        "project_name": project_name,
+        "compose_down_error": compose_down_error,
+    }
 
 
 def _read_standalone_runtime(
@@ -2023,20 +2102,42 @@ def build_store_router(
                 except Exception:
                     version = None
 
-            atomic_uninstall(addon_id)
+            embedded_installed = (_addons_root() / addon_id).exists()
+            standalone_installed = service_addon_dir(addon_id, create=False).exists()
+            if not embedded_installed and not standalone_installed:
+                raise RuntimeError("addon_not_installed")
+
+            if embedded_installed:
+                atomic_uninstall(addon_id)
+            standalone_uninstall = _uninstall_standalone_service(addon_id) if standalone_installed else {"removed": False}
             registry.set_enabled(addon_id, False)
+            deleted_registered = registry.delete_registered(addon_id)
             if mqtt_approval_service is not None:
                 await mqtt_approval_service.revoke_or_mark(addon_id, reason="addon_uninstalled")
             _clear_install_state(addon_id)
+            compose_down_error = standalone_uninstall.get("compose_down_error")
+            audit_message = "uninstall_completed"
+            if compose_down_error:
+                audit_message = "uninstall_completed_with_compose_down_warning"
             await audit_store.record(
                 action="uninstall",
                 addon_id=addon_id,
                 version=version,
                 status="success",
-                message="uninstall_completed",
+                message=audit_message,
                 actor=actor,
             )
-            return {"ok": True, "addon_id": addon_id, "enabled": registry.is_enabled(addon_id)}
+            return {
+                "ok": True,
+                "addon_id": addon_id,
+                "enabled": registry.is_enabled(addon_id),
+                "embedded_removed": embedded_installed,
+                "standalone_removed": bool(standalone_uninstall.get("removed")),
+                "registered_deleted": deleted_registered,
+                "standalone_compose_file": standalone_uninstall.get("compose_file"),
+                "standalone_project_name": standalone_uninstall.get("project_name"),
+                "standalone_compose_down_error": compose_down_error,
+            }
         except Exception as exc:
             await audit_store.record(
                 action="uninstall",

@@ -301,3 +301,4 @@
 2026-03-08 - Task 147 completed: normalized standalone runtime project_name to Docker Compose-safe lowercase format, added regression tests, and updated standalone docs.
 2026-03-08 - Fixed supervisor standalone build-prep to ensure extracted runtime/ directory exists, preventing compose_up_failed "/runtime not found" for addon Dockerfiles that COPY runtime.
 2026-03-08 - Added ReleaseManifest runtime_defaults schema (ports/bind_localhost) and applied standalone install fallback to manifest defaults when runtime_overrides are absent.
+2026-03-08 - Task 148 completed: automated standalone uninstall in /api/store/uninstall (stop intent, compose down, remove service dir, clear registry/install state) with regression tests and docs updates.

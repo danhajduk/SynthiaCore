@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -42,12 +43,19 @@ class _FakeRegistry:
     def __init__(self) -> None:
         self.addons = {"hello_world": _FakeAddon("1.0.0")}
         self.enabled: dict[str, bool] = {}
+        self.registered: dict[str, dict] = {}
 
     def is_enabled(self, addon_id: str) -> bool:
         return self.enabled.get(addon_id, True)
 
     def set_enabled(self, addon_id: str, enabled: bool) -> None:
         self.enabled[addon_id] = enabled
+
+    def delete_registered(self, addon_id: str) -> bool:
+        existed = addon_id in self.registered
+        if existed:
+            del self.registered[addon_id]
+        return existed
 
 
 class _FakeSourcesStore:
@@ -550,6 +558,91 @@ class TestStoreApiEndpoints(unittest.TestCase):
             json={"addon_id": "missing-addon"},
         )
         self.assertEqual(uninstall_res.status_code, 404, uninstall_res.text)
+
+    def test_uninstall_removes_standalone_service_and_registry(self) -> None:
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+        addon_dir = standalone_root / "services" / "hello_world"
+        version_dir = addon_dir / "versions" / "1.0.0"
+        version_dir.mkdir(parents=True, exist_ok=True)
+        (version_dir / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
+        (addon_dir / "desired.json").write_text(
+            json.dumps(
+                {
+                    "addon_id": "hello_world",
+                    "desired_state": "running",
+                    "runtime": {"project_name": "synthia-addon-hello_world"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (addon_dir / "runtime.json").write_text(
+            json.dumps({"addon_id": "hello_world", "active_version": "1.0.0", "state": "running"}),
+            encoding="utf-8",
+        )
+        self.registry.registered["hello_world"] = {"id": "hello_world"}
+        state_path = Path(os.environ["STORE_INSTALL_STATE_PATH"])
+        state_path.write_text(
+            json.dumps({"hello_world": {"installed_version": "1.0.0"}}, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
+            "app.store.router.subprocess.run",
+            return_value=subprocess.CompletedProcess(args=["docker", "compose"], returncode=0, stdout="", stderr=""),
+        ) as down_mock:
+            res = self.client.post(
+                "/api/store/uninstall",
+                headers={"X-Admin-Token": "test-token"},
+                json={"addon_id": "hello_world"},
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertTrue(payload["standalone_removed"])
+        self.assertFalse(payload["embedded_removed"])
+        self.assertTrue(payload["registered_deleted"])
+        self.assertIsNone(payload["standalone_compose_down_error"])
+        down_mock.assert_called_once()
+        self.assertFalse(addon_dir.exists())
+        store_state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertNotIn("hello_world", store_state)
+
+    def test_uninstall_standalone_succeeds_when_compose_down_fails(self) -> None:
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+        addon_dir = standalone_root / "services" / "hello_world"
+        version_dir = addon_dir / "versions" / "1.0.0"
+        version_dir.mkdir(parents=True, exist_ok=True)
+        (version_dir / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
+        (addon_dir / "desired.json").write_text(
+            json.dumps(
+                {
+                    "addon_id": "hello_world",
+                    "desired_state": "running",
+                    "runtime": {"project_name": "synthia-addon-hello_world"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (addon_dir / "runtime.json").write_text(
+            json.dumps({"addon_id": "hello_world", "active_version": "1.0.0", "state": "running"}),
+            encoding="utf-8",
+        )
+
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
+            "app.store.router.subprocess.run",
+            return_value=subprocess.CompletedProcess(
+                args=["docker", "compose"], returncode=1, stdout="", stderr="compose failed"
+            ),
+        ):
+            res = self.client.post(
+                "/api/store/uninstall",
+                headers={"X-Admin-Token": "test-token"},
+                json={"addon_id": "hello_world"},
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertTrue(payload["standalone_removed"])
+        self.assertIn("compose failed", payload["standalone_compose_down_error"])
+        self.assertFalse(addon_dir.exists())
 
     def test_status_summary_reports_top_install_error_codes(self) -> None:
         with patch(

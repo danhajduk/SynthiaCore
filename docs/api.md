@@ -92,7 +92,10 @@ Runtime health model (implemented in runtime payload):
 
 Implemented uninstall behavior boundary:
 - `POST /api/store/uninstall` removes installed addon directory content managed by store lifecycle.
-- Standalone service runtime cleanup is not currently automated via this endpoint.
+- `POST /api/store/uninstall` now performs standalone cleanup when a service exists:
+  - writes `desired_state=stopped` to standalone desired intent when available
+  - performs best-effort `docker compose down --remove-orphans` using standalone project metadata
+  - removes standalone service files under `SYNTHIA_ADDONS_DIR/services/{addon_id}`
 
 ## Service Discovery API
 
