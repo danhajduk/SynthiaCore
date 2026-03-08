@@ -138,7 +138,7 @@ resolve_addons_dir() {
   if [[ "$raw" = /* ]]; then
     realpath -m "$raw"
   else
-    realpath -m "$REPO_DIR/backend/$raw"
+    realpath -m "$REPO_DIR/$raw"
   fi
 }
 
