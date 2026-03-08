@@ -181,6 +181,20 @@ function networkErrorsValue(metrics: StackSummary["samples"]["network_metrics"] 
   return `err ${errIn}/${errOut} drop ${dropIn}/${dropOut}`;
 }
 
+function schedulerLoadValue(stack: StackSummary | null): string {
+  const queued = Math.max(0, Number(stack?.subsystems.scheduler.queued_jobs ?? 0));
+  const load = Math.min(10, queued);
+  return `${load}/10`;
+}
+
+function schedulerLoadTone(stack: StackSummary | null): "ok" | "warn" | "bad" | "neutral" {
+  if (!stack) return "neutral";
+  const queued = Math.max(0, Number(stack.subsystems.scheduler.queued_jobs ?? 0));
+  if (queued >= 8) return "bad";
+  if (queued >= 4) return "warn";
+  return "ok";
+}
+
 function displayState(value: string): string {
   const raw = String(value || "unknown").trim();
   if (!raw) return "Unknown";
@@ -414,16 +428,7 @@ export default function Home() {
           value={stack?.connectivity.internet.state || "unknown"}
           tone={pillTone(stack?.connectivity.internet.state || "unknown")}
         />
-        <StatusMini
-          title="Speed"
-          value={speedValue(stack?.samples.internet_speed)}
-          sub={
-            stack?.samples.internet_speed?.sampled_at
-              ? `${stack.samples.internet_speed.source === "passive_estimate" ? "estimated" : "sample"} ${relative(stack.samples.internet_speed.sampled_at)}`
-              : undefined
-          }
-          tone={pillTone(stack?.samples.internet_speed?.state || "unknown")}
-        />
+        <StatusMini title="Scheduler Load" value={schedulerLoadValue(stack)} tone={schedulerLoadTone(stack)} />
       </section>
 
       {dataErr && <div className="home-data-err">Dashboard data load failed: {dataErr}</div>}

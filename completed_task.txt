@@ -285,3 +285,4 @@
 2026-03-07 - Removed shell header from layout so pages render directly at top of main pane
 2026-03-07 - Changed Home mini value border coloring to status-context logic; warn/bad only, ok/neutral default
 2026-03-07 - Moved mini status border tone styling from .home-mini-value to .home-mini container
+2026-03-07 - Replaced Home mini Speed card with Scheduler Load x/10 status card
