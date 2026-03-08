@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import "./addon-frame.css";
+import { addonUiFrameSrc } from "./addonFrameUrl";
 
 export default function AddonFrame() {
   const params = useParams<{ addonId: string }>();
   const addonId = (params.addonId || "").trim();
-  const src = useMemo(() => `/ui/addons/${encodeURIComponent(addonId)}`, [addonId]);
+  const src = useMemo(() => addonUiFrameSrc(addonId), [addonId]);
 
   if (!addonId) {
     return <div className="addon-frame-empty">Addon id is missing.</div>;
