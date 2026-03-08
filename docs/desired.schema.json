@@ -44,6 +44,14 @@
       "type": "boolean",
       "default": false
     },
+    "enabled_docker_groups": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": []
+    },
     "channel": {
       "type": "string",
       "enum": [
