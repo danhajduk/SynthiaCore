@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-07 18:40 US/Pacific
+Last Updated: 2026-03-07 18:44 US/Pacific
 
 ## Stack
 
@@ -37,7 +37,7 @@ Last Updated: 2026-03-07 18:40 US/Pacific
     - speed label reflects speed sample status and timestamp freshness (`speedtest_cli`/`speedtest_ookla` active sample or `passive_estimate` fallback)
     - status/mini metrics render humanized capitalization for state values
     - top status card border matches status tone colors (success/warn/danger) with 2px border width
-    - status mini value badges (`.home-mini-value`) use tone-matched 2px borders consistent with subsystem/status styling
+    - status mini value badges (`.home-mini-value`) derive tone from subsystem status context (not raw displayed value); warn/bad use colored borders, ok/neutral keep default border
     - login/session card is positioned directly beneath dashboard header
     - top-right updated badge uses 24h time format (`HH:MM:SS`)
   - degraded/attention reason details (expand/collapse)

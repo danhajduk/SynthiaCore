@@ -136,23 +136,23 @@
 }
 
 .home-mini-value.ok {
-  border-color: hsl(var(--color-success));
-  background: color-mix(in oklab, hsl(var(--color-success)) 22%, transparent);
+  border-color: hsl(var(--color-border));
+  background: transparent;
 }
 
 .home-mini-value.warn {
   border-color: hsl(var(--color-warning));
-  background: color-mix(in oklab, hsl(var(--color-warning)) 22%, transparent);
+  background: color-mix(in oklab, hsl(var(--color-warning)) 16%, transparent);
 }
 
 .home-mini-value.bad {
   border-color: hsl(var(--color-danger));
-  background: color-mix(in oklab, hsl(var(--color-danger)) 22%, transparent);
+  background: color-mix(in oklab, hsl(var(--color-danger)) 16%, transparent);
 }
 
 .home-mini-value.neutral {
-  border-color: hsl(var(--color-primary));
-  background: color-mix(in oklab, hsl(var(--color-primary)) 18%, transparent);
+  border-color: hsl(var(--color-border));
+  background: transparent;
 }
 
 .home-mini-sub {

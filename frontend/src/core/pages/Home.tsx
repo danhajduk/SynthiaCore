@@ -371,26 +371,49 @@ export default function Home() {
       </section>
 
       <section className="home-status-row">
-        <StatusMini title="Core" value={stack?.subsystems.core.state || "unknown"} />
-        <StatusMini title="Supervisor" value={stack?.subsystems.supervisor.state || "unknown"} />
+        <StatusMini
+          title="Core"
+          value={stack?.subsystems.core.state || "unknown"}
+          tone={pillTone(stack?.subsystems.core.state || "unknown")}
+        />
+        <StatusMini
+          title="Supervisor"
+          value={stack?.subsystems.supervisor.state || "unknown"}
+          tone={pillTone(stack?.subsystems.supervisor.state || "unknown")}
+        />
         <StatusMini
           title="Scheduler"
           value={stack?.subsystems.scheduler.state || "unknown"}
           sub={stack ? `${stack.subsystems.scheduler.queued_jobs} queued` : undefined}
+          tone={pillTone(stack?.subsystems.scheduler.state || "unknown")}
         />
-        <StatusMini title="MQTT" value={stack?.subsystems.mqtt.state || "unknown"} />
+        <StatusMini
+          title="MQTT"
+          value={stack?.subsystems.mqtt.state || "unknown"}
+          tone={pillTone(stack?.subsystems.mqtt.state || "unknown")}
+        />
         <StatusMini
           title="Workers"
           value={String(stack?.subsystems.workers.active_count ?? 0)}
           sub={stack?.subsystems.workers.state || "unknown"}
+          tone={pillTone(stack?.subsystems.workers.state || "unknown")}
         />
         <StatusMini
           title="Addons"
           value={String(stack?.subsystems.addons.installed_count ?? installedAddons.length)}
           sub={`${stack?.subsystems.addons.unhealthy_count ?? 0} unhealthy`}
+          tone={pillTone(stack?.subsystems.addons.state || "unknown")}
         />
-        <StatusMini title="Network" value={stack?.connectivity.network.state || "unknown"} />
-        <StatusMini title="Internet" value={stack?.connectivity.internet.state || "unknown"} />
+        <StatusMini
+          title="Network"
+          value={stack?.connectivity.network.state || "unknown"}
+          tone={pillTone(stack?.connectivity.network.state || "unknown")}
+        />
+        <StatusMini
+          title="Internet"
+          value={stack?.connectivity.internet.state || "unknown"}
+          tone={pillTone(stack?.connectivity.internet.state || "unknown")}
+        />
         <StatusMini
           title="Speed"
           value={speedValue(stack?.samples.internet_speed)}
@@ -399,6 +422,7 @@ export default function Home() {
               ? `${stack.samples.internet_speed.source === "passive_estimate" ? "estimated" : "sample"} ${relative(stack.samples.internet_speed.sampled_at)}`
               : undefined
           }
+          tone={pillTone(stack?.samples.internet_speed?.state || "unknown")}
         />
       </section>
 
@@ -482,8 +506,17 @@ export default function Home() {
   );
 }
 
-function StatusMini({ title, value, sub }: { title: string; value: string; sub?: string }) {
-  const tone = pillTone(value);
+function StatusMini({
+  title,
+  value,
+  sub,
+  tone = "neutral",
+}: {
+  title: string;
+  value: string;
+  sub?: string;
+  tone?: "ok" | "warn" | "bad" | "neutral";
+}) {
   return (
     <div className="home-mini">
       <div className="home-mini-title">{title}</div>
