@@ -1381,7 +1381,7 @@ def build_store_router(
                 service_dir = service_addon_dir(manifest.id, create=True)
                 desired_path = service_dir / "desired.json"
                 runtime_overrides = body.runtime_overrides if isinstance(body.runtime_overrides, dict) else {}
-                runtime_project_name = str(runtime_overrides.get("project_name") or f"synthia-addon-{manifest.id}").strip()
+                runtime_project_name = str(runtime_overrides.get("project_name") or f"Synthia-Addon-{manifest.id}").strip()
                 runtime_network = str(runtime_overrides.get("network") or "synthia_net").strip()
                 if runtime_network.lower() in {"host", "host_network"}:
                     raise HTTPException(
@@ -1455,7 +1455,7 @@ def build_store_router(
                     sha256=expected_sha256 or "",
                     publisher_key_id=debug_publisher_key_id or "",
                     signature_value=release_signature_b64 or "",
-                    runtime_project_name=runtime_project_name or f"synthia-addon-{manifest.id}",
+                    runtime_project_name=runtime_project_name or f"Synthia-Addon-{manifest.id}",
                     runtime_network=runtime_network or "synthia_net",
                     runtime_ports=runtime_ports_payload,
                     runtime_bind_localhost=runtime_bind_localhost,

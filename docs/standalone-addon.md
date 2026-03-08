@@ -1,6 +1,6 @@
 # Synthia Standalone Addon Specification
 
-Last Updated: 2026-03-07 16:03 US/Pacific
+Last Updated: 2026-03-07 17:36 US/Pacific
 
 Version: 0.1 (development phase)
 
@@ -205,6 +205,18 @@ Example:
 { "ports": \[ { "host": 9002, "container": 9002, "proto": "tcp" } \] }
 
 Addons must listen on the container port defined here.
+
+------------------------------------------------------------------------
+
+# 6.1 Compose Project Naming
+
+For Core-authored standalone installs, if runtime project name is not
+explicitly provided, Core defaults `runtime.project_name` to:
+
+`Synthia-Addon-<addon_id>`
+
+If a project name is explicitly provided in runtime overrides or custom
+desired state, that value is preserved.
 
 ------------------------------------------------------------------------
 
