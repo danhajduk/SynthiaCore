@@ -40,12 +40,17 @@ def compose_down(compose_file: Path, project_name: str):
 
 
 def ensure_extracted(artifact_path: Path, extracted_dir: Path):
+    runtime_dir = extracted_dir / "runtime"
     if extracted_dir.exists():
         log.info("extract_skip path=%s reason=already_exists", extracted_dir)
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        log.info("runtime_dir_ensured path=%s", runtime_dir)
         return
     log.info("extract_start artifact=%s dest=%s", artifact_path, extracted_dir)
     extracted_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(["tar","-xzf",str(artifact_path),"-C",str(extracted_dir)], check=True)
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    log.info("runtime_dir_ensured path=%s", runtime_dir)
     log.info("extract_done dest=%s", extracted_dir)
 
 

@@ -7,11 +7,29 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from synthia_supervisor.docker_compose import compose_up, ensure_compose_files
+from synthia_supervisor.docker_compose import compose_up, ensure_compose_files, ensure_extracted
 from synthia_supervisor.models import DesiredState
 
 
 class TestSynthiaSupervisorCompose(unittest.TestCase):
+    def test_ensure_extracted_creates_runtime_dir_when_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            extracted = Path(tmp) / "extracted"
+            extracted.mkdir(parents=True, exist_ok=True)
+            self.assertFalse((extracted / "runtime").exists())
+            ensure_extracted(Path(tmp) / "artifact.tgz", extracted)
+            self.assertTrue((extracted / "runtime").is_dir())
+
+    def test_ensure_extracted_creates_runtime_dir_after_extract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            extracted = Path(tmp) / "extracted"
+            artifact = Path(tmp) / "artifact.tgz"
+            artifact.write_text("", encoding="utf-8")
+            with patch("synthia_supervisor.docker_compose.subprocess.run") as run_mock:
+                ensure_extracted(artifact, extracted)
+                run_mock.assert_called_once()
+            self.assertTrue((extracted / "runtime").is_dir())
+
     def test_compose_defaults_include_security_guardrails(self) -> None:
         desired = DesiredState.model_validate(
             {

@@ -299,3 +299,4 @@
 2026-03-07 - Task 145 completed: added authoritative Core MQTT integration contract documentation and linked it from core/addon references.
 2026-03-07 - Task 146 completed: added MQTT approval governance regression tests and explicit HA discovery mode validation constraints.
 2026-03-08 - Task 147 completed: normalized standalone runtime project_name to Docker Compose-safe lowercase format, added regression tests, and updated standalone docs.
+2026-03-08 - Fixed supervisor standalone build-prep to ensure extracted runtime/ directory exists, preventing compose_up_failed "/runtime not found" for addon Dockerfiles that COPY runtime.
