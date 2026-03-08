@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-07 18:16 US/Pacific
+Last Updated: 2026-03-07 18:31 US/Pacific
 
 ## Stack
 
@@ -35,10 +35,15 @@ Last Updated: 2026-03-07 18:16 US/Pacific
   - subsystem pills: core, supervisor, mqtt, scheduler, workers, addons, network, internet
   - compact status row with scheduler/network/internet/speed visibility
     - speed label reflects speed sample status and timestamp freshness (`speedtest_cli`/`speedtest_ookla` active sample or `passive_estimate` fallback)
+    - status/mini metrics render humanized capitalization for state values
+    - login/session card is positioned directly beneath dashboard header
+    - top-right updated badge uses 24h time format (`HH:MM:SS`)
   - degraded/attention reason details (expand/collapse)
   - Installed Addons panel
   - Recent Activity panel (platform events feed)
   - System Metrics panel (CPU/memory/disk + network/internet/speed status + throughput sample + network I/O/error counters)
+    - CPU/Memory/Disk render as fill bars with percentage labels
+  - shell header keeps only the main title text (legacy subtitle removed)
   - compact admin session strip (sign-in or sign-out state)
   - data refresh interval: 10s polling for dashboard cards (`/api/system/stack/summary` reads backend cached speed values only and does not trigger new speedtest runs)
 - Store: catalog browsing, install actions, diagnostics and remediation UX

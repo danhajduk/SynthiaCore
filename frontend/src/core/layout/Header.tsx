@@ -32,7 +32,6 @@ export default function Header() {
     <header className="header">
       <div>
         <div className="header-title">Synthia</div>
-        <div className="header-subtitle">Core shell + Addons</div>
       </div>
       <div className="header-right">
         {repoStatus?.ok && repoStatus.update_available && (

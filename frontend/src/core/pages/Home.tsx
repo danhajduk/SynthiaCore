@@ -181,6 +181,13 @@ function networkErrorsValue(metrics: StackSummary["samples"]["network_metrics"] 
   return `err ${errIn}/${errOut} drop ${dropIn}/${dropOut}`;
 }
 
+function displayState(value: string): string {
+  const raw = String(value || "unknown").trim();
+  if (!raw) return "Unknown";
+  const normalized = raw.replace(/_/g, " ").toLowerCase();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
 export default function Home() {
   const { authenticated, login, logout, ready } = useAdminSession();
   const [username, setUsername] = useState("admin");
@@ -214,7 +221,14 @@ export default function Home() {
       if (repoRes.ok) setRepoStatus((await repoRes.json()) as RepoStatus);
       if (stackRes.ok) setStack((await stackRes.json()) as StackSummary);
       setDataErr(null);
-      setLastUpdated(new Date().toLocaleTimeString());
+      setLastUpdated(
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }),
+      );
     } catch (e: unknown) {
       setDataErr(e instanceof Error ? e.message : String(e));
     }
@@ -298,6 +312,35 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="home-session-strip">
+        {!ready ? (
+          <div className="home-session-card">Checking session...</div>
+        ) : authenticated ? (
+          <div className="home-session-card">
+            <span>Admin session active</span>
+            <button className="home-btn" onClick={submitLogout} disabled={busy}>
+              {busy ? "Signing out..." : "Sign out"}
+            </button>
+          </div>
+        ) : (
+          <div className="home-session-card home-session-login">
+            <span>Guest mode active</span>
+            <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" className="home-input" />
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              type="password"
+              className="home-input"
+            />
+            <button className="home-btn" onClick={submitLogin} disabled={busy || !username.trim() || !password}>
+              {busy ? "Signing in..." : "Sign in"}
+            </button>
+          </div>
+        )}
+        {err && <div className="home-auth-err">{err}</div>}
+      </section>
+
       <section className={`home-status-card tone-${status.tone}`}>
         <div>
           <div className="home-status-label">{status.label}</div>
@@ -359,35 +402,6 @@ export default function Home() {
         />
       </section>
 
-      <section className="home-session-strip">
-        {!ready ? (
-          <div className="home-session-card">Checking session...</div>
-        ) : authenticated ? (
-          <div className="home-session-card">
-            <span>Admin session active</span>
-            <button className="home-btn" onClick={submitLogout} disabled={busy}>
-              {busy ? "Signing out..." : "Sign out"}
-            </button>
-          </div>
-        ) : (
-          <div className="home-session-card home-session-login">
-            <span>Guest mode active</span>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" className="home-input" />
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              type="password"
-              className="home-input"
-            />
-            <button className="home-btn" onClick={submitLogin} disabled={busy || !username.trim() || !password}>
-              {busy ? "Signing in..." : "Sign in"}
-            </button>
-          </div>
-        )}
-        {err && <div className="home-auth-err">{err}</div>}
-      </section>
-
       {dataErr && <div className="home-data-err">Dashboard data load failed: {dataErr}</div>}
 
       <section className="home-grid">
@@ -444,21 +458,21 @@ export default function Home() {
             <div className="home-empty">Metrics unavailable.</div>
           ) : (
             <div className="home-metrics">
-              <MetricRow label="CPU" value={pct(stats.cpu.percent_total)} />
-              <MetricRow label="Memory" value={pct(stats.mem.percent)} />
-              <MetricRow
+              <MetricBar label="CPU" percent={stats.cpu.percent_total} />
+              <MetricBar label="Memory" percent={stats.mem.percent} />
+              <MetricBar
                 label="Disk"
-                value={pct(
+                percent={
                   Object.values(stats.disks).length > 0
                     ? Math.max(...Object.values(stats.disks).map((x) => x.percent))
-                    : 0,
-                )}
+                    : 0
+                }
               />
-              <MetricRow label="Network" value={stack?.connectivity.network.state || "unknown"} />
+              <MetricRow label="Network" value={displayState(stack?.connectivity.network.state || "unknown")} />
               <MetricRow label="Throughput" value={throughputValue(stack?.samples.network_throughput)} />
               <MetricRow label="Net I/O" value={networkCountersValue(stack?.samples.network_metrics)} />
               <MetricRow label="Net Errors" value={networkErrorsValue(stack?.samples.network_metrics)} />
-              <MetricRow label="Internet" value={stack?.connectivity.internet.state || "unknown"} />
+              <MetricRow label="Internet" value={displayState(stack?.connectivity.internet.state || "unknown")} />
               <MetricRow label="Speed" value={speedValue(stack?.samples.internet_speed)} />
             </div>
           )}
@@ -472,8 +486,8 @@ function StatusMini({ title, value, sub }: { title: string; value: string; sub?:
   return (
     <div className="home-mini">
       <div className="home-mini-title">{title}</div>
-      <div className="home-mini-value">{value}</div>
-      {sub && <div className="home-mini-sub">{sub}</div>}
+      <div className="home-mini-value">{displayState(value)}</div>
+      {sub && <div className="home-mini-sub">{displayState(sub)}</div>}
     </div>
   );
 }
@@ -483,6 +497,21 @@ function MetricRow({ label, value }: { label: string; value: string }) {
     <div className="home-metric-row">
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+function MetricBar({ label, percent }: { label: string; percent: number }) {
+  const clamped = Math.max(0, Math.min(100, percent));
+  return (
+    <div className="home-metric-bar">
+      <div className="home-metric-bar-top">
+        <span>{label}</span>
+        <strong>{pct(clamped)}</strong>
+      </div>
+      <div className="home-metric-bar-track">
+        <div className="home-metric-bar-fill" style={{ width: `${clamped}%` }} />
+      </div>
     </div>
   );
 }
