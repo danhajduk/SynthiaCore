@@ -1,6 +1,6 @@
 # Synthia Supervisor Runtime Specification (Code-Verified)
 
-Last Updated: 2026-03-08 13:08 US/Pacific
+Last Updated: 2026-03-08 16:16 US/Pacific
 
 This document only describes behavior that is present in code today. Any missing capability is explicitly labeled **Not developed**.
 
@@ -149,6 +149,7 @@ Important rebuild boundary:
 - When `desired_revision` is unchanged and runtime is already `running` on the same version, supervisor no-ops (skips extract/compose/up).
 - Compose-affecting desired fields are digested by supervisor; if digest changes on same version, supervisor regenerates compose before `compose up`.
 - `force_rebuild=true` in desired payload forces one rebuild/recreate cycle for that `desired_revision` (then no-op resumes for unchanged revision).
+- On desired pinned-version transition from previous active version, supervisor runs compose with rebuild/recreate semantics to avoid stale local image reuse.
 
 ## 8) Container Build Model
 

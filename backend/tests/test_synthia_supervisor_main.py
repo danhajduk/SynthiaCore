@@ -166,6 +166,40 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             self.assertEqual(runtime["previous_version"], "0.1.1")
             self.assertTrue(runtime["rollback_available"])
 
+    def test_reconcile_version_transition_forces_compose_rebuild(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            old_version_dir = addon_dir / "versions" / "0.1.1"
+            new_version_dir = addon_dir / "versions" / "0.1.2"
+            old_version_dir.mkdir(parents=True, exist_ok=True)
+            new_version_dir.mkdir(parents=True, exist_ok=True)
+            (new_version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+            (addon_dir / "current").symlink_to(old_version_dir)
+            runtime_path = addon_dir / "runtime.json"
+            runtime_path.write_text(
+                json.dumps(
+                    {
+                        "ssap_version": "1.0",
+                        "addon_id": "mqtt",
+                        "active_version": "0.1.1",
+                        "state": "running",
+                        "last_applied_desired_revision": "rev-1",
+                        "last_applied_compose_digest": "old-digest",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            _write_desired(addon_dir, version="0.1.2", revision="rev-2")
+
+            with patch("synthia_supervisor.main.ensure_extracted"), \
+                patch("synthia_supervisor.main.ensure_compose_files"), \
+                patch("synthia_supervisor.main.compose_up") as up_mock:
+                result = reconcile_one(addon_dir)
+
+            self.assertIsNotNone(result)
+            self.assertTrue(up_mock.called)
+            self.assertTrue(up_mock.call_args.kwargs.get("force_rebuild"))
+
     def test_reconcile_noop_when_desired_revision_unchanged(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             addon_dir = Path(tmp) / "services" / "mqtt"

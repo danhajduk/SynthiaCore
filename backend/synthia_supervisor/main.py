@@ -281,6 +281,11 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
         version = desired.pinned_version or "latest"
         desired_revision = str(desired.desired_revision or "").strip() or None
         force_rebuild = bool(getattr(desired, "force_rebuild", False))
+        version_transition = bool(
+            prior_runtime is not None
+            and str(prior_runtime.active_version or "").strip()
+            and prior_runtime.active_version != version
+        )
         force_rebuild_already_applied = bool(
             force_rebuild
             and desired_revision is not None
@@ -371,7 +376,7 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
         compose_up(
             compose_files,
             desired.runtime.project_name,
-            force_rebuild=(force_rebuild and not force_rebuild_already_applied),
+            force_rebuild=(version_transition or (force_rebuild and not force_rebuild_already_applied)),
         )
         activate_current_symlink(addon_dir, version_dir)
 

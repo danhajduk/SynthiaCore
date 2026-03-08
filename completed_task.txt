@@ -315,3 +315,4 @@
 2026-03-08 - Extended iframe core-theme injection to include .home-mini/.home-panel utility selectors and documented them in docs/theme.md.
 2026-03-08 - Added home-head and home-status-card (tone variants) to iframe theme injection and documented selectors.
 2026-03-08 - Fixed uninstall-addon.sh standalone addons path resolution to use repo-root relative path (../SynthiaAddons).
+2026-03-08 - Fixed supervisor reconcile to force compose rebuild on version transitions to avoid stale image reuse.
