@@ -134,6 +134,9 @@ def _compose_input_digest(desired: DesiredState) -> str:
         "ports": list(getattr(runtime, "ports", []) or []),
         "cpu": getattr(runtime, "cpu", None),
         "memory": getattr(runtime, "memory", None),
+        "enabled_docker_groups": sorted(
+            {str(item).strip() for item in list(getattr(desired, "enabled_docker_groups", []) or []) if str(item).strip()}
+        ),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
@@ -238,13 +241,37 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
     )
 
     try:
+        requested_groups = sorted(
+            {
+                str(item).strip()
+                for item in list(getattr(desired, "enabled_docker_groups", []) or [])
+                if str(item).strip()
+            }
+        )
         if desired.desired_state == "stopped":
             compose_file = addon_dir / "current" / "docker-compose.yml"
-            log.info("desired_state_stopped addon_id=%s compose_file=%s", desired.addon_id, compose_file)
-            if compose_file.exists():
-                compose_down(compose_file, desired.runtime.project_name)
+            compose_files_in_use = []
+            if prior_runtime is not None and list(prior_runtime.compose_files_in_use or []):
+                compose_files_in_use = [
+                    Path(p)
+                    for p in list(prior_runtime.compose_files_in_use)
+                    if isinstance(p, str) and p.strip()
+                ]
+            elif compose_file.exists():
+                compose_files_in_use = [compose_file]
+            log.info(
+                "desired_state_stopped addon_id=%s compose_files=%s",
+                desired.addon_id,
+                [str(item) for item in compose_files_in_use],
+            )
+            if compose_files_in_use:
+                compose_down(compose_files_in_use, desired.runtime.project_name)
             rt.state = "stopped"
             rt.last_applied_desired_revision = desired.desired_revision
+            rt.requested_docker_groups = requested_groups
+            rt.active_docker_groups = []
+            rt.failed_docker_groups = []
+            rt.compose_files_in_use = [str(item) for item in compose_files_in_use]
             if desired.force_rebuild and desired.desired_revision:
                 rt.last_force_rebuild_revision = desired.desired_revision
             write_json_atomic(runtime_path, rt.model_dump())
@@ -305,6 +332,18 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
 
         log.info("verify_skipped addon_id=%s reason=signature_checks_disabled", desired.addon_id)
         ensure_extracted(artifact_path, extracted_dir)
+
+        active_groups: list[str] = []
+        failed_groups: list[str] = []
+        compose_files = [compose_file]
+        for group in requested_groups:
+            group_compose = extracted_dir / f"docker-compose.group-{group}.yml"
+            if group_compose.exists():
+                compose_files.append(group_compose)
+                active_groups.append(group)
+            else:
+                failed_groups.append(group)
+
         if compose_file.exists() and force_rebuild and not force_rebuild_already_applied:
             compose_file.unlink()
             log.info(
@@ -329,7 +368,11 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
             )
         ensure_compose_files(desired, extracted_dir, compose_file, env_file)
 
-        compose_up(compose_file, desired.runtime.project_name, force_rebuild=(force_rebuild and not force_rebuild_already_applied))
+        compose_up(
+            compose_files,
+            desired.runtime.project_name,
+            force_rebuild=(force_rebuild and not force_rebuild_already_applied),
+        )
         activate_current_symlink(addon_dir, version_dir)
 
         rt.state = "running"
@@ -339,6 +382,10 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
         rt.last_error = None
         rt.last_applied_desired_revision = desired_revision
         rt.last_applied_compose_digest = compose_digest
+        rt.requested_docker_groups = requested_groups
+        rt.active_docker_groups = active_groups
+        rt.failed_docker_groups = failed_groups
+        rt.compose_files_in_use = [str(item) for item in compose_files]
         if force_rebuild and desired_revision:
             rt.last_force_rebuild_revision = desired_revision
         log.info(

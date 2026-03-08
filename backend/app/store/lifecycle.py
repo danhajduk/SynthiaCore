@@ -183,6 +183,7 @@ class StoreInstallRequest(BaseModel):
     install_mode: str = "embedded_addon"
     desired_state: str = "running"
     force_rebuild: bool = False
+    enabled_docker_groups: list[str] | None = None
     pinned_version: str | None = None
     runtime_overrides: dict[str, Any] | None = None
     config_env_overrides: dict[str, str] | None = None
@@ -204,6 +205,7 @@ class StoreStandaloneUpdateRequest(BaseModel):
     channel: str | None = None
     desired_state: str | None = None
     force_rebuild: bool = False
+    enabled_docker_groups: list[str] | None = None
     pinned_version: str | None = None
     runtime_overrides: dict[str, Any] | None = None
     config_env_overrides: dict[str, str] | None = None

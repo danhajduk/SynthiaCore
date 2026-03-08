@@ -1824,7 +1824,90 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(desired["runtime"]["cpu"], 1.5)
         self.assertEqual(desired["runtime"]["memory"], "512m")
         self.assertFalse(desired["force_rebuild"])
+        self.assertEqual(desired["enabled_docker_groups"], [])
         self.assertEqual(desired["config"]["env"]["SYNTHIA_SERVICE_TOKEN"], "${SYNTHIA_SERVICE_TOKEN}")
+
+    def test_catalog_install_standalone_service_mode_accepts_enabled_docker_groups(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-standalone-enabled-groups.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr(
+                "hello_world/manifest.json",
+                json.dumps(
+                    {
+                        "id": "hello_world",
+                        "name": "hello_world",
+                        "version": "1.0.0",
+                        "docker_groups": [{"name": "broker"}, {"name": "worker"}],
+                    }
+                ),
+            )
+            zf.writestr("hello_world/app/main.py", "print('ok')\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            package_profile="standalone_service",
+            release_url="https://example.test/hello_world-1.0.0.zip",
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
+            "app.store.router.resolve_manifest_compatibility", return_value=None
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "source_id": "official",
+                    "addon_id": "hello_world",
+                    "install_mode": "standalone_service",
+                    "enabled_docker_groups": ["broker", "worker"],
+                    "enable": True,
+                },
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        desired = json.loads(Path(res.json()["desired_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(desired["enabled_docker_groups"], ["broker", "worker"])
+
+    def test_catalog_install_standalone_service_mode_rejects_unknown_docker_groups(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-standalone-unknown-groups.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr(
+                "hello_world/manifest.json",
+                json.dumps({"id": "hello_world", "name": "hello_world", "version": "1.0.0", "docker_groups": [{"name": "broker"}]}),
+            )
+            zf.writestr("hello_world/app/main.py", "print('ok')\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            package_profile="standalone_service",
+            release_url="https://example.test/hello_world-1.0.0.zip",
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
+            "app.store.router.resolve_manifest_compatibility", return_value=None
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "source_id": "official",
+                    "addon_id": "hello_world",
+                    "install_mode": "standalone_service",
+                    "enabled_docker_groups": ["cache"],
+                    "enable": True,
+                },
+            )
+        self.assertEqual(res.status_code, 400, res.text)
+        self.assertEqual(res.json()["detail"]["error"], "docker_groups_unknown")
 
     def test_catalog_install_standalone_service_mode_uses_manifest_runtime_default_ports(self) -> None:
         pkg = Path(self.tmp.name) / "bundle-standalone-runtime-default-ports.zip"
@@ -2057,6 +2140,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
                     "desired_revision": "rev-old",
                     "channel": "stable",
                     "force_rebuild": False,
+                    "enabled_docker_groups": [],
                     "pinned_version": "1.0.0",
                     "install_source": {
                         "type": "catalog",
@@ -2094,12 +2178,115 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(res.status_code, 200, res.text)
         payload = res.json()
         self.assertTrue(payload["force_rebuild"])
+        self.assertEqual(payload["enabled_docker_groups"], [])
         self.assertIsNotNone(payload["desired_revision"])
         desired = json.loads(desired_path.read_text(encoding="utf-8"))
         self.assertTrue(desired["force_rebuild"])
         self.assertNotEqual(desired["desired_revision"], "rev-old")
         self.assertEqual(desired["runtime"]["ports"], [{"host": 18080, "container": 8080, "proto": "tcp"}])
         self.assertEqual(desired["config"]["env"]["EXTRA_FLAG"], "1")
+
+    def test_standalone_update_sets_enabled_docker_groups(self) -> None:
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+        addon_dir = standalone_root / "services" / "hello_world"
+        extracted_dir = addon_dir / "current" / "extracted"
+        extracted_dir.mkdir(parents=True, exist_ok=True)
+        (extracted_dir / "manifest.json").write_text(
+            json.dumps(
+                {"id": "hello_world", "name": "hello_world", "version": "1.0.0", "docker_groups": [{"name": "broker"}, {"name": "worker"}]}
+            ),
+            encoding="utf-8",
+        )
+        desired_path = addon_dir / "desired.json"
+        desired_path.write_text(
+            json.dumps(
+                {
+                    "ssap_version": "1.0",
+                    "addon_id": "hello_world",
+                    "mode": "standalone_service",
+                    "desired_state": "running",
+                    "desired_revision": "rev-old",
+                    "channel": "stable",
+                    "force_rebuild": False,
+                    "enabled_docker_groups": [],
+                    "pinned_version": "1.0.0",
+                    "install_source": {
+                        "type": "catalog",
+                        "catalog_id": "official",
+                        "release": {
+                            "artifact_url": "https://example.test/hello_world-1.0.0.tgz",
+                            "sha256": "",
+                            "publisher_key_id": "",
+                            "signature": {"type": "none", "value": ""},
+                        },
+                    },
+                    "runtime": {
+                        "orchestrator": "docker_compose",
+                        "project_name": "synthia-addon-hello_world",
+                        "network": "synthia_net",
+                        "ports": [],
+                        "bind_localhost": True,
+                    },
+                    "config": {"env": {}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False):
+            res = self.client.post(
+                "/api/store/standalone/update",
+                headers={"X-Admin-Token": "test-token"},
+                json={"addon_id": "hello_world", "enabled_docker_groups": ["broker", "worker"]},
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["enabled_docker_groups"], ["broker", "worker"])
+        desired = json.loads(desired_path.read_text(encoding="utf-8"))
+        self.assertEqual(desired["enabled_docker_groups"], ["broker", "worker"])
+
+    def test_standalone_update_rejects_unknown_enabled_docker_groups(self) -> None:
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+        addon_dir = standalone_root / "services" / "hello_world"
+        extracted_dir = addon_dir / "current" / "extracted"
+        extracted_dir.mkdir(parents=True, exist_ok=True)
+        (extracted_dir / "manifest.json").write_text(
+            json.dumps({"id": "hello_world", "name": "hello_world", "version": "1.0.0", "docker_groups": [{"name": "broker"}]}),
+            encoding="utf-8",
+        )
+        desired_path = addon_dir / "desired.json"
+        desired_path.write_text(
+            json.dumps(
+                {
+                    "ssap_version": "1.0",
+                    "addon_id": "hello_world",
+                    "mode": "standalone_service",
+                    "desired_state": "running",
+                    "desired_revision": "rev-old",
+                    "channel": "stable",
+                    "force_rebuild": False,
+                    "enabled_docker_groups": [],
+                    "pinned_version": "1.0.0",
+                    "install_source": {"type": "catalog", "catalog_id": "official", "release": {"artifact_url": "https://example.test/a.tgz"}},
+                    "runtime": {
+                        "orchestrator": "docker_compose",
+                        "project_name": "synthia-addon-hello_world",
+                        "network": "synthia_net",
+                        "ports": [],
+                        "bind_localhost": True,
+                    },
+                    "config": {"env": {}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False):
+            res = self.client.post(
+                "/api/store/standalone/update",
+                headers={"X-Admin-Token": "test-token"},
+                json={"addon_id": "hello_world", "enabled_docker_groups": ["cache"]},
+            )
+        self.assertEqual(res.status_code, 400, res.text)
+        self.assertEqual(res.json()["detail"]["error"], "docker_groups_unknown")
 
     def test_catalog_install_standalone_service_mode_rejects_invalid_desired_state(self) -> None:
         pkg = Path(self.tmp.name) / "bundle-standalone-invalid-desired.zip"

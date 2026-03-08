@@ -35,6 +35,7 @@ class TestStoreStandaloneDesired(unittest.TestCase):
         self.assertEqual(payload["desired_state"], "running")
         self.assertTrue(str(payload["desired_revision"]).strip())
         self.assertFalse(payload["force_rebuild"])
+        self.assertEqual(payload["enabled_docker_groups"], [])
         self.assertEqual(payload["install_source"]["type"], "catalog")
         self.assertEqual(payload["install_source"]["catalog_id"], "official")
         self.assertEqual(payload["install_source"]["release"]["signature"]["type"], "none")
@@ -67,8 +68,22 @@ class TestStoreStandaloneDesired(unittest.TestCase):
             self.assertEqual(loaded["pinned_version"], "0.1.2")
             self.assertTrue(str(loaded["desired_revision"]).strip())
             self.assertFalse(loaded["force_rebuild"])
+            self.assertEqual(loaded["enabled_docker_groups"], [])
             self.assertEqual(loaded["install_source"]["release"]["sha256"], "b" * 64)
             self.assertFalse(desired_path.with_suffix(".json.tmp").exists())
+
+    def test_build_desired_state_accepts_enabled_docker_groups(self) -> None:
+        payload = build_desired_state(
+            addon_id="mqtt",
+            catalog_id="official",
+            channel="stable",
+            pinned_version="0.1.2",
+            artifact_url="https://example.test/mqtt-0.1.2.tgz",
+            runtime_project_name="synthia-addon-mqtt",
+            runtime_network="synthia_net",
+            enabled_docker_groups=["broker", "worker", "broker"],
+        )
+        self.assertEqual(payload["enabled_docker_groups"], ["broker", "worker", "broker"])
 
     def test_validate_desired_state_rejects_invalid_values(self) -> None:
         payload = build_desired_state(

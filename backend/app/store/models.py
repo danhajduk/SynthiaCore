@@ -84,6 +84,13 @@ class RuntimeDefaults(BaseModel):
     bind_localhost: bool = True
 
 
+class DockerGroupDeclaration(BaseModel):
+    name: str = Field(..., min_length=1)
+    display_name: str | None = None
+    description: str | None = None
+    compose_override_file: str | None = None
+
+
 class CompatibilitySpec(BaseModel):
     core_min_version: str = Field(..., min_length=1)
     core_max_version: str | None = Field(default=None)
@@ -146,6 +153,7 @@ class ReleaseManifest(BaseModel):
     publisher_id: str = Field(..., min_length=1)
     package_profile: PackageProfile = Field(default="embedded_addon")
     runtime_defaults: RuntimeDefaults | None = None
+    docker_groups: list[DockerGroupDeclaration] = Field(default_factory=list)
     permissions: list[PermissionType] = Field(...)
     signature: SignatureBlock = Field(default_factory=SignatureBlock)
     compatibility: CompatibilitySpec = Field(...)
@@ -240,6 +248,7 @@ def build_store_models_router() -> APIRouter:
                 "SignatureBlock": SignatureBlock.model_json_schema(),
                 "RuntimePortDefault": RuntimePortDefault.model_json_schema(),
                 "RuntimeDefaults": RuntimeDefaults.model_json_schema(),
+                "DockerGroupDeclaration": DockerGroupDeclaration.model_json_schema(),
             },
         }
 

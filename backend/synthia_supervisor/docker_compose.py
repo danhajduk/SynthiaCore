@@ -2,6 +2,7 @@ import os
 import subprocess
 import logging
 from pathlib import Path
+from typing import Iterable
 
 log = logging.getLogger("synthia.supervisor")
 
@@ -23,9 +24,19 @@ def _run_compose_command(args: list[str], action: str) -> None:
     raise RuntimeError(f"{action}_failed: {tail_line}")
 
 
-def compose_up(compose_file: Path, project_name: str, *, force_rebuild: bool = False):
-    log.info("compose_up project=%s file=%s", project_name, compose_file)
-    cmd = ["docker", "compose", "-f", str(compose_file), "-p", project_name, "up", "-d"]
+def _compose_files_list(compose_file: Path | Iterable[Path]) -> list[Path]:
+    if isinstance(compose_file, Path):
+        return [compose_file]
+    return [Path(item) for item in compose_file]
+
+
+def compose_up(compose_file: Path | Iterable[Path], project_name: str, *, force_rebuild: bool = False):
+    compose_files = _compose_files_list(compose_file)
+    log.info("compose_up project=%s files=%s", project_name, [str(item) for item in compose_files])
+    cmd = ["docker", "compose"]
+    for item in compose_files:
+        cmd.extend(["-f", str(item)])
+    cmd.extend(["-p", project_name, "up", "-d", "--remove-orphans"])
     if force_rebuild:
         cmd.extend(["--build", "--force-recreate"])
     _run_compose_command(
@@ -34,10 +45,15 @@ def compose_up(compose_file: Path, project_name: str, *, force_rebuild: bool = F
     )
 
 
-def compose_down(compose_file: Path, project_name: str):
-    log.info("compose_down project=%s file=%s", project_name, compose_file)
+def compose_down(compose_file: Path | Iterable[Path], project_name: str):
+    compose_files = _compose_files_list(compose_file)
+    log.info("compose_down project=%s files=%s", project_name, [str(item) for item in compose_files])
+    cmd = ["docker", "compose"]
+    for item in compose_files:
+        cmd.extend(["-f", str(item)])
+    cmd.extend(["-p", project_name, "down", "--remove-orphans"])
     _run_compose_command(
-        ["docker", "compose", "-f", str(compose_file), "-p", project_name, "down"],
+        cmd,
         "compose_down",
     )
 

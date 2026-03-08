@@ -16,6 +16,7 @@ def _write_desired(
     revision: str = "rev-1",
     ports: list[dict] | None = None,
     force_rebuild: bool = False,
+    enabled_docker_groups: list[str] | None = None,
 ) -> None:
     desired = {
         "ssap_version": "1.0",
@@ -23,6 +24,7 @@ def _write_desired(
         "desired_state": "running",
         "desired_revision": revision,
         "force_rebuild": force_rebuild,
+        "enabled_docker_groups": list(enabled_docker_groups or []),
         "pinned_version": version,
         "install_source": {
             "type": "catalog",
@@ -318,6 +320,59 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
                 p.name for p in (addon_dir / "versions").iterdir() if p.is_dir()
             )
             self.assertEqual(remaining, ["0.1.1", "0.1.2", "0.1.3", "0.1.4"])
+
+    def test_reconcile_tracks_requested_active_failed_docker_groups(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            version_dir = addon_dir / "versions" / "0.1.2"
+            extracted_dir = version_dir / "extracted"
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+            (version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+            (extracted_dir / "docker-compose.group-broker.yml").write_text("services: {}\n", encoding="utf-8")
+            _write_desired(addon_dir, enabled_docker_groups=["broker", "cache"])
+
+            with patch("synthia_supervisor.main.ensure_extracted"), \
+                patch("synthia_supervisor.main.ensure_compose_files"), \
+                patch("synthia_supervisor.main.compose_up"):
+                result = reconcile_one(addon_dir)
+            self.assertIsNotNone(result)
+            runtime = json.loads((addon_dir / "runtime.json").read_text(encoding="utf-8"))
+            self.assertEqual(runtime["requested_docker_groups"], ["broker", "cache"])
+            self.assertEqual(runtime["active_docker_groups"], ["broker"])
+            self.assertEqual(runtime["failed_docker_groups"], ["cache"])
+            self.assertEqual(len(runtime["compose_files_in_use"]), 2)
+
+    def test_reconcile_disable_groups_clears_active_and_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            version_dir = addon_dir / "versions" / "0.1.2"
+            extracted_dir = version_dir / "extracted"
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+            (version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+            runtime_path = addon_dir / "runtime.json"
+            runtime_path.write_text(
+                json.dumps(
+                    {
+                        "ssap_version": "1.0",
+                        "addon_id": "mqtt",
+                        "active_version": "0.1.2",
+                        "state": "running",
+                        "last_applied_desired_revision": "rev-1",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            _write_desired(addon_dir, revision="rev-2", enabled_docker_groups=[])
+
+            with patch("synthia_supervisor.main.ensure_extracted"), \
+                patch("synthia_supervisor.main.ensure_compose_files"), \
+                patch("synthia_supervisor.main.compose_up"):
+                result = reconcile_one(addon_dir)
+            self.assertIsNotNone(result)
+            runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+            self.assertEqual(runtime["requested_docker_groups"], [])
+            self.assertEqual(runtime["active_docker_groups"], [])
+            self.assertEqual(runtime["failed_docker_groups"], [])
 
 
 if __name__ == "__main__":

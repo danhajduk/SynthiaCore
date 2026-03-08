@@ -169,6 +169,21 @@ class TestSynthiaSupervisorCompose(unittest.TestCase):
             self.assertIn("--build", args)
             self.assertIn("--force-recreate", args)
 
+    def test_compose_up_accepts_multiple_compose_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base_file = Path(tmp) / "docker-compose.yml"
+            group_file = Path(tmp) / "docker-compose.group-broker.yml"
+            base_file.write_text("services: {}\n", encoding="utf-8")
+            group_file.write_text("services: {}\n", encoding="utf-8")
+            ok = subprocess.CompletedProcess(args=["docker", "compose"], returncode=0, stdout="ok", stderr="")
+            with patch("synthia_supervisor.docker_compose.subprocess.run", return_value=ok) as run_mock:
+                compose_up([base_file, group_file], "synthia-addon-mqtt")
+            args = run_mock.call_args.args[0]
+            self.assertEqual(args[:2], ["docker", "compose"])
+            self.assertIn(str(base_file), args)
+            self.assertIn(str(group_file), args)
+            self.assertIn("--remove-orphans", args)
+
 
 if __name__ == "__main__":
     unittest.main()

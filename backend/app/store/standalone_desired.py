@@ -54,6 +54,7 @@ class DesiredStatePayload(BaseModel):
     desired_state: Literal["running", "stopped"]
     desired_revision: str = Field(..., min_length=1)
     force_rebuild: bool = False
+    enabled_docker_groups: list[str] = Field(default_factory=list)
     channel: Literal["stable", "beta", "nightly"]
     pinned_version: str | None = None
     install_source: DesiredInstallSource
@@ -88,6 +89,7 @@ def build_desired_state(
     desired_state: str = "running",
     desired_revision: str | None = None,
     force_rebuild: bool = False,
+    enabled_docker_groups: list[str] | None = None,
 ) -> dict[str, Any]:
     revision_value = str(desired_revision).strip() if desired_revision is not None else ""
     if not revision_value:
@@ -99,6 +101,9 @@ def build_desired_state(
         "desired_state": desired_state,
         "desired_revision": revision_value,
         "force_rebuild": bool(force_rebuild),
+        "enabled_docker_groups": [
+            str(item).strip() for item in list(enabled_docker_groups or []) if str(item).strip()
+        ],
         "channel": channel,
         "pinned_version": pinned_version,
         "install_source": {

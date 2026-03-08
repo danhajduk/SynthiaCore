@@ -39,6 +39,7 @@ class DesiredState(BaseModel):
     desired_state: str
     desired_revision: Optional[str] = None
     force_rebuild: bool = False
+    enabled_docker_groups: list[str] = Field(default_factory=list)
     pinned_version: Optional[str] = None
     install_source: DesiredInstallSource
     runtime: DesiredRuntime
@@ -56,6 +57,10 @@ class RuntimeState(BaseModel):
     last_applied_desired_revision: Optional[str] = None
     last_applied_compose_digest: Optional[str] = None
     last_force_rebuild_revision: Optional[str] = None
+    requested_docker_groups: list[str] = Field(default_factory=list)
+    active_docker_groups: list[str] = Field(default_factory=list)
+    failed_docker_groups: list[str] = Field(default_factory=list)
+    compose_files_in_use: list[str] = Field(default_factory=list)
 
     @classmethod
     def new(cls, addon_id: str):

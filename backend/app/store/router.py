@@ -36,7 +36,7 @@ from .lifecycle import (
     store_backup_retention,
     store_staging_ttl_minutes,
 )
-from .models import ReleaseManifest, RuntimeDefaults
+from .models import DockerGroupDeclaration, ReleaseManifest, RuntimeDefaults
 from .resolver import ResolverError, resolve_manifest_compatibility
 from .signing import VerificationError, verify_release_artifact
 from .standalone_desired import SSAPDesiredValidationError, build_desired_state, write_desired_state_atomic
@@ -254,6 +254,97 @@ def _runtime_defaults_from_artifact(package_path: Path, addon_id: str) -> Runtim
             return RuntimeDefaults.model_validate(defaults_raw)
     except Exception:
         return None
+
+
+def _docker_groups_from_artifact(package_path: Path, addon_id: str) -> list[DockerGroupDeclaration] | None:
+    try:
+        with tempfile.TemporaryDirectory(prefix="store-docker-groups-") as tmp:
+            extract_dir = Path(tmp) / "extract"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            extract_package(package_path, extract_dir)
+            addon_dir = find_addon_dir(extract_dir, addon_id)
+            manifest_path = addon_dir / "manifest.json"
+            if not manifest_path.exists():
+                return None
+            raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                return None
+            groups_raw = raw.get("docker_groups")
+            if not isinstance(groups_raw, list):
+                return None
+            out: list[DockerGroupDeclaration] = []
+            for item in groups_raw:
+                if not isinstance(item, dict):
+                    continue
+                out.append(DockerGroupDeclaration.model_validate(item))
+            return out
+    except Exception:
+        return None
+
+
+def _docker_groups_from_service(addon_id: str, pinned_version: str | None) -> list[DockerGroupDeclaration] | None:
+    service_dir = service_addon_dir(addon_id, create=False)
+    candidate_paths = []
+    if pinned_version:
+        candidate_paths.append(service_dir / "versions" / pinned_version / "extracted" / "manifest.json")
+    candidate_paths.extend(
+        [
+            service_dir / "current" / "extracted" / "manifest.json",
+            service_dir / "current" / "manifest.json",
+            service_dir / "manifest.json",
+        ]
+    )
+    for path in candidate_paths:
+        if not path.exists():
+            continue
+        raw = _load_json_file(path)
+        if not isinstance(raw, dict):
+            continue
+        groups_raw = raw.get("docker_groups")
+        if not isinstance(groups_raw, list):
+            continue
+        out: list[DockerGroupDeclaration] = []
+        for item in groups_raw:
+            if not isinstance(item, dict):
+                continue
+            out.append(DockerGroupDeclaration.model_validate(item))
+        return out
+    return None
+
+
+def _normalize_enabled_docker_groups(raw: Any) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        name = str(item).strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        out.append(name)
+    return out
+
+
+def _validate_requested_docker_groups(requested: list[str], declared: list[DockerGroupDeclaration]) -> None:
+    if not requested:
+        return
+    allowed = {item.name for item in declared if str(item.name).strip()}
+    if not allowed:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "docker_groups_not_declared", "requested_docker_groups": requested},
+        )
+    unknown = sorted([item for item in requested if item not in allowed])
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "docker_groups_unknown",
+                "unknown_docker_groups": unknown,
+                "declared_docker_groups": sorted(allowed),
+            },
+        )
 
 
 def _load_json_file(path: Path) -> dict[str, Any] | None:
@@ -731,6 +822,7 @@ def _build_release_manifest(addon_id: str, addon_item: dict[str, Any], release_i
     checksum = _release_checksum(release_item)
     package_profile = _release_package_profile(addon_item, release_item)
     runtime_defaults = release_item.get("runtime_defaults") or addon_item.get("runtime_defaults")
+    docker_groups = release_item.get("docker_groups") or addon_item.get("docker_groups") or []
 
     manifest_payload = release_item.get("manifest")
     if isinstance(manifest_payload, dict):
@@ -744,6 +836,7 @@ def _build_release_manifest(addon_id: str, addon_item: dict[str, Any], release_i
         data.setdefault("signature", {"publisher_id": publisher_id, "signature": signature_b64})
         data.setdefault("compatibility", compat)
         data.setdefault("runtime_defaults", runtime_defaults)
+        data.setdefault("docker_groups", docker_groups)
         data.setdefault("permissions", addon_item.get("permissions") or release_item.get("permissions") or [])
         return ReleaseManifest.model_validate(data)
 
@@ -760,6 +853,7 @@ def _build_release_manifest(addon_id: str, addon_item: dict[str, Any], release_i
             "publisher_id": publisher_id,
             "package_profile": package_profile,
             "runtime_defaults": runtime_defaults,
+            "docker_groups": docker_groups,
             "permissions": addon_item.get("permissions") or release_item.get("permissions") or [],
             "signature": {"publisher_id": publisher_id, "signature": signature_b64},
             "compatibility": compat,
@@ -1529,6 +1623,7 @@ def build_store_router(
                 desired_path = service_dir / "desired.json"
                 runtime_overrides = body.runtime_overrides if isinstance(body.runtime_overrides, dict) else {}
                 manifest_runtime_defaults = _runtime_defaults_from_artifact(package_path, manifest.id) or manifest.runtime_defaults
+                declared_groups = _docker_groups_from_artifact(package_path, manifest.id) or list(manifest.docker_groups or [])
                 runtime_project_name = _compose_safe_project_name(
                     runtime_overrides.get("project_name") or f"synthia-addon-{manifest.id}",
                     manifest.id,
@@ -1592,6 +1687,13 @@ def build_store_router(
                 if raw_runtime_memory is not None:
                     normalized_memory = str(raw_runtime_memory).strip()
                     runtime_memory = normalized_memory or None
+                raw_enabled_groups = (
+                    body.enabled_docker_groups
+                    if isinstance(body.enabled_docker_groups, list)
+                    else runtime_overrides.get("enabled_docker_groups")
+                )
+                enabled_docker_groups = _normalize_enabled_docker_groups(raw_enabled_groups)
+                _validate_requested_docker_groups(enabled_docker_groups, declared_groups)
                 config_env_defaults: dict[str, str] = {
                     "CORE_URL": os.getenv("SYNTHIA_CORE_URL", "http://127.0.0.1:8000"),
                     "SYNTHIA_ADDON_ID": manifest.id,
@@ -1625,6 +1727,7 @@ def build_store_router(
                     config_env=config_env,
                     desired_state=body.desired_state,
                     force_rebuild=body.force_rebuild,
+                    enabled_docker_groups=enabled_docker_groups,
                 )
                 write_desired_state_atomic(desired_path, desired_payload)
                 runtime_payload = _read_standalone_runtime(manifest.id, standalone_runtime)
@@ -1682,6 +1785,7 @@ def build_store_router(
                     "channel": requested_channel,
                     "desired_state": body.desired_state,
                     "force_rebuild": bool(body.force_rebuild),
+                    "enabled_docker_groups": enabled_docker_groups,
                     "desired_revision": desired_payload.get("desired_revision"),
                     "pinned_version": body.pinned_version or manifest.version,
                     "version": manifest.version,
@@ -2261,6 +2365,18 @@ def build_store_router(
                 else None
             )
         )
+        declared_groups = _docker_groups_from_service(addon_id, pinned_version) or []
+        raw_enabled_groups = (
+            body.enabled_docker_groups
+            if isinstance(body.enabled_docker_groups, list)
+            else (
+                runtime_overrides.get("enabled_docker_groups")
+                if isinstance(runtime_overrides.get("enabled_docker_groups"), list)
+                else current_desired.get("enabled_docker_groups")
+            )
+        )
+        enabled_docker_groups = _normalize_enabled_docker_groups(raw_enabled_groups)
+        _validate_requested_docker_groups(enabled_docker_groups, declared_groups)
 
         desired_payload = build_desired_state(
             addon_id=addon_id,
@@ -2280,6 +2396,7 @@ def build_store_router(
             config_env=config_env,
             desired_state=desired_state,
             force_rebuild=bool(body.force_rebuild),
+            enabled_docker_groups=enabled_docker_groups,
         )
         write_desired_state_atomic(desired_path, desired_payload)
         runtime_payload = _read_standalone_runtime(addon_id, standalone_runtime)
@@ -2306,6 +2423,7 @@ def build_store_router(
             "desired_state": desired_state,
             "pinned_version": pinned_version,
             "force_rebuild": bool(body.force_rebuild),
+            "enabled_docker_groups": enabled_docker_groups,
             "desired_revision": desired_payload.get("desired_revision"),
         }
 
