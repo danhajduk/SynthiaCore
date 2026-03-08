@@ -6,7 +6,6 @@ import os
 import socket
 import subprocess
 import time
-import urllib.request
 from datetime import datetime, timezone
 from typing import Any
 
@@ -89,30 +88,6 @@ def _sample_connectivity() -> dict[str, Any]:
     }
 
 
-def _download_speed_mbps(url: str, timeout_s: float, max_bytes: int) -> tuple[float | None, float | None]:
-    req = urllib.request.Request(url, method="GET")
-    start = time.perf_counter()
-    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-        data = resp.read(max_bytes)
-    elapsed = max(time.perf_counter() - start, 1e-6)
-    if not data:
-        return None, elapsed * 1000.0
-    mbps = (len(data) * 8.0) / elapsed / 1_000_000.0
-    return round(mbps, 2), round(elapsed * 1000.0, 1)
-
-
-def _upload_speed_mbps(url: str, timeout_s: float, upload_bytes: int) -> float | None:
-    payload = b"a" * max(upload_bytes, 1)
-    req = urllib.request.Request(url, data=payload, method="POST")
-    req.add_header("Content-Type", "application/octet-stream")
-    start = time.perf_counter()
-    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-        _ = resp.read(16)
-    elapsed = max(time.perf_counter() - start, 1e-6)
-    mbps = (len(payload) * 8.0) / elapsed / 1_000_000.0
-    return round(mbps, 2)
-
-
 def _sample_speed() -> dict[str, Any]:
     sampled_at = _now_iso()
     timeout_s = float(str(os.getenv("SYNTHIA_SPEEDTEST_TIMEOUT_S", "45")).strip() or "45")
@@ -186,19 +161,47 @@ def _throughput_from_stats(stats: Any) -> dict[str, Any]:
     }
 
 
-def _speed_from_throughput(throughput: dict[str, Any]) -> dict[str, Any] | None:
-    if str(throughput.get("state", "")).lower() != "ok":
-        return None
-    rx_bps = float(throughput.get("rx_Bps") or 0.0)
-    tx_bps = float(throughput.get("tx_Bps") or 0.0)
+def _network_metrics_from_stats(stats: Any) -> dict[str, Any]:
+    sampled_at = _now_iso()
+    if stats is None:
+        return {
+            "state": "unavailable",
+            "bytes_sent": None,
+            "bytes_recv": None,
+            "packets_sent": None,
+            "packets_recv": None,
+            "errin": None,
+            "errout": None,
+            "dropin": None,
+            "dropout": None,
+            "sampled_at": sampled_at,
+        }
+    net = getattr(stats, "net", None)
+    total = getattr(net, "total", None) if net is not None else None
+    if total is None:
+        return {
+            "state": "unavailable",
+            "bytes_sent": None,
+            "bytes_recv": None,
+            "packets_sent": None,
+            "packets_recv": None,
+            "errin": None,
+            "errout": None,
+            "dropin": None,
+            "dropout": None,
+            "sampled_at": sampled_at,
+        }
     return {
         "state": "ok",
-        "source": "passive_estimate",
-        "download_mbps": round((rx_bps * 8.0) / 1_000_000.0, 2),
-        "upload_mbps": round((tx_bps * 8.0) / 1_000_000.0, 2),
-        "latency_ms": None,
-        "sampled_at": throughput.get("sampled_at") or _now_iso(),
-        "age_s": 0,
+        "bytes_sent": int(getattr(total, "bytes_sent", 0) or 0),
+        "bytes_recv": int(getattr(total, "bytes_recv", 0) or 0),
+        "packets_sent": int(getattr(total, "packets_sent", 0) or 0),
+        "packets_recv": int(getattr(total, "packets_recv", 0) or 0),
+        "errin": int(getattr(total, "errin", 0) or 0),
+        "errout": int(getattr(total, "errout", 0) or 0),
+        "dropin": int(getattr(total, "dropin", 0) or 0),
+        "dropout": int(getattr(total, "dropout", 0) or 0),
+        "sampled_at": sampled_at,
     }
 
 
@@ -351,10 +354,7 @@ def build_stack_health_router() -> APIRouter:
         connectivity = await _sampler.connectivity()
         speed = await _sampler.speed()
         throughput = _throughput_from_stats(stats)
-        if str(speed.get("state", "")).lower() == "not_configured":
-            derived_speed = _speed_from_throughput(throughput)
-            if derived_speed is not None:
-                speed = derived_speed
+        network_metrics = _network_metrics_from_stats(stats)
 
         payload = {
             "subsystems": {
@@ -380,6 +380,7 @@ def build_stack_health_router() -> APIRouter:
             "samples": {
                 "internet_speed": speed,
                 "network_throughput": throughput,
+                "network_metrics": network_metrics,
             },
         }
         payload["status"] = _derive_overall_status(payload)

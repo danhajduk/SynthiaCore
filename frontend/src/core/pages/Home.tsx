@@ -72,6 +72,18 @@ type StackSummary = {
       tx_Bps?: number | null;
       sampled_at?: string | null;
     };
+    network_metrics?: {
+      state: string;
+      bytes_sent?: number | null;
+      bytes_recv?: number | null;
+      packets_sent?: number | null;
+      packets_recv?: number | null;
+      errin?: number | null;
+      errout?: number | null;
+      dropin?: number | null;
+      dropout?: number | null;
+      sampled_at?: string | null;
+    };
   };
 };
 
@@ -134,12 +146,39 @@ function fmtBps(value: number): string {
   return `${value.toFixed(0)} B/s`;
 }
 
+function fmtBytes(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return "0 B";
+  if (value >= 1_000_000_000_000) return `${(value / 1_000_000_000_000).toFixed(2)} TB`;
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)} GB`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)} MB`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)} KB`;
+  return `${value.toFixed(0)} B`;
+}
+
 function throughputValue(throughput: StackSummary["samples"]["network_throughput"] | undefined): string {
   if (!throughput) return "unknown";
   if (throughput.state !== "ok") return throughput.state;
   const rx = typeof throughput.rx_Bps === "number" ? fmtBps(throughput.rx_Bps) : "-";
   const tx = typeof throughput.tx_Bps === "number" ? fmtBps(throughput.tx_Bps) : "-";
   return `↓${rx} ↑${tx}`;
+}
+
+function networkCountersValue(metrics: StackSummary["samples"]["network_metrics"] | undefined): string {
+  if (!metrics) return "unknown";
+  if (metrics.state !== "ok") return metrics.state;
+  const rx = typeof metrics.bytes_recv === "number" ? fmtBytes(metrics.bytes_recv) : "-";
+  const tx = typeof metrics.bytes_sent === "number" ? fmtBytes(metrics.bytes_sent) : "-";
+  return `↓${rx} ↑${tx}`;
+}
+
+function networkErrorsValue(metrics: StackSummary["samples"]["network_metrics"] | undefined): string {
+  if (!metrics) return "unknown";
+  if (metrics.state !== "ok") return metrics.state;
+  const errIn = Number(metrics.errin ?? 0);
+  const errOut = Number(metrics.errout ?? 0);
+  const dropIn = Number(metrics.dropin ?? 0);
+  const dropOut = Number(metrics.dropout ?? 0);
+  return `err ${errIn}/${errOut} drop ${dropIn}/${dropOut}`;
 }
 
 export default function Home() {
@@ -417,6 +456,8 @@ export default function Home() {
               />
               <MetricRow label="Network" value={stack?.connectivity.network.state || "unknown"} />
               <MetricRow label="Throughput" value={throughputValue(stack?.samples.network_throughput)} />
+              <MetricRow label="Net I/O" value={networkCountersValue(stack?.samples.network_metrics)} />
+              <MetricRow label="Net Errors" value={networkErrorsValue(stack?.samples.network_metrics)} />
               <MetricRow label="Internet" value={stack?.connectivity.internet.state || "unknown"} />
               <MetricRow label="Speed" value={speedValue(stack?.samples.internet_speed)} />
             </div>

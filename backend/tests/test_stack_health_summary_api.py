@@ -56,13 +56,37 @@ class _FakeRate:
 
 
 class _FakeNet:
-    def __init__(self, total_rate: _FakeRate | None = None) -> None:
+    def __init__(self, total_rate: _FakeRate | None = None, total: object | None = None) -> None:
         self.total_rate = total_rate
+        self.total = total
+
+
+class _FakeCounters:
+    def __init__(
+        self,
+        *,
+        bytes_sent: int = 0,
+        bytes_recv: int = 0,
+        packets_sent: int = 0,
+        packets_recv: int = 0,
+        errin: int = 0,
+        errout: int = 0,
+        dropin: int = 0,
+        dropout: int = 0,
+    ) -> None:
+        self.bytes_sent = bytes_sent
+        self.bytes_recv = bytes_recv
+        self.packets_sent = packets_sent
+        self.packets_recv = packets_recv
+        self.errin = errin
+        self.errout = errout
+        self.dropin = dropin
+        self.dropout = dropout
 
 
 class _FakeStats:
-    def __init__(self, total_rate: _FakeRate | None = None) -> None:
-        self.net = _FakeNet(total_rate=total_rate)
+    def __init__(self, total_rate: _FakeRate | None = None, total: object | None = None) -> None:
+        self.net = _FakeNet(total_rate=total_rate, total=total if total is not None else _FakeCounters())
         self.services = {}
 
 
@@ -121,6 +145,7 @@ class TestStackHealthSummaryApi(unittest.TestCase):
         self.assertEqual(payload["connectivity"]["internet"]["state"], "not_configured")
         self.assertEqual(payload["samples"]["internet_speed"]["state"], "unavailable")
         self.assertEqual(payload["samples"]["network_throughput"]["state"], "warming_up")
+        self.assertEqual(payload["samples"]["network_metrics"]["state"], "ok")
 
     @patch("app.system.stack_health.subprocess.run")
     def test_stack_summary_reports_speedtest_cli_result(self, mock_run) -> None:
@@ -135,7 +160,19 @@ class TestStackHealthSummaryApi(unittest.TestCase):
         app.state.scheduler_engine = _FakeScheduler()
         app.state.mqtt_manager = _FakeMqtt()
         app.state.addon_registry = _FakeRegistry()
-        app.state.latest_stats = _FakeStats(total_rate=_FakeRate(rx_Bps=1_250_000.0, tx_Bps=625_000.0))
+        app.state.latest_stats = _FakeStats(
+            total_rate=_FakeRate(rx_Bps=1_250_000.0, tx_Bps=625_000.0),
+            total=_FakeCounters(
+                bytes_sent=1000,
+                bytes_recv=2000,
+                packets_sent=30,
+                packets_recv=40,
+                errin=1,
+                errout=2,
+                dropin=3,
+                dropout=4,
+            ),
+        )
 
         client = TestClient(app)
         res = client.get("/api/system/stack/summary")
@@ -145,6 +182,11 @@ class TestStackHealthSummaryApi(unittest.TestCase):
         self.assertEqual(payload["samples"]["network_throughput"]["state"], "ok")
         self.assertEqual(payload["samples"]["network_throughput"]["rx_Bps"], 1250000.0)
         self.assertEqual(payload["samples"]["network_throughput"]["tx_Bps"], 625000.0)
+        self.assertEqual(payload["samples"]["network_metrics"]["state"], "ok")
+        self.assertEqual(payload["samples"]["network_metrics"]["bytes_recv"], 2000)
+        self.assertEqual(payload["samples"]["network_metrics"]["bytes_sent"], 1000)
+        self.assertEqual(payload["samples"]["network_metrics"]["errin"], 1)
+        self.assertEqual(payload["samples"]["network_metrics"]["dropout"], 4)
 
         self.assertEqual(payload["samples"]["internet_speed"]["state"], "ok")
         self.assertEqual(payload["samples"]["internet_speed"]["source"], "speedtest_cli")

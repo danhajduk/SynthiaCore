@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-07 22:18 US/Pacific
+Last Updated: 2026-03-07 22:28 US/Pacific
 
 ## Stack
 
@@ -38,7 +38,7 @@ Last Updated: 2026-03-07 22:18 US/Pacific
   - degraded/attention reason details (expand/collapse)
   - Installed Addons panel
   - Recent Activity panel (platform events feed)
-  - System Metrics panel (CPU/memory/disk + network/internet/speed status + throughput sample)
+  - System Metrics panel (CPU/memory/disk + network/internet/speed status + throughput sample + network I/O/error counters)
   - compact admin session strip (sign-in or sign-out state)
   - data refresh interval: 10s polling for dashboard cards
 - Store: catalog browsing, install actions, diagnostics and remediation UX

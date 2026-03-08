@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 22:18 US/Pacific
+Last Updated: 2026-03-07 22:28 US/Pacific
 
 ## Conventions
 
@@ -48,6 +48,7 @@ Implemented dashboard summary endpoint:
     - `connectivity`: local network + internet state
     - `samples.internet_speed`: cached speedtest-cli snapshot (`source=speedtest_cli`) sampled every 30 minutes by default
     - `samples.network_throughput`: live host RX/TX throughput sample from system stats (`rx_Bps`, `tx_Bps`)
+    - `samples.network_metrics`: host cumulative network counters (`bytes_*`, `packets_*`, `err*`, `drop*`)
   - missing capability semantics may return `unknown`, `unavailable`, or `warming_up`
 
 Runtime health model (implemented in runtime payload):
