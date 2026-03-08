@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 21:45 US/Pacific
+Last Updated: 2026-03-07 22:00 US/Pacific
 
 ## Overview
 
@@ -102,3 +102,7 @@ Backend uses mixed persistence:
 - Health probing is optional and disabled by default (`SYNTHIA_RUNTIME_HEALTH_PROBE_ENABLED=false` by default)
 - Probing requires a reachable published TCP port; addons without probe endpoint report health as `unknown`
 - durable event store and replay API for platform events
+
+## Regression Coverage Notes
+
+- MQTT approval governance now has explicit regression coverage for topic-scope validation, reserved namespace rejection, access-mode validation, HA discovery mode validation, and revoke/reprovision lifecycle paths (`backend/tests/test_mqtt_approval_validation.py`).

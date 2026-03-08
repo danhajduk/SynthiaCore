@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 MQTT_SETUP_STATES = Literal["unconfigured", "configuring", "ready", "error", "degraded"]
 MQTT_ACCESS_MODES = Literal["gateway", "direct", "both"]
 MQTT_GRANT_STATUSES = Literal["approved", "provisioned", "revoked", "error"]
+MQTT_HA_DISCOVERY_MODES = Literal["disabled", "gateway_managed", "addon_managed"]
 
 
 def _utcnow_iso() -> str:
@@ -19,7 +20,7 @@ class MqttCapabilityFlags(BaseModel):
     events: bool = False
     state: bool = False
     commands: bool = False
-    ha_discovery: str = "disabled"
+    ha_discovery: MQTT_HA_DISCOVERY_MODES = "disabled"
 
 
 class MqttRegistrationRequest(BaseModel):
