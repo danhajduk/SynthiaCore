@@ -1,6 +1,6 @@
 # Synthia Standalone Addon Specification
 
-Last Updated: 2026-03-08 12:20 US/Pacific
+Last Updated: 2026-03-08 13:08 US/Pacific
 
 Version: 0.1 (development phase)
 
@@ -241,6 +241,8 @@ What triggers rebuild/recompose today:
 - For same-version updates, compose-impacting desired changes
   (`network`, `bind_localhost`, `ports`, `cpu`, `memory`) trigger
   compose regeneration/reconcile.
+- Optional docker services are controlled through
+  `desired.enabled_docker_groups`.
 
 Addon author guidance:
 
@@ -248,14 +250,47 @@ Addon author guidance:
   (and optional `runtime_defaults.bind_localhost`) so Core can write
   desired runtime intent correctly.
 - For runtime topology changes that require a different compose file,
-  you can either publish a new addon version or update desired runtime
-  inputs so Core writes a new `desired_revision`.
+  provide override files named `docker-compose.group-<group>.yml` in the
+  extracted addon artifact and enable those groups through desired state.
 
 Not developed:
 
 - Direct addon-originated supervisor notify/rebuild API.
-- Manifest schema support for addon-defined multi-service docker compose
-  topology (for example adding a broker sidecar service).
+
+------------------------------------------------------------------------
+
+# 6.3 Optional Docker Group Architecture
+
+Current implementation pattern:
+
+- Base deployment:
+  - `versions/{version}/docker-compose.yml`
+- Optional group overrides (artifact-provided):
+  - `versions/{version}/extracted/docker-compose.group-<group>.yml`
+- Desired control (Core-written):
+  - `desired.json` -> `enabled_docker_groups: ["group_a", ...]`
+- Supervisor responsibility:
+  - include base compose file always
+  - include each group override file that exists
+  - track missing requested groups as failed
+  - run compose with `--remove-orphans` so disable transitions remove
+    containers no longer part of requested topology
+
+Runtime reporting:
+
+- `runtime.json.requested_docker_groups`
+- `runtime.json.active_docker_groups`
+- `runtime.json.failed_docker_groups`
+- `runtime.json.compose_files_in_use`
+
+Example flow:
+
+1. Install addon with no optional groups (`enabled_docker_groups=[]`).
+2. Complete addon setup.
+3. Core updates desired with `enabled_docker_groups=["broker"]`.
+4. Supervisor reconciles using base + `docker-compose.group-broker.yml`.
+5. Runtime state reports `requested=["broker"]`, `active=["broker"]`,
+   `failed=[]`.
 
 ------------------------------------------------------------------------
 

@@ -305,3 +305,4 @@
 2026-03-08 - Task 149 completed: documented Store/Supervisor file contract ownership and schema expectations for manifest.json, desired.json, and runtime.json.
 2026-03-08 - Store standalone install now sources runtime_defaults from extracted artifact manifest.json (fallback to catalog metadata), enabling port defaults from addon artifact.
 2026-03-08 - Task 161 completed: added optional docker-group reconcile support plus lifecycle regression tests (base/enable/multiple/invalid/disable/requested-vs-active).
+2026-03-08 - Task 162 completed: documented generic optional docker-group architecture and contracts.

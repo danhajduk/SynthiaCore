@@ -1,6 +1,6 @@
 # Synthia Supervisor Runtime Specification (Code-Verified)
 
-Last Updated: 2026-03-08 12:49 US/Pacific
+Last Updated: 2026-03-08 13:08 US/Pacific
 
 This document only describes behavior that is present in code today. Any missing capability is explicitly labeled **Not developed**.
 
@@ -534,7 +534,7 @@ Ownership:
 - Supervisor reads `desired.json` as reconcile input.
 
 Supervisor-required fields (from current `DesiredState` model usage):
-- top-level: `ssap_version`, `addon_id`, `desired_state`, `desired_revision`, `force_rebuild`, `pinned_version` (optional), `install_source`, `runtime`, `config`
+- top-level: `ssap_version`, `addon_id`, `desired_state`, `desired_revision`, `force_rebuild`, `enabled_docker_groups`, `pinned_version` (optional), `install_source`, `runtime`, `config`
 - runtime fields consumed for reconcile behavior: `project_name`, `network`, `ports`, `bind_localhost`, `cpu`, `memory`
 - install source release field used by model: `artifact_url` (artifact file path is still sourced from staged local `addon.tgz`)
 
@@ -560,3 +560,17 @@ Supervisor-written state fields:
 - `last_applied_desired_revision`
 - `last_applied_compose_digest`
 - `last_force_rebuild_revision`
+- `requested_docker_groups`
+- `active_docker_groups`
+- `failed_docker_groups`
+- `compose_files_in_use`
+
+Optional docker-group reconcile model:
+- Base compose file remains `versions/{version}/docker-compose.yml`.
+- Optional group override files are discovered under extracted artifact path with naming convention:
+  - `docker-compose.group-<group>.yml`
+- Supervisor compose up/down uses base + discovered group override files with `--remove-orphans`.
+- Runtime reporting distinguishes:
+  - requested groups (`enabled_docker_groups` intent)
+  - active groups (override file found and included)
+  - failed groups (requested but override file missing)

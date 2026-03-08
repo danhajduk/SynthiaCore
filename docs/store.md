@@ -1,6 +1,6 @@
 # Store and Catalog Documentation
 
-Last Updated: 2026-03-08 12:52 US/Pacific
+Last Updated: 2026-03-08 13:08 US/Pacific
 
 ## Scope
 
@@ -65,7 +65,7 @@ Store expectations/behavior:
 - Validated against `DesiredStatePayload` schema before write.
 - Machine-readable reference schema: `docs/desired.schema.json`.
 - Key required fields written:
-  - `ssap_version`, `addon_id`, `mode`, `desired_state`, `desired_revision`, `force_rebuild`, `channel`
+  - `ssap_version`, `addon_id`, `mode`, `desired_state`, `desired_revision`, `force_rebuild`, `enabled_docker_groups`, `channel`
   - `install_source` (`type`, `catalog_id`, `release`)
   - `runtime` (`project_name`, `network`, `ports`, `bind_localhost`, optional `cpu`, `memory`)
   - `config.env`
@@ -82,6 +82,7 @@ Desired-state handoff behavior:
 - Supervisor picks up desired changes on its next poll cycle.
 - Store writes a `desired_revision` marker so supervisor can detect desired changes deterministically.
 - Same-version compose-affecting desired changes are applied by supervisor via compose-file regeneration/reconcile.
+- `enabled_docker_groups` values are validated against addon-declared `manifest.json` `docker_groups[]`; unknown groups are rejected.
 
 ### `runtime.json` (Supervisor-owned runtime state)
 
