@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 22:28 US/Pacific
+Last Updated: 2026-03-07 18:03 US/Pacific
 
 ## Overview
 
@@ -30,6 +30,7 @@ It mounts core routers, addon routers, and store/scheduler/auth subsystems.
   - platform events (`/system/events`)
   - repo status
   - stack summary (`/stack/summary`) for Home dashboard health/connectivity/speed view
+    - local-network connectivity probe uses `SYNTHIA_LOCAL_NETWORK_CHECK_HOST`, falling back to `MQTT_HOST` when unset
     - provides `samples.network_throughput` from `latest_stats.net.total_rate` when available
     - provides `samples.network_metrics` from `latest_stats.net.total` counters (`bytes`, `packets`, `errors`, `drops`)
     - provides `samples.internet_speed` from `speedtest-cli --json --secure` with cached result (30m default via `SYNTHIA_SPEEDTEST_SAMPLE_SECONDS`)

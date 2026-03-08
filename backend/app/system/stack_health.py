@@ -60,6 +60,10 @@ def _tcp_reachable(host: str, port: int, timeout_s: float = 1.5) -> bool:
 
 def _sample_connectivity() -> dict[str, Any]:
     local_host = str(os.getenv("SYNTHIA_LOCAL_NETWORK_CHECK_HOST", "")).strip()
+    if not local_host:
+        # Reuse MQTT host as a pragmatic local-network target when explicit
+        # network health host is not configured.
+        local_host = str(os.getenv("MQTT_HOST", "")).strip()
     local_port = int(str(os.getenv("SYNTHIA_LOCAL_NETWORK_CHECK_PORT", "53")).strip() or "53")
     internet_host = str(os.getenv("SYNTHIA_INTERNET_CHECK_HOST", "1.1.1.1")).strip()
     internet_port = int(str(os.getenv("SYNTHIA_INTERNET_CHECK_PORT", "53")).strip() or "53")

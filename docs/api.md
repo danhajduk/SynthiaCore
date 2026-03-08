@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 22:28 US/Pacific
+Last Updated: 2026-03-07 18:03 US/Pacific
 
 ## Conventions
 
@@ -46,6 +46,7 @@ Implemented dashboard summary endpoint:
     - `status`: overall state + concise reasons
     - `subsystems`: core/supervisor/mqtt/scheduler/workers/addons
     - `connectivity`: local network + internet state
+      - local network probe target precedence: `SYNTHIA_LOCAL_NETWORK_CHECK_HOST` -> `MQTT_HOST` -> `not_configured`
     - `samples.internet_speed`: cached speedtest-cli snapshot (`source=speedtest_cli`) sampled every 30 minutes by default
     - `samples.network_throughput`: live host RX/TX throughput sample from system stats (`rx_Bps`, `tx_Bps`)
     - `samples.network_metrics`: host cumulative network counters (`bytes_*`, `packets_*`, `err*`, `drop*`)

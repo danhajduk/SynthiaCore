@@ -274,3 +274,4 @@
 2026-03-07 - Defaulted Core standalone runtime project_name to Synthia-Addon-{addon_id} when unset; preserved explicit override; added tests and doc update.
 2026-03-07 - Task 128.1: switched dashboard internet speed sampling to speedtest-cli (30-minute cache default).
 2026-03-07 - Task 128.2: added network metrics counters to stack summary and Home dashboard.
+2026-03-07 - Fixed stack summary network probe fallback to use MQTT_HOST when local host env is unset
