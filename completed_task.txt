@@ -298,3 +298,4 @@
 2026-03-07 - Task 144 completed: surfaced MQTT setup state, broker/direct support, health summary, and provisioning errors in backend setup-summary and Settings Connectivity UI.
 2026-03-07 - Task 145 completed: added authoritative Core MQTT integration contract documentation and linked it from core/addon references.
 2026-03-07 - Task 146 completed: added MQTT approval governance regression tests and explicit HA discovery mode validation constraints.
+2026-03-08 - Task 147 completed: normalized standalone runtime project_name to Docker Compose-safe lowercase format, added regression tests, and updated standalone docs.

@@ -1,6 +1,6 @@
 # Synthia Standalone Addon Specification
 
-Last Updated: 2026-03-07 17:36 US/Pacific
+Last Updated: 2026-03-08 09:18 US/Pacific
 
 Version: 0.1 (development phase)
 
@@ -213,10 +213,11 @@ Addons must listen on the container port defined here.
 For Core-authored standalone installs, if runtime project name is not
 explicitly provided, Core defaults `runtime.project_name` to:
 
-`Synthia-Addon-<addon_id>`
+`synthia-addon-<addon_id>`
 
-If a project name is explicitly provided in runtime overrides or custom
-desired state, that value is preserved.
+If a project name is explicitly provided in runtime overrides, Core
+normalizes it to a Docker Compose-safe value (lowercase; only
+alphanumeric, `_`, `-`; must start with alphanumeric).
 
 ------------------------------------------------------------------------
 
