@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-07 19:46 US/Pacific
+Last Updated: 2026-03-07 19:49 US/Pacific
 
 ## Stack
 
@@ -59,6 +59,7 @@ Last Updated: 2026-03-07 19:46 US/Pacific
     - General (app name, theme, maintenance mode)
     - Platform (Core API endpoint + stack summary fields)
     - Connectivity (MQTT + network/internet reachability summaries)
+      - includes editable MQTT setup controls (mode, host, port, credentials, TLS, keepalive, client id) with apply and apply+restart actions
     - Addon Registry (managed registry controls)
     - Security / Access (user management)
     - Developer Tools (collapsible runtime reload + diagnostics/resolver controls)

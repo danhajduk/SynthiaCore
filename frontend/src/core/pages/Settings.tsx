@@ -62,6 +62,15 @@ export default function Settings() {
   const [busy, setBusy] = useState(false);
   const [stack, setStack] = useState<StackSummary | null>(null);
   const [mqtt, setMqtt] = useState<MqttStatus | null>(null);
+  const [mqttMode, setMqttMode] = useState<"local" | "external">("local");
+  const [mqttHost, setMqttHost] = useState("");
+  const [mqttPort, setMqttPort] = useState("1883");
+  const [mqttUsername, setMqttUsername] = useState("");
+  const [mqttPassword, setMqttPassword] = useState("");
+  const [mqttTlsEnabled, setMqttTlsEnabled] = useState(false);
+  const [mqttKeepalive, setMqttKeepalive] = useState("30");
+  const [mqttClientId, setMqttClientId] = useState("synthia-core");
+  const [mqttBusy, setMqttBusy] = useState(false);
 
   async function loadSettings() {
     setErr(null);
@@ -77,6 +86,27 @@ export default function Settings() {
       if (typeof settings["app.maintenance_mode"] === "boolean") {
         setMaintenanceMode(settings["app.maintenance_mode"] as boolean);
       }
+      const mode = String(settings["mqtt.mode"] || "local").toLowerCase();
+      const normalizedMode: "local" | "external" = mode === "external" ? "external" : "local";
+      setMqttMode(normalizedMode);
+      const hostKey = `mqtt.${normalizedMode}.host`;
+      const portKey = `mqtt.${normalizedMode}.port`;
+      const userKey = `mqtt.${normalizedMode}.username`;
+      const passKey = `mqtt.${normalizedMode}.password`;
+      const tlsKey = `mqtt.${normalizedMode}.tls_enabled`;
+      setMqttHost(
+        typeof settings[hostKey] === "string"
+          ? (settings[hostKey] as string)
+          : normalizedMode === "local"
+            ? "127.0.0.1"
+            : "",
+      );
+      setMqttPort(String(settings[portKey] ?? 1883));
+      setMqttUsername(typeof settings[userKey] === "string" ? (settings[userKey] as string) : "");
+      setMqttPassword(typeof settings[passKey] === "string" ? (settings[passKey] as string) : "");
+      setMqttTlsEnabled(Boolean(settings[tlsKey]));
+      setMqttKeepalive(String(settings["mqtt.keepalive_s"] ?? 30));
+      setMqttClientId(typeof settings["mqtt.client_id"] === "string" ? (settings["mqtt.client_id"] as string) : "synthia-core");
     } catch (e: any) {
       setErr(e?.message ?? String(e));
     }
@@ -124,6 +154,65 @@ export default function Settings() {
       setOpsErr(e?.message ?? String(e));
       setStack(null);
       setMqtt(null);
+    }
+  }
+
+  async function saveMqttSettings(restartAfterSave: boolean) {
+    setErr(null);
+    setMqttBusy(true);
+    const selectedMode = mqttMode === "external" ? "external" : "local";
+    const hostKey = `mqtt.${selectedMode}.host`;
+    const portKey = `mqtt.${selectedMode}.port`;
+    const userKey = `mqtt.${selectedMode}.username`;
+    const passKey = `mqtt.${selectedMode}.password`;
+    const tlsKey = `mqtt.${selectedMode}.tls_enabled`;
+    const parsedPort = Number.parseInt(mqttPort.trim(), 10);
+    const parsedKeepalive = Number.parseInt(mqttKeepalive.trim(), 10);
+    if (!Number.isFinite(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {
+      setErr("Invalid MQTT port. Expected 1-65535.");
+      setMqttBusy(false);
+      return;
+    }
+    if (!Number.isFinite(parsedKeepalive) || parsedKeepalive <= 0) {
+      setErr("Invalid keepalive value. Expected a positive integer.");
+      setMqttBusy(false);
+      return;
+    }
+    try {
+      const updates: Array<{ key: string; value: unknown }> = [
+        { key: "mqtt.mode", value: selectedMode },
+        { key: hostKey, value: mqttHost.trim() },
+        { key: portKey, value: parsedPort },
+        { key: userKey, value: mqttUsername.trim() },
+        { key: passKey, value: mqttPassword },
+        { key: tlsKey, value: mqttTlsEnabled },
+        { key: "mqtt.keepalive_s", value: parsedKeepalive },
+        { key: "mqtt.client_id", value: mqttClientId.trim() || "synthia-core" },
+      ];
+      for (const item of updates) {
+        const res = await fetch(`/api/system/settings/${encodeURIComponent(item.key)}`, {
+          method: "PUT",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ value: item.value }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      }
+      if (restartAfterSave) {
+        const restartRes = await fetch("/api/system/mqtt/restart", {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!restartRes.ok) throw new Error(`mqtt_restart_http_${restartRes.status}`);
+      }
+      await loadOperationalSummary();
+      await loadSettings();
+    } catch (e: any) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setMqttBusy(false);
     }
   }
 
@@ -263,6 +352,68 @@ export default function Settings() {
             </div>
           </div>
           {mqtt?.last_error && <div className="settings-help">Latest MQTT error: {mqtt.last_error}</div>}
+          <div className="settings-connectivity-config">
+            <div className="settings-card-title">MQTT Setup</div>
+            <div className="settings-help">Configure broker connection and apply changes to the Core MQTT manager.</div>
+            <div className="settings-form">
+              <label className="settings-label">
+                <div className="settings-label-text">Mode</div>
+                <select
+                  value={mqttMode}
+                  onChange={(e) => setMqttMode(e.target.value === "external" ? "external" : "local")}
+                  className="settings-select-input"
+                >
+                  <option value="local">Local broker</option>
+                  <option value="external">External broker</option>
+                </select>
+              </label>
+              <label className="settings-label">
+                <div className="settings-label-text">Host</div>
+                <input value={mqttHost} onChange={(e) => setMqttHost(e.target.value)} className="settings-input" />
+              </label>
+              <label className="settings-label">
+                <div className="settings-label-text">Port</div>
+                <input value={mqttPort} onChange={(e) => setMqttPort(e.target.value)} className="settings-input" />
+              </label>
+              <label className="settings-label">
+                <div className="settings-label-text">Username (optional)</div>
+                <input value={mqttUsername} onChange={(e) => setMqttUsername(e.target.value)} className="settings-input" />
+              </label>
+              <label className="settings-label">
+                <div className="settings-label-text">Password (optional)</div>
+                <input
+                  type="password"
+                  value={mqttPassword}
+                  onChange={(e) => setMqttPassword(e.target.value)}
+                  className="settings-input"
+                />
+              </label>
+              <label className="settings-toggle">
+                <input type="checkbox" checked={mqttTlsEnabled} onChange={(e) => setMqttTlsEnabled(e.target.checked)} />
+                <span>TLS enabled</span>
+              </label>
+              <label className="settings-label">
+                <div className="settings-label-text">Keepalive (seconds)</div>
+                <input
+                  value={mqttKeepalive}
+                  onChange={(e) => setMqttKeepalive(e.target.value)}
+                  className="settings-input"
+                />
+              </label>
+              <label className="settings-label">
+                <div className="settings-label-text">Client ID</div>
+                <input value={mqttClientId} onChange={(e) => setMqttClientId(e.target.value)} className="settings-input" />
+              </label>
+            </div>
+            <div className="settings-row-actions">
+              <button className="settings-btn" onClick={() => void saveMqttSettings(false)} disabled={mqttBusy}>
+                {mqttBusy ? "Applying..." : "Apply MQTT settings"}
+              </button>
+              <button className="settings-btn" onClick={() => void saveMqttSettings(true)} disabled={mqttBusy}>
+                {mqttBusy ? "Applying..." : "Apply and restart MQTT"}
+              </button>
+            </div>
+          </div>
           <div className="settings-row-actions">
             <button className="settings-btn" onClick={() => void loadOperationalSummary()}>
               Refresh connectivity status

@@ -395,6 +395,12 @@
   gap: 6px;
 }
 
+.settings-connectivity-config {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .settings-input {
   width: 100%;
   padding: 8px;

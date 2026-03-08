@@ -240,6 +240,7 @@ Frontend shows “Update available” / “Up to date” / “Repo status unavai
 - `/settings` includes:
   - General settings (`app.name`, `app.maintenance_mode`, theme selection)
   - Platform and connectivity summaries from `/api/system/stack/summary` and `/api/system/mqtt/status`
+  - MQTT setup controls backed by settings keys (`mqtt.mode`, mode-specific host/port/username/password/tls, `mqtt.keepalive_s`, `mqtt.client_id`) with optional MQTT restart action
   - addon registry management (`/api/admin/addons/registry`)
   - user management CRUD (`/api/admin/users`)
   - collapsible developer diagnostics (runtime reload and service resolver probe)
