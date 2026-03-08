@@ -1,5 +1,51 @@
+.settings-page {
+  display: grid;
+  gap: 16px;
+}
+
 .settings-title {
   margin-top: 0;
+  margin-bottom: 0;
+}
+
+.settings-page-subtitle {
+  margin: 0;
+}
+
+.settings-section {
+  margin-top: 6px;
+}
+
+.settings-section-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.settings-section-head p {
+  margin: 6px 0 0;
+  opacity: 0.75;
+  font-size: 13px;
+}
+
+.settings-section-dev {
+  opacity: 0.92;
+}
+
+.settings-dev-collapsible {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.settings-dev-collapsible summary {
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.settings-dev-body {
+  margin-top: 12px;
 }
 
 .settings-hr {
@@ -302,7 +348,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 16px;
-  margin-top: 16px;
+  margin-top: 10px;
 }
 
 .settings-card-title {
@@ -316,7 +362,7 @@
 .settings-form {
   display: grid;
   gap: 12px;
-  max-width: 420px;
+  max-width: 480px;
 }
 
 .settings-label {
@@ -327,6 +373,26 @@
 .settings-label-text {
   font-size: 12px;
   opacity: 0.8;
+}
+
+.settings-help {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.settings-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.settings-kv-item {
+  background: rgba(16, 18, 30, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
 }
 
 .settings-input {

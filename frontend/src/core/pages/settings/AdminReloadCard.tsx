@@ -80,12 +80,12 @@ export default function AdminReloadCard() {
     >
       <div className="admin-header">
         <div>
-          <div className="admin-title">Dev Tools</div>
+          <div className="admin-title">Runtime Controls</div>
           <div className="admin-subtitle">
-            Triggers <code>/api/admin/reload</code> and shows live updater logs. Remove later for prod.
+            Trigger Core reload actions and review the most recent updater output.
           </div>
         </div>
-        <div className="admin-warning">⚠️ Dev-only</div>
+        <div className="admin-warning">Development/admin operations only</div>
       </div>
 
       <div className="admin-form">
@@ -97,8 +97,10 @@ export default function AdminReloadCard() {
             placeholder="http://10.0.0.100:9001"
             className="admin-input"
           />
+          <div className="admin-help">Core API endpoint used for runtime control actions.</div>
         </label>
 
+        <div className="admin-log-label">Runtime Controls</div>
         <div className="admin-actions">
           <button
             onClick={triggerReload}
@@ -135,7 +137,7 @@ export default function AdminReloadCard() {
           <pre
             className="admin-log"
           >
-            {tail || "(no log yet)"}
+            {tail || "No updater log entries yet. Trigger a reload or refresh status."}
           </pre>
         </div>
       </div>

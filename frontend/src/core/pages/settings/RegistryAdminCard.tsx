@@ -103,23 +103,25 @@ export default function RegistryAdminCard() {
       <div className="admin-header">
         <div>
           <div className="admin-title">Addon Registry</div>
-          <div className="admin-subtitle">Admin CRUD for registered remote addons.</div>
+          <div className="admin-subtitle">Manage registered addon endpoints and capability metadata.</div>
         </div>
       </div>
 
       <div className="admin-form">
         <label className="admin-label">
-          <div className="admin-label-text">API Base</div>
+          <div className="admin-label-text">Core API endpoint</div>
           <input value={apiBase} onChange={(e) => setApiBase(e.target.value)} className="admin-input" />
+          <div className="admin-help">Target control-plane endpoint for registry operations.</div>
         </label>
+        <div className="admin-log-label">Registry Controls</div>
         <div className="admin-actions">
           <button className="admin-btn" onClick={loadRegistry}>
-            Refresh Registry
+            Refresh registry
           </button>
         </div>
 
         <label className="admin-label">
-          <div className="admin-label-text">ID</div>
+          <div className="admin-label-text">Addon ID</div>
           <input value={id} onChange={(e) => setId(e.target.value)} className="admin-input admin-input-mono" />
         </label>
         <label className="admin-label">
@@ -131,7 +133,7 @@ export default function RegistryAdminCard() {
           <input value={version} onChange={(e) => setVersion(e.target.value)} className="admin-input" />
         </label>
         <label className="admin-label">
-          <div className="admin-label-text">Base URL</div>
+          <div className="admin-label-text">Addon base URL</div>
           <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className="admin-input" />
         </label>
         <label className="admin-label">
@@ -168,7 +170,7 @@ export default function RegistryAdminCard() {
                 </div>
               </div>
             ))}
-            {items.length === 0 && <div className="admin-log">(no registered addons)</div>}
+            {items.length === 0 && <div className="admin-log">No registered addons yet. Add one to start managed registry operations.</div>}
           </div>
         </div>
       </div>

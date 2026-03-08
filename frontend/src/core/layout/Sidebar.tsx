@@ -26,9 +26,9 @@ const addonItemsCore: NavItem[] = [{ label: "Addons", path: "/addons" }];
 const storeItems: NavItem[] = [{ label: "Store", path: "/store" }];
 const systemItems: NavItem[] = [
   { label: "Settings", path: "/settings" },
-  { label: "Jobs", path: "/settings/jobs" },
-  { label: "Metrics", path: "/settings/metrics" },
-  { label: "Statistics", path: "/settings/statistics" },
+  { label: "Scheduler Jobs", path: "/settings/jobs" },
+  { label: "System Metrics", path: "/settings/metrics" },
+  { label: "Job Statistics", path: "/settings/statistics" },
 ];
 
 export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {

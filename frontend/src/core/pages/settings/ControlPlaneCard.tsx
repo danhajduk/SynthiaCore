@@ -55,12 +55,13 @@ export default function ControlPlaneCard() {
     <section className="admin-card">
       <div className="admin-header">
         <div>
-          <div className="admin-title">Control Plane</div>
-          <div className="admin-subtitle">MQTT status and service resolution tools.</div>
+          <div className="admin-title">Diagnostics / Service Resolver</div>
+          <div className="admin-subtitle">Inspect MQTT status payloads and resolve capability routing for diagnostics.</div>
         </div>
       </div>
 
       <div className="admin-form">
+        <div className="admin-log-label">Diagnostics Controls</div>
         <div className="admin-actions">
           <button className="admin-btn" onClick={loadMqtt}>Refresh MQTT Status</button>
         </div>

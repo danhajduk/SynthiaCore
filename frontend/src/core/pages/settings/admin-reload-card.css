@@ -44,6 +44,11 @@
   opacity: 0.8;
 }
 
+.admin-help {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
 .admin-input {
   padding: 10px 12px;
   border-radius: 12px;

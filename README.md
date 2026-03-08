@@ -6,7 +6,7 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 - **Core runtime**: FastAPI backend + React frontend with addon discovery and dynamic routing.
 - **Scheduler**: Pull-based leases, capacity-aware, priority queues, idempotent jobs, unique job flag.
 - **History + stats**: SQLite-backed job history (30-day retention), stats by addon, success rate, queue wait.
-- **Settings**: App settings stored in SQLite, plus dedicated Settings pages for Jobs, Metrics, Statistics.
+- **Settings**: Structured control-plane Settings page (General/Platform/Connectivity/Addon Registry/Security/Developer tools) plus dedicated Jobs, Metrics, Statistics pages.
 - **Repo status badge**: Header shows whether `origin/main` is ahead of the local repo.
 - **Hello World addon**: Full UI and backend demo with job enqueue, scheduler controls, and worker simulator.
 - **Distributed addon policy baseline**: `docs/distributed_addons/README.md` maps current implementation to policy docs and tracked gap tasks.
@@ -232,16 +232,17 @@ Frontend shows “Update available” / “Up to date” / “Repo status unavai
 - `/store` — Addon Store catalog page with refresh, client-side search, install actions, channel-aware release detail rendering, package-profile field on addon cards, profile-mismatch action cards, expandable install diagnostics, display-name-first publisher rendering, and quick-action remediation links to docs for version/profile issues.
 - `/store` status card now includes install-failure triage summary (`tracked_addons`, `addons_with_errors`, top failure code) from `/api/store/status/summary`.
 - `/addons` — Addons inventory plus distributed install wizard (install session start, permissions, deployment choice, discovery polling, configure, verify, and UI link).
-- `/settings` — App settings (stored in SQLite).
+- `/settings` — Structured control-plane settings page.
 - `/settings/jobs` — Live scheduler jobs + filters.
 - `/settings/metrics` — System metrics + job summary (queued/leased).
 - `/settings/statistics` — Job history stats by addon.
 - `/addons` — Addon cards with enable/disable and open links.
-- `/settings` also includes admin control-plane tools:
-  - core reload controls
-  - remote addon registry CRUD (`/api/admin/addons/registry`)
+- `/settings` includes:
+  - General settings (`app.name`, `app.maintenance_mode`, theme selection)
+  - Platform and connectivity summaries from `/api/system/stack/summary` and `/api/system/mqtt/status`
+  - addon registry management (`/api/admin/addons/registry`)
   - user management CRUD (`/api/admin/users`)
-  - MQTT status view and service resolver probe
+  - collapsible developer diagnostics (runtime reload and service resolver probe)
 - `/addons` includes control-plane metadata fields (`base_url`, `capabilities`, `health`, `last_seen`, `auth_mode`, `tls_warning`).
 
 ## Hello World Addon

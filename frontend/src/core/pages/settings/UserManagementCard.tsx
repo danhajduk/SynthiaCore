@@ -140,7 +140,7 @@ export default function UserManagementCard() {
                 </div>
               </div>
             ))}
-            {items.length === 0 && <div className="admin-log">(no users)</div>}
+            {items.length === 0 && <div className="admin-log">No users found in the local admin store.</div>}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-07 18:53 US/Pacific
+Last Updated: 2026-03-07 19:46 US/Pacific
 
 ## Stack
 
@@ -54,9 +54,18 @@ Last Updated: 2026-03-07 18:53 US/Pacific
   - admin-only uninstall action with explicit confirm/uninstall/success/failed states
   - standalone uninstall attempts surface remediation guidance instead of silent failure
   - successful uninstall triggers inventory + runtime refresh; sidebar addon links reconcile on next sidebar poll
-- Settings: settings + jobs/metrics/statistics + admin controls
+- Settings:
+  - structured control-plane layout on `/settings` with sections for:
+    - General (app name, theme, maintenance mode)
+    - Platform (Core API endpoint + stack summary fields)
+    - Connectivity (MQTT + network/internet reachability summaries)
+    - Addon Registry (managed registry controls)
+    - Security / Access (user management)
+    - Developer Tools (collapsible runtime reload + diagnostics/resolver controls)
+  - supporting descriptions and polished empty states for control panels
 - Sidebar:
   - categorized admin navigation (`Home`, `Addons`, `Store`, `System`, `Addon UIs`)
+  - system submenu labels clarify ownership (`Settings`, `Scheduler Jobs`, `System Metrics`, `Job Statistics`)
   - guest navigation limited to `Home` with minimal guest footer messaging
 
 ## API Communication
