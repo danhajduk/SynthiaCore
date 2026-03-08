@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-08 15:12 US/Pacific
+Last Updated: 2026-03-08 16:22 US/Pacific
 
 ## Conventions
 
@@ -103,6 +103,10 @@ Implemented standalone UI status fields in Store status/install/update payloads:
 - `ui_redirect_target`: frontend route target (`/addons/{addon_id}`) when reachable
 - `ui_embed_target`: backend proxy path used by iframe embed (`/ui/addons/{addon_id}`)
 - `ui_reason`: backend readiness reason (`ready`, `runtime_unavailable`, `runtime_not_running`, `no_published_ports`, `health_unhealthy`)
+
+Implemented standalone desired rewrite behavior:
+
+- `POST /api/store/standalone/update` rewrites desired intent and always sets `force_rebuild=true` so supervisor rebuild/recreate is triggered on the next reconcile cycle.
 
 ## Service Discovery API
 

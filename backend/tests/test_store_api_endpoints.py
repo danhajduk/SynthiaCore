@@ -2129,7 +2129,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(payload["last_action"], "reconcile_applied")
         self.assertIsNone(payload["supervisor_hint"])
 
-    def test_standalone_update_rewrites_desired_and_sets_force_rebuild(self) -> None:
+    def test_standalone_update_rewrites_desired_and_always_sets_force_rebuild(self) -> None:
         standalone_root = Path(self.tmp.name) / "SynthiaAddons"
         addon_dir = standalone_root / "services" / "hello_world"
         addon_dir.mkdir(parents=True, exist_ok=True)
@@ -2174,7 +2174,6 @@ class TestStoreApiEndpoints(unittest.TestCase):
                 headers={"X-Admin-Token": "test-token"},
                 json={
                     "addon_id": "hello_world",
-                    "force_rebuild": True,
                     "runtime_overrides": {"ports": [{"host": 18080, "container": 8080, "proto": "tcp"}]},
                     "config_env_overrides": {"EXTRA_FLAG": "1"},
                 },

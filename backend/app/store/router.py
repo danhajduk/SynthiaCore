@@ -2382,6 +2382,8 @@ def build_store_router(
         enabled_docker_groups = _normalize_enabled_docker_groups(raw_enabled_groups)
         _validate_requested_docker_groups(enabled_docker_groups, declared_groups)
 
+        # Rewriting desired intent for an already-installed standalone addon must trigger
+        # supervisor rebuild/recreate so compose/runtime changes are not skipped.
         desired_payload = build_desired_state(
             addon_id=addon_id,
             catalog_id=catalog_id,
@@ -2399,7 +2401,7 @@ def build_store_router(
             runtime_memory=runtime_memory,
             config_env=config_env,
             desired_state=desired_state,
-            force_rebuild=bool(body.force_rebuild),
+            force_rebuild=True,
             enabled_docker_groups=enabled_docker_groups,
         )
         write_desired_state_atomic(desired_path, desired_payload)
@@ -2427,7 +2429,7 @@ def build_store_router(
             "ui_reason": ui_redirect["ui_reason"],
             "desired_state": desired_state,
             "pinned_version": pinned_version,
-            "force_rebuild": bool(body.force_rebuild),
+            "force_rebuild": True,
             "enabled_docker_groups": enabled_docker_groups,
             "desired_revision": desired_payload.get("desired_revision"),
         }

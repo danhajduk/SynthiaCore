@@ -1,6 +1,6 @@
 # Store and Catalog Documentation
 
-Last Updated: 2026-03-08 15:30 US/Pacific
+Last Updated: 2026-03-08 16:22 US/Pacific
 
 ## Scope
 
@@ -30,7 +30,7 @@ Implemented:
 - compatibility checks
 - install/update/uninstall endpoint flows
 - standalone install mode writes `desired.json` and stages `addon.tgz`
-- standalone desired update endpoint (`POST /api/store/standalone/update`) rewrites `desired.json` in place for installed standalone services
+- standalone desired update endpoint (`POST /api/store/standalone/update`) rewrites `desired.json` in place for installed standalone services and always sets `force_rebuild=true`
 - standalone release manifests may define `runtime_defaults` (`ports`, `bind_localhost`); Core resolves runtime defaults from extracted artifact `manifest.json` first and falls back to catalog/normalized manifest metadata when unavailable
 - standalone runtime overrides support optional `cpu` and `memory` values for desired runtime intent
 - standalone uninstall path now performs desired-state stop intent, best-effort compose teardown, and standalone service directory removal
