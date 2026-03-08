@@ -9,7 +9,7 @@ from app.api.admin import require_admin_token
 from app.system.auth import ServiceTokenError, ServiceTokenKeyStore, validate_claims, verify_hs256
 
 from .approval import MqttRegistrationApprovalService
-from .integration_models import MqttRegistrationRequest
+from .integration_models import MqttRegistrationRequest, MqttSetupStateUpdate
 from .integration_state import MqttIntegrationStateStore
 from .manager import MqttManager
 
@@ -137,6 +137,30 @@ def build_mqtt_router(
     async def mqtt_setup_summary(request: Request, x_admin_token: str | None = Header(default=None)):
         require_admin_token(x_admin_token, request)
         setup = await approval.setup_summary()
+        broker = await approval.broker_summary()
+        return {
+            "ok": True,
+            "setup": setup.model_dump(mode="json"),
+            "broker": broker.model_dump(mode="json"),
+        }
+
+    @router.post("/mqtt/setup-state")
+    async def mqtt_setup_state(
+        body: MqttSetupStateUpdate,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+        authorization: str | None = Header(default=None),
+    ):
+        subject = await _authorize_mqtt_request(
+            request=request,
+            x_admin_token=x_admin_token,
+            authorization=authorization,
+            key_store=key_store,
+            required_scope="mqtt.setup.write",
+        )
+        if subject and subject != "mqtt":
+            raise HTTPException(status_code=403, detail="request_subject_mismatch")
+        setup = await approval.update_setup_state(body)
         broker = await approval.broker_summary()
         return {
             "ok": True,

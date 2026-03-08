@@ -12,6 +12,7 @@ from .integration_models import (
     MqttRegistrationApprovalResult,
     MqttRegistrationRequest,
     MqttSetupCapabilitySummary,
+    MqttSetupStateUpdate,
 )
 from .integration_state import MqttIntegrationStateStore
 from .topic_policy import validate_topic_scopes
@@ -103,6 +104,19 @@ class MqttRegistrationApprovalService:
         current = state.active_grants.get(addon_id)
         if current is None:
             return {"ok": False, "addon_id": addon_id, "status": "error", "error": "grant_not_found"}
+        if not self._setup_ready(state):
+            next_grant = current.model_copy(deep=True)
+            next_grant.updated_at = _utcnow_iso()
+            next_grant.status = "error"
+            next_grant.last_error = f"mqtt_setup_not_ready:{state.setup_status}"
+            await self._state_store.upsert_grant(next_grant)
+            return {
+                "ok": False,
+                "addon_id": addon_id,
+                "status": "error",
+                "error": "mqtt_setup_not_ready",
+                "setup_status": state.setup_status,
+            }
         payload = {
             "addon_id": current.addon_id,
             "approved_publish_scopes": list(current.publish_topics),
@@ -172,10 +186,21 @@ class MqttRegistrationApprovalService:
     async def setup_summary(self) -> MqttSetupCapabilitySummary:
         state = await self._state_store.get_state()
         return MqttSetupCapabilitySummary(
-            requires_setup=True,
-            setup_complete=state.setup_status == "ready",
+            requires_setup=state.requires_setup,
+            setup_complete=state.setup_complete,
             setup_status=state.setup_status,
             direct_mqtt_supported=state.direct_mqtt_supported,
+            setup_error=state.setup_error,
+        )
+
+    async def update_setup_state(self, update: MqttSetupStateUpdate) -> MqttSetupCapabilitySummary:
+        state = await self._state_store.update_setup_state(update)
+        return MqttSetupCapabilitySummary(
+            requires_setup=state.requires_setup,
+            setup_complete=state.setup_complete,
+            setup_status=state.setup_status,
+            direct_mqtt_supported=state.direct_mqtt_supported,
+            setup_error=state.setup_error,
         )
 
     async def reconcile(self, addon_id: str) -> dict[str, Any]:
@@ -226,3 +251,10 @@ class MqttRegistrationApprovalService:
         if old.granted_ha_mode != new.granted_ha_mode:
             return True
         return False
+
+    def _setup_ready(self, state) -> bool:
+        if not state.mqtt_enabled:
+            return False
+        if state.requires_setup:
+            return state.setup_complete and state.setup_status == "ready"
+        return True

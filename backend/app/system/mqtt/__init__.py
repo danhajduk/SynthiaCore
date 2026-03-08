@@ -7,6 +7,7 @@ from .integration_models import (
     MqttRegistrationApprovalResult,
     MqttRegistrationRequest,
     MqttSetupCapabilitySummary,
+    MqttSetupStateUpdate,
 )
 from .integration_state import MqttIntegrationStateStore
 from .manager import MqttManager
@@ -24,4 +25,5 @@ __all__ = [
     "MqttRegistrationRequest",
     "MqttRegistrationApprovalResult",
     "MqttSetupCapabilitySummary",
+    "MqttSetupStateUpdate",
 ]

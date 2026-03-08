@@ -118,6 +118,18 @@ class TestMqttProvisioningApi(unittest.TestCase):
 
     def test_provisioning_and_revocation_handshake(self) -> None:
         with patch("app.system.mqtt.approval.httpx.AsyncClient", return_value=_FakeAsyncClient()):
+            setup_ready = self.client.post(
+                "/api/system/mqtt/setup-state",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "requires_setup": True,
+                    "setup_complete": True,
+                    "setup_status": "ready",
+                    "broker_mode": "addon_managed",
+                    "direct_mqtt_supported": True,
+                },
+            )
+            self.assertEqual(setup_ready.status_code, 200, setup_ready.text)
             approved = self.client.post(
                 "/api/system/mqtt/registrations/approve",
                 headers={"X-Admin-Token": "test-token"},
@@ -172,6 +184,50 @@ class TestMqttProvisioningApi(unittest.TestCase):
         self.assertEqual(summary.status_code, 200, summary.text)
         self.assertIn("setup", summary.json())
         self.assertIn("broker", summary.json())
+        self.assertIn("setup_error", summary.json()["setup"])
+
+    def test_setup_state_gates_provisioning_until_ready(self) -> None:
+        approved = self.client.post(
+            "/api/system/mqtt/registrations/approve",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "addon_id": "vision",
+                "access_mode": "gateway",
+                "publish_topics": ["synthia/addons/vision/state/#"],
+                "subscribe_topics": [],
+            },
+        )
+        self.assertEqual(approved.status_code, 200, approved.text)
+
+        blocked = self.client.post(
+            "/api/system/mqtt/registrations/vision/provision",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(blocked.status_code, 200, blocked.text)
+        self.assertFalse(blocked.json()["ok"])
+        self.assertEqual(blocked.json()["error"], "mqtt_setup_not_ready")
+
+        setup_ready = self.client.post(
+            "/api/system/mqtt/setup-state",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "requires_setup": True,
+                "setup_complete": True,
+                "setup_status": "ready",
+                "broker_mode": "external",
+                "direct_mqtt_supported": False,
+                "setup_error": None,
+            },
+        )
+        self.assertEqual(setup_ready.status_code, 200, setup_ready.text)
+
+        with patch("app.system.mqtt.approval.httpx.AsyncClient", return_value=_FakeAsyncClient()):
+            provision = self.client.post(
+                "/api/system/mqtt/registrations/vision/provision",
+                headers={"X-Admin-Token": "test-token"},
+            )
+        self.assertEqual(provision.status_code, 200, provision.text)
+        self.assertTrue(provision.json()["ok"])
 
     def test_provision_scope_checks_for_service_token(self) -> None:
         no_scope = self.client.post(

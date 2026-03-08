@@ -5,7 +5,7 @@ import json
 import os
 from datetime import datetime, timezone
 
-from .integration_models import MqttAddonGrant, MqttIntegrationState
+from .integration_models import MqttAddonGrant, MqttIntegrationState, MqttSetupStateUpdate
 
 
 def _utcnow_iso() -> str:
@@ -35,6 +35,23 @@ class MqttIntegrationStateStore:
             grants = dict(state.active_grants)
             grants[next_grant.addon_id] = next_grant
             next_state = state.model_copy(update={"active_grants": grants, "updated_at": _utcnow_iso()})
+            await asyncio.to_thread(self._write_sync, next_state)
+            return next_state
+
+    async def update_setup_state(self, setup: MqttSetupStateUpdate) -> MqttIntegrationState:
+        async with self._lock:
+            state = await asyncio.to_thread(self._read_sync)
+            next_state = state.model_copy(
+                update={
+                    "requires_setup": setup.requires_setup,
+                    "setup_complete": setup.setup_complete,
+                    "setup_status": setup.setup_status,
+                    "broker_mode": setup.broker_mode,
+                    "direct_mqtt_supported": setup.direct_mqtt_supported,
+                    "setup_error": setup.setup_error,
+                    "updated_at": _utcnow_iso(),
+                }
+            )
             await asyncio.to_thread(self._write_sync, next_state)
             return next_state
 
