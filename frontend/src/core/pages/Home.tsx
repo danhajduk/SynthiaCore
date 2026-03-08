@@ -483,10 +483,11 @@ export default function Home() {
 }
 
 function StatusMini({ title, value, sub }: { title: string; value: string; sub?: string }) {
+  const tone = pillTone(value);
   return (
     <div className="home-mini">
       <div className="home-mini-title">{title}</div>
-      <div className="home-mini-value">{displayState(value)}</div>
+      <div className={`home-mini-value ${tone}`}>{displayState(value)}</div>
       {sub && <div className="home-mini-sub">{displayState(sub)}</div>}
     </div>
   );

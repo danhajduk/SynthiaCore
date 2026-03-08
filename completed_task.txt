@@ -281,3 +281,4 @@
 2026-03-07 - Added local network health fallback to SYNTHIA_BACKEND_HOST/SYNTHIA_BACKEND_PORT
 2026-03-07 - Completed Home UI polish: status capitalization, 24h updated time, login position, metric bars, and pill border status styling
 2026-03-07 - Updated Home status card to 2px tone-colored border matching subsystem status styling
+2026-03-07 - Applied tone-matched 2px border styling to Home mini status value badges
