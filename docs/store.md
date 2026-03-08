@@ -30,7 +30,7 @@ Implemented:
 - compatibility checks
 - install/update/uninstall endpoint flows
 - standalone install mode writes `desired.json` and stages `addon.tgz`
-- standalone release manifests may define `runtime_defaults` (`ports`, `bind_localhost`); these defaults are used when `runtime_overrides` are not provided at install time
+- standalone release manifests may define `runtime_defaults` (`ports`, `bind_localhost`); Core resolves runtime defaults from extracted artifact `manifest.json` first and falls back to catalog/normalized manifest metadata when unavailable
 - standalone runtime overrides support optional `cpu` and `memory` values for desired runtime intent
 - standalone uninstall path now performs desired-state stop intent, best-effort compose teardown, and standalone service directory removal
 - status/diagnostic endpoints read runtime state and summarize errors
@@ -67,7 +67,8 @@ Store expectations/behavior:
 
 Runtime precedence used by Store when writing `desired.json`:
 - `runtime_overrides` request fields win.
-- then manifest `runtime_defaults` (ports/bind_localhost).
+- then extracted addon `manifest.json` `runtime_defaults` (ports/bind_localhost).
+- then catalog/normalized `ReleaseManifest.runtime_defaults`.
 - then Store fallbacks (`ports=[]`, `bind_localhost=true`, default network/project name).
 
 ### `runtime.json` (Supervisor-owned runtime state)

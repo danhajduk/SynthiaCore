@@ -303,3 +303,4 @@
 2026-03-08 - Added ReleaseManifest runtime_defaults schema (ports/bind_localhost) and applied standalone install fallback to manifest defaults when runtime_overrides are absent.
 2026-03-08 - Task 148 completed: automated standalone uninstall in /api/store/uninstall (stop intent, compose down, remove service dir, clear registry/install state) with regression tests and docs updates.
 2026-03-08 - Task 149 completed: documented Store/Supervisor file contract ownership and schema expectations for manifest.json, desired.json, and runtime.json.
+2026-03-08 - Store standalone install now sources runtime_defaults from extracted artifact manifest.json (fallback to catalog metadata), enabling port defaults from addon artifact.

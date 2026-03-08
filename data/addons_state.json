@@ -1,3 +1,4 @@
 {
-  "hello_world": true
+  "hello_world": true,
+  "mqtt": false
 }

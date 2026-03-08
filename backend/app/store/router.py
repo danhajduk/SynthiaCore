@@ -21,6 +21,7 @@ from app.system.runtime import StandaloneRuntimeService
 from .audit import StoreAuditLogStore
 from .catalog import CatalogCacheClient, CatalogQuery, StaticCatalogStore
 from . import lifecycle as lifecycle_mod
+from .extract import extract_package, find_addon_dir
 from .lifecycle import (
     AtomicResult,
     StoreInstallRequest,
@@ -34,7 +35,7 @@ from .lifecycle import (
     store_backup_retention,
     store_staging_ttl_minutes,
 )
-from .models import ReleaseManifest
+from .models import ReleaseManifest, RuntimeDefaults
 from .resolver import ResolverError, resolve_manifest_compatibility
 from .signing import VerificationError, verify_release_artifact
 from .standalone_desired import SSAPDesiredValidationError, build_desired_state, write_desired_state_atomic
@@ -231,6 +232,27 @@ def _stage_standalone_artifact(
     tmp_path.write_bytes(artifact_bytes)
     tmp_path.replace(staged_artifact_path)
     return staged_artifact_path
+
+
+def _runtime_defaults_from_artifact(package_path: Path, addon_id: str) -> RuntimeDefaults | None:
+    try:
+        with tempfile.TemporaryDirectory(prefix="store-runtime-defaults-") as tmp:
+            extract_dir = Path(tmp) / "extract"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            extract_package(package_path, extract_dir)
+            addon_dir = find_addon_dir(extract_dir, addon_id)
+            manifest_path = addon_dir / "manifest.json"
+            if not manifest_path.exists():
+                return None
+            raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                return None
+            defaults_raw = raw.get("runtime_defaults")
+            if not isinstance(defaults_raw, dict):
+                return None
+            return RuntimeDefaults.model_validate(defaults_raw)
+    except Exception:
+        return None
 
 
 def _load_json_file(path: Path) -> dict[str, Any] | None:
@@ -1475,7 +1497,7 @@ def build_store_router(
                 service_dir = service_addon_dir(manifest.id, create=True)
                 desired_path = service_dir / "desired.json"
                 runtime_overrides = body.runtime_overrides if isinstance(body.runtime_overrides, dict) else {}
-                manifest_runtime_defaults = manifest.runtime_defaults
+                manifest_runtime_defaults = _runtime_defaults_from_artifact(package_path, manifest.id) or manifest.runtime_defaults
                 runtime_project_name = _compose_safe_project_name(
                     runtime_overrides.get("project_name") or f"synthia-addon-{manifest.id}",
                     manifest.id,

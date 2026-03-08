@@ -1742,7 +1742,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
             artifact_bytes=artifact_bytes,
             release_sig=self._sign_artifact(artifact_bytes),
             package_profile="standalone_service",
-            release_url="https://example.test/hello_world-1.0.0.tgz",
+            release_url="https://example.test/hello_world-1.0.0.zip",
         )
         app = FastAPI()
         app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
@@ -1839,6 +1839,59 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertEqual(
             desired["runtime"]["ports"],
             [{"host": 18081, "container": 8080, "proto": "tcp", "purpose": "http_api"}],
+        )
+
+    def test_catalog_install_standalone_service_mode_uses_extracted_manifest_runtime_defaults(self) -> None:
+        pkg = Path(self.tmp.name) / "bundle-standalone-runtime-defaults-from-artifact.zip"
+        with zipfile.ZipFile(pkg, "w") as zf:
+            zf.writestr(
+                "hello_world/manifest.json",
+                json.dumps(
+                    {
+                        "id": "hello_world",
+                        "name": "hello_world",
+                        "version": "1.0.0",
+                        "runtime_defaults": {
+                            "bind_localhost": False,
+                            "ports": [{"host": 18080, "container": 8080, "proto": "tcp"}],
+                        },
+                    }
+                ),
+            )
+            zf.writestr("hello_world/app/main.py", "print('ok')\n")
+        artifact_bytes = pkg.read_bytes()
+        fake_catalog = self._build_catalog_client(
+            artifact_bytes=artifact_bytes,
+            release_sig=self._sign_artifact(artifact_bytes),
+            package_profile="standalone_service",
+            release_url="https://example.test/hello_world-1.0.0.zip",
+        )
+        app = FastAPI()
+        app.include_router(build_store_router(self.registry, self.audit, _FakeSourcesStore(), fake_catalog), prefix="/api/store")
+        client = TestClient(app)
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
+            "app.store.router.resolve_manifest_compatibility", return_value=None
+        ):
+            res = client.post(
+                "/api/store/install",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "source_id": "official",
+                    "addon_id": "hello_world",
+                    "install_mode": "standalone_service",
+                    "enable": True,
+                },
+            )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        desired_path = Path(payload["desired_path"])
+        desired = json.loads(desired_path.read_text(encoding="utf-8"))
+        self.assertFalse(desired["runtime"]["bind_localhost"])
+        self.assertEqual(
+            desired["runtime"]["ports"],
+            [{"host": 18080, "container": 8080, "proto": "tcp", "purpose": None}],
         )
 
     def test_catalog_install_standalone_service_mode_preserves_runtime_project_override(self) -> None:
