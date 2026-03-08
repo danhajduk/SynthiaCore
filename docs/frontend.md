@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-08 15:30 US/Pacific
+Last Updated: 2026-03-08 15:33 US/Pacific
 
 ## Stack
 
@@ -85,6 +85,7 @@ Last Updated: 2026-03-08 15:30 US/Pacific
   - `standalone_runtime.published_ports` as direct fallback target when runtime is running but addon is not yet loaded in Core
   - `ui_reachable` and `ui_reason` for loading/fallback state
   - `runtime_state` to stop loading early when standalone runtime is in error state
+- when iframe is same-origin accessible (proxy path), `AddonFrame` injects Core theme tokens and base component classes into iframe document on load
 
 ## Styling and Theme
 

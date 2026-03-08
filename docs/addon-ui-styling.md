@@ -1,6 +1,6 @@
 # Addon UI Styling Guide
 
-Last Updated: 2026-03-08 15:12 US/Pacific
+Last Updated: 2026-03-08 15:33 US/Pacific
 
 ## Purpose
 
@@ -54,7 +54,8 @@ Example:
 Implemented:
 
 - Core provides iframe container and proxy pathing for standalone addon UI.
-- Core does not inject stylesheet into addon iframe document.
+- Core performs best-effort theme token + base class CSS injection into iframe when iframe document is same-origin accessible (for proxied addon UI paths).
+- Cross-origin direct host-port iframe targets cannot be injected by browser security policy.
 
 Not developed:
 

@@ -309,3 +309,4 @@
 2026-03-08 - Task 163 completed: fixed addon iframe URL targeting to backend proxy and added frontend tests.
 2026-03-08 - Completed Tasks 164-166: added standalone UI embed contract/loading-fallback behavior and updated addon styling/theme documentation.
 2026-03-08 - Fixed AddonFrame to use direct published host-port target when addon runtime is running but not yet loaded/registered in Core.
+2026-03-08 - Implemented best-effort Core CSS token/component injection for same-origin addon iframes in AddonFrame.

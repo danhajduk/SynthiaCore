@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import "./addon-frame.css";
 import { addonUiFrameSrc } from "./addonFrameUrl";
 import { addonUiFallbackReason, resolveAddonUiEmbedState, type AddonUiStatusPayload } from "./addonFrameContract";
+import { injectCoreCssIntoIframe } from "./addonFrameThemeInject";
 
 type FramePhase = "checking" | "ready" | "fallback";
 
@@ -14,6 +15,7 @@ export default function AddonFrame() {
   const [phase, setPhase] = useState<FramePhase>("checking");
   const [reason, setReason] = useState("runtime_unavailable");
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const nonceRef = useRef(0);
 
   const probe = useCallback(async () => {
@@ -107,10 +109,16 @@ export default function AddonFrame() {
             </div>
           )}
           <iframe
+            ref={iframeRef}
             title={`addon-ui-${addonId}`}
             src={src}
             className="addon-frame-iframe"
-            onLoad={() => setIframeLoaded(true)}
+            onLoad={() => {
+              if (iframeRef.current) {
+                injectCoreCssIntoIframe(iframeRef.current);
+              }
+              setIframeLoaded(true);
+            }}
             onError={() => {
               setReason("frame_load_failed");
               setPhase("fallback");

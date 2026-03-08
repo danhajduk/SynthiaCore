@@ -1,6 +1,6 @@
 # Theme System Contract for Addons
 
-Last Updated: 2026-03-08 15:12 US/Pacific
+Last Updated: 2026-03-08 15:33 US/Pacific
 
 ## Scope
 
@@ -57,5 +57,6 @@ For standalone addon UIs rendered in iframe (`/addons/:addonId` -> proxied addon
 
 - CSS variables from Core do not cross iframe boundary
 - addon must provide its own stylesheet and design tokens
+- Core applies best-effort token/base-class injection only when iframe is same-origin accessible; direct cross-origin iframe targets remain isolated
 
 See addon author usage details in [addon-ui-styling.md](./addon-ui-styling.md).
