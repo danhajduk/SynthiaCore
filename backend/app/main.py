@@ -46,6 +46,7 @@ from app.system.audit import AuditLogStore
 from app.system.users import UsersStore, build_users_router
 from app.system.runtime import StandaloneRuntimeService
 from app.system.repo_status import router as repo_status_router
+from app.system.stack_health import build_stack_health_router
 from app.system.scheduler import build_scheduler_router
 from app.store import CatalogCacheClient, build_store_models_router, StoreAuditLogStore, StoreSourcesStore, build_store_router
 
@@ -233,6 +234,7 @@ def create_app() -> FastAPI:
     app.include_router(build_settings_router(settings_store, audit_store), prefix="/api/system", tags=["settings"])
     app.include_router(build_users_router(users_store, audit_store), prefix="/api/admin", tags=["admin-users"])
     app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
+    app.include_router(build_stack_health_router(), prefix="/api/system", tags=["stack-health"])
 
     event_service = PlatformEventService()
     app.state.platform_events = event_service

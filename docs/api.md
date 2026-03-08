@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 17:00 US/Pacific
+Last Updated: 2026-03-07 17:31 US/Pacific
 
 ## Conventions
 
@@ -14,6 +14,7 @@ Last Updated: 2026-03-07 17:00 US/Pacific
 - `/api/addons*` (core addon listing, enablement, registry, install sessions, proxy aliases)
 - `/api/admin/*` (session + reload + users/admin registry)
 - `/api/system/*` (stats/settings/mqtt/repo/runtime)
+- `/api/system/stack/summary` (dashboard-oriented full-stack summary: subsystems, connectivity, sampled speed, derived reasons)
 - `/api/system/events` (recent platform events)
 - `/api/system/scheduler/*` (jobs/leases/history/queue/debug)
 - `/api/auth/*` (service token operations)
@@ -37,6 +38,16 @@ Implemented service registration auth:
 Implemented admin-protected runtime endpoints:
 - `GET /api/system/addons/runtime`
 - `GET /api/system/addons/runtime/{addon_id}`
+
+Implemented dashboard summary endpoint:
+- `GET /api/system/stack/summary`
+  - public/read endpoint used by Home dashboard
+  - includes:
+    - `status`: overall state + concise reasons
+    - `subsystems`: core/supervisor/mqtt/scheduler/workers/addons
+    - `connectivity`: local network + internet state
+    - `samples.internet_speed`: cached lightweight snapshot
+  - missing capability semantics may return `unknown`, `unavailable`, or `not_configured`
 
 Runtime health model (implemented in runtime payload):
 - `runtime_state`: container/process runtime state (`running|stopped|error|unknown`)
