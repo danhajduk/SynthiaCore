@@ -40,7 +40,7 @@
 }
 
 .home-status-card {
-  border: 1px solid hsl(var(--color-border));
+  border: 2px solid hsl(var(--color-border));
   border-radius: var(--radius-md);
   background: hsl(var(--color-panel));
   padding: 14px;
@@ -51,15 +51,15 @@
 }
 
 .home-status-card.tone-ok {
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, hsl(var(--color-success)) 35%, transparent);
+  border-color: hsl(var(--color-success));
 }
 
 .home-status-card.tone-warn {
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, hsl(var(--color-warning)) 35%, transparent);
+  border-color: hsl(var(--color-warning));
 }
 
 .home-status-card.tone-danger {
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, hsl(var(--color-danger)) 35%, transparent);
+  border-color: hsl(var(--color-danger));
 }
 
 .home-status-label {
