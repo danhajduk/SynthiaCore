@@ -290,3 +290,4 @@
 2026-03-07 - Added synthia-dashboard unit install/restart handling to reload-all and update service reload flows (Task 132).
 2026-03-07 - Task 133 completed: restructured Settings into control-plane sections with platform/connectivity summaries and demoted developer tools.
 2026-03-07 - Task 134 completed: added MQTT setup options in Settings Connectivity with apply and restart flow.
+2026-03-07 - Task 139 completed: implemented Core->MQTT addon provisioning/revocation handshake and persisted grant lifecycle state.

@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 18:19 US/Pacific
+Last Updated: 2026-03-07 21:44 US/Pacific
 
 ## Overview
 
@@ -71,6 +71,8 @@ Started in backend startup event:
 Backend uses mixed persistence:
 - SQLite stores (settings/users/scheduler history/telemetry/stats/store audit)
 - JSON files (install state, policy files, registry, store source metadata)
+- MQTT integration state file (`var/mqtt_integration_state.json` via `MQTT_INTEGRATION_STATE_DB`)
+  - stores grant status and provisioning/revocation result metadata per addon
 
 ## Integration Points
 

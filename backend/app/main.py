@@ -36,7 +36,7 @@ from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler.history import SchedulerHistoryStore
 from app.system.settings.store import SettingsStore
 from app.system.settings.router import build_settings_router
-from app.system.mqtt import MqttManager, build_mqtt_router
+from app.system.mqtt import MqttIntegrationStateStore, MqttManager, build_mqtt_router
 from app.system.events import PlatformEventService, build_events_router
 from app.system.services import ServiceCatalogStore, build_service_resolution_router
 from app.system.auth import ServiceTokenKeyStore, build_auth_router
@@ -162,6 +162,11 @@ def create_app() -> FastAPI:
         os.path.join(os.getcwd(), "var", "service_catalogs.json"),
     )
     service_catalog_store = ServiceCatalogStore(service_catalog_db)
+    mqtt_integration_state_db = os.getenv(
+        "MQTT_INTEGRATION_STATE_DB",
+        os.path.join(os.getcwd(), "var", "mqtt_integration_state.json"),
+    )
+    mqtt_integration_state_store = MqttIntegrationStateStore(mqtt_integration_state_db)
     policy_grants_db = os.getenv(
         "POLICY_GRANTS_DB",
         os.path.join(os.getcwd(), "var", "policy_grants.json"),
@@ -223,6 +228,7 @@ def create_app() -> FastAPI:
     app.state.settings_store = settings_store
     app.state.service_token_keys = service_token_keys
     app.state.service_catalog_store = service_catalog_store
+    app.state.mqtt_integration_state_store = mqtt_integration_state_store
     app.state.policy_store = policy_store
     app.state.telemetry_store = telemetry_store
     app.state.audit_store = audit_store
@@ -271,7 +277,11 @@ def create_app() -> FastAPI:
     app.include_router(build_addons_registry_router(registry), prefix="/api")
     app.include_router(build_addons_install_router(registry, install_sessions_store), prefix="/api")
     app.include_router(build_admin_registry_router(registry), prefix="/api")
-    app.include_router(build_mqtt_router(mqtt_manager), prefix="/api/system", tags=["mqtt"])
+    app.include_router(
+        build_mqtt_router(mqtt_manager, registry, mqtt_integration_state_store, service_token_keys),
+        prefix="/api/system",
+        tags=["mqtt"],
+    )
     app.include_router(build_events_router(event_service), prefix="/api/system", tags=["events"])
     app.include_router(build_auth_router(service_token_keys), prefix="/api/auth", tags=["auth"])
     app.include_router(build_policy_router(policy_store, mqtt_manager, audit_store), prefix="/api/policy", tags=["policy"])

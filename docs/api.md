@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 18:19 US/Pacific
+Last Updated: 2026-03-07 21:44 US/Pacific
 
 ## Conventions
 
@@ -34,6 +34,17 @@ Implemented service registration auth:
 - required scope: `services.register`
 - token subject (`sub`) must match `addon_id` in request
 - Public/read endpoints remain accessible without admin privilege where designed.
+
+Implemented MQTT provisioning handshake APIs:
+- `POST /api/system/mqtt/registrations/approve`
+  - validates addon eligibility and topic scope contract
+  - creates/updates approved grant state in Core persistence
+- `POST /api/system/mqtt/registrations/{addon_id}/provision`
+  - calls MQTT addon provisioning endpoint with approved scopes, HA mode, and access profile
+  - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.provision`)
+- `POST /api/system/mqtt/registrations/{addon_id}/revoke`
+  - calls MQTT addon revoke endpoint and updates grant status
+  - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.revoke`)
 
 Implemented admin-protected runtime endpoints:
 - `GET /api/system/addons/runtime`
