@@ -27,6 +27,12 @@ a{color:hsl(var(--color-primary));text-decoration:none;}
 .btn{border-radius:var(--radius-sm);border:none;padding:6px 12px;cursor:pointer;}
 .btn-primary{background:hsl(var(--color-primary));color:white;}
 .pill{border-radius:999px;padding:2px 8px;font-size:12px;}
+.home-mini{border:2px solid hsl(var(--color-border));border-radius:var(--radius-md);background:hsl(var(--color-panel));padding:10px;}
+.home-mini.warn{border-color:hsl(var(--color-warning));}
+.home-mini.bad{border-color:hsl(var(--color-danger));}
+.home-panel{border:1px solid hsl(var(--color-border));border-radius:var(--radius-md);background:hsl(var(--color-panel));padding:12px;min-height:250px;}
+.home-panel h2{margin:0;font-size:16px;}
+.home-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
 `;
 
 export function injectCoreCssIntoIframe(iframe: HTMLIFrameElement): boolean {

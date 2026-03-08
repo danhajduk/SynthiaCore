@@ -312,3 +312,4 @@
 2026-03-08 - Implemented best-effort Core CSS token/component injection for same-origin addon iframes in AddonFrame.
 2026-03-08 - Added explicit iframe CSS injection verification markers (iframe attr + iframe document attrs/style id) for AddonFrame debugging.
 2026-03-08 - Added scripts/uninstall-addon.sh helper for addon uninstall via Store API with optional force-local cleanup fallback.
+2026-03-08 - Extended iframe core-theme injection to include .home-mini/.home-panel utility selectors and documented them in docs/theme.md.

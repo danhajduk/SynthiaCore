@@ -55,6 +55,13 @@ From `frontend/src/theme/components.css`:
 - `.btn`
 - `.btn-primary`
 - `.pill`
+- iframe injected utility selectors:
+  - `.home-mini`
+  - `.home-mini.warn`
+  - `.home-mini.bad`
+  - `.home-panel`
+  - `.home-panel-head`
+  - `.home-panel h2`
 
 From `frontend/src/theme/base.css`:
 
