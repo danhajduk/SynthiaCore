@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-07 21:48 US/Pacific
+Last Updated: 2026-03-07 21:45 US/Pacific
 
 ## Conventions
 
@@ -48,7 +48,7 @@ Implemented MQTT provisioning handshake APIs:
 - `GET /api/system/mqtt/grants`
 - `GET /api/system/mqtt/grants/{addon_id}`
 - `GET /api/system/mqtt/setup-summary`
-  - exposes setup state and broker capability summary for operators/UI
+  - exposes setup state, broker capability summary, MQTT health summary, and aggregated `last_provisioning_errors` for operators/UI
 - `POST /api/system/mqtt/setup-state`
   - updates Core-side MQTT setup awareness (`requires_setup`, `setup_complete`, `setup_status`, `broker_mode`, `direct_mqtt_supported`, `setup_error`)
   - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.setup.write`, subject `mqtt`)

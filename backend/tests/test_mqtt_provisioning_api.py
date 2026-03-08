@@ -184,6 +184,8 @@ class TestMqttProvisioningApi(unittest.TestCase):
         self.assertEqual(summary.status_code, 200, summary.text)
         self.assertIn("setup", summary.json())
         self.assertIn("broker", summary.json())
+        self.assertIn("health", summary.json())
+        self.assertIn("last_provisioning_errors", summary.json())
         self.assertIn("setup_error", summary.json()["setup"])
 
     def test_setup_state_gates_provisioning_until_ready(self) -> None:
@@ -228,6 +230,10 @@ class TestMqttProvisioningApi(unittest.TestCase):
             )
         self.assertEqual(provision.status_code, 200, provision.text)
         self.assertTrue(provision.json()["ok"])
+
+        summary = self.client.get("/api/system/mqtt/setup-summary", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(summary.status_code, 200, summary.text)
+        self.assertIsInstance(summary.json().get("last_provisioning_errors"), list)
 
     def test_provision_scope_checks_for_service_token(self) -> None:
         no_scope = self.client.post(

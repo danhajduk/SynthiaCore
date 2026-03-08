@@ -1,6 +1,6 @@
 # Backend Documentation
 
-Last Updated: 2026-03-07 21:48 US/Pacific
+Last Updated: 2026-03-07 21:45 US/Pacific
 
 ## Overview
 
@@ -74,7 +74,7 @@ Backend uses mixed persistence:
 - MQTT integration state file (`var/mqtt_integration_state.json` via `MQTT_INTEGRATION_STATE_DB`)
   - stores grant status and provisioning/revocation result metadata per addon
   - stores setup awareness fields (`requires_setup`, `setup_complete`, `setup_status`, `broker_mode`, `direct_mqtt_supported`, `setup_error`)
-  - inspection endpoints expose full grant list, per-addon grant, and setup/broker summary
+  - inspection endpoints expose full grant list, per-addon grant, and setup/broker/health summary with aggregated provisioning errors
 
 ## Integration Points
 
