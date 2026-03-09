@@ -153,9 +153,6 @@ def ensure_compose_files(
     env_file.write_text("\n".join(env_lines) + ("\n" if env_lines else ""))
     log.info("runtime_env_written path=%s keys=%s", env_file, sorted(env_values.keys()))
 
-    if compose_file.exists():
-        log.info("compose_file_skip path=%s reason=already_exists", compose_file)
-        return
     network_name = desired.runtime.network or "synthia_net"
     bind_localhost = bool(getattr(desired.runtime, "bind_localhost", True))
     host_bind = "127.0.0.1" if bind_localhost else "0.0.0.0"
@@ -180,7 +177,7 @@ def ensure_compose_files(
         f"      - {runtime_file}:/state/runtime.json\n"
         f"      - {compose_file}:/state/docker-compose.yml:ro\n"
     )
-    compose_file.write_text(f"""
+    compose_content = f"""
 services:
   {desired.addon_id}:
     build: {extracted_dir}
@@ -197,7 +194,17 @@ services:
 networks:
   {network_name}:
     name: {network_name}
-""")
+"""
+    if compose_file.exists():
+        existing = compose_file.read_text(encoding="utf-8")
+        stale_read_only_state_mount = (
+            "/state/desired.json:ro" in existing or "/state/runtime.json:ro" in existing
+        )
+        if not stale_read_only_state_mount:
+            log.info("compose_file_skip path=%s reason=already_exists", compose_file)
+            return
+        log.info("compose_file_regen path=%s reason=state_mount_mode_update", compose_file)
+    compose_file.write_text(compose_content)
     log.info(
         "compose_file_written path=%s network=%s host_bind=%s",
         compose_file,

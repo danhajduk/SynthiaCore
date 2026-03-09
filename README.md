@@ -300,6 +300,7 @@ Demonstrates core addon features:
 - Store diagnostics API (`/api/store/status/{addon_id}/diagnostics`) exposes latest standalone runtime error context and a concise `last_error_summary` for compose/build failure triage.
 - Store install/update responses now include SSAP metadata fields (`mode`, `desired_path`, `runtime_path`, `staged_artifact_path`, `runtime_state`, `registry_state`).
 - Supervisor-generated compose defaults now enforce guardrails: `privileged: false`, `no-new-privileges`, dedicated `synthia_net`, and service token/env injection via env file; port publish bind defaults to localhost and can be widened with `runtime.bind_localhost=false`; state files are mounted at `/state/desired.json` and `/state/runtime.json` (read-write) and `/state/docker-compose.yml` (read-only).
+- Supervisor auto-migrates legacy generated compose files that still mount `/state/desired.json` or `/state/runtime.json` as read-only.
 - Regression tests now cover standalone runtime status read paths (missing/valid/malformed), verification-failure stop behavior, and upgrade/rollback metadata transitions.
 - Standalone smoke regression test `backend/tests/test_standalone_smoke_flow.py` covers install intent write, runtime status read, and addon health/UI proxy route reachability.
 - Frontend global `style.css` root background/text now consume theme tokens to support runtime dark/light theme switching.
