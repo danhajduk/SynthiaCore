@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from .authority_policy import validate_authority_topic_access
 from .integration_models import (
     MqttAddonGrant,
     MqttBrokerModeSummary,
@@ -13,6 +14,7 @@ from .integration_models import (
     MqttSetupStateUpdate,
 )
 from .integration_state import MqttIntegrationStateStore
+from .topic_families import is_platform_reserved_topic
 from .topic_policy import validate_topic_scopes
 
 
@@ -28,11 +30,13 @@ class MqttRegistrationApprovalService:
         state_store: MqttIntegrationStateStore,
         observability_store=None,
         runtime_reconcile_hook=None,
+        audit_store=None,
     ) -> None:
         self._registry = registry
         self._state_store = state_store
         self._observability = observability_store
         self._runtime_reconcile_hook = runtime_reconcile_hook
+        self._audit = audit_store
 
     async def approve(self, request: MqttRegistrationRequest, *, requested_by_subject: str | None = None) -> MqttRegistrationApprovalResult:
         addon_id = request.addon_id.strip()
@@ -104,6 +108,12 @@ class MqttRegistrationApprovalService:
         await self._state_store.upsert_grant(grant)
         await self._state_store.upsert_principal(self._principal_from_grant(grant))
         await self._reconcile_runtime_if_needed(reason=f"approve:{addon_id}")
+        await self._append_audit(
+            event_type="mqtt_principal_action",
+            status="ok",
+            message="approve_grant",
+            payload={"addon_id": addon_id},
+        )
         if existing is not None and self._grant_materially_changed(existing, grant) and existing.status in {"approved", "provisioned", "error"}:
             await self.provision_grant(addon_id, reason="grant_scope_changed")
         return approved
@@ -148,6 +158,12 @@ class MqttRegistrationApprovalService:
         principal.last_activated_at = _utcnow_iso()
         await self._state_store.upsert_principal(principal)
         await self._reconcile_runtime_if_needed(reason=f"provision:{addon_id}")
+        await self._append_audit(
+            event_type="mqtt_principal_action",
+            status="ok",
+            message="provision_grant",
+            payload={"addon_id": addon_id},
+        )
         details = {
             "mode": "embedded_core_authority",
             "reason": reason,
@@ -172,6 +188,12 @@ class MqttRegistrationApprovalService:
         principal.last_revoked_at = _utcnow_iso()
         await self._state_store.upsert_principal(principal)
         await self._reconcile_runtime_if_needed(reason=f"revoke:{addon_id}")
+        await self._append_audit(
+            event_type="mqtt_principal_action",
+            status="ok",
+            message="revoke_grant",
+            payload={"addon_id": addon_id, "reason": reason},
+        )
         details = {
             "mode": "embedded_core_authority",
             "reason": reason,
@@ -246,6 +268,99 @@ class MqttRegistrationApprovalService:
             return await self.provision_grant(addon_id, reason="reconcile")
         return {"ok": True, "addon_id": addon_id, "status": grant.status}
 
+    async def list_principals(self) -> list[dict[str, Any]]:
+        state = await self._state_store.get_state()
+        return [item.model_dump(mode="json") for item in sorted(state.principals.values(), key=lambda x: x.principal_id)]
+
+    async def get_principal(self, principal_id: str) -> dict[str, Any] | None:
+        state = await self._state_store.get_state()
+        item = state.principals.get(principal_id)
+        return item.model_dump(mode="json") if item is not None else None
+
+    async def apply_principal_action(self, principal_id: str, action: str, reason: str | None = None) -> dict[str, Any]:
+        state = await self._state_store.get_state()
+        principal = state.principals.get(principal_id)
+        if principal is None:
+            return {"ok": False, "error": "principal_not_found", "principal_id": principal_id}
+        next_principal = principal.model_copy(deep=True)
+        act = str(action).strip().lower()
+        if act == "activate":
+            next_principal.status = "active"
+            next_principal.last_activated_at = _utcnow_iso()
+            next_principal.probation_reason = None
+        elif act == "revoke":
+            next_principal.status = "revoked"
+            next_principal.last_revoked_at = _utcnow_iso()
+        elif act == "expire":
+            next_principal.status = "expired"
+            next_principal.expires_at = _utcnow_iso()
+        elif act == "probation":
+            next_principal.status = "probation"
+            next_principal.probation_reason = reason or "manual_probation"
+        elif act == "promote":
+            next_principal.status = "active"
+            next_principal.last_activated_at = _utcnow_iso()
+            next_principal.probation_reason = None
+        else:
+            return {"ok": False, "error": "principal_action_invalid", "principal_id": principal_id}
+        await self._state_store.upsert_principal(next_principal)
+        await self._reconcile_runtime_if_needed(reason=f"principal_action:{act}:{principal_id}")
+        await self._append_audit(
+            event_type="mqtt_principal_action",
+            status="ok",
+            message=act,
+            payload={"principal_id": principal_id, "reason": reason},
+        )
+        return {"ok": True, "principal": next_principal.model_dump(mode="json")}
+
+    async def create_or_update_generic_user(
+        self,
+        *,
+        principal_id: str,
+        logical_identity: str,
+        username: str | None,
+        publish_topics: list[str],
+        subscribe_topics: list[str],
+        approved_reserved_topics: list[str] | None = None,
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        policy_errors = validate_authority_topic_access(
+            principal_type="generic_user",
+            publish_topics=publish_topics,
+            subscribe_topics=subscribe_topics,
+            approved_reserved_topics=approved_reserved_topics or [],
+        )
+        if policy_errors:
+            return {"ok": False, "error": "generic_user_scope_invalid", "details": policy_errors}
+        state = await self._state_store.get_state()
+        existing = state.principals.get(principal_id)
+        principal = (existing.model_copy(deep=True) if existing else MqttPrincipal(
+            principal_id=principal_id,
+            principal_type="generic_user",
+            status="active",
+            logical_identity=logical_identity,
+        ))
+        principal.principal_type = "generic_user"
+        principal.logical_identity = logical_identity
+        principal.username = username or principal.username
+        principal.publish_topics = sorted({topic for topic in publish_topics if topic and not is_platform_reserved_topic(topic)})
+        principal.subscribe_topics = sorted({topic for topic in subscribe_topics if topic and not is_platform_reserved_topic(topic)})
+        principal.approved_reserved_topics = []
+        if principal.status in {"revoked", "expired"}:
+            principal.status = "active"
+        if notes is not None:
+            principal.notes = notes
+        principal.last_activated_at = principal.last_activated_at or _utcnow_iso()
+        await self._state_store.upsert_principal(principal)
+        await self._reconcile_runtime_if_needed(reason=f"generic_user_update:{principal_id}")
+        await self._append_audit(
+            event_type="mqtt_generic_user_action",
+            status="ok",
+            message="upsert",
+            payload={"principal_id": principal_id},
+        )
+        return {"ok": True, "principal": principal.model_dump(mode="json")}
+
     def _grant_materially_changed(self, old: MqttAddonGrant, new: MqttAddonGrant) -> bool:
         if old.access_mode != new.access_mode:
             return True
@@ -265,12 +380,18 @@ class MqttRegistrationApprovalService:
         return state.authority_ready
 
     def _principal_from_grant(self, grant: MqttAddonGrant) -> MqttPrincipal:
+        approved_reserved_topics = [
+            topic for topic in list(grant.publish_topics) + list(grant.subscribe_topics) if is_platform_reserved_topic(topic)
+        ]
         return MqttPrincipal(
             principal_id=f"addon:{grant.addon_id}",
             principal_type="synthia_addon",
             status=("active" if grant.status == "active" else "pending"),
             logical_identity=grant.addon_id,
             linked_addon_id=grant.addon_id,
+            publish_topics=sorted({str(topic).strip() for topic in grant.publish_topics if str(topic).strip()}),
+            subscribe_topics=sorted({str(topic).strip() for topic in grant.subscribe_topics if str(topic).strip()}),
+            approved_reserved_topics=sorted({str(topic).strip() for topic in approved_reserved_topics if str(topic).strip()}),
             notes=f"created_from_grant:{grant.access_mode}",
         )
 
@@ -298,3 +419,11 @@ class MqttRegistrationApprovalService:
                 severity="warn",
                 metadata={"reason": reason, "error": "runtime_reconcile_failed"},
             )
+
+    async def _append_audit(self, *, event_type: str, status: str, message: str, payload: dict[str, Any]) -> None:
+        if self._audit is None:
+            return
+        try:
+            await self._audit.append_event(event_type=event_type, status=status, message=message, payload=payload)
+        except Exception:
+            return

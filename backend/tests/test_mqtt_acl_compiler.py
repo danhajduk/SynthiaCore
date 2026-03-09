@@ -11,6 +11,7 @@ class TestMqttAclCompiler(unittest.TestCase):
         acl = result.acl_text
         self.assertIn("anonymous allow subscribe synthia/bootstrap/core", acl)
         self.assertIn("generic_user:* deny subscribe synthia/core/#", acl)
+        self.assertGreaterEqual(len(result.effective_access), 1)
 
     def test_compiles_active_synthia_principal_rules(self) -> None:
         state = MqttIntegrationState(

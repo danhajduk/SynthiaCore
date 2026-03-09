@@ -429,6 +429,7 @@ def create_app() -> FastAPI:
         state_store=mqtt_integration_state_store,
         observability_store=mqtt_observability_store,
         runtime_reconcile_hook=mqtt_startup_reconciler.reconcile_authority,
+        audit_store=mqtt_authority_audit,
     )
     app.state.mqtt_registration_approval = mqtt_registration_approval
     app.state.mqtt_runtime_boundary = mqtt_runtime_boundary
@@ -456,6 +457,7 @@ def create_app() -> FastAPI:
             service_token_keys,
             approval_service=mqtt_registration_approval,
             acl_compiler=mqtt_acl_compiler,
+            credential_store=mqtt_credential_store,
             runtime_reconciler=mqtt_startup_reconciler,
         ),
         prefix="/api/system",

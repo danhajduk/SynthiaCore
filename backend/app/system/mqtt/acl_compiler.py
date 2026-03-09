@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from .integration_models import MqttAddonGrant, MqttIntegrationState, MqttPrincipal
+from .effective_access import MqttEffectiveAccessCompiler, MqttEffectiveAccessEntry
+from .integration_models import MqttIntegrationState
 from .topic_families import BOOTSTRAP_TOPIC
 
 
@@ -30,6 +31,7 @@ class CompiledAclRule:
 class MqttAclCompilationResult:
     rules: list[CompiledAclRule]
     acl_text: str
+    effective_access: list[MqttEffectiveAccessEntry]
 
 
 def _sorted_unique(items: Iterable[str]) -> list[str]:
@@ -45,50 +47,42 @@ class MqttAclCompiler:
     ) -> None:
         self._bootstrap_topic = str(bootstrap_topic or DEFAULT_BOOTSTRAP_TOPIC).strip() or DEFAULT_BOOTSTRAP_TOPIC
         self._reserved = _sorted_unique(reserved_prefixes or DEFAULT_RESERVED_PREFIXES)
+        self._effective_access = MqttEffectiveAccessCompiler(
+            bootstrap_topic=self._bootstrap_topic,
+            reserved_prefixes=list(self._reserved),
+        )
 
     def compile(self, state: MqttIntegrationState) -> MqttAclCompilationResult:
-        rules: list[CompiledAclRule] = []
-
-        rules.append(CompiledAclRule("anonymous", "subscribe", self._bootstrap_topic, "allow"))
-        rules.append(CompiledAclRule("anonymous", "publish", "#", "deny"))
-        rules.append(CompiledAclRule("anonymous", "subscribe", "#", "deny"))
-        for prefix in self._reserved:
-            rules.append(CompiledAclRule("generic_user:*", "publish", prefix, "deny"))
-            rules.append(CompiledAclRule("generic_user:*", "subscribe", prefix, "deny"))
-
-        for principal in sorted(state.principals.values(), key=lambda item: item.principal_id):
-            rules.extend(self._rules_for_principal(principal, state))
-
+        entries = self._effective_access.compile(state)
+        rules = self._render_mosquitto_rules(entries)
         normalized = sorted(set(rules), key=lambda item: (item.principal_id, item.action, item.topic, item.effect))
-        return MqttAclCompilationResult(rules=normalized, acl_text=self._to_acl_text(normalized))
+        return MqttAclCompilationResult(rules=normalized, acl_text=self._to_acl_text(normalized), effective_access=entries)
 
-    def _rules_for_principal(self, principal: MqttPrincipal, state: MqttIntegrationState) -> list[CompiledAclRule]:
-        if principal.status in {"revoked", "expired"}:
-            return []
-        if principal.principal_type == "generic_user":
-            return []
-        if principal.principal_type not in {"synthia_addon", "synthia_node"}:
-            return []
+    def compile_effective_access(self, state: MqttIntegrationState) -> list[MqttEffectiveAccessEntry]:
+        return self._effective_access.compile(state)
 
-        grant = self._grant_for_principal(principal, state)
-        if grant is None:
-            return []
-        out: list[CompiledAclRule] = []
-        for topic in _sorted_unique(grant.publish_topics):
-            out.append(CompiledAclRule(principal.principal_id, "publish", topic, "allow"))
-        for topic in _sorted_unique(grant.subscribe_topics):
-            out.append(CompiledAclRule(principal.principal_id, "subscribe", topic, "allow"))
-        return out
+    def inspect_effective_access(self, state: MqttIntegrationState, principal_id: str) -> MqttEffectiveAccessEntry | None:
+        return self._effective_access.inspect_principal(state, principal_id)
 
-    def _grant_for_principal(self, principal: MqttPrincipal, state: MqttIntegrationState) -> MqttAddonGrant | None:
-        if principal.linked_addon_id:
-            grant = state.active_grants.get(principal.linked_addon_id)
-            if grant is None:
-                return None
-            if grant.status not in {"approved", "active", "provisioned"}:
-                return None
-            return grant
-        return None
+    @staticmethod
+    def _render_mosquitto_rules(entries: list[MqttEffectiveAccessEntry]) -> list[CompiledAclRule]:
+        rules: list[CompiledAclRule] = []
+        for entry in entries:
+            if entry.principal_id == "anonymous":
+                for topic in entry.subscribe_scopes:
+                    rules.append(CompiledAclRule("anonymous", "subscribe", topic, "allow"))
+                rules.append(CompiledAclRule("anonymous", "publish", "#", "deny"))
+                rules.append(CompiledAclRule("anonymous", "subscribe", "#", "deny"))
+                continue
+            for topic in entry.publish_scopes:
+                rules.append(CompiledAclRule(entry.principal_id, "publish", topic, "allow"))
+            for topic in entry.subscribe_scopes:
+                rules.append(CompiledAclRule(entry.principal_id, "subscribe", topic, "allow"))
+            if entry.principal_type == "generic_user":
+                for prefix in entry.reserved_prefix_denies:
+                    rules.append(CompiledAclRule("generic_user:*", "publish", prefix, "deny"))
+                    rules.append(CompiledAclRule("generic_user:*", "subscribe", prefix, "deny"))
+        return rules
 
     def _to_acl_text(self, rules: list[CompiledAclRule]) -> str:
         lines: list[str] = []

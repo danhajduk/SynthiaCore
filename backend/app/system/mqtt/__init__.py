@@ -4,6 +4,7 @@ from .apply_pipeline import ApplyPipelineResult, MqttApplyPipeline
 from .authority_audit import MqttAuthorityAuditStore
 from .config_renderer import MqttBrokerConfigRenderer, MqttBrokerRenderInput, MqttBrokerRenderOutput, MqttListenerSpec
 from .credential_store import MqttCredentialStore
+from .effective_access import MqttEffectiveAccessCompiler, MqttEffectiveAccessEntry
 from .integration_models import (
     MqttAddonGrant,
     MqttBootstrapAnnouncement,
@@ -49,6 +50,8 @@ __all__ = [
     "MqttObservabilityStore",
     "MqttBrokerConfigRenderer",
     "MqttCredentialStore",
+    "MqttEffectiveAccessCompiler",
+    "MqttEffectiveAccessEntry",
     "MqttBrokerRenderInput",
     "MqttBrokerRenderOutput",
     "MqttListenerSpec",

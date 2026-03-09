@@ -1,0 +1,200 @@
+import asyncio
+import os
+import tempfile
+import time
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from fastapi import APIRouter, FastAPI
+from fastapi.testclient import TestClient
+
+from app.addons.models import AddonMeta, BackendAddon, RegisteredAddon
+from app.addons.registry import AddonRegistry
+from app.system.auth import ServiceTokenKeyStore
+from app.system.mqtt.acl_compiler import MqttAclCompiler
+from app.system.mqtt.approval import MqttRegistrationApprovalService
+from app.system.mqtt.credential_store import MqttCredentialStore
+from app.system.mqtt.integration_state import MqttIntegrationStateStore
+from app.system.mqtt.router import build_mqtt_router
+
+
+class _FakeSettingsStore:
+    def __init__(self) -> None:
+        self._data: dict[str, object] = {}
+
+    async def get(self, key: str):
+        return self._data.get(key)
+
+
+class _FakeMqttManager:
+    async def status(self):
+        return {"ok": True, "enabled": True, "connected": True, "last_message_at": None}
+
+    async def restart(self):
+        return None
+
+    async def publish_test(self, topic: str | None = None, payload: dict | None = None):
+        return {"ok": True, "topic": topic or "synthia/core/mqtt/info", "payload": payload or {}}
+
+    async def publish(self, topic: str, payload: dict, retain: bool = True, qos: int = 1):
+        return {"ok": True, "topic": topic, "rc": 0}
+
+    def _core_info_payload(self) -> dict:
+        return {"source": "synthia-core", "type": "core-mqtt-info"}
+
+
+class _FakeRuntimeReconciler:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def reconcile_authority(self, *, reason: str):
+        self.calls.append(reason)
+        return None
+
+    def reconciliation_status(self):
+        return {"status": "ok"}
+
+    def bootstrap_status(self):
+        return {"published": True}
+
+    def live_dir(self):
+        return "/tmp"
+
+
+class TestMqttAdminLifecycleApi(unittest.TestCase):
+    def setUp(self) -> None:
+        self.env_patch = patch.dict(os.environ, {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False)
+        self.env_patch.start()
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.settings = _FakeSettingsStore()
+        self.key_store = ServiceTokenKeyStore(self.settings)
+        self.state_store = MqttIntegrationStateStore(str(Path(self.tmpdir.name) / "mqtt_state.json"))
+        self.credential_store = MqttCredentialStore(str(Path(self.tmpdir.name) / "mqtt_credentials.json"))
+        self.runtime = _FakeRuntimeReconciler()
+        self.registry = AddonRegistry(
+            addons={
+                "vision": BackendAddon(
+                    meta=AddonMeta(id="vision", name="Vision", version="1.0.0"),
+                    router=APIRouter(),
+                )
+            },
+            errors={},
+            enabled={"vision": True},
+            registered={
+                "mqtt": RegisteredAddon(
+                    id="mqtt",
+                    name="MQTT",
+                    version="1.0.0",
+                    base_url="http://mqtt-addon.local:9100",
+                )
+            },
+        )
+        self.approval = MqttRegistrationApprovalService(
+            registry=self.registry,
+            state_store=self.state_store,
+            runtime_reconcile_hook=self.runtime.reconcile_authority,
+        )
+        app = FastAPI()
+        app.include_router(
+            build_mqtt_router(
+                _FakeMqttManager(),
+                self.registry,
+                self.state_store,
+                self.key_store,
+                approval_service=self.approval,
+                acl_compiler=MqttAclCompiler(),
+                credential_store=self.credential_store,
+                runtime_reconciler=self.runtime,
+            ),
+            prefix="/api/system",
+        )
+        self.client = TestClient(app)
+
+    def tearDown(self) -> None:
+        self.tmpdir.cleanup()
+        self.env_patch.stop()
+
+    def test_principal_actions_and_generic_user_lifecycle(self) -> None:
+        create = self.client.post(
+            "/api/system/mqtt/generic-users",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "principal_id": "user:guest1",
+                "logical_identity": "guest1",
+                "username": "guest1",
+                "publish_topics": ["devices/guest1/state"],
+                "subscribe_topics": ["devices/guest1/cmd"],
+            },
+        )
+        self.assertEqual(create.status_code, 200, create.text)
+        self.assertTrue(create.json()["ok"])
+
+        grants = self.client.patch(
+            "/api/system/mqtt/generic-users/user:guest1/grants",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "publish_topics": ["devices/guest1/state/#"],
+                "subscribe_topics": ["devices/guest1/cmd/#"],
+            },
+        )
+        self.assertEqual(grants.status_code, 200, grants.text)
+        self.assertTrue(grants.json()["ok"])
+
+        probation = self.client.post(
+            "/api/system/mqtt/principals/user:guest1/actions/probation",
+            headers={"X-Admin-Token": "test-token"},
+            json={"reason": "suspicious"},
+        )
+        self.assertEqual(probation.status_code, 200, probation.text)
+        self.assertEqual(probation.json()["principal"]["status"], "probation")
+
+        promoted = self.client.post(
+            "/api/system/mqtt/principals/user:guest1/actions/promote",
+            headers={"X-Admin-Token": "test-token"},
+            json={"reason": "verified"},
+        )
+        self.assertEqual(promoted.status_code, 200, promoted.text)
+        self.assertEqual(promoted.json()["principal"]["status"], "active")
+
+        revoke = self.client.post(
+            "/api/system/mqtt/generic-users/user:guest1/revoke",
+            headers={"X-Admin-Token": "test-token"},
+            json={"reason": "manual"},
+        )
+        self.assertEqual(revoke.status_code, 200, revoke.text)
+        self.assertEqual(revoke.json()["principal"]["status"], "revoked")
+
+    def test_rotate_credentials_and_effective_access_inspection(self) -> None:
+        created = asyncio.run(
+            self.approval.create_or_update_generic_user(
+                principal_id="user:guest2",
+                logical_identity="guest2",
+                username="guest2",
+                publish_topics=["devices/guest2/state"],
+                subscribe_topics=["devices/guest2/cmd"],
+            )
+        )
+        self.assertTrue(created["ok"])
+        state = asyncio.run(self.state_store.get_state())
+        self.credential_store.render_password_file(state)
+
+        rotate = self.client.post(
+            "/api/system/mqtt/generic-users/user:guest2/rotate-credentials",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(rotate.status_code, 200, rotate.text)
+        self.assertTrue(rotate.json()["rotated"])
+
+        inspect_access = self.client.get(
+            "/api/system/mqtt/generic-users/user:guest2/effective-access",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(inspect_access.status_code, 200, inspect_access.text)
+        payload = inspect_access.json()["effective_access"]
+        self.assertTrue(payload["generic_non_reserved_only"])
+        self.assertIn("synthia/core/#", payload["reserved_prefix_denies"])
+
+
+if __name__ == "__main__":
+    unittest.main()

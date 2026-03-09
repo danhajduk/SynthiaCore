@@ -291,3 +291,6 @@
 227. Task 247: Add Core status integration for MQTT infrastructure. - Completed on 03/09/2026 09:40
 228. Task 248: Add developer CLI/debug helpers. - Completed on 03/09/2026 09:40
 229. Task 249: Add runtime integration tests. - Completed on 03/09/2026 09:40
+230. Task 250: Refactor ACL compiler into effective-access model + broker renderer. - Completed on 03/09/2026 08:50
+231. Task 251: Implement principal lifecycle admin actions. - Completed on 03/09/2026 08:50
+232. Task 252: Implement generic user lifecycle admin actions. - Completed on 03/09/2026 08:50

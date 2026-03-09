@@ -29,6 +29,25 @@ class MqttTopicValidationRequest(BaseModel):
     approved_reserved_topics: list[str] = Field(default_factory=list)
 
 
+class MqttPrincipalActionRequest(BaseModel):
+    reason: str | None = None
+
+
+class MqttGenericUserUpsertRequest(BaseModel):
+    principal_id: str = Field(..., min_length=1)
+    logical_identity: str = Field(..., min_length=1)
+    username: str | None = None
+    publish_topics: list[str] = Field(default_factory=list)
+    subscribe_topics: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class MqttGenericUserGrantUpdateRequest(BaseModel):
+    publish_topics: list[str] = Field(default_factory=list)
+    subscribe_topics: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
 async def _authorize_mqtt_request(
     *,
     request: Request,
@@ -60,6 +79,7 @@ def build_mqtt_router(
     key_store: ServiceTokenKeyStore,
     approval_service: MqttRegistrationApprovalService | None = None,
     acl_compiler: MqttAclCompiler | None = None,
+    credential_store=None,
     runtime_reconciler=None,
 ) -> APIRouter:
     router = APIRouter()
@@ -153,6 +173,110 @@ def build_mqtt_router(
         if item is None:
             raise HTTPException(status_code=404, detail="mqtt_grant_not_found")
         return {"ok": True, "grant": item}
+
+    @router.get("/mqtt/principals")
+    async def mqtt_principals(request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
+        return {"ok": True, "items": await approval.list_principals()}
+
+    @router.post("/mqtt/principals/{principal_id}/actions/{action}")
+    async def mqtt_principal_action(
+        principal_id: str,
+        action: str,
+        body: MqttPrincipalActionRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        result = await approval.apply_principal_action(principal_id, action, reason=body.reason)
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail=str(result.get("error") or "principal_action_failed"))
+        return result
+
+    @router.post("/mqtt/generic-users")
+    async def mqtt_generic_user_upsert(
+        body: MqttGenericUserUpsertRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        result = await approval.create_or_update_generic_user(
+            principal_id=body.principal_id,
+            logical_identity=body.logical_identity,
+            username=body.username,
+            publish_topics=body.publish_topics,
+            subscribe_topics=body.subscribe_topics,
+            notes=body.notes,
+        )
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail=str(result.get("error") or "generic_user_upsert_failed"))
+        return result
+
+    @router.patch("/mqtt/generic-users/{principal_id}/grants")
+    async def mqtt_generic_user_update_grants(
+        principal_id: str,
+        body: MqttGenericUserGrantUpdateRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        existing = await approval.get_principal(principal_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="principal_not_found")
+        result = await approval.create_or_update_generic_user(
+            principal_id=principal_id,
+            logical_identity=str(existing.get("logical_identity") or principal_id),
+            username=(str(existing.get("username")) if existing.get("username") else None),
+            publish_topics=body.publish_topics,
+            subscribe_topics=body.subscribe_topics,
+            notes=body.notes if body.notes is not None else existing.get("notes"),
+        )
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail=str(result.get("error") or "generic_user_update_failed"))
+        return result
+
+    @router.post("/mqtt/generic-users/{principal_id}/revoke")
+    async def mqtt_generic_user_revoke(
+        principal_id: str,
+        body: MqttPrincipalActionRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        result = await approval.apply_principal_action(principal_id, "revoke", reason=body.reason or "generic_user_revoke")
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail=str(result.get("error") or "generic_user_revoke_failed"))
+        return result
+
+    @router.post("/mqtt/generic-users/{principal_id}/rotate-credentials")
+    async def mqtt_generic_user_rotate_credentials(
+        principal_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if credential_store is None:
+            raise HTTPException(status_code=503, detail="credential_store_unavailable")
+        rotated = bool(credential_store.rotate_principal(principal_id))
+        if runtime_reconciler is not None:
+            await runtime_reconciler.reconcile_authority(reason=f"rotate_credentials:{principal_id}")
+        return {"ok": True, "principal_id": principal_id, "rotated": rotated}
+
+    @router.get("/mqtt/generic-users/{principal_id}/effective-access")
+    async def mqtt_generic_user_effective_access(
+        principal_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        compiler = acl_compiler or getattr(runtime_reconciler, "_acl_compiler", None)
+        if compiler is None:
+            raise HTTPException(status_code=503, detail="acl_compiler_unavailable")
+        state = await state_store.get_state()
+        access = compiler.inspect_effective_access(state, principal_id)
+        if access is None:
+            raise HTTPException(status_code=404, detail="principal_not_found")
+        return {"ok": True, "principal_id": principal_id, "effective_access": access.__dict__}
 
     @router.get("/mqtt/setup-summary")
     async def mqtt_setup_summary(request: Request, x_admin_token: str | None = Header(default=None)):

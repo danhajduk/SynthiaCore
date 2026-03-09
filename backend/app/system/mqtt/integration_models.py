@@ -70,6 +70,10 @@ class MqttPrincipal(BaseModel):
     linked_addon_id: str | None = None
     linked_node_id: str | None = None
     username: str | None = None
+    publish_topics: list[str] = Field(default_factory=list)
+    subscribe_topics: list[str] = Field(default_factory=list)
+    approved_reserved_topics: list[str] = Field(default_factory=list)
+    probation_reason: str | None = None
     notes: str | None = None
     last_activated_at: str | None = None
     last_revoked_at: str | None = None

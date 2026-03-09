@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-09 09:18 US/Pacific
+Last Updated: 2026-03-09 08:50 US/Pacific
 
 ## Conventions
 
@@ -70,6 +70,14 @@ Implemented MQTT authority APIs:
   - `GET /api/system/mqtt/debug/config`
   - `GET /api/system/mqtt/debug/authority`
   - `POST /api/system/mqtt/debug/topic-validate`
+- Admin-only MQTT lifecycle/effective-access helpers:
+  - `GET /api/system/mqtt/principals`
+  - `POST /api/system/mqtt/principals/{principal_id}/actions/{action}`
+  - `POST /api/system/mqtt/generic-users`
+  - `PATCH /api/system/mqtt/generic-users/{principal_id}/grants`
+  - `POST /api/system/mqtt/generic-users/{principal_id}/revoke`
+  - `POST /api/system/mqtt/generic-users/{principal_id}/rotate-credentials`
+  - `GET /api/system/mqtt/generic-users/{principal_id}/effective-access`
 
 MQTT control-plane rule (implemented contract):
 - Core uses HTTP APIs for deterministic control transactions (registration approval, provisioning, revocation, setup-state updates, admin actions).

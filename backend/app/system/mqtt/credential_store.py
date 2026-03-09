@@ -70,6 +70,21 @@ class MqttCredentialStore:
         )
         return "\n".join(lines) + "\n"
 
+    def rotate_principal(self, principal_id: str) -> bool:
+        payload = self._load_payload()
+        credentials = dict(payload.get("credentials") or {})
+        if principal_id not in credentials:
+            return False
+        del credentials[principal_id]
+        self._save_payload(
+            {
+                "schema_version": 1,
+                "updated_at": _utcnow_iso(),
+                "credentials": credentials,
+            }
+        )
+        return True
+
     def _principal_username(self, principal: MqttPrincipal, *, fallback: str | None) -> str:
         preferred = str(principal.username or "").strip()
         if preferred:

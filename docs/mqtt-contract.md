@@ -1,6 +1,6 @@
 # MQTT Integration Contract
 
-Last Updated: 2026-03-09 09:18 US/Pacific
+Last Updated: 2026-03-09 08:50 US/Pacific
 
 ## Scope
 
@@ -79,6 +79,13 @@ Implemented registration/approval APIs:
 - `GET /api/system/mqtt/debug/config` (admin-only)
 - `GET /api/system/mqtt/debug/authority` (admin-only)
 - `POST /api/system/mqtt/debug/topic-validate` (admin-only)
+- `GET /api/system/mqtt/principals` (admin-only)
+- `POST /api/system/mqtt/principals/{principal_id}/actions/{action}` (admin-only)
+- `POST /api/system/mqtt/generic-users` (admin-only)
+- `PATCH /api/system/mqtt/generic-users/{principal_id}/grants` (admin-only)
+- `POST /api/system/mqtt/generic-users/{principal_id}/revoke` (admin-only)
+- `POST /api/system/mqtt/generic-users/{principal_id}/rotate-credentials` (admin-only)
+- `GET /api/system/mqtt/generic-users/{principal_id}/effective-access` (admin-only)
 - `POST /api/system/mqtt/setup-state`
 
 Behavior:
@@ -94,6 +101,7 @@ Setup summary compatibility:
 
 Embedded authority foundations:
 - ACL compiler module: `backend/app/system/mqtt/acl_compiler.py`
+- effective-access compiler module: `backend/app/system/mqtt/effective_access.py`
 - credential store module: `backend/app/system/mqtt/credential_store.py`
 - Broker config renderer: `backend/app/system/mqtt/config_renderer.py`
 - Runtime boundary interface: `backend/app/system/mqtt/runtime_boundary.py`
@@ -108,6 +116,8 @@ Embedded API semantics:
 - grant/principal authority changes trigger config re-render and runtime reconcile through Core runtime hook.
 - `/mqtt/reload` triggers embedded authority reconcile/reload (fallback restart behavior when runtime reconciler is not wired).
 - `/mqtt/health` returns effective degraded/healthy summary.
+- principal lifecycle actions (`activate|revoke|expire|probation|promote`) are admin-controlled and audited.
+- generic users are lifecycle-managed under Core authority state and denied from reserved Synthia families by default.
 
 ## JSON Envelope Requirement
 
