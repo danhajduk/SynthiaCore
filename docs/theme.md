@@ -19,7 +19,7 @@ Implemented:
 
 Not developed:
 
-- no dedicated exported standalone theme asset endpoint (for example `/static/synthia-theme.css`)
+- no versioned stylesheet path (for example `/styles/synthia-core.v1.css`)
 
 ## Token Contract
 
@@ -88,8 +88,8 @@ For UI rendered inside the Core app document (embedded React addon routes), addo
 
 For standalone addon UIs rendered in iframe (`/addons/:addonId` -> proxied addon app):
 
-- CSS variables from Core do not cross iframe boundary
-- addon must provide its own stylesheet and design tokens
-- Core applies best-effort token/base-class injection only when iframe is same-origin accessible; direct cross-origin iframe targets remain isolated
+- CSS variables from Core do not cross iframe boundary automatically
+- addons can load the shared stylesheet from frontend host endpoint: `/styles/synthia-core.css`
+- Core still applies best-effort token/base-class injection only when iframe is same-origin accessible; direct cross-origin iframe targets remain isolated
 
 See addon author usage details in [addon-ui-styling.md](./addon-ui-styling.md).

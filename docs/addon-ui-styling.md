@@ -59,8 +59,18 @@ Implemented:
 
 Not developed:
 
-- shared downloadable Core theme stylesheet endpoint for standalone addons
 - versioned addon styling SDK/package
+
+Implemented shared stylesheet endpoint:
+
+- Core frontend host now serves shared theme CSS at `/styles/synthia-core.css`.
+- Example: if Core UI is on `http://10.0.0.100:8080`, addons can use `http://10.0.0.100:8080/styles/synthia-core.css`.
+
+Standalone addon usage example:
+
+```html
+<link rel="stylesheet" href="http://10.0.0.100:8080/styles/synthia-core.css" />
+```
 
 ## 4) Recommendation for Addon Authors
 

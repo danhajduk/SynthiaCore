@@ -1,0 +1,146 @@
+/*
+ * Shared Core theme stylesheet for standalone addon UIs.
+ * Served as: /styles/synthia-core.css from the frontend host.
+ */
+
+:root {
+  --color-bg: 222 84% 5%;
+  --color-panel: 222 50% 10%;
+  --color-border: 217 20% 20%;
+  --color-text: 210 40% 98%;
+  --color-text-muted: 215 20% 65%;
+  --color-primary: 262 83% 58%;
+  --color-success: 142 71% 45%;
+  --color-warning: 38 92% 50%;
+  --color-danger: 0 84% 60%;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.35);
+  --font-sans: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: 0 0% 100%;
+  --color-panel: 210 40% 98%;
+  --color-border: 214 32% 91%;
+  --color-text: 222 84% 5%;
+  --color-text-muted: 215 16% 47%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: hsl(var(--color-bg));
+  color: hsl(var(--color-text));
+}
+
+h1 {
+  font-size: 28px;
+}
+
+a {
+  color: hsl(var(--color-primary));
+  text-decoration: none;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid hsl(var(--color-border));
+}
+
+.card {
+  background: hsl(var(--color-panel));
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.btn {
+  border-radius: var(--radius-sm);
+  border: none;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: hsl(var(--color-primary));
+  color: white;
+}
+
+.pill {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.home-mini {
+  border: 2px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-panel));
+  padding: 10px;
+}
+
+.home-mini.warn {
+  border-color: hsl(var(--color-warning));
+}
+
+.home-mini.bad {
+  border-color: hsl(var(--color-danger));
+}
+
+.home-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.home-status-card {
+  border: 2px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-panel));
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.home-status-card.tone-ok {
+  border-color: hsl(var(--color-success));
+}
+
+.home-status-card.tone-warn {
+  border-color: hsl(var(--color-warning));
+}
+
+.home-status-card.tone-danger {
+  border-color: hsl(var(--color-danger));
+}
+
+.home-panel {
+  border: 1px solid hsl(var(--color-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--color-panel));
+  padding: 12px;
+  min-height: 250px;
+}
+
+.home-panel h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.home-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
