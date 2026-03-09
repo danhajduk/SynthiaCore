@@ -140,7 +140,7 @@ def build_mqtt_router(
         broker = await approval.broker_summary()
         health = await manager.status()
         grants = await approval.list_grants()
-        last_provisioning_errors = [
+        last_authority_errors = [
             {
                 "addon_id": item.get("addon_id"),
                 "status": item.get("status"),
@@ -155,7 +155,8 @@ def build_mqtt_router(
             "setup": setup.model_dump(mode="json"),
             "broker": broker.model_dump(mode="json"),
             "health": health,
-            "last_provisioning_errors": last_provisioning_errors,
+            "last_authority_errors": last_authority_errors,
+            "last_provisioning_errors": last_authority_errors,
         }
 
     @router.post("/mqtt/setup-state")

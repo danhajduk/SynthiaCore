@@ -67,8 +67,13 @@ Implemented registration/approval APIs:
 
 Behavior:
 - Core validates addon existence/enabled state and topic policy before approval.
-- Core persists grant state and provisioning/revocation outcomes.
-- Provisioning is gated on setup readiness when setup is required.
+- Core persists grant state and principal authority outcomes in Core-owned state.
+- Provision/revoke endpoints apply embedded authority state transitions (no remote addon HTTP provisioning dependency).
+- Grant apply is gated on setup readiness when setup is required.
+
+Setup summary compatibility:
+- Preferred error aggregation key: `last_authority_errors`
+- Compatibility alias preserved: `last_provisioning_errors`
 
 ## JSON Envelope Requirement
 

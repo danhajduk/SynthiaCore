@@ -35,7 +35,7 @@ Implemented service registration auth:
 - token subject (`sub`) must match `addon_id` in request
 - Public/read endpoints remain accessible without admin privilege where designed.
 
-Implemented MQTT provisioning handshake APIs:
+Implemented MQTT authority APIs:
 - `GET /api/system/mqtt/status`
   - returns MQTT connection/runtime status and subscription list
 - `POST /api/system/mqtt/test`
@@ -46,23 +46,33 @@ Implemented MQTT provisioning handshake APIs:
   - validates addon eligibility and topic scope contract
   - creates/updates approved grant state in Core persistence
 - `POST /api/system/mqtt/registrations/{addon_id}/provision`
-  - calls MQTT addon provisioning endpoint with approved scopes, HA mode, and access profile
+  - applies Core-approved grant into embedded authority state
   - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.provision`)
 - `POST /api/system/mqtt/registrations/{addon_id}/revoke`
-  - calls MQTT addon revoke endpoint and updates grant status
+  - revokes Core authority grant state
   - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.revoke`)
 - `GET /api/system/mqtt/grants`
 - `GET /api/system/mqtt/grants/{addon_id}`
 - `GET /api/system/mqtt/setup-summary`
-  - exposes setup state, broker capability summary, MQTT health summary, and aggregated `last_provisioning_errors` for operators/UI
+  - exposes setup state, broker capability summary, MQTT health summary, and aggregated authority/apply errors for operators/UI
 - `POST /api/system/mqtt/setup-state`
   - updates Core-side MQTT setup awareness (`requires_setup`, `setup_complete`, `setup_status`, `broker_mode`, `direct_mqtt_supported`, `setup_error`)
   - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.setup.write`, subject `mqtt`)
-  - provisioning endpoints are gated until setup is ready when setup is required
+  - authority apply endpoints are gated until setup is ready when setup is required
 
 MQTT control-plane rule (implemented contract):
 - Core uses HTTP APIs for deterministic control transactions (registration approval, provisioning, revocation, setup-state updates, admin actions).
 - MQTT topics are treated as async/event transport only (announce, health, telemetry, retained info), not as the primary control transaction channel.
+
+Current setup summary/additional compatibility details:
+- `setup` payload now includes:
+  - `authority_mode`
+  - `authority_ready`
+  - `runtime_ready`
+  - `setup_ready`
+- Response includes both:
+  - `last_authority_errors` (new preferred key)
+  - `last_provisioning_errors` (compatibility alias)
 
 Embedded MQTT migration target:
 - Core is migrating MQTT provisioning semantics away from remote-standalone addon assumptions toward embedded platform-managed infrastructure.

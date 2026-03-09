@@ -245,3 +245,6 @@
 181. Task 201: Audit current MQTT code paths and mark standalone-assumption boundaries. - Completed on 03/09/2026 06:37
 182. Task 202: Document embedded MQTT architecture as the new target. - Completed on 03/09/2026 06:37
 183. Task 203: Define embedded MQTT addon/platform-service contract. - Completed on 03/09/2026 06:37
+184. Task 204: Refactor MQTT setup-state model away from remote-addon assumptions. - Completed on 03/09/2026 06:37
+185. Task 205: Replace provision/revoke handshake assumptions with embedded principal lifecycle. - Completed on 03/09/2026 06:37
+186. Task 206: Define Phase 1 MQTT principal model for embedded infrastructure. - Completed on 03/09/2026 06:37

@@ -5,7 +5,7 @@ import json
 import os
 from datetime import datetime, timezone
 
-from .integration_models import MqttAddonGrant, MqttIntegrationState, MqttSetupStateUpdate
+from .integration_models import MqttAddonGrant, MqttIntegrationState, MqttPrincipal, MqttSetupStateUpdate
 
 
 def _utcnow_iso() -> str:
@@ -38,6 +38,16 @@ class MqttIntegrationStateStore:
             await asyncio.to_thread(self._write_sync, next_state)
             return next_state
 
+    async def upsert_principal(self, principal: MqttPrincipal) -> MqttIntegrationState:
+        async with self._lock:
+            state = await asyncio.to_thread(self._read_sync)
+            next_principal = principal.model_copy(update={"updated_at": _utcnow_iso()})
+            principals = dict(state.principals)
+            principals[next_principal.principal_id] = next_principal
+            next_state = state.model_copy(update={"principals": principals, "updated_at": _utcnow_iso()})
+            await asyncio.to_thread(self._write_sync, next_state)
+            return next_state
+
     async def update_setup_state(self, setup: MqttSetupStateUpdate) -> MqttIntegrationState:
         async with self._lock:
             state = await asyncio.to_thread(self._read_sync)
@@ -49,6 +59,8 @@ class MqttIntegrationStateStore:
                     "broker_mode": setup.broker_mode,
                     "direct_mqtt_supported": setup.direct_mqtt_supported,
                     "setup_error": setup.setup_error,
+                    "authority_mode": setup.authority_mode,
+                    "authority_ready": setup.authority_ready,
                     "updated_at": _utcnow_iso(),
                 }
             )

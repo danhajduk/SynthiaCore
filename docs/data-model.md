@@ -1,6 +1,6 @@
 # Data Model Documentation
 
-Last Updated: 2026-03-07 22:10 US/Pacific
+Last Updated: 2026-03-09 06:37 US/Pacific
 
 ## Persistence Overview
 
@@ -27,6 +27,8 @@ Synthia uses mixed persistence:
 - Store source metadata (`var/store_sources.json` default + runtime cache metadata)
 - Service catalog metadata (`var/service_catalogs.json`)
 - MQTT integration state (`var/mqtt_integration_state.json`)
+  - includes setup/readiness fields (`requires_setup`, `setup_complete`, `setup_status`, `broker_mode`, `direct_mqtt_supported`, `setup_error`, `authority_mode`, `authority_ready`)
+  - includes Core-owned MQTT authority maps (`active_grants`, `principals`)
 - Standalone desired/runtime state (`SYNTHIA_ADDONS_DIR/services/<addon_id>/desired.json` and `runtime.json`)
   - desired runtime includes optional `runtime.cpu` and `runtime.memory` resource governance fields
 

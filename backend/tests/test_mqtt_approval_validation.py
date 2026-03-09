@@ -89,16 +89,6 @@ class TestMqttApprovalValidation(unittest.TestCase):
             )
 
     def test_revoke_and_reprovision_lifecycle(self) -> None:
-        calls: list[tuple[str, dict]] = []
-
-        async def _fake_call(*, path: str, payload: dict):
-            calls.append((path, payload))
-            if "revoke" in path:
-                return True, {"ok": True, "revoked": True}
-            return True, {"ok": True, "contract_id": "grant-1"}
-
-        self.service._call_control_plane = _fake_call  # type: ignore[method-assign]
-
         asyncio.run(
             self.service.update_setup_state(
                 MqttSetupStateUpdate(
@@ -107,6 +97,7 @@ class TestMqttApprovalValidation(unittest.TestCase):
                     setup_status="ready",
                     broker_mode="external",
                     direct_mqtt_supported=True,
+                    authority_ready=True,
                 )
             )
         )
@@ -123,6 +114,7 @@ class TestMqttApprovalValidation(unittest.TestCase):
         )
         provisioned = asyncio.run(self.service.provision_grant("vision", reason="test"))
         self.assertTrue(provisioned["ok"])
+        self.assertEqual(provisioned["status"], "active")
 
         asyncio.run(
             self.service.approve(
@@ -134,7 +126,9 @@ class TestMqttApprovalValidation(unittest.TestCase):
                 )
             )
         )
-        self.assertTrue(any(payload.get("reason") == "grant_scope_changed" for _, payload in calls))
+        reprovisioned = asyncio.run(self.service.provision_grant("vision", reason="grant_scope_changed"))
+        self.assertTrue(reprovisioned["ok"])
+        self.assertEqual(reprovisioned["status"], "active")
 
         revoked = asyncio.run(self.service.revoke_or_mark("vision", reason="test_revoke"))
         self.assertTrue(revoked["ok"])

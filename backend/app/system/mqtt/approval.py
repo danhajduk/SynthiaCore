@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from typing import Any
-
-import httpx
 
 from .integration_models import (
     MqttAddonGrant,
     MqttBrokerModeSummary,
+    MqttPrincipal,
     MqttRegistrationApprovalResult,
     MqttRegistrationRequest,
     MqttSetupCapabilitySummary,
@@ -26,11 +24,6 @@ class MqttRegistrationApprovalService:
     def __init__(self, *, registry, state_store: MqttIntegrationStateStore) -> None:
         self._registry = registry
         self._state_store = state_store
-        self._control_addon_id = os.getenv("SYNTHIA_MQTT_CONTROL_ADDON_ID", "mqtt").strip() or "mqtt"
-        self._provision_path = os.getenv("SYNTHIA_MQTT_PROVISION_PATH", "/api/addon/mqtt/provision").strip() or "/api/addon/mqtt/provision"
-        self._revoke_path = os.getenv("SYNTHIA_MQTT_REVOKE_PATH", "/api/addon/mqtt/revoke").strip() or "/api/addon/mqtt/revoke"
-        self._internal_token = os.getenv("SYNTHIA_INTERNAL_MQTT_TOKEN", "").strip()
-        self._timeout_s = float(os.getenv("SYNTHIA_MQTT_PROVISION_TIMEOUT_S", "8") or 8)
 
     async def approve(self, request: MqttRegistrationRequest, *, requested_by_subject: str | None = None) -> MqttRegistrationApprovalResult:
         addon_id = request.addon_id.strip()
@@ -95,6 +88,7 @@ class MqttRegistrationApprovalService:
             last_revoked_at=(existing.last_revoked_at if existing else None),
         )
         await self._state_store.upsert_grant(grant)
+        await self._state_store.upsert_principal(self._principal_from_grant(grant))
         if existing is not None and self._grant_materially_changed(existing, grant) and existing.status in {"approved", "provisioned", "error"}:
             await self.provision_grant(addon_id, reason="grant_scope_changed")
         return approved
@@ -117,55 +111,51 @@ class MqttRegistrationApprovalService:
                 "error": "mqtt_setup_not_ready",
                 "setup_status": state.setup_status,
             }
-        payload = {
-            "addon_id": current.addon_id,
-            "approved_publish_scopes": list(current.publish_topics),
-            "approved_subscribe_scopes": list(current.subscribe_topics),
-            "granted_ha_mode": current.granted_ha_mode,
-            "access_profile": current.access_profile,
-            "reason": reason,
-        }
-        ok, details = await self._call_control_plane(path=self._provision_path, payload=payload)
         next_grant = current.model_copy(deep=True)
         next_grant.updated_at = _utcnow_iso()
-        if ok:
-            next_grant.status = "provisioned"
-            next_grant.provision_contract = details
-            next_grant.last_error = None
-            next_grant.revocation_pending = False
-            next_grant.last_provisioned_at = _utcnow_iso()
-        else:
-            next_grant.status = "error"
-            next_grant.last_error = str(details.get("error") or "provision_failed")
+        next_grant.status = "active"
+        next_grant.provision_contract = {
+            "mode": "embedded_core_authority",
+            "reason": reason,
+            "applied_at": _utcnow_iso(),
+        }
+        next_grant.last_error = None
+        next_grant.revocation_pending = False
+        next_grant.last_provisioned_at = _utcnow_iso()
         await self._state_store.upsert_grant(next_grant)
-        return {"ok": ok, "addon_id": addon_id, "status": next_grant.status, "details": details}
+        principal = self._principal_from_grant(next_grant)
+        principal.status = "active"
+        principal.last_activated_at = _utcnow_iso()
+        await self._state_store.upsert_principal(principal)
+        details = {
+            "mode": "embedded_core_authority",
+            "reason": reason,
+            "status": "applied",
+        }
+        return {"ok": True, "addon_id": addon_id, "status": next_grant.status, "details": details}
 
     async def revoke_or_mark(self, addon_id: str, reason: str) -> dict[str, Any]:
         state = await self._state_store.get_state()
         current = state.active_grants.get(addon_id)
         if current is None:
             return {"ok": True, "addon_id": addon_id, "status": "not_found"}
-        payload = {
-            "addon_id": addon_id,
-            "reason": reason,
-            "access_mode": current.access_mode,
-            "publish_topics": current.publish_topics,
-            "subscribe_topics": current.subscribe_topics,
-        }
-        ok, details = await self._call_control_plane(path=self._revoke_path, payload=payload)
         next_grant = current.model_copy(deep=True)
         next_grant.updated_at = _utcnow_iso()
         next_grant.last_revoked_at = _utcnow_iso()
-        if ok:
-            next_grant.status = "revoked"
-            next_grant.last_error = None
-            next_grant.revocation_pending = False
-        else:
-            next_grant.status = "error"
-            next_grant.last_error = str(details.get("error") or "revoke_failed")
-            next_grant.revocation_pending = True
+        next_grant.status = "revoked"
+        next_grant.last_error = None
+        next_grant.revocation_pending = False
         await self._state_store.upsert_grant(next_grant)
-        return {"ok": ok, "addon_id": addon_id, "status": next_grant.status, "details": details}
+        principal = self._principal_from_grant(next_grant)
+        principal.status = "revoked"
+        principal.last_revoked_at = _utcnow_iso()
+        await self._state_store.upsert_principal(principal)
+        details = {
+            "mode": "embedded_core_authority",
+            "reason": reason,
+            "status": "revoked",
+        }
+        return {"ok": True, "addon_id": addon_id, "status": next_grant.status, "details": details}
 
     async def list_grants(self) -> list[dict[str, Any]]:
         state = await self._state_store.get_state()
@@ -191,6 +181,10 @@ class MqttRegistrationApprovalService:
             setup_status=state.setup_status,
             direct_mqtt_supported=state.direct_mqtt_supported,
             setup_error=state.setup_error,
+            authority_mode=state.authority_mode,
+            authority_ready=state.authority_ready,
+            runtime_ready=self._setup_ready(state),
+            setup_ready=self._setup_ready(state),
         )
 
     async def update_setup_state(self, update: MqttSetupStateUpdate) -> MqttSetupCapabilitySummary:
@@ -201,6 +195,10 @@ class MqttRegistrationApprovalService:
             setup_status=state.setup_status,
             direct_mqtt_supported=state.direct_mqtt_supported,
             setup_error=state.setup_error,
+            authority_mode=state.authority_mode,
+            authority_ready=state.authority_ready,
+            runtime_ready=self._setup_ready(state),
+            setup_ready=self._setup_ready(state),
         )
 
     async def reconcile(self, addon_id: str) -> dict[str, Any]:
@@ -211,35 +209,6 @@ class MqttRegistrationApprovalService:
         if grant.status in {"approved", "error"} and self._registry.is_enabled(addon_id):
             return await self.provision_grant(addon_id, reason="reconcile")
         return {"ok": True, "addon_id": addon_id, "status": grant.status}
-
-    def _control_base_url(self) -> str | None:
-        addon = self._registry.registered.get(self._control_addon_id)
-        if addon is None:
-            return None
-        return str(addon.base_url or "").rstrip("/") or None
-
-    async def _call_control_plane(self, *, path: str, payload: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
-        base = self._control_base_url()
-        if not base:
-            return False, {"error": "mqtt_control_addon_not_registered"}
-        url = f"{base}{path}"
-        headers: dict[str, str] = {"Content-Type": "application/json"}
-        if self._internal_token:
-            headers["X-Synthia-Core-Auth"] = self._internal_token
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout_s), follow_redirects=False) as client:
-                resp = await client.post(url, headers=headers, json=payload)
-            if resp.status_code >= 400:
-                return False, {"error": f"provision_http_{resp.status_code}", "url": url, "body": resp.text}
-            try:
-                body = resp.json()
-                details = body if isinstance(body, dict) else {"result": body}
-            except Exception:
-                details = {"result": resp.text}
-            details["url"] = url
-            return True, details
-        except Exception as exc:
-            return False, {"error": type(exc).__name__, "url": url}
 
     def _grant_materially_changed(self, old: MqttAddonGrant, new: MqttAddonGrant) -> bool:
         if old.access_mode != new.access_mode:
@@ -256,5 +225,15 @@ class MqttRegistrationApprovalService:
         if not state.mqtt_enabled:
             return False
         if state.requires_setup:
-            return state.setup_complete and state.setup_status == "ready"
-        return True
+            return state.setup_complete and state.setup_status == "ready" and state.authority_ready
+        return state.authority_ready
+
+    def _principal_from_grant(self, grant: MqttAddonGrant) -> MqttPrincipal:
+        return MqttPrincipal(
+            principal_id=f"addon:{grant.addon_id}",
+            principal_type="synthia_addon",
+            status=("active" if grant.status == "active" else "pending"),
+            logical_identity=grant.addon_id,
+            linked_addon_id=grant.addon_id,
+            notes=f"created_from_grant:{grant.access_mode}",
+        )

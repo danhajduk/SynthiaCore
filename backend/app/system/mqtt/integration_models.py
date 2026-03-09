@@ -8,8 +8,10 @@ from pydantic import BaseModel, Field
 
 MQTT_SETUP_STATES = Literal["unconfigured", "configuring", "ready", "error", "degraded"]
 MQTT_ACCESS_MODES = Literal["gateway", "direct", "both"]
-MQTT_GRANT_STATUSES = Literal["approved", "provisioned", "revoked", "error"]
+MQTT_GRANT_STATUSES = Literal["approved", "active", "provisioned", "revoked", "error"]
 MQTT_HA_DISCOVERY_MODES = Literal["disabled", "gateway_managed", "addon_managed"]
+MQTT_PRINCIPAL_TYPES = Literal["synthia_addon", "synthia_node", "generic_user"]
+MQTT_PRINCIPAL_STATUSES = Literal["pending", "active", "probation", "revoked", "expired"]
 
 
 def _utcnow_iso() -> str:
@@ -58,6 +60,21 @@ class MqttAddonGrant(BaseModel):
     updated_at: str = Field(default_factory=_utcnow_iso)
 
 
+class MqttPrincipal(BaseModel):
+    principal_id: str = Field(..., min_length=1)
+    principal_type: MQTT_PRINCIPAL_TYPES = "synthia_addon"
+    status: MQTT_PRINCIPAL_STATUSES = "pending"
+    logical_identity: str = Field(..., min_length=1)
+    linked_addon_id: str | None = None
+    linked_node_id: str | None = None
+    username: str | None = None
+    notes: str | None = None
+    last_activated_at: str | None = None
+    last_revoked_at: str | None = None
+    expires_at: str | None = None
+    updated_at: str = Field(default_factory=_utcnow_iso)
+
+
 class MqttIntegrationState(BaseModel):
     schema_version: int = Field(default=1, ge=1)
     mqtt_enabled: bool = True
@@ -67,7 +84,10 @@ class MqttIntegrationState(BaseModel):
     broker_mode: str = "local"
     direct_mqtt_supported: bool = False
     setup_error: str | None = None
+    authority_mode: str = "embedded_platform"
+    authority_ready: bool = False
     active_grants: dict[str, MqttAddonGrant] = Field(default_factory=dict)
+    principals: dict[str, MqttPrincipal] = Field(default_factory=dict)
     updated_at: str = Field(default_factory=_utcnow_iso)
 
 
@@ -84,6 +104,10 @@ class MqttSetupCapabilitySummary(BaseModel):
     setup_status: MQTT_SETUP_STATES = "unconfigured"
     direct_mqtt_supported: bool = False
     setup_error: str | None = None
+    authority_mode: str = "embedded_platform"
+    authority_ready: bool = False
+    runtime_ready: bool = False
+    setup_ready: bool = False
 
 
 class MqttSetupStateUpdate(BaseModel):
@@ -94,3 +118,5 @@ class MqttSetupStateUpdate(BaseModel):
     broker_mode: str = "local"
     direct_mqtt_supported: bool = False
     setup_error: str | None = None
+    authority_mode: str = "embedded_platform"
+    authority_ready: bool = False
