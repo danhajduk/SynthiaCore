@@ -1,10 +1,26 @@
 import os
 import subprocess
 import logging
+import time
 from pathlib import Path
 from typing import Iterable
 
 log = logging.getLogger("synthia.supervisor")
+
+
+def _normalize_tree_mtime(root: Path) -> None:
+    now = time.time()
+    for path in sorted(root.rglob("*"), key=lambda item: len(item.parts), reverse=True):
+        if path.is_symlink():
+            continue
+        try:
+            os.utime(path, (now, now))
+        except FileNotFoundError:
+            continue
+    try:
+        os.utime(root, (now, now))
+    except FileNotFoundError:
+        return
 
 
 def _run_compose_command(args: list[str], action: str) -> None:
@@ -70,12 +86,16 @@ def ensure_extracted(artifact_path: Path, extracted_dir: Path):
     if extracted_dir.exists():
         log.info("extract_skip path=%s reason=already_exists", extracted_dir)
         runtime_dir.mkdir(parents=True, exist_ok=True)
+        _normalize_tree_mtime(extracted_dir)
+        log.info("extract_mtime_normalized path=%s", extracted_dir)
         log.info("runtime_dir_ensured path=%s", runtime_dir)
         return
     log.info("extract_start artifact=%s dest=%s", artifact_path, extracted_dir)
     extracted_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(["tar","-xzf",str(artifact_path),"-C",str(extracted_dir)], check=True)
     runtime_dir.mkdir(parents=True, exist_ok=True)
+    _normalize_tree_mtime(extracted_dir)
+    log.info("extract_mtime_normalized path=%s", extracted_dir)
     log.info("runtime_dir_ensured path=%s", runtime_dir)
     log.info("extract_done dest=%s", extracted_dir)
 

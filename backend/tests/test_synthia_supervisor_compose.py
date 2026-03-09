@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tarfile
 import tempfile
+import time
 import unittest
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -29,6 +32,25 @@ class TestSynthiaSupervisorCompose(unittest.TestCase):
                 ensure_extracted(artifact, extracted)
                 run_mock.assert_called_once()
             self.assertTrue((extracted / "runtime").is_dir())
+
+    def test_ensure_extracted_normalizes_file_mtime_after_tar_extract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            extracted = Path(tmp) / "extracted"
+            artifact = Path(tmp) / "artifact.tgz"
+            old_epoch = 946684800  # 2000-01-01 UTC
+            with tarfile.open(artifact, "w:gz") as tf:
+                payload = b'{"version":"0.2.6"}\n'
+                info = tarfile.TarInfo(name="manifest.json")
+                info.size = len(payload)
+                info.mtime = old_epoch
+                tf.addfile(info, fileobj=BytesIO(payload))
+
+            start = time.time()
+            ensure_extracted(artifact, extracted)
+
+            manifest_path = extracted / "manifest.json"
+            self.assertTrue(manifest_path.exists())
+            self.assertGreaterEqual(manifest_path.stat().st_mtime, start - 1.0)
 
     def test_compose_defaults_include_security_guardrails(self) -> None:
         desired = DesiredState.model_validate(
