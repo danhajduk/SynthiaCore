@@ -220,9 +220,10 @@ class MqttManager:
         return client
 
     def _on_connect(self, client: Any, userdata: Any, flags: Any, reason_code: Any, properties: Any = None) -> None:
-        self._connected = int(reason_code) == 0
+        rc = self._reason_code_value(reason_code)
+        self._connected = rc == 0
         if not self._connected:
-            self._last_error = f"connect_rc:{int(reason_code)}"
+            self._last_error = f"connect_rc:{rc}"
             return
         for topic, qos in MQTT_SUBSCRIPTIONS:
             client.subscribe(topic, qos=qos)
@@ -230,8 +231,20 @@ class MqttManager:
 
     def _on_disconnect(self, client: Any, userdata: Any, disconnect_flags: Any, reason_code: Any, properties: Any = None) -> None:
         self._connected = False
-        if int(reason_code) != 0:
-            self._last_error = f"disconnect_rc:{int(reason_code)}"
+        rc = self._reason_code_value(reason_code)
+        if rc != 0:
+            self._last_error = f"disconnect_rc:{rc}"
+
+    @staticmethod
+    def _reason_code_value(reason_code: Any) -> int:
+        # paho-mqtt 2.x passes ReasonCode objects on callbacks.
+        if reason_code is None:
+            return 0
+        value = getattr(reason_code, "value", reason_code)
+        try:
+            return int(value)
+        except Exception:
+            return -1
 
     def _on_message(self, client: Any, userdata: Any, msg: Any) -> None:
         self._message_count += 1

@@ -2,6 +2,9 @@ import asyncio
 import json
 import unittest
 
+import paho.mqtt.client as mqtt
+from paho.mqtt.reasoncodes import ReasonCode
+
 from app.system.mqtt.manager import MQTT_SUBSCRIPTIONS, MqttConfig, MqttManager
 
 
@@ -13,6 +16,7 @@ class _FakeSettingsStore:
 class _FakeRegistry:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict]] = []
+        self.registered: dict[str, object] = {}
 
     def update_from_mqtt_announce(self, addon_id: str, payload: dict) -> None:
         self.calls.append(("announce", addon_id, payload))
@@ -162,6 +166,31 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(manager._last_error, "connect_rc:5")
         self.assertEqual(client.subscribed, [])
         self.assertEqual(client.published, [])
+
+    async def test_on_connect_accepts_reason_code_object(self) -> None:
+        manager = MqttManager(
+            settings_store=_FakeSettingsStore(),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        manager._config = MqttConfig(
+            mode="external",
+            host="10.0.0.100",
+            port=1883,
+            username=None,
+            password=None,
+            keepalive_s=30,
+            tls_enabled=False,
+            client_id="synthia-core",
+        )
+        client = _FakeClient()
+        rc = ReasonCode(mqtt.PacketTypes.CONNACK, identifier=0)
+
+        manager._on_connect(client, None, None, rc)
+
+        self.assertTrue(manager._connected)
+        self.assertEqual(client.subscribed, MQTT_SUBSCRIPTIONS)
 
 
 if __name__ == "__main__":
