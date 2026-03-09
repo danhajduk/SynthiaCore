@@ -1,0 +1,244 @@
+01. Task 23: Implement backend addon registry persistence and registry API endpoints. - Completed on 02/28/2026 17:58
+02. Task 24: Implement backend MQTT listener for announce/health with safe optional startup. - Completed on 02/28/2026 18:00
+03. Task 25: Implement backend install-session state machine and endpoints. - Completed on 02/28/2026 18:13
+04. Task 26: Build frontend Addons install wizard UI backed by install-session APIs. - Completed on 02/28/2026 18:17
+05. Task 27: Run manual acceptance checks for discovery, configure, verify, and UI addon link flow. - Completed on 03/01/2026 00:32
+06. Task 28: Improve catalog install compatibility error diagnostics for no-compatible-release responses. - Completed on 03/01/2026 00:38
+07. Task 29: Resolve catalog_no_compatible_release by wiring effective SYNTHIA_CORE_VERSION into runtime config and validating install flow against official catalog release requirements. - Completed on 03/01/2026 00:43
+08. Task 30: Stop persistent store source/metadata runtime files from appearing as tracked git changes during normal local operation. - Completed on 03/01/2026 00:44
+09. Task 31: Resolve install_http_400 catalog_http_error:404 during catalog-based addon install. - Completed on 03/01/2026 00:51
+10. Task 32: Resolve recurring install_http_400 catalog_http_error:404 after catalog refresh/retry behavior. - Completed on 03/01/2026 01:00
+11. Task 33: Add detailed store install logging for catalog 404 troubleshooting across download and refresh retry paths. - Completed on 03/01/2026 01:06
+12. Task 34: Resolve install_http_400 catalog_sha256_mismatch by reconciling catalog checksum metadata with the downloaded artifact and surfacing precise mismatch diagnostics. - Completed on 03/01/2026 01:26
+13. Task 35: Add operator-visible store debug status (source id, resolved base URL, artifact URL, expected sha256, actual sha256 on failure) to speed root-cause analysis. - Completed on 03/01/2026 01:31
+14. Task 36: Document a store incident runbook for catalog_artifact_unavailable and catalog_sha256_mismatch (refresh, verify upstream artifact, validate signatures/checksums, rollback path). - Completed on 03/01/2026 01:32
+15. Task 37: Resolve install_http_400 public_key_invalid by accepting escaped PEM publisher keys during store install verification. - Completed on 03/01/2026 02:02
+16. Task 38: Improve install_http_400 signature_invalid diagnostics with catalog artifact/signature context for faster operator remediation. - Completed on 03/01/2026 02:07
+17. Task 39: Suppress hidden store workdir addon-discovery warnings by ignoring hidden addon folders during backend discovery. - Completed on 03/01/2026 04:49
+18. Task 40: Resolve catalog install failure "File is not a zip file" by supporting .tgz addon artifacts in extraction/install flow. - Completed on 03/01/2026 04:53
+19. Task 41: Resolve install_http_400 missing_backend_entrypoint by adding package-layout diagnostics and guidance for invalid catalog artifacts. - Completed on 03/01/2026 04:59
+20. Task 42: Add `docs/distributed_addons/README.md` policy-alignment baseline linking spec/diagram/checklist and mapping current implementation status. - Completed on 03/01/2026 05:15
+21. Task 43: Align reverse-proxy structure with policy by adding `/addons/{id}/*` UI proxy aliases (while preserving existing `/ui/addons/{id}/*` compatibility). - Completed on 03/01/2026 05:17
+22. Task 44: Align policy grant model with new structure (`max_requests`, `max_tokens`, `max_cost_cents`, `max_bytes`) across API schema, persistence, and MQTT payloads. - Completed on 03/01/2026 05:20
+23. Task 45: Align revocation topic structure by publishing retained revocations keyed by both `consumer_addon_id` and `grant_id` (with legacy compatibility path). - Completed on 03/01/2026 05:22
+24. Task 46: Publish retained `synthia/core/mqtt/info` automatically on MQTT connect/restart with sanitized broker metadata and heartbeat timestamp. - Completed on 03/01/2026 05:23
+25. Task 47: Add service-principal token issuance/auth flow (non-admin addon/service identity) for `/api/auth/service-token` to match distributed service-to-service structure. - Completed on 03/01/2026 05:26
+26. Task 48: Add explicit package profiles and validation guidance (`embedded addon` vs `standalone service`) for catalog artifacts to enforce policy structure at install time. - Completed on 03/01/2026 05:29
+27. Task 49: Break down SAS v1.1 catalog/manifest management work into concrete implementation tasks and baseline gap map. - Completed on 03/01/2026 06:18
+28. Task 50: Implement SAS v1.1 manifest permission normalization (`network.outbound|inbound`, `mqtt.client`) to canonical Core permissions during store manifest validation. - Completed on 03/01/2026 08:52
+29. Task 51: Implement SAS catalog channels support (`channels.stable|beta|nightly`) in release resolution while keeping legacy `releases[]` compatibility. - Completed on 03/01/2026 08:55
+30. Task 52: Align store signature metadata parsing with SAS signature object support (`signature.type`, `signature.value`) while keeping `release_sig` compatibility. - Completed on 03/01/2026 08:56
+31. Task 53: Add strict cross-checks between catalog release profile and manifest profile for clearer mismatch diagnostics and remediation guidance. - Completed on 03/01/2026 09:00
+32. Task 54: Add/expand regression tests for SAS v1.1 manifest + catalog parsing and release selection paths. - Completed on 03/01/2026 09:02
+33. Task 55: Resolve install_http_400 `catalog_releases_missing` for wrapped channel catalog schemas. - Completed on 03/01/2026 15:22
+34. Task 56: Addon details are not showing in the UI. - Completed on 03/01/2026 15:25
+35. Task 57: Resolve install_http_400 `catalog_publisher_key_not_found_or_disabled` for active/status + public_key alias publisher schemas. - Completed on 03/01/2026 15:32
+36. Task 58: Display publisher display name in the UI publisher field. - Completed on 03/01/2026 15:34
+37. Task 59: Commit repository ignore update for docs/Reasoning.txt. - Completed on 03/01/2026 15:46
+38. Task 60: Resolve install_http_400 `signature_type_unsupported` for `ed25519` catalog detached signature labels. - Completed on 03/01/2026 15:47
+39. Task 61: Remove publisher ID suffix from UI publisher display when display name exists. - Completed on 03/01/2026 15:48
+40. Task 62: Resolve service-layout install error by returning `catalog_package_profile_unsupported` guidance for standalone artifacts. - Completed on 03/01/2026 15:57
+40.1 Task 63: Explain service-layout install behavior and expose catalog input metadata in error response. - Completed on 03/01/2026 16:02
+41.1 Task 64.1: Explain the package-profile mismatch between catalog metadata and artifact layout. - Completed on 03/01/2026 16:13
+41.2 Task 64.2: Propose operator and catalog-maintainer remediation options for the mismatch. - Completed on 03/01/2026 16:13
+41.3 Task 64.3: Break remediation into implementation-ready backend/catalog/UI follow-up subtasks. - Completed on 03/01/2026 16:14
+41. Task 64: Analyze install_http_400 `catalog_package_profile_unsupported` for the MQTT catalog artifact. - Completed on 03/01/2026 16:14
+42.1 Task 65.1: Backend - add explicit metadata-vs-layout mismatch classification + `remediation_path` in status payload with regression tests. - Completed on 03/01/2026 16:17
+42.2 Task 65.2: Catalog - add release-publish validation/checklist to enforce package_profile alignment with artifact layout. - Completed on 03/01/2026 16:18
+42.3 Task 65.3: UI - add actionable install-error cards and diagnostic panel fields for profile mismatch details. - Completed on 03/01/2026 16:20
+42. Task 65: Implement catalog profile/layout mismatch prevention and operator guidance follow-ups. - Completed on 03/01/2026 16:20
+43. Task 66: Display package profile in the Addon Store addon card UI. - Completed on 03/01/2026 16:35
+44. Task 67: Troubleshoot why MQTT addon appears as `embedded_addon` in UI and document findings in `docs/Reasoning.txt`. - Completed on 03/01/2026 16:37
+45.1 Task 68.1: Backend - include `raw.package_profile` in normalized catalog item payload in `StoreCatalogClient._extract_items`. - Completed on 03/01/2026 16:43
+45.2 Task 68.2: Backend tests - add regression coverage for `addons[]` payload where addon-level profile is present but release/manifest profile is missing. - Completed on 03/01/2026 16:43
+45.3 Task 68.3: UI verification - confirm MQTT card shows `standalone_service` after catalog refresh with current cached official source. - Completed on 03/01/2026 16:49
+45. Task 68: Fix catalog `addons[]` normalization to preserve addon-level `package_profile` in `/api/store/catalog` responses. - Completed on 03/01/2026 16:49
+46. Task 69: Update bootstrap to install `systemd/user/synthia-supervisor.service.in` into user systemd units. - Completed on 03/01/2026 17:28
+47. Task 70: Update service-management scripts to include synthia-supervisor unit handling. - Completed on 03/01/2026 17:30
+48. Task 71: Add running system service status to metrics output for backend/frontend/updater/supervisor visibility. - Completed on 03/01/2026 17:49
+49.1 Task 72.1: Add SSAP filesystem path/config support. - Completed on 03/01/2026 18:04
+49.2 Task 72.2: Implement desired-state writer. - Completed on 03/01/2026 18:05
+49.3 Task 72.3: Desired-state schema validation. - Completed on 03/01/2026 18:07
+49.4 Task 72.4: Install artifact staging. - Completed on 03/01/2026 18:08
+49.5 Task 72.5: Enforce artifact verification order. - Completed on 03/01/2026 18:12
+49.6 Task 72.6: Version activation flow. - Completed on 03/01/2026 18:13
+49.7 Task 72.7: Rollback metadata handling. - Completed on 03/01/2026 18:14
+49.8 Task 72.8: Runtime-state reader. - Completed on 03/01/2026 18:16
+49.9 Task 72.9: Install/update API response fields. - Completed on 03/01/2026 18:18
+49.10 Task 72.10: Security guardrails. - Completed on 03/01/2026 18:20
+49.11 Task 72.11: Backend regression tests. - Completed on 03/01/2026 18:22
+49.12 Task 72.12: Documentation. - Completed on 03/01/2026 18:23
+49. Task 72: Implement SSAP standalone_service install support aligned with protocol v1.0. - Completed on 03/01/2026 18:23
+50. Task 73: Add a direct remediation documentation action for standalone_deploy_register install errors in Addon Store UI. - Completed on 03/01/2026 19:07
+51.1 Task 74.1: Extend `/api/store/install` request/response contract to support `install_mode="standalone_service"`. - Completed on 03/01/2026 19:16
+51.2 Task 74.2: Resolve catalog entry for standalone_service releases (source_id + addon_id + channel + version). - Completed on 03/01/2026 19:17
+51.3 Task 74.3: Create SSAP service directory layout and stage artifact for standalone_service. - Completed on 03/01/2026 19:19
+51.4 Task 74.4: Write SSAP v1.0 desired.json for supervisor reconciliation (Core-owned intent). - Completed on 03/01/2026 19:20
+51.5 Task 74.5: Add strict SSAP desired.json validation before commit. - Completed on 03/01/2026 19:21
+51.6 Task 74.6: Enforce standalone_service security guardrails in generated runtime intent. - Completed on 03/01/2026 19:22
+51.7 Task 74.7: Replace embedded-only rejection with correct standalone_service remediation paths. - Completed on 03/01/2026 19:24
+51.8 Task 74.8: Implement supervisor activation indicators (Core does not start Docker). - Completed on 03/01/2026 19:25
+51.9 Task 74.9: Expose install artifacts and paths via API for troubleshooting. - Completed on 03/01/2026 19:27
+51.10 Task 74.10: Add regression tests for `/api/store/install` standalone_service path. - Completed on 03/01/2026 19:29
+51.11 Task 74.11: Update docs and API docs for `/api/store/install` standalone_service behavior. - Completed on 03/01/2026 19:30
+51.12 Task 74.12: Ensure update scripts and gitignore do not clobber SSAP state directories. - Completed on 03/01/2026 19:32
+51. Task 74: Implement direct standalone_service install path in `/api/store/install` (instead of embedded-only rejection), including supervisor activation flow and regression tests. - Completed on 03/01/2026 19:32
+52.1 Task 75.1: Frontend - send `install_mode` in `/api/store/install` request using catalog `package_profile` mapping (`standalone_service` vs `embedded_addon`). - Completed on 03/02/2026 01:09
+52.2 Task 75.2: Frontend - handle `remediation_path=standalone_service_install` with explicit action guidance and retry path in Addon Store error UI. - Completed on 03/02/2026 01:10
+52.3 Task 75.3: Frontend tests - add coverage for install request payload mode selection and `standalone_service_install` remediation rendering. - Completed on 03/02/2026 01:11
+52.4 Task 75.4: Documentation - update store/install docs for frontend mode-selection contract and standalone install expectations. - Completed on 03/02/2026 01:12
+52.5 Task 75.5: Validation - run manual store install checks for MQTT addon to confirm standalone install-mode request prevents this mismatch error. - Completed on 03/02/2026 01:13
+52. Task 75: Diagnose and resolve Addon Store install-mode mismatch causing `install_http_400 catalog_package_profile_unsupported` for standalone catalog releases. - Completed on 03/02/2026 01:13
+53.1 Task 76.1: Backend/docs/tests - change default `SYNTHIA_ADDONS_DIR` resolution to sibling `../SynthiaAddons`, update path docs, and validate standalone path tests. - Completed on 03/02/2026 01:16
+53. Task 76: Align Core standalone addons default path with sibling `../SynthiaAddons/services` (not inside Core repo). - Completed on 03/02/2026 01:16
+54.1 Task 77.1: Update supervisor crypto default path + systemd `SYNTHIA_CATALOG_PUBLISHERS` env, add regression test for default-path loading. - Completed on 03/02/2026 01:27
+54. Task 77: Set supervisor publishers registry path to runtime cache (`./runtime/store/cache/official/publishers.json`) and wire unit env override. - Completed on 03/02/2026 01:27
+55.1 Task 78.1: Backend supervisor - fix `_load_publishers_registry` path resolution to use runtime cache path relative to install root (not backend working dir). - Completed on 03/02/2026 02:01
+55.2 Task 78.2: Systemd/scripts - ensure supervisor service environment consistently sets `SYNTHIA_CATALOG_PUBLISHERS` to the install runtime cache publishers path. - Completed on 03/02/2026 02:01
+55.3 Task 78.3: Tests - add regression coverage for supervisor publishers path resolution and missing-file diagnostics. - Completed on 03/02/2026 02:01
+55.4 Task 78.4: Validation - verify MQTT runtime transitions from `state=error` to healthy state once publishers path is resolved. - Completed on 03/02/2026 02:01
+55. Task 78: Resolve supervisor runtime error `publishers.json not found` due to incorrect publishers registry path resolution. - Completed on 03/02/2026 02:01
+56. Task 79: Resolve supervisor runtime error `Invalid ed25519 public key encoding` after publishers path fix. - Completed on 03/02/2026 02:08
+57. Task 80: Fix Addon Store install error parsing crash `(typed.error || typed.code || "install_failed").trim is not a function`. - Completed on 03/02/2026 03:21
+58. Task 81: Fix Addon Store UI black-screen crash when install error diagnostics contain non-string values. - Completed on 03/02/2026 03:25
+59. Task 82: Fix Addon Store install diagnostics showing `error: unknown` by parsing nested backend error payloads. - Completed on 03/02/2026 03:31
+60. Task 83: Introduce Theme CSS Architecture. - Completed on 03/05/2026 13:13
+61. Task 84: Add Theme Runtime System. - Completed on 03/05/2026 13:20
+62. Task 85: Begin Migration to Token-Based Styling. - Completed on 03/05/2026 13:21
+63. Task 86: Add Theme Selector UI. - Completed on 03/05/2026 13:23
+64. Task 87: Remove Legacy Global Styling. - Completed on 03/05/2026 13:24
+65. Task 88: Document Theme Contract for Addons. - Completed on 03/05/2026 13:25
+66. Task 89: Fix addon registry API route conflict with generic addon proxy paths. - Completed on 03/05/2026 15:27
+67. Task 90: Create a single comprehensive addon reference document for Core and addon workspace handoff. - Completed on 03/05/2026 15:42
+68. Task 91: Add operational logging to synthia-supervisor reconciliation flow. - Completed on 03/05/2026 18:23
+69. Task 92: Add temporary supervisor flag to bypass signature verification for standalone artifact reconciliation. - Completed on 03/05/2026 18:57
+70. Task 93: Add explicit supervisor unit template environment for signature verification bypass toggle visibility. - Completed on 03/05/2026 19:06
+71. Task 94: Remove signature verification enforcement across store and supervisor flows. - Completed on 03/05/2026 20:04
+72. Task 95: Support non-semver addon release tags (for example `0.1.7d`) in catalog install validation. - Completed on 03/05/2026 20:11
+73. Task 96: Add clear install-error remediation message in UI when catalog version format is rejected. - Completed on 03/05/2026 20:17
+74. Task 97: Ensure standalone addon docker-compose publishes service ports to host when requested. - Completed on 03/05/2026 20:19
+75. Task 98: Add supervisor diagnostics endpoint/log summary for latest compose/build failure cause. - Completed on 03/05/2026 20:22
+76. Task 99: Add end-to-end smoke test for standalone addon install -> compose up -> health check -> UI route. - Completed on 03/05/2026 20:25
+77. Task 100: Add pre-publish catalog validation script that rejects invalid release version fields before release. - Completed on 03/05/2026 20:32
+78. Task 101: Add Addon Store UI quick-action link to open catalog release version formatting docs. - Completed on 03/05/2026 20:39
+79. Task 102: Add backend `/api/store/sources/{id}/validate` endpoint to report catalog schema/version issues without attempting install. - Completed on 03/05/2026 20:41
+80. Task 103: Add store status aggregation card showing top install failure codes and counts for operator triage. - Completed on 03/05/2026 20:43
+81. Task 108: Remove SHA/checksum verification enforcement across store install and standalone desired-state flows. - Completed on 03/05/2026 20:52
+82. Task 109: Document core supervisor architecture, reconciliation flow, and integration details in supervisor.md. - Completed on 03/07/2026 13:38
+83. Task 110: Expand supervisor documentation with code-verified gaps/questions and move supervisor.md into docs/. - Completed on 03/07/2026 13:53
+84. Task 111: Expand supervisor documentation with remaining code-verified runtime semantics and operator notes. - Completed on 03/07/2026 13:58
+85. Task 112: Add explicit documentation contract section to supervisor.md clarifying implemented-only guarantees. - Completed on 03/07/2026 14:08
+86. Task 113: Refine supervisor documentation boundaries with explicit development policy, out-of-scope list, and runtime assumptions. - Completed on 03/07/2026 14:09
+87. Task 114: Compare docs/supervisor.md and docs/standalone-addon.md for mismatches. - Completed on 03/07/2026 14:16
+88. Task 115: Align docs/standalone-addon.md with supervisor enforcement boundaries. - Completed on 03/07/2026 14:28
+89. Task 116: Re-compare docs/supervisor.md and docs/standalone-addon.md for remaining mismatches. - Completed on 03/07/2026 14:29
+90. Task 117: Establish complete core system documentation set, archive superseded docs, and create core index/subsystem docs. - Completed on 03/07/2026 14:46
+91. Task 118: Add Last Updated date/time metadata to non-archived documentation files. - Completed on 03/07/2026 14:51
+92. Task 119: Implement runtime aggregation layer for standalone addons. - Completed on 03/07/2026 15:42
+93. Task 120: Implement addon health and liveness model. - Completed on 03/07/2026 15:56
+94. Task 121: Implement resource governance for standalone addons. - Completed on 03/07/2026 16:03
+95. Task 122: Implement artifact retention and disk cleanup. - Completed on 03/07/2026 16:08
+96. Task 123: Implement service discovery and addon service registry. - Completed on 03/07/2026 16:24
+97. Task 124: Implement platform event and automation foundation. - Completed on 03/07/2026 17:08
+98. Task 125: Implement supervisor reconcile result and post-reconcile hooks. - Completed on 03/07/2026 17:35
+99. Task 126: Redesign Home / Guest dashboard to be informative and operational. - Completed on 03/07/2026 18:07
+100. Task 127: Add uninstall functionality in Addons UI and lifecycle flow. - Completed on 03/07/2026 17:01
+100.1 Task 127.1: Audit current dashboard and navigation structure. - Completed on 03/07/2026 17:22
+100.2 Task 127.2: Define full-stack health model for Home dashboard. - Completed on 03/07/2026 17:24
+100.3 Task 127.3: Extend Synthia Status widget to represent full stack. - Completed on 03/07/2026 17:31
+100.4 Task 127.4: Add MQTT health visibility. - Completed on 03/07/2026 17:31
+100.5 Task 127.5: Add scheduler health visibility. - Completed on 03/07/2026 17:31
+100.6 Task 127.6: Add network and internet health visibility. - Completed on 03/07/2026 17:31
+100.7 Task 127.7: Add internet speed snapshot. - Completed on 03/07/2026 17:31
+100.8 Task 127.8: Improve degraded-state reasoning. - Completed on 03/07/2026 17:31
+100.9 Task 127.9: Reorganize sidebar into categories. - Completed on 03/07/2026 17:31
+100.10 Task 127.10: Clean guest/admin sidebar and status messaging. - Completed on 03/07/2026 17:31
+100.11 Task 127.11: Add or extend lightweight backend summary endpoint if needed. - Completed on 03/07/2026 17:31
+100.12 Task 127.12: Style dashboard health additions to match theme. - Completed on 03/07/2026 17:31
+100.13 Task 127.13: Document dashboard health and navigation behavior. - Completed on 03/07/2026 17:31
+100.14 Task 127.14: Verify final UX. - Completed on 03/07/2026 17:31
+101. Task 127: Expand Home dashboard health model and categorize navigation. - Completed on 03/07/2026 17:31
+102.1 Task 128.1: implement speed test using speedtest-cli set is as every 30 minutes - Completed on 03/07/2026 17:51
+102.2 Task 128.2: implement network mertics - Completed on 03/07/2026 17:54
+102. Task 128: few more mertics. - Completed on 03/07/2026 17:54
+103. Task 129: Home UI tweaks for status formatting and layout polish. - Completed on 03/07/2026 18:31
+104. Task 130: Replace Home mini Speed card with Scheduler Load x/10 card. - Completed on 03/07/2026 18:50
+105. Task 131: Align Home Scheduler Load mini value with Settings Metrics stats-badge busy rating. - Completed on 03/07/2026 18:53
+106. Task 132: Add synthia-dashboard service template handling to reload-all and service reload flows. - Completed on 03/07/2026 19:02
+107. Task 133: Redesign Settings page into a structured control-plane layout - Completed on 03/07/2026 19:45
+108. Task 134: Add MQTT setup options in Settings Connectivity section. - Completed on 03/07/2026 19:48
+109. Task 135: Add MQTT integration state model to Core. - Completed on 03/07/2026 21:04
+110. Task 136: Add Core API contract for MQTT registration approval. - Completed on 03/07/2026 21:12
+111. Task 137: Add reserved MQTT namespace policy in Core. - Completed on 03/07/2026 21:12
+112. Task 138: Add MQTT capability model to addon registration metadata. - Completed on 03/07/2026 21:12
+113. Task 139: Add Core -> MQTT addon provisioning handshake. - Completed on 03/07/2026 21:44
+114. Task 140: Add MQTT grant persistence and inspection endpoints. - Completed on 03/07/2026 21:49
+113. Task 139: Add Core -> MQTT addon provisioning handshake. - Completed on 03/07/2026 21:30
+114. Task 140: Add MQTT grant persistence and inspection endpoints. - Completed on 03/07/2026 21:30
+115. Task 141: Add revocation hooks to addon lifecycle in Core. - Completed on 03/07/2026 21:30
+116. Task 142: Add Core-side setup awareness for MQTT addon. - Completed on 03/07/2026 21:43
+117. Task 143: Prefer API over MQTT for Core control-plane actions. - Completed on 03/07/2026 21:48
+118. Task 144: Add Core UI/backend support for MQTT setup status. - Completed on 03/07/2026 21:45
+119. Task 145: Add MQTT event contract docs to Core. - Completed on 03/07/2026 21:55
+120. Task 146: Add automated validation tests for MQTT grant approval. - Completed on 03/07/2026 22:00
+121. Task 147: Resolve standalone compose_up_failed invalid Docker Compose project name by normalizing runtime project_name to compose-safe lowercase format. - Completed on 03/08/2026 09:18
+
+122. Task 148: Automate standalone_service cleanup in /api/store/uninstall (stop intent, compose down, service-dir removal, and registry cleanup). - Completed on 03/08/2026 10:03
+123. Task 149.1: Add explicit desired change marker (`desired_revision` or equivalent) in Core-written desired payload and persist last applied marker in supervisor runtime state. - Completed on 03/08/2026 12:08
+124. Task 149.2: Implement supervisor reconcile diffing to detect compose-impacting desired changes within same pinned version and force compose regeneration/recreate when needed. - Completed on 03/08/2026 12:08
+125. Task 149.3: Extend desired/runtime schema and validation to distinguish env-only updates vs compose-impacting updates for deterministic rebuild behavior. - Completed on 03/08/2026 12:08
+126. Task 149.5: Add regression tests for desired update detection, compose regeneration on same version, and no-op behavior when desired marker unchanged. - Completed on 03/08/2026 12:08
+127. Task 149.6: Update docs (`store.md`, `supervisor.md`, `standalone-addon.md`, `addons.md`) with final desired notification/rebuild contract and addon author guidance. - Completed on 03/08/2026 12:08
+128. Task 148.1: Detect standalone install completion with reachable addon UI endpoint in backend/runtime status flow. - Completed on 03/08/2026 12:20
+129. Task 148.2: Add backend response contract flag for post-install UI redirect target (`/addons/{addon_id}`) when addon UI is reachable. - Completed on 03/08/2026 12:20
+130. Task 148.3: Update frontend install success flow to auto-redirect into addon UI route embedded in Main UI `.shell-main`. - Completed on 03/08/2026 12:20
+131. Task 148.4: Add frontend fallback handling when addon UI is not reachable (stay on current page + actionable message). - Completed on 03/08/2026 12:20
+132. Task 148.5: Add regression tests (backend + frontend) for reachable vs unreachable addon UI redirect behavior. - Completed on 03/08/2026 12:20
+133. Task 148.6: Update docs for standalone install post-success navigation and Main UI embedding behavior. - Completed on 03/08/2026 12:20
+134. Task 149.4: Add store endpoint flow for standalone update-in-place that rewrites desired intent and safely triggers supervisor rebuild semantics. - Completed on 03/08/2026 12:20
+135. Task 150: Add desired-state `force_rebuild` flag and supervisor one-shot rebuild handling. - Completed on 03/08/2026 12:20
+136. Task 151: Add optional docker group model to addon desired state. - Completed on 03/08/2026 12:32
+137. Task 152: Add addon deployment model for base compose plus override compose files. - Completed on 03/08/2026 12:45
+138. Task 153: Add supervisor reconcile logic for optional docker groups. - Completed on 03/08/2026 12:45
+139. Task 154: Add runtime model for active docker groups. - Completed on 03/08/2026 12:45
+140. Task 155: Add addon metadata support for declared docker groups. - Completed on 03/08/2026 12:45
+141. Task 156: Add Core validation for requested docker groups. - Completed on 03/08/2026 12:45
+142. Task 157: Add setup-aware desired-state flow for optional docker groups. - Completed on 03/08/2026 12:45
+143. Task 158: Add transition rules for enabling and disabling docker groups. - Completed on 03/08/2026 12:45
+144. Task 159: Add API support for addons to request docker group changes. - Completed on 03/08/2026 12:45
+145. Task 160: Add UI/backend support for displaying optional docker groups. - Completed on 03/08/2026 12:45
+146. Task 161: Add tests for optional docker group reconciliation. - Completed on 03/08/2026 13:06
+147. Task 162: Add docs for generic optional docker group architecture. - Completed on 03/08/2026 13:07
+148. Task 163: Embed addon UI in Main UI shell with iframe-style container after successful install redirect. - Completed on 03/08/2026 14:21
+149. Task 164: Add backend/frontend contract for addon UI embed target, loading state, and fallback behavior. - Completed on 03/08/2026 14:33
+150. Task 165: Document current Core theme/CSS token system and addon-safe styling integration contract. - Completed on 03/08/2026 14:33
+151. Task 166: Add addon author guide for consuming Core CSS variables/classes with isolation and compatibility rules. - Completed on 03/08/2026 14:33
+152. Task 167: Inject core css into iframes. - Completed on 03/08/2026 15:33
+153. Task 168: Force supervisor compose rebuild on standalone version transition to prevent stale Docker image reuse. - Completed on 03/08/2026 16:17
+154. Task 169: Always set force_rebuild=true when Core rewrites standalone desired.json via /api/store/standalone/update. - Completed on 03/08/2026 16:23
+155. Task 170: Stop serving stale store catalog by forcing live source refresh on catalog reads. - Completed on 03/08/2026 17:40
+156. Task 176: Supervisor needs to mount the desired and the runtime to the docker in the state/ folder. - Completed on 03/08/2026 18:55
+157. Task 177: same for the docker compose file. - Completed on 03/08/2026 18:55
+158. Task 178: Fix supervisor-generated state mounts to be writable in container runtime. - Completed on 03/08/2026 19:16
+159. Task 179: Investigate persistent read-only state mount error and auto-migrate stale generated compose files. - Completed on 03/08/2026 22:16
+160. Task 180: Fix supervisor base-service naming when docker group compose overrides depend on a different service id. - Completed on 03/08/2026 22:41
+161. Task 181: Create shared theme directory `shared/theme/` in the Synthia Core repository. - Completed on 03/09/2026 00:33
+162. Task 182: Create `shared/theme/tokens.css` and define core design tokens using CSS variables (colors, spacing, radius, shadows, typography). - Completed on 03/09/2026 00:33
+163. Task 183: Define base color tokens in `tokens.css` (e.g., `--sx-bg`, `--sx-panel`, `--sx-border`, `--sx-text`, `--sx-text-muted`, `--sx-accent`). - Completed on 03/09/2026 00:33
+164. Task 184: Define spacing tokens in `tokens.css` (`--sx-space-1` through `--sx-space-6`). - Completed on 03/09/2026 00:33
+165. Task 185: Define radius tokens in `tokens.css` (`--sx-radius-sm`, `--sx-radius-md`, `--sx-radius-lg`). - Completed on 03/09/2026 00:33
+166. Task 186: Define shadow tokens in `tokens.css` (`--sx-shadow-1`, `--sx-shadow-2`). - Completed on 03/09/2026 00:33
+167. Task 187: Create `shared/theme/base.css` with base UI rules (body background, default font stack, text color, default link styling). - Completed on 03/09/2026 00:33
+168. Task 188: Create `shared/theme/components.css` containing reusable UI primitives (card, panel, button, badge, form-input, table styles). - Completed on 03/09/2026 00:33
+169. Task 189: Create `shared/theme/themes/dark.css` implementing dark theme token overrides. - Completed on 03/09/2026 00:33
+170. Task 190: Import `tokens.css`, `base.css`, `components.css`, and `themes/dark.css` into the Synthia Core frontend entry file (`frontend/src/main.tsx` or equivalent). - Completed on 03/09/2026 00:33
+171. Task 191: Refactor Core CSS files to replace hardcoded color values with CSS token variables. - Completed on 03/09/2026 00:42
+172. Task 192: Refactor Core spacing values to use token variables (`--sx-space-*`). - Completed on 03/09/2026 00:42
+173. Task 193: Refactor Core border radius values to use token variables (`--sx-radius-*`). - Completed on 03/09/2026 00:42
+174. Task 194: Refactor Core box shadows to use token variables (`--sx-shadow-*`). - Completed on 03/09/2026 00:42
+175. Task 195: Verify the entire Core UI renders correctly after token migration. - Completed on 03/09/2026 00:42
+176. Task 196: Ensure all new UI styles rely on token variables rather than fixed values. - Completed on 03/09/2026 00:42
+177. Task 197: Add comment documentation at the top of `tokens.css` explaining that these tokens are the official UI contract for addons. - Completed on 03/09/2026 00:33
+178. Task 198: Create `docs/ui-theme.md` describing the Synthia theme system and listing available tokens. - Completed on 03/09/2026 00:33
+179. Task 199: Add instructions in `docs/ui-theme.md` describing how addons should import and use the shared theme. - Completed on 03/09/2026 00:33
+180. Task 200: Confirm build system includes `shared/theme` assets in production build. - Completed on 03/09/2026 00:33

@@ -41,8 +41,7 @@ runtime/store/cache/
 SynthiaAddons/
 completed_task.txt
 docs/New_tasks.txt
-docs/completed.txt
-completed.txt
+/completed.txt
 ver/
 data/
 backend/var/
