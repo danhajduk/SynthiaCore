@@ -402,7 +402,22 @@ def _uninstall_standalone_service(addon_id: str) -> dict[str, Any]:
         _write_json_atomic(desired_path, desired_payload)
 
     compose_down_error: str | None = None
+    removed_image_ids: list[str] = []
+    image_remove_error: str | None = None
+    compose_image_ids: list[str] = []
     if compose_file is not None:
+        try:
+            images_proc = subprocess.run(
+                ["docker", "compose", "-f", str(compose_file), "-p", project_name, "images", "-q"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+            if images_proc.returncode == 0:
+                compose_image_ids = sorted({line.strip() for line in (images_proc.stdout or "").splitlines() if line.strip()})
+        except Exception:
+            compose_image_ids = []
         try:
             proc = subprocess.run(
                 ["docker", "compose", "-f", str(compose_file), "-p", project_name, "down", "--remove-orphans"],
@@ -415,6 +430,21 @@ def _uninstall_standalone_service(addon_id: str) -> dict[str, Any]:
                 compose_down_error = (proc.stderr or proc.stdout or f"exit_{proc.returncode}").strip() or f"exit_{proc.returncode}"
         except Exception as exc:
             compose_down_error = str(exc) or type(exc).__name__
+        if compose_image_ids:
+            try:
+                rm_proc = subprocess.run(
+                    ["docker", "image", "rm", "-f", *compose_image_ids],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=30,
+                )
+                if rm_proc.returncode != 0:
+                    image_remove_error = (rm_proc.stderr or rm_proc.stdout or f"exit_{rm_proc.returncode}").strip() or f"exit_{rm_proc.returncode}"
+                else:
+                    removed_image_ids = compose_image_ids
+            except Exception as exc:
+                image_remove_error = str(exc) or type(exc).__name__
 
     shutil.rmtree(service_dir, ignore_errors=False)
     return {
@@ -422,6 +452,8 @@ def _uninstall_standalone_service(addon_id: str) -> dict[str, Any]:
         "compose_file": _abs_path_str(compose_file),
         "project_name": project_name,
         "compose_down_error": compose_down_error,
+        "removed_image_ids": removed_image_ids,
+        "image_remove_error": image_remove_error,
     }
 
 
@@ -2488,6 +2520,8 @@ def build_store_router(
                 "standalone_compose_file": standalone_uninstall.get("compose_file"),
                 "standalone_project_name": standalone_uninstall.get("project_name"),
                 "standalone_compose_down_error": compose_down_error,
+                "standalone_removed_image_ids": standalone_uninstall.get("removed_image_ids"),
+                "standalone_image_remove_error": standalone_uninstall.get("image_remove_error"),
             }
         except Exception as exc:
             await audit_store.record(

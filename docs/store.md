@@ -1,6 +1,6 @@
 # Store and Catalog Documentation
 
-Last Updated: 2026-03-08 16:22 US/Pacific
+Last Updated: 2026-03-08 16:33 US/Pacific
 
 ## Scope
 
@@ -34,6 +34,7 @@ Implemented:
 - standalone release manifests may define `runtime_defaults` (`ports`, `bind_localhost`); Core resolves runtime defaults from extracted artifact `manifest.json` first and falls back to catalog/normalized manifest metadata when unavailable
 - standalone runtime overrides support optional `cpu` and `memory` values for desired runtime intent
 - standalone uninstall path now performs desired-state stop intent, best-effort compose teardown, and standalone service directory removal
+- standalone uninstall path now also performs best-effort compose image cleanup (`docker compose images -q` + `docker image rm -f`) before service directory removal
 - status/diagnostic endpoints read runtime state and summarize errors
 - standalone install/status payloads expose UI embed contract fields (`ui_reachable`, `ui_redirect_target`, `ui_embed_target`, `ui_reason`)
 - frontend install success flow may auto-redirect to addon UI route (`/addons/{addon_id}`) when `ui_reachable=true`; otherwise it stays in store with fallback guidance

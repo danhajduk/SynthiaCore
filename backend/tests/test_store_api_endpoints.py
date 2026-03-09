@@ -588,7 +588,16 @@ class TestStoreApiEndpoints(unittest.TestCase):
 
         with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
             "app.store.router.subprocess.run",
-            return_value=subprocess.CompletedProcess(args=["docker", "compose"], returncode=0, stdout="", stderr=""),
+            side_effect=[
+                subprocess.CompletedProcess(
+                    args=["docker", "compose", "images"],
+                    returncode=0,
+                    stdout="sha256:img1\nsha256:img2\n",
+                    stderr="",
+                ),
+                subprocess.CompletedProcess(args=["docker", "compose", "down"], returncode=0, stdout="", stderr=""),
+                subprocess.CompletedProcess(args=["docker", "image", "rm"], returncode=0, stdout="", stderr=""),
+            ],
         ) as down_mock:
             res = self.client.post(
                 "/api/store/uninstall",
@@ -601,7 +610,9 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertFalse(payload["embedded_removed"])
         self.assertTrue(payload["registered_deleted"])
         self.assertIsNone(payload["standalone_compose_down_error"])
-        down_mock.assert_called_once()
+        self.assertIsNone(payload["standalone_image_remove_error"])
+        self.assertEqual(payload["standalone_removed_image_ids"], ["sha256:img1", "sha256:img2"])
+        self.assertEqual(down_mock.call_count, 3)
         self.assertFalse(addon_dir.exists())
         store_state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertNotIn("hello_world", store_state)
@@ -629,9 +640,18 @@ class TestStoreApiEndpoints(unittest.TestCase):
 
         with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
             "app.store.router.subprocess.run",
-            return_value=subprocess.CompletedProcess(
-                args=["docker", "compose"], returncode=1, stdout="", stderr="compose failed"
-            ),
+            side_effect=[
+                subprocess.CompletedProcess(
+                    args=["docker", "compose", "images"],
+                    returncode=0,
+                    stdout="sha256:img-old\n",
+                    stderr="",
+                ),
+                subprocess.CompletedProcess(
+                    args=["docker", "compose", "down"], returncode=1, stdout="", stderr="compose failed"
+                ),
+                subprocess.CompletedProcess(args=["docker", "image", "rm"], returncode=0, stdout="", stderr=""),
+            ],
         ):
             res = self.client.post(
                 "/api/store/uninstall",
@@ -642,6 +662,8 @@ class TestStoreApiEndpoints(unittest.TestCase):
         payload = res.json()
         self.assertTrue(payload["standalone_removed"])
         self.assertIn("compose failed", payload["standalone_compose_down_error"])
+        self.assertEqual(payload["standalone_removed_image_ids"], ["sha256:img-old"])
+        self.assertIsNone(payload["standalone_image_remove_error"])
         self.assertFalse(addon_dir.exists())
 
     def test_status_summary_reports_top_install_error_codes(self) -> None:

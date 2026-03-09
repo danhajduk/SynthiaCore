@@ -95,6 +95,7 @@ Implemented uninstall behavior boundary:
 - `POST /api/store/uninstall` now performs standalone cleanup when a service exists:
   - writes `desired_state=stopped` to standalone desired intent when available
   - performs best-effort `docker compose down --remove-orphans` using standalone project metadata
+  - performs best-effort docker image cleanup for compose image IDs (`docker compose images -q` -> `docker image rm -f`)
   - removes standalone service files under `SYNTHIA_ADDONS_DIR/services/{addon_id}`
 
 Implemented standalone UI status fields in Store status/install/update payloads:
