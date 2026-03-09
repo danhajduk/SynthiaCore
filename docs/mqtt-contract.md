@@ -1,10 +1,15 @@
 # MQTT Integration Contract
 
-Last Updated: 2026-03-07 22:10 US/Pacific
+Last Updated: 2026-03-09 06:36 US/Pacific
 
 ## Scope
 
 This document describes MQTT integration behavior currently implemented in Core code.
+
+Target-direction references for embedded platform-managed MQTT:
+- [MQTT Embedded Migration Gap Note](./mqtt-embedded-gap-note.md)
+- [MQTT Embedded Architecture (Target)](./mqtt-embedded-architecture.md)
+- [MQTT Embedded Addon/Platform Contract](./mqtt-embedded-contract.md)
 
 ## Control-Plane vs Event-Plane
 

@@ -242,3 +242,6 @@
 178. Task 198: Create `docs/ui-theme.md` describing the Synthia theme system and listing available tokens. - Completed on 03/09/2026 00:33
 179. Task 199: Add instructions in `docs/ui-theme.md` describing how addons should import and use the shared theme. - Completed on 03/09/2026 00:33
 180. Task 200: Confirm build system includes `shared/theme` assets in production build. - Completed on 03/09/2026 00:33
+181. Task 201: Audit current MQTT code paths and mark standalone-assumption boundaries. - Completed on 03/09/2026 06:37
+182. Task 202: Document embedded MQTT architecture as the new target. - Completed on 03/09/2026 06:37
+183. Task 203: Define embedded MQTT addon/platform-service contract. - Completed on 03/09/2026 06:37

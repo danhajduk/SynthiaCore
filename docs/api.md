@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-08 16:22 US/Pacific
+Last Updated: 2026-03-09 06:36 US/Pacific
 
 ## Conventions
 
@@ -63,6 +63,14 @@ Implemented MQTT provisioning handshake APIs:
 MQTT control-plane rule (implemented contract):
 - Core uses HTTP APIs for deterministic control transactions (registration approval, provisioning, revocation, setup-state updates, admin actions).
 - MQTT topics are treated as async/event transport only (announce, health, telemetry, retained info), not as the primary control transaction channel.
+
+Embedded MQTT migration target:
+- Core is migrating MQTT provisioning semantics away from remote-standalone addon assumptions toward embedded platform-managed infrastructure.
+- Current provisioning/revoke routes remain implemented for compatibility while migration tasks refactor backend authority ownership.
+- Reference:
+  - `docs/mqtt-embedded-gap-note.md`
+  - `docs/mqtt-embedded-architecture.md`
+  - `docs/mqtt-embedded-contract.md`
 
 Implemented admin-protected runtime endpoints:
 - `GET /api/system/addons/runtime`

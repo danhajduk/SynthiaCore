@@ -1,6 +1,6 @@
 # Synthia Core Documentation
 
-Last Updated: 2026-03-07 21:55 US/Pacific
+Last Updated: 2026-03-09 06:36 US/Pacific
 
 ## Documentation Contract
 
@@ -68,6 +68,9 @@ Core
 - [Store and Catalog](./store.md)
 - [API Overview](./api.md)
 - [MQTT Integration Contract](./mqtt-contract.md)
+- [MQTT Embedded Migration Gap Note](./mqtt-embedded-gap-note.md)
+- [MQTT Embedded Architecture (Target)](./mqtt-embedded-architecture.md)
+- [MQTT Embedded Addon/Platform Contract](./mqtt-embedded-contract.md)
 - [Data Model](./data-model.md)
 - [Deployment](./deployment.md)
 - [Supervisor](./supervisor.md)
