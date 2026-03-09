@@ -74,6 +74,8 @@ Core
 - [MQTT Bootstrap Contract](./mqtt-bootstrap-contract.md)
 - [MQTT Authority Persistence Model](./mqtt-authority-persistence.md)
 - [MQTT Broker Runtime Boundary](./mqtt-runtime-boundary.md)
+- [MQTT Startup Reconciliation](./mqtt-startup-reconciliation.md)
+- [MQTT Apply and Rollback Pipeline](./mqtt-apply-rollback.md)
 - [Data Model](./data-model.md)
 - [Deployment](./deployment.md)
 - [Supervisor](./supervisor.md)

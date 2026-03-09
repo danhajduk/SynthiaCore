@@ -254,3 +254,6 @@
 190. Task 210: Build Core-owned ACL compilation model. - Completed on 03/09/2026 06:37
 191. Task 211: Build embedded broker config rendering pipeline. - Completed on 03/09/2026 06:37
 192. Task 212: Define broker runtime boundary for embedded MQTT. - Completed on 03/09/2026 06:37
+193. Task 213: Implement Core startup reconciliation for embedded MQTT. - Completed on 03/09/2026 06:37
+194. Task 214: Implement safe apply/rollback for embedded MQTT config changes. - Completed on 03/09/2026 06:37
+195. Task 215: Add embedded MQTT audit/event log foundation. - Completed on 03/09/2026 06:37

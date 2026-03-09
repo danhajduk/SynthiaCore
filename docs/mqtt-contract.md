@@ -13,6 +13,8 @@ Target-direction references for embedded platform-managed MQTT:
 - [MQTT Bootstrap Contract](./mqtt-bootstrap-contract.md)
 - [MQTT Authority Persistence Model](./mqtt-authority-persistence.md)
 - [MQTT Broker Runtime Boundary](./mqtt-runtime-boundary.md)
+- [MQTT Startup Reconciliation](./mqtt-startup-reconciliation.md)
+- [MQTT Apply and Rollback Pipeline](./mqtt-apply-rollback.md)
 
 ## Control-Plane vs Event-Plane
 
@@ -87,6 +89,9 @@ Embedded authority foundations:
 - ACL compiler module: `backend/app/system/mqtt/acl_compiler.py`
 - Broker config renderer: `backend/app/system/mqtt/config_renderer.py`
 - Runtime boundary interface: `backend/app/system/mqtt/runtime_boundary.py`
+- Startup reconcile service: `backend/app/system/mqtt/startup_reconcile.py`
+- Apply/rollback service: `backend/app/system/mqtt/apply_pipeline.py`
+- Audit store: `backend/app/system/mqtt/authority_audit.py`
 
 ## JSON Envelope Requirement
 

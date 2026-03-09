@@ -36,7 +36,18 @@ from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler.history import SchedulerHistoryStore
 from app.system.settings.store import SettingsStore
 from app.system.settings.router import build_settings_router
-from app.system.mqtt import MqttIntegrationStateStore, MqttManager, MqttRegistrationApprovalService, build_mqtt_router
+from app.system.mqtt import (
+    EmbeddedMqttStartupReconciler,
+    InMemoryBrokerRuntimeBoundary,
+    MqttAclCompiler,
+    MqttAuthorityAuditStore,
+    MqttBrokerConfigRenderer,
+    MqttIntegrationStateStore,
+    MqttManager,
+    MqttRegistrationApprovalService,
+    MqttApplyPipeline,
+    build_mqtt_router,
+)
 from app.system.events import PlatformEventService, build_events_router
 from app.system.services import ServiceCatalogStore, build_service_resolution_router
 from app.system.auth import ServiceTokenKeyStore, build_auth_router
@@ -142,6 +153,12 @@ def create_app() -> FastAPI:
         mqtt_manager = getattr(app.state, "mqtt_manager", None)
         if mqtt_manager is not None:
             await mqtt_manager.start()
+        mqtt_startup_reconciler = getattr(app.state, "mqtt_startup_reconciler", None)
+        if mqtt_startup_reconciler is not None:
+            try:
+                await mqtt_startup_reconciler.reconcile_startup()
+            except Exception:
+                log.exception("Embedded MQTT startup reconciliation failed")
 
     @app.on_event("shutdown")
     async def shutdown_background_tasks():
@@ -191,6 +208,11 @@ def create_app() -> FastAPI:
         os.path.join(os.getcwd(), "var", "mqtt_integration_state.json"),
     )
     mqtt_integration_state_store = MqttIntegrationStateStore(mqtt_integration_state_db)
+    mqtt_authority_audit_db = os.getenv(
+        "MQTT_AUTHORITY_AUDIT_DB",
+        os.path.join(os.getcwd(), "var", "mqtt_authority_audit.db"),
+    )
+    mqtt_authority_audit = MqttAuthorityAuditStore(mqtt_authority_audit_db)
     policy_grants_db = os.getenv(
         "POLICY_GRANTS_DB",
         os.path.join(os.getcwd(), "var", "policy_grants.json"),
@@ -253,6 +275,7 @@ def create_app() -> FastAPI:
     app.state.service_token_keys = service_token_keys
     app.state.service_catalog_store = service_catalog_store
     app.state.mqtt_integration_state_store = mqtt_integration_state_store
+    app.state.mqtt_authority_audit = mqtt_authority_audit
     app.state.policy_store = policy_store
     app.state.telemetry_store = telemetry_store
     app.state.audit_store = audit_store
@@ -295,6 +318,27 @@ def create_app() -> FastAPI:
         state_store=mqtt_integration_state_store,
     )
     app.state.mqtt_registration_approval = mqtt_registration_approval
+    mqtt_runtime_boundary = InMemoryBrokerRuntimeBoundary(provider="embedded_mosquitto")
+    mqtt_acl_compiler = MqttAclCompiler()
+    mqtt_config_renderer = MqttBrokerConfigRenderer()
+    mqtt_apply_pipeline = MqttApplyPipeline(
+        runtime_boundary=mqtt_runtime_boundary,
+        audit_store=mqtt_authority_audit,
+        live_dir=os.path.join(os.getcwd(), "var", "mqtt_runtime", "live"),
+    )
+    mqtt_startup_reconciler = EmbeddedMqttStartupReconciler(
+        state_store=mqtt_integration_state_store,
+        acl_compiler=mqtt_acl_compiler,
+        config_renderer=mqtt_config_renderer,
+        apply_pipeline=mqtt_apply_pipeline,
+        audit_store=mqtt_authority_audit,
+        mqtt_manager=mqtt_manager,
+    )
+    app.state.mqtt_runtime_boundary = mqtt_runtime_boundary
+    app.state.mqtt_acl_compiler = mqtt_acl_compiler
+    app.state.mqtt_config_renderer = mqtt_config_renderer
+    app.state.mqtt_apply_pipeline = mqtt_apply_pipeline
+    app.state.mqtt_startup_reconciler = mqtt_startup_reconciler
     register_addons(app, registry)
     addon_proxy = AddonProxy(registry)
     app.state.addon_proxy = addon_proxy
