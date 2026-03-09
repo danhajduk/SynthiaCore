@@ -131,6 +131,7 @@ class TestSynthiaSupervisorCompose(unittest.TestCase):
                     env_file,
                     desired_file,
                     runtime_file,
+                    "mqtt",
                 )
 
             compose_text = compose_file.read_text(encoding="utf-8")
@@ -178,7 +179,7 @@ class TestSynthiaSupervisorCompose(unittest.TestCase):
             runtime_file = Path(tmp) / "runtime.json"
             desired_file.write_text("{}\n", encoding="utf-8")
             runtime_file.write_text("{}\n", encoding="utf-8")
-            ensure_compose_files(desired, extracted, compose_file, env_file, desired_file, runtime_file)
+            ensure_compose_files(desired, extracted, compose_file, env_file, desired_file, runtime_file, "mqtt")
 
             compose_text = compose_file.read_text(encoding="utf-8")
             self.assertIn("0.0.0.0:18081:18081/tcp", compose_text)
@@ -214,7 +215,7 @@ class TestSynthiaSupervisorCompose(unittest.TestCase):
             runtime_file = Path(tmp) / "runtime.json"
             desired_file.write_text("{}\n", encoding="utf-8")
             runtime_file.write_text("{}\n", encoding="utf-8")
-            ensure_compose_files(desired, extracted, compose_file, env_file, desired_file, runtime_file)
+            ensure_compose_files(desired, extracted, compose_file, env_file, desired_file, runtime_file, "mqtt")
 
             compose_text = compose_file.read_text(encoding="utf-8")
             self.assertIn("cpus: 1.25", compose_text)
@@ -254,7 +255,7 @@ class TestSynthiaSupervisorCompose(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            ensure_compose_files(desired, extracted, compose_file, env_file, desired_file, runtime_file)
+            ensure_compose_files(desired, extracted, compose_file, env_file, desired_file, runtime_file, "mqtt")
 
             compose_text = compose_file.read_text(encoding="utf-8")
             self.assertNotIn("/state/desired.json:ro", compose_text)

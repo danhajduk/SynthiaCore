@@ -408,6 +408,25 @@ class TestSynthiaSupervisorReconcile(unittest.TestCase):
             self.assertEqual(runtime["active_docker_groups"], [])
             self.assertEqual(runtime["failed_docker_groups"], [])
 
+    def test_reconcile_generates_base_service_name_from_group_override_when_unambiguous(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            addon_dir = Path(tmp) / "services" / "mqtt"
+            version_dir = addon_dir / "versions" / "0.1.2"
+            extracted_dir = version_dir / "extracted"
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+            (version_dir / "addon.tgz").write_bytes(b"artifact-bytes")
+            (extracted_dir / "docker-compose.group-broker.yml").write_text(
+                "services:\n  mosquitto:\n    image: eclipse-mosquitto:2\n  mqtt-addon:\n    depends_on:\n      - mosquitto\n",
+                encoding="utf-8",
+            )
+            _write_desired(addon_dir, enabled_docker_groups=["broker"])
+
+            with patch("synthia_supervisor.main.ensure_extracted"), patch("synthia_supervisor.main.compose_up"):
+                result = reconcile_one(addon_dir)
+            self.assertIsNotNone(result)
+            compose_text = (version_dir / "docker-compose.yml").read_text(encoding="utf-8")
+            self.assertIn("services:\n  mqtt-addon:\n", compose_text)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -142,6 +142,48 @@ def _compose_input_digest(desired: DesiredState) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def _compose_service_build_flags(compose_path: Path) -> dict[str, bool]:
+    try:
+        text = compose_path.read_text(encoding="utf-8")
+    except Exception:
+        return {}
+    in_services = False
+    current_service: str | None = None
+    current_has_runtime = False
+    out: dict[str, bool] = {}
+    for raw_line in text.splitlines():
+        if not in_services:
+            if raw_line.strip() == "services:":
+                in_services = True
+            continue
+        if raw_line and not raw_line.startswith(" "):
+            break
+        if raw_line.startswith("  ") and not raw_line.startswith("    ") and raw_line.strip().endswith(":"):
+            if current_service is not None:
+                out[current_service] = current_has_runtime
+            current_service = raw_line.strip()[:-1]
+            current_has_runtime = False
+            continue
+        if current_service and raw_line.startswith("    "):
+            stripped = raw_line.strip()
+            if stripped.startswith("image:") or stripped.startswith("build:"):
+                current_has_runtime = True
+    if current_service is not None:
+        out[current_service] = current_has_runtime
+    return out
+
+
+def _resolve_primary_service_name(default_name: str, group_compose_files: list[Path]) -> str:
+    unresolved: set[str] = set()
+    for compose_path in group_compose_files:
+        for service_name, has_runtime in _compose_service_build_flags(compose_path).items():
+            if not has_runtime:
+                unresolved.add(service_name)
+    if len(unresolved) == 1:
+        return sorted(unresolved)[0]
+    return default_name
+
+
 def _build_reconcile_result(
     *,
     desired: DesiredState,
@@ -292,7 +334,6 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
             and prior_runtime is not None
             and prior_runtime.last_force_rebuild_revision == desired_revision
         )
-        compose_digest = _compose_input_digest(desired)
         if (
             prior_runtime is not None
             and prior_runtime.state == "running"
@@ -348,6 +389,17 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
                 active_groups.append(group)
             else:
                 failed_groups.append(group)
+        primary_service_name = _resolve_primary_service_name(desired.addon_id, compose_files[1:])
+        compose_digest = hashlib.sha256(
+            json.dumps(
+                {
+                    "base": _compose_input_digest(desired),
+                    "service_name": primary_service_name,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
 
         if compose_file.exists() and force_rebuild and not force_rebuild_already_applied:
             compose_file.unlink()
@@ -356,7 +408,7 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
                 desired.addon_id,
                 version,
             )
-        elif (
+        if (
             compose_file.exists()
             and prior_runtime is not None
             and prior_runtime.active_version == version
@@ -371,6 +423,16 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
                 prior_runtime.last_applied_compose_digest,
                 compose_digest,
             )
+        if compose_file.exists():
+            existing_services = _compose_service_build_flags(compose_file)
+            if primary_service_name not in existing_services:
+                compose_file.unlink()
+                log.info(
+                    "compose_file_regen addon_id=%s version=%s reason=service_name_mismatch expected=%s",
+                    desired.addon_id,
+                    version,
+                    primary_service_name,
+                )
         if not runtime_path.exists():
             runtime_path.write_text("{}\n", encoding="utf-8")
         ensure_compose_files(
@@ -380,6 +442,7 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
             env_file,
             desired_path,
             runtime_path,
+            primary_service_name,
         )
 
         compose_up(

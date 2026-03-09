@@ -144,6 +144,7 @@ def ensure_compose_files(
     env_file: Path,
     desired_file: Path,
     runtime_file: Path,
+    service_name: str,
 ):
     env_values = dict(getattr(desired.config, "env", {}) or {})
     service_token = os.environ.get("SYNTHIA_SERVICE_TOKEN")
@@ -179,7 +180,7 @@ def ensure_compose_files(
     )
     compose_content = f"""
 services:
-  {desired.addon_id}:
+  {service_name}:
     build: {extracted_dir}
     restart: unless-stopped
     privileged: false
