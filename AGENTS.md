@@ -1,32 +1,139 @@
-## Skills
-A skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and file path so you can open the source for full instructions when using a specific skill.
-### Available skills
-- synthia-documentation: Code-verified documentation and architecture workflow for Synthia docs. Use when creating/updating docs, API/subsystem specs, architecture references, or archiving outdated documentation; do not use for implementation tasks. (file: /home/dan/.codex/skills/synthia-documentation/SKILL.md)
-- synthia-workflow: Implementation workflow for Synthia development tasks. Use for coding tasks, refactors, bug fixes, and feature work in this workspace. (file: /home/dan/.codex/skills/synthia-workflow/SKILL.md)
-- synthia-architecture-audit: Architecture-audit and documentation-gap workflow for Synthia. Use when auditing code-to-doc alignment, finding stale/contradictory docs, detecting drift, and producing remediation recommendations; do not use for implementation tasks. (file: /home/dan/.codex/skills/synthia-architecture-audit/SKILL.md)
-- skill-creator: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Codex's capabilities with specialized knowledge, workflows, or tool integrations. (file: /home/dan/.codex/skills/.system/skill-creator/SKILL.md)
-- skill-installer: Install Codex skills into $CODEX_HOME/skills from a curated list or a GitHub repo path. Use when a user asks to list installable skills, install a curated skill, or install a skill from another repo (including private repos). (file: /home/dan/.codex/skills/.system/skill-installer/SKILL.md)
-### How to use skills
-- Discovery: The list above is the skills available in this session (name + description + file path). Skill bodies live on disk at the listed paths.
-- Trigger rules: If the user names a skill (with `$SkillName` or plain text) OR the task clearly matches a skill's description shown above, you must use that skill for that turn. Multiple mentions mean use them all. Do not carry skills across turns unless re-mentioned.
-- Missing/blocked: If a named skill isn't in the list or the path can't be read, say so briefly and continue with the best fallback.
-- How to use a skill (progressive disclosure):
-  1) After deciding to use a skill, open its `SKILL.md`. Read only enough to follow the workflow.
-  2) When `SKILL.md` references relative paths (e.g., `scripts/foo.py`), resolve them relative to the skill directory listed above first, and only consider other paths if needed.
-  3) If `SKILL.md` points to extra folders such as `references/`, load only the specific files needed for the request; don't bulk-load everything.
-  4) If `scripts/` exist, prefer running or patching them instead of retyping large code blocks.
-  5) If `assets/` or templates exist, reuse them instead of recreating from scratch.
-- Coordination and sequencing:
-  - If multiple skills apply, choose the minimal set that covers the request and state the order you'll use them.
-  - Announce which skill(s) you're using and why (one short line). If you skip an obvious skill, say why.
-- Context hygiene:
-  - Keep context small: summarize long sections instead of pasting them; only load extra files when needed.
-  - Avoid deep reference-chasing: prefer opening only files directly linked from `SKILL.md` unless you're blocked.
-  - When variants exist (frameworks, providers, domains), pick only the relevant reference file(s) and note that choice.
-- Safety and fallback: If a skill can't be applied cleanly (missing files, unclear instructions), state the issue, pick the next-best approach, and continue.
+# Synthia Codex Agent Configuration
 
-## Commit Policy
-- Always commit completed task changes; do not leave finished task work uncommitted.
-- Before any commit, run commit safety scan:
-  `/home/dan/.codex/skills/commit-safety-check/scripts/scan_commit_safety.py --mode pending`
-- If scanner reports high-severity findings, remediate before committing.
+This file defines how Codex should use local skills and workflows in this repository.
+
+---
+
+# Skills
+
+A skill is a set of local instructions stored in a `SKILL.md` file.
+
+Below is the list of available skills.
+
+Each entry includes:
+- skill name
+- description
+- file path
+
+Skill bodies live on disk and must be loaded only when needed.
+
+---
+
+## Available Skills
+
+- **synthia-workflow**  
+  Implementation workflow for Synthia development tasks.  
+  Use for coding tasks, refactors, bug fixes, and feature implementation.  
+  File: `/home/dan/.codex/skills/synthia-workflow/SKILL.md`
+
+- **synthia-documentation**  
+  Code-verified documentation workflow.  
+  Use for writing or updating docs, API documentation, architecture references, or archiving outdated docs.  
+  File: `/home/dan/.codex/skills/synthia-documentation/SKILL.md`
+
+- **synthia-architecture-audit**  
+  Architecture audit workflow used to detect documentation drift, undocumented subsystems, or code-to-doc mismatches.  
+  File: `/home/dan/.codex/skills/synthia-architecture-audit/SKILL.md`
+
+- **commit-safety-check**  
+  Verifies pending repository changes do not contain secrets before committing.  
+  File: `/home/dan/.codex/skills/commit-safety-check/SKILL.md`
+
+- **skill-creator**  
+  Workflow for creating or updating Codex skills.  
+  File: `/home/dan/.codex/skills/.system/skill-creator/SKILL.md`
+
+- **skill-installer**  
+  Installs Codex skills from curated lists or repositories.  
+  File: `/home/dan/.codex/skills/.system/skill-installer/SKILL.md`
+
+---
+
+# Skill Selection Rules
+
+Select the minimal skill set required to complete the task.
+
+### Implementation tasks
+Use:
+
+synthia-workflow
+
+Examples:
+- feature development
+- bug fixes
+- refactors
+- backend changes
+- frontend/UI changes
+- scripts or runtime behavior
+
+---
+
+### Documentation tasks
+Use:
+
+synthia-documentation
+
+Examples:
+- writing documentation
+- updating docs/*
+- API documentation
+- subsystem documentation
+- architecture diagrams
+
+---
+
+### Architecture review tasks
+Use:
+
+synthia-architecture-audit
+
+Examples:
+- detecting documentation drift
+- verifying architecture alignment
+- identifying undocumented subsystems
+- checking API/doc inconsistencies
+
+---
+
+### Commit validation
+Use:
+
+commit-safety-check
+
+Examples:
+- before any commit
+- when verifying commit safety
+- when asked to scan repository changes for secrets
+
+---
+
+# Skill Trigger Rules
+
+A skill must be used when:
+
+- the user explicitly names the skill
+- the task clearly matches the skill description
+
+If multiple skills apply:
+
+1. select the minimal required set
+2. execute them sequentially
+3. state the order before beginning
+
+Example sequence:
+
+architecture-audit → documentation → implementation
+
+---
+
+# Skill Loading Rules
+
+When using a skill:
+
+1. Open the corresponding `SKILL.md`
+2. Load only the sections required to execute the workflow
+3. Avoid loading unrelated reference material
+
+Relative paths inside a skill must be resolved relative to the skill directory first.
+
+Example:
