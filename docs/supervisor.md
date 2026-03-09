@@ -109,6 +109,7 @@ Implemented:
   - if `extracted/` already exists, extraction is skipped.
   - otherwise `tar -xzf addon.tgz -C extracted/` is executed.
 - After extract (and on extract-skip), supervisor normalizes mtimes in `extracted/` so Docker build context diffing picks up current file content reliably.
+- Supervisor tracks extracted artifact hash in `extracted/.artifact.sha256`; if `addon.tgz` content changes for the same version directory, supervisor removes stale `extracted/` and re-extracts before compose build.
 
 Not developed:
 - Automatic re-extract when `addon.tgz` changes in-place while `extracted/` already exists.

@@ -2,6 +2,8 @@ import os
 import subprocess
 import logging
 import time
+import hashlib
+import shutil
 from pathlib import Path
 from typing import Iterable
 
@@ -21,6 +23,19 @@ def _normalize_tree_mtime(root: Path) -> None:
         os.utime(root, (now, now))
     except FileNotFoundError:
         return
+
+
+def _artifact_sha256(path: Path) -> str | None:
+    if not path.exists() or not path.is_file():
+        return None
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(1024 * 1024)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _run_compose_command(args: list[str], action: str) -> None:
@@ -82,8 +97,28 @@ def compose_down(compose_file: Path | Iterable[Path], project_name: str):
 
 
 def ensure_extracted(artifact_path: Path, extracted_dir: Path):
+    artifact_hash = _artifact_sha256(artifact_path)
+    marker_path = extracted_dir / ".artifact.sha256"
     runtime_dir = extracted_dir / "runtime"
     if extracted_dir.exists():
+        marker_hash = ""
+        if marker_path.exists():
+            try:
+                marker_hash = marker_path.read_text(encoding="utf-8").strip()
+            except Exception:
+                marker_hash = ""
+        if artifact_hash and marker_hash != artifact_hash:
+            log.info("extract_refresh path=%s reason=artifact_changed", extracted_dir)
+            shutil.rmtree(extracted_dir, ignore_errors=True)
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+            subprocess.run(["tar","-xzf",str(artifact_path),"-C",str(extracted_dir)], check=True)
+            marker_path.write_text(f"{artifact_hash}\n", encoding="utf-8")
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            _normalize_tree_mtime(extracted_dir)
+            log.info("extract_mtime_normalized path=%s", extracted_dir)
+            log.info("runtime_dir_ensured path=%s", runtime_dir)
+            log.info("extract_done dest=%s", extracted_dir)
+            return
         log.info("extract_skip path=%s reason=already_exists", extracted_dir)
         runtime_dir.mkdir(parents=True, exist_ok=True)
         _normalize_tree_mtime(extracted_dir)
@@ -93,6 +128,8 @@ def ensure_extracted(artifact_path: Path, extracted_dir: Path):
     log.info("extract_start artifact=%s dest=%s", artifact_path, extracted_dir)
     extracted_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(["tar","-xzf",str(artifact_path),"-C",str(extracted_dir)], check=True)
+    if artifact_hash:
+        marker_path.write_text(f"{artifact_hash}\n", encoding="utf-8")
     runtime_dir.mkdir(parents=True, exist_ok=True)
     _normalize_tree_mtime(extracted_dir)
     log.info("extract_mtime_normalized path=%s", extracted_dir)

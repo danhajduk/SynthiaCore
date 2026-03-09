@@ -6,6 +6,7 @@ import tarfile
 import tempfile
 import time
 import unittest
+import hashlib
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -51,6 +52,44 @@ class TestSynthiaSupervisorCompose(unittest.TestCase):
             manifest_path = extracted / "manifest.json"
             self.assertTrue(manifest_path.exists())
             self.assertGreaterEqual(manifest_path.stat().st_mtime, start - 1.0)
+
+    def test_ensure_extracted_reextracts_when_artifact_hash_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            extracted = Path(tmp) / "extracted"
+            extracted.mkdir(parents=True, exist_ok=True)
+            (extracted / "stale.txt").write_text("old", encoding="utf-8")
+            (extracted / ".artifact.sha256").write_text("oldhash\n", encoding="utf-8")
+            artifact = Path(tmp) / "artifact.tgz"
+            with tarfile.open(artifact, "w:gz") as tf:
+                payload = b'{"id":"mqtt","version":"0.2.6"}\n'
+                info = tarfile.TarInfo(name="manifest.json")
+                info.size = len(payload)
+                tf.addfile(info, fileobj=BytesIO(payload))
+
+            ensure_extracted(artifact, extracted)
+
+            self.assertTrue((extracted / "manifest.json").exists())
+            self.assertFalse((extracted / "stale.txt").exists())
+            expected_hash = hashlib.sha256(artifact.read_bytes()).hexdigest()
+            self.assertEqual((extracted / ".artifact.sha256").read_text(encoding="utf-8").strip(), expected_hash)
+
+    def test_ensure_extracted_skips_reextract_when_artifact_hash_matches(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            extracted = Path(tmp) / "extracted"
+            extracted.mkdir(parents=True, exist_ok=True)
+            artifact = Path(tmp) / "artifact.tgz"
+            with tarfile.open(artifact, "w:gz") as tf:
+                payload = b'{"id":"mqtt","version":"0.2.6"}\n'
+                info = tarfile.TarInfo(name="manifest.json")
+                info.size = len(payload)
+                tf.addfile(info, fileobj=BytesIO(payload))
+            artifact_hash = hashlib.sha256(artifact.read_bytes()).hexdigest()
+            (extracted / ".artifact.sha256").write_text(f"{artifact_hash}\n", encoding="utf-8")
+
+            with patch("synthia_supervisor.docker_compose.subprocess.run") as run_mock:
+                ensure_extracted(artifact, extracted)
+                run_mock.assert_not_called()
+            self.assertTrue((extracted / "runtime").is_dir())
 
     def test_compose_defaults_include_security_guardrails(self) -> None:
         desired = DesiredState.model_validate(
