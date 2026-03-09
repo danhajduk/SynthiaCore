@@ -1,6 +1,6 @@
 # MQTT Integration Contract
 
-Last Updated: 2026-03-09 09:06 US/Pacific
+Last Updated: 2026-03-09 09:04 US/Pacific
 
 ## Scope
 
@@ -89,6 +89,8 @@ Implemented registration/approval APIs:
 - `GET /api/system/mqtt/generic-users/{principal_id}/effective-access` (admin-only)
 - `GET /api/system/mqtt/noisy-clients` (admin-only)
 - `POST /api/system/mqtt/noisy-clients/{principal_id}/actions/{action}` (admin-only)
+- `GET /api/system/mqtt/audit` (admin-only)
+- `GET /api/system/mqtt/observability` (admin-only)
 - `POST /api/system/mqtt/setup-state`
 
 Behavior:
@@ -123,6 +125,7 @@ Embedded API semantics:
 - principal lifecycle actions (`activate|revoke|expire|probation|promote`) are admin-controlled and audited.
 - generic users are lifecycle-managed under Core authority state and denied from reserved Synthia families by default.
 - noisy client state model is tracked in principal state (`normal|watch|noisy|blocked`) with manual admin actions for watch/quarantine/block/revoke-credentials/clear; automated enforcement is not enabled.
+- Core UI Settings page includes an admin-only embedded MQTT infrastructure card with views for overview/status, principals, generic users, effective access inspection, runtime health, and audit/observability logs.
 
 ## JSON Envelope Requirement
 

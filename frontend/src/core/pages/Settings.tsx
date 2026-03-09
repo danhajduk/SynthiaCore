@@ -4,6 +4,7 @@ import AdminReloadCard from "./settings/AdminReloadCard";
 import RegistryAdminCard from "./settings/RegistryAdminCard";
 import ControlPlaneCard from "./settings/ControlPlaneCard";
 import UserManagementCard from "./settings/UserManagementCard";
+import MqttAdminFoundationCard from "./settings/MqttAdminFoundationCard";
 import { getTheme, setTheme as applyTheme } from "../../theme/theme";
 
 type SettingsResponse = {
@@ -49,6 +50,29 @@ type MqttSetupSummary = {
     direct_mqtt_supported?: boolean;
   };
   health?: MqttStatus;
+  effective_status?: {
+    status?: string;
+    reasons?: string[];
+    runtime_connected?: boolean;
+    authority_ready?: boolean;
+    setup_ready?: boolean;
+    bootstrap_publish_ready?: boolean;
+  };
+  reconciliation?: {
+    last_reconcile_at?: string | null;
+    last_reconcile_reason?: string | null;
+    last_reconcile_status?: string | null;
+    last_reconcile_error?: string | null;
+    last_runtime_state?: string | null;
+  };
+  bootstrap_publish?: {
+    attempts?: number;
+    successes?: number;
+    last_attempt_at?: string | null;
+    last_success_at?: string | null;
+    last_error?: string | null;
+    published?: boolean;
+  };
   last_provisioning_errors?: Array<{
     addon_id?: string;
     status?: string;
@@ -354,6 +378,15 @@ export default function Settings() {
         <div className="settings-card">
           <div className="settings-kv-grid">
             <div className="settings-kv-item">
+              <div className="settings-label-text">Authority state</div>
+              <span className="settings-pill">{displayState(mqttSetup?.effective_status?.status)}</span>
+              <div className="settings-help">
+                {mqttSetup?.effective_status?.reasons?.length
+                  ? `Reasons: ${mqttSetup.effective_status.reasons.join(" | ")}`
+                  : "No degraded reasons reported"}
+              </div>
+            </div>
+            <div className="settings-kv-item">
               <div className="settings-label-text">MQTT state</div>
               <span className="settings-pill">{mqtt?.connected ? "Connected" : "Disconnected"}</span>
             </div>
@@ -382,6 +415,22 @@ export default function Settings() {
               <div>Mode {displayState(mqttSetup?.broker?.broker_mode || mqtt?.mode)}</div>
               <div className="settings-help">
                 Direct MQTT support {mqttSetup?.broker?.direct_mqtt_supported ? "available" : "not available"}
+              </div>
+            </div>
+            <div className="settings-kv-item">
+              <div className="settings-label-text">Last apply / reload</div>
+              <span className="settings-pill">{displayState(mqttSetup?.reconciliation?.last_reconcile_status)}</span>
+              <div className="settings-help">
+                Reason {mqttSetup?.reconciliation?.last_reconcile_reason || "-"} • Runtime{" "}
+                {displayState(mqttSetup?.reconciliation?.last_runtime_state)}
+              </div>
+            </div>
+            <div className="settings-kv-item">
+              <div className="settings-label-text">Bootstrap publish</div>
+              <span className="settings-pill">{mqttSetup?.bootstrap_publish?.published ? "Published" : "Pending"}</span>
+              <div className="settings-help">
+                Attempts {Number(mqttSetup?.bootstrap_publish?.attempts || 0)} • Last error{" "}
+                {mqttSetup?.bootstrap_publish?.last_error || "none"}
               </div>
             </div>
             <div className="settings-kv-item">
@@ -472,6 +521,14 @@ export default function Settings() {
             </button>
           </div>
         </div>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-head">
+          <h2>MQTT Infrastructure Admin</h2>
+          <p>Embedded MQTT authority administration views for principals, access, runtime health, and audit signals.</p>
+        </div>
+        <MqttAdminFoundationCard />
       </section>
 
       <section className="settings-section">

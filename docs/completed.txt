@@ -297,3 +297,6 @@
 233. Task 253: Add effective-access inspection endpoint. - Completed on 03/09/2026 08:55
 234. Task 254: Implement noisy-client detection foundation. - Completed on 03/09/2026 08:55
 235. Task 255: Implement manual noisy-client response actions. - Completed on 03/09/2026 08:55
+236. Task 256: Add MQTT infrastructure admin UI foundation. - Completed on 03/09/2026 09:04
+237. Task 257: Add degraded-state and recovery UX in Core UI. - Completed on 03/09/2026 09:04
+238. Task 258: Add end-to-end Phase 2 tests. - Completed on 03/09/2026 09:04

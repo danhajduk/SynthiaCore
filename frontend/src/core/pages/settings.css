@@ -416,6 +416,76 @@
   padding: var(--sx-space-2) calc(var(--sx-space-2) + 2px);
 }
 
+.settings-pill-warn {
+  background: hsl(var(--sx-warning) / 0.3);
+}
+
+.settings-mqtt-admin-card {
+  display: grid;
+  gap: var(--sx-space-3);
+}
+
+.settings-mqtt-admin-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sx-space-3);
+}
+
+.settings-mqtt-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sx-space-2);
+}
+
+.settings-mqtt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sx-space-2);
+}
+
+.settings-mqtt-tab-active {
+  border-color: hsl(var(--sx-accent) / 0.7);
+  box-shadow: 0 0 0 1px hsl(var(--sx-accent) / 0.35);
+}
+
+.settings-mqtt-table-wrap {
+  overflow-x: auto;
+}
+
+.settings-mqtt-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+  font-size: 13px;
+}
+
+.settings-mqtt-table th,
+.settings-mqtt-table td {
+  border-bottom: 1px solid hsl(var(--sx-text) / 0.1);
+  text-align: left;
+  padding: calc(var(--sx-space-1) + 2px) var(--sx-space-2);
+  vertical-align: top;
+}
+
+.settings-mqtt-table th {
+  opacity: 0.78;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-size: 11px;
+}
+
+.settings-mqtt-effective {
+  display: grid;
+  gap: var(--sx-space-2);
+}
+
+.settings-mqtt-audit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sx-space-3);
+}
+
 @media (max-width: 720px) {
   .settings-row {
     flex-direction: column;
@@ -430,5 +500,13 @@
   .settings-stats-header,
   .settings-stats-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .settings-mqtt-admin-top {
+    flex-direction: column;
+  }
+
+  .settings-mqtt-audit-grid {
+    grid-template-columns: 1fr;
   }
 }
