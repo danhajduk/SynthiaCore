@@ -153,6 +153,23 @@ class TestMqttApprovalValidation(unittest.TestCase):
                 capabilities={"ha_discovery": "unsupported_mode"},
             )
 
+    def test_reconcile_bootstraps_grant_for_enabled_addon(self) -> None:
+        asyncio.run(
+            self.service.update_setup_state(
+                MqttSetupStateUpdate(
+                    requires_setup=True,
+                    setup_complete=True,
+                    setup_status="ready",
+                    broker_mode="embedded",
+                    direct_mqtt_supported=True,
+                    authority_ready=True,
+                )
+            )
+        )
+        result = asyncio.run(self.service.reconcile("vision"))
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["status"], "active")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -257,3 +257,10 @@
 193. Task 213: Implement Core startup reconciliation for embedded MQTT. - Completed on 03/09/2026 06:37
 194. Task 214: Implement safe apply/rollback for embedded MQTT config changes. - Completed on 03/09/2026 06:37
 195. Task 215: Add embedded MQTT audit/event log foundation. - Completed on 03/09/2026 06:37
+196. Task 216: Refactor `/api/system/mqtt/*` endpoints to embedded-infrastructure semantics. - Completed on 03/09/2026 06:37
+197. Task 217: Integrate embedded MQTT with addon/node onboarding in Core. - Completed on 03/09/2026 06:37
+198. Task 218: Add health/degraded-state model for embedded MQTT. - Completed on 03/09/2026 06:37
+199. Task 219: Add observability foundation for future noisy-client handling. - Completed on 03/09/2026 06:37
+200. Task 220: Add regression tests for embedded MQTT infrastructure foundation. - Completed on 03/09/2026 06:37
+201. Task 221: Update golden docs after implementation. - Completed on 03/09/2026 06:37
+202. Task 222: Write operator/dev runbook for embedded MQTT Phase 1. - Completed on 03/09/2026 06:37

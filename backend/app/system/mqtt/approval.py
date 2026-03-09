@@ -21,9 +21,10 @@ def _utcnow_iso() -> str:
 
 
 class MqttRegistrationApprovalService:
-    def __init__(self, *, registry, state_store: MqttIntegrationStateStore) -> None:
+    def __init__(self, *, registry, state_store: MqttIntegrationStateStore, observability_store=None) -> None:
         self._registry = registry
         self._state_store = state_store
+        self._observability = observability_store
 
     async def approve(self, request: MqttRegistrationRequest, *, requested_by_subject: str | None = None) -> MqttRegistrationApprovalResult:
         addon_id = request.addon_id.strip()
@@ -57,6 +58,11 @@ class MqttRegistrationApprovalService:
             )
         topic_errors = validate_topic_scopes(addon_id, request.publish_topics, request.subscribe_topics)
         if topic_errors:
+            await self._record_observability(
+                event_type="denied_topic_attempt",
+                severity="warn",
+                metadata={"addon_id": addon_id, "errors": topic_errors},
+            )
             return MqttRegistrationApprovalResult(
                 addon_id=addon_id,
                 status="rejected",
@@ -104,6 +110,11 @@ class MqttRegistrationApprovalService:
             next_grant.status = "error"
             next_grant.last_error = f"mqtt_setup_not_ready:{state.setup_status}"
             await self._state_store.upsert_grant(next_grant)
+            await self._record_observability(
+                event_type="broker_readiness_issue",
+                severity="warn",
+                metadata={"addon_id": addon_id, "setup_status": state.setup_status},
+            )
             return {
                 "ok": False,
                 "addon_id": addon_id,
@@ -205,6 +216,19 @@ class MqttRegistrationApprovalService:
         state = await self._state_store.get_state()
         grant = state.active_grants.get(addon_id)
         if grant is None:
+            if self._registry.has_addon(addon_id) and self._registry.is_enabled(addon_id):
+                bootstrap = MqttAddonGrant(
+                    addon_id=addon_id,
+                    access_mode="gateway",
+                    status="approved",
+                    publish_topics=[f"synthia/addons/{addon_id}/event/#", f"synthia/addons/{addon_id}/state/#"],
+                    subscribe_topics=[f"synthia/addons/{addon_id}/command/#", "synthia/bootstrap/core"],
+                    granted_ha_mode="disabled",
+                    access_profile="gateway",
+                )
+                await self._state_store.upsert_grant(bootstrap)
+                await self._state_store.upsert_principal(self._principal_from_grant(bootstrap))
+                return await self.provision_grant(addon_id, reason="onboarding_reconcile")
             return {"ok": True, "addon_id": addon_id, "status": "not_found"}
         if grant.status in {"approved", "error"} and self._registry.is_enabled(addon_id):
             return await self.provision_grant(addon_id, reason="reconcile")
@@ -237,3 +261,16 @@ class MqttRegistrationApprovalService:
             linked_addon_id=grant.addon_id,
             notes=f"created_from_grant:{grant.access_mode}",
         )
+
+    async def _record_observability(self, *, event_type: str, severity: str, metadata: dict[str, Any]) -> None:
+        if self._observability is None:
+            return
+        try:
+            await self._observability.append_event(
+                event_type=event_type,
+                source="mqtt_approval",
+                severity=severity,
+                metadata=metadata,
+            )
+        except Exception:
+            return

@@ -48,6 +48,7 @@ class MqttManager:
         service_catalog_store: ServiceCatalogStore,
         install_sessions_store: InstallSessionsStore | None = None,
         events: PlatformEventService | None = None,
+        observability_store=None,
         enabled: bool = True,
     ) -> None:
         self._settings = settings_store
@@ -55,6 +56,7 @@ class MqttManager:
         self._service_catalogs = service_catalog_store
         self._install_sessions = install_sessions_store
         self._events = events
+        self._observability = observability_store
         self._enabled = enabled
         self._loop: asyncio.AbstractEventLoop | None = None
         self._client: Any = None
@@ -224,16 +226,31 @@ class MqttManager:
         self._connected = rc == 0
         if not self._connected:
             self._last_error = f"connect_rc:{rc}"
+            self._record_observability_event(
+                event_type="connection_failed",
+                severity="warn",
+                metadata={"reason_code": rc},
+            )
             return
         for topic, qos in MQTT_SUBSCRIPTIONS:
             client.subscribe(topic, qos=qos)
         self._publish_core_info_retained(client)
+        self._record_observability_event(
+            event_type="connection_established",
+            severity="info",
+            metadata={"reason_code": rc},
+        )
 
     def _on_disconnect(self, client: Any, userdata: Any, disconnect_flags: Any, reason_code: Any, properties: Any = None) -> None:
         self._connected = False
         rc = self._reason_code_value(reason_code)
         if rc != 0:
             self._last_error = f"disconnect_rc:{rc}"
+            self._record_observability_event(
+                event_type="disconnect_error",
+                severity="warn",
+                metadata={"reason_code": rc},
+            )
 
     @staticmethod
     def _reason_code_value(reason_code: Any) -> int:
@@ -327,5 +344,23 @@ class MqttManager:
                 await self._service_catalogs.upsert_catalog(service_name, payload)
             except Exception:
                 log.exception("Failed to apply MQTT service catalog update")
+
+        asyncio.run_coroutine_threadsafe(_run(), loop)
+
+    def _record_observability_event(self, *, event_type: str, severity: str, metadata: dict[str, Any]) -> None:
+        loop = self._loop
+        if loop is None or self._observability is None:
+            return
+
+        async def _run() -> None:
+            try:
+                await self._observability.append_event(
+                    event_type=event_type,
+                    source="mqtt_manager",
+                    severity=severity,
+                    metadata=metadata,
+                )
+            except Exception:
+                log.exception("Failed to record MQTT observability event")
 
         asyncio.run_coroutine_threadsafe(_run(), loop)

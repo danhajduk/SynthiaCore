@@ -160,9 +160,11 @@ class TestMqttProvisioningApi(unittest.TestCase):
         self.assertIn("setup", summary.json())
         self.assertIn("broker", summary.json())
         self.assertIn("health", summary.json())
+        self.assertIn("effective_status", summary.json())
         self.assertIn("last_authority_errors", summary.json())
         self.assertIn("last_provisioning_errors", summary.json())
         self.assertIn("setup_error", summary.json()["setup"])
+        self.assertIn("status", summary.json()["effective_status"])
 
     def test_setup_state_gates_provisioning_until_ready(self) -> None:
         approved = self.client.post(
@@ -210,6 +212,15 @@ class TestMqttProvisioningApi(unittest.TestCase):
         summary = self.client.get("/api/system/mqtt/setup-summary", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(summary.status_code, 200, summary.text)
         self.assertIsInstance(summary.json().get("last_provisioning_errors"), list)
+
+    def test_reload_alias_and_health_endpoint(self) -> None:
+        reload_resp = self.client.post("/api/system/mqtt/reload")
+        self.assertEqual(reload_resp.status_code, 200, reload_resp.text)
+        self.assertTrue(reload_resp.json().get("ok"))
+
+        health_resp = self.client.get("/api/system/mqtt/health", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(health_resp.status_code, 200, health_resp.text)
+        self.assertIn("effective_status", health_resp.json())
 
     def test_provision_scope_checks_for_service_token(self) -> None:
         no_scope = self.client.post(

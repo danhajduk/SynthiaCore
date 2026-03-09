@@ -92,6 +92,13 @@ Embedded authority foundations:
 - Startup reconcile service: `backend/app/system/mqtt/startup_reconcile.py`
 - Apply/rollback service: `backend/app/system/mqtt/apply_pipeline.py`
 - Audit store: `backend/app/system/mqtt/authority_audit.py`
+- Observability store: `backend/app/system/mqtt/observability_store.py`
+
+Embedded API semantics:
+- `/mqtt/registrations/{addon_id}/provision` applies Core authority state (no remote addon provisioning HTTP dependency).
+- `/mqtt/registrations/{addon_id}/revoke` revokes Core authority state.
+- `/mqtt/reload` is available as embedded runtime reload alias.
+- `/mqtt/health` returns effective degraded/healthy summary.
 
 ## JSON Envelope Requirement
 

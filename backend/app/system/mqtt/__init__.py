@@ -6,6 +6,7 @@ from .config_renderer import MqttBrokerConfigRenderer, MqttBrokerRenderInput, Mq
 from .integration_models import (
     MqttAddonGrant,
     MqttBootstrapAnnouncement,
+    MqttEffectiveHealthSummary,
     MqttBrokerModeSummary,
     MqttCapabilityFlags,
     MqttIntegrationState,
@@ -17,6 +18,7 @@ from .integration_models import (
 )
 from .integration_state import MqttIntegrationStateStore
 from .manager import MqttManager
+from .observability_store import MqttObservabilityStore
 from .runtime_boundary import BrokerRuntimeBoundary, BrokerRuntimeStatus, InMemoryBrokerRuntimeBoundary
 from .startup_reconcile import EmbeddedMqttStartupReconciler, StartupReconcileResult
 from .router import build_mqtt_router
@@ -27,6 +29,7 @@ __all__ = [
     "MqttApplyPipeline",
     "ApplyPipelineResult",
     "MqttAuthorityAuditStore",
+    "MqttObservabilityStore",
     "MqttBrokerConfigRenderer",
     "MqttBrokerRenderInput",
     "MqttBrokerRenderOutput",
@@ -42,6 +45,7 @@ __all__ = [
     "MqttIntegrationState",
     "MqttAddonGrant",
     "MqttBootstrapAnnouncement",
+    "MqttEffectiveHealthSummary",
     "MqttPrincipal",
     "MqttBrokerModeSummary",
     "MqttCapabilityFlags",

@@ -1,6 +1,6 @@
 # Addons Reference (Core + Addon Workspace)
 
-Last Updated: 2026-03-08 12:20 US/Pacific
+Last Updated: 2026-03-09 06:37 US/Pacific
 
 This document is the single handoff reference for building, registering, and operating addons with Synthia Core.
 
@@ -136,6 +136,10 @@ Control-plane boundary:
 - Use MQTT topics for asynchronous events and runtime visibility, not deterministic control transactions.
 
 ## 10) MQTT Broker Setup in Core
+
+Embedded MQTT direction note:
+- MQTT is being migrated toward platform-managed embedded infrastructure semantics.
+- Existing registration/provision/revoke API routes remain for compatibility while Core-owned embedded authority state is adopted.
 
 Core MQTT host/port is selected by settings keys (not by registry API):
 

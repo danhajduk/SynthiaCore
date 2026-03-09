@@ -44,6 +44,7 @@ from app.system.mqtt import (
     MqttBrokerConfigRenderer,
     MqttIntegrationStateStore,
     MqttManager,
+    MqttObservabilityStore,
     MqttRegistrationApprovalService,
     MqttApplyPipeline,
     build_mqtt_router,
@@ -213,6 +214,11 @@ def create_app() -> FastAPI:
         os.path.join(os.getcwd(), "var", "mqtt_authority_audit.db"),
     )
     mqtt_authority_audit = MqttAuthorityAuditStore(mqtt_authority_audit_db)
+    mqtt_observability_db = os.getenv(
+        "MQTT_OBSERVABILITY_DB",
+        os.path.join(os.getcwd(), "var", "mqtt_observability.db"),
+    )
+    mqtt_observability_store = MqttObservabilityStore(mqtt_observability_db)
     policy_grants_db = os.getenv(
         "POLICY_GRANTS_DB",
         os.path.join(os.getcwd(), "var", "policy_grants.json"),
@@ -276,6 +282,7 @@ def create_app() -> FastAPI:
     app.state.service_catalog_store = service_catalog_store
     app.state.mqtt_integration_state_store = mqtt_integration_state_store
     app.state.mqtt_authority_audit = mqtt_authority_audit
+    app.state.mqtt_observability_store = mqtt_observability_store
     app.state.policy_store = policy_store
     app.state.telemetry_store = telemetry_store
     app.state.audit_store = audit_store
@@ -310,12 +317,14 @@ def create_app() -> FastAPI:
         service_catalog_store=service_catalog_store,
         install_sessions_store=install_sessions_store,
         events=event_service,
+        observability_store=mqtt_observability_store,
         enabled=bool(getattr(cfg_boot, "mqtt_listener_enabled", True)),
     )
     app.state.mqtt_manager = mqtt_manager
     mqtt_registration_approval = MqttRegistrationApprovalService(
         registry=registry,
         state_store=mqtt_integration_state_store,
+        observability_store=mqtt_observability_store,
     )
     app.state.mqtt_registration_approval = mqtt_registration_approval
     mqtt_runtime_boundary = InMemoryBrokerRuntimeBoundary(provider="embedded_mosquitto")

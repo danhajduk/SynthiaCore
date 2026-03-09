@@ -66,6 +66,11 @@ def build_mqtt_router(
         await manager.restart()
         return await manager.status()
 
+    @router.post("/mqtt/reload")
+    async def mqtt_reload():
+        await manager.restart()
+        return await manager.status()
+
     @router.post("/mqtt/registrations/approve")
     async def mqtt_registration_approve(
         body: MqttRegistrationRequest,
@@ -150,13 +155,39 @@ def build_mqtt_router(
             for item in grants
             if item.get("last_error")
         ]
+        reasons: list[str] = []
+        runtime_connected = bool(health.get("connected"))
+        if not setup.authority_ready:
+            reasons.append("authority_not_ready")
+        if not setup.setup_ready:
+            reasons.append("setup_not_ready")
+        if not runtime_connected:
+            reasons.append("mqtt_runtime_not_connected")
+        effective = {
+            "status": ("healthy" if not reasons else "degraded"),
+            "reasons": reasons,
+            "authority_ready": setup.authority_ready,
+            "runtime_connected": runtime_connected,
+            "setup_ready": setup.setup_ready,
+            "bootstrap_publish_ready": bool(setup.setup_ready and runtime_connected),
+        }
         return {
             "ok": True,
             "setup": setup.model_dump(mode="json"),
             "broker": broker.model_dump(mode="json"),
             "health": health,
+            "effective_status": effective,
             "last_authority_errors": last_authority_errors,
             "last_provisioning_errors": last_authority_errors,
+        }
+
+    @router.get("/mqtt/health")
+    async def mqtt_health_summary(request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
+        summary = await mqtt_setup_summary(request=request, x_admin_token=x_admin_token)
+        return {
+            "ok": True,
+            "effective_status": summary.get("effective_status", {}),
         }
 
     @router.post("/mqtt/setup-state")

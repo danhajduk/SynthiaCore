@@ -123,6 +123,15 @@ class MqttSetupCapabilitySummary(BaseModel):
     setup_ready: bool = False
 
 
+class MqttEffectiveHealthSummary(BaseModel):
+    status: Literal["healthy", "degraded"] = "degraded"
+    reasons: list[str] = Field(default_factory=list)
+    authority_ready: bool = False
+    runtime_connected: bool = False
+    setup_ready: bool = False
+    bootstrap_publish_ready: bool = False
+
+
 class MqttSetupStateUpdate(BaseModel):
     schema_version: int = Field(default=1, ge=1)
     requires_setup: bool = True

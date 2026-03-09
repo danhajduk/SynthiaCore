@@ -1,6 +1,6 @@
 # API Documentation (Structure)
 
-Last Updated: 2026-03-09 06:36 US/Pacific
+Last Updated: 2026-03-09 06:37 US/Pacific
 
 ## Conventions
 
@@ -42,6 +42,8 @@ Implemented MQTT authority APIs:
   - publishes a test payload to MQTT for connectivity diagnostics
 - `POST /api/system/mqtt/restart`
   - restarts MQTT client connection and returns updated status
+- `POST /api/system/mqtt/reload`
+  - embedded runtime reload alias (currently mapped to restart behavior)
 - `POST /api/system/mqtt/registrations/approve`
   - validates addon eligibility and topic scope contract
   - creates/updates approved grant state in Core persistence
@@ -55,6 +57,8 @@ Implemented MQTT authority APIs:
 - `GET /api/system/mqtt/grants/{addon_id}`
 - `GET /api/system/mqtt/setup-summary`
   - exposes setup state, broker capability summary, MQTT health summary, and aggregated authority/apply errors for operators/UI
+- `GET /api/system/mqtt/health`
+  - returns effective health/degraded status view derived from setup authority state + MQTT runtime connectivity
 - `POST /api/system/mqtt/setup-state`
   - updates Core-side MQTT setup awareness (`requires_setup`, `setup_complete`, `setup_status`, `broker_mode`, `direct_mqtt_supported`, `setup_error`)
   - auth: admin session/token or service token (`aud=synthia-core`, scope `mqtt.setup.write`, subject `mqtt`)
@@ -73,6 +77,13 @@ Current setup summary/additional compatibility details:
 - Response includes both:
   - `last_authority_errors` (new preferred key)
   - `last_provisioning_errors` (compatibility alias)
+- `effective_status` includes:
+  - `status` (`healthy|degraded`)
+  - `reasons`
+  - `authority_ready`
+  - `runtime_connected`
+  - `setup_ready`
+  - `bootstrap_publish_ready`
 
 Embedded MQTT migration target:
 - Core is migrating MQTT provisioning semantics away from remote-standalone addon assumptions toward embedded platform-managed infrastructure.

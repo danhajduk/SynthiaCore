@@ -76,6 +76,8 @@ Core
 - [MQTT Broker Runtime Boundary](./mqtt-runtime-boundary.md)
 - [MQTT Startup Reconciliation](./mqtt-startup-reconciliation.md)
 - [MQTT Apply and Rollback Pipeline](./mqtt-apply-rollback.md)
+- [MQTT Observability Foundation](./mqtt-observability.md)
+- [MQTT Embedded Phase 1 Runbook](./mqtt-phase1-runbook.md)
 - [Data Model](./data-model.md)
 - [Deployment](./deployment.md)
 - [Supervisor](./supervisor.md)
