@@ -1,6 +1,6 @@
 # MQTT Integration Contract
 
-Last Updated: 2026-03-09 06:36 US/Pacific
+Last Updated: 2026-03-09 06:37 US/Pacific
 
 ## Scope
 
@@ -10,6 +10,8 @@ Target-direction references for embedded platform-managed MQTT:
 - [MQTT Embedded Migration Gap Note](./mqtt-embedded-gap-note.md)
 - [MQTT Embedded Architecture (Target)](./mqtt-embedded-architecture.md)
 - [MQTT Embedded Addon/Platform Contract](./mqtt-embedded-contract.md)
+- [MQTT Bootstrap Contract](./mqtt-bootstrap-contract.md)
+- [MQTT Authority Persistence Model](./mqtt-authority-persistence.md)
 
 ## Control-Plane vs Event-Plane
 
@@ -32,6 +34,11 @@ Core validates reserved platform namespaces in topic approval logic (`backend/ap
 
 Addon publish topics must remain under:
 - `synthia/addons/<addon_id>/...`
+
+Embedded authority policy foundations:
+- Synthia principals may access approved reserved trees.
+- Generic users are denied reserved trees.
+- Anonymous is restricted to bootstrap-only subscription.
 
 ## Lifecycle and Platform Topics
 

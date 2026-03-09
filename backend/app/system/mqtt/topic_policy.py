@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
+from .authority_policy import validate_authority_topic_access
 
 RESERVED_PLATFORM_NAMESPACES: tuple[str, ...] = (
     "synthia/system/",
@@ -25,7 +26,13 @@ def _is_reserved(topic: str) -> bool:
     return any(topic.startswith(prefix) for prefix in RESERVED_PLATFORM_NAMESPACES)
 
 
-def validate_topic_scopes(addon_id: str, publish_topics: Iterable[str], subscribe_topics: Iterable[str]) -> list[str]:
+def validate_topic_scopes(
+    addon_id: str,
+    publish_topics: Iterable[str],
+    subscribe_topics: Iterable[str],
+    *,
+    approved_reserved_topics: Iterable[str] | None = None,
+) -> list[str]:
     errors: list[str] = []
     for raw in publish_topics:
         topic = _normalize_topic(raw)
@@ -36,7 +43,6 @@ def validate_topic_scopes(addon_id: str, publish_topics: Iterable[str], subscrib
             errors.append(f"publish topic '{topic}' must start with 'synthia/'")
             continue
         if _is_reserved(topic):
-            errors.append(f"publish topic '{topic}' targets reserved platform namespace")
             continue
         if not _is_addon_namespace(topic, addon_id):
             errors.append(f"publish topic '{topic}' must remain under synthia/addons/{addon_id}/...")
@@ -52,4 +58,11 @@ def validate_topic_scopes(addon_id: str, publish_topics: Iterable[str], subscrib
         if _is_addon_namespace(topic, addon_id) or _is_reserved(topic):
             continue
         errors.append(f"subscribe topic '{topic}' is outside allowed namespaces")
-    return errors
+    policy_errors = validate_authority_topic_access(
+        principal_type="synthia_addon",
+        publish_topics=publish_topics,
+        subscribe_topics=subscribe_topics,
+        approved_reserved_topics=approved_reserved_topics,
+    )
+    errors.extend(policy_errors)
+    return sorted(set(errors))

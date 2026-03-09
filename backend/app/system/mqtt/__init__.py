@@ -1,6 +1,7 @@
 from .approval import MqttRegistrationApprovalService
 from .integration_models import (
     MqttAddonGrant,
+    MqttBootstrapAnnouncement,
     MqttBrokerModeSummary,
     MqttCapabilityFlags,
     MqttIntegrationState,
@@ -21,6 +22,7 @@ __all__ = [
     "MqttIntegrationStateStore",
     "MqttIntegrationState",
     "MqttAddonGrant",
+    "MqttBootstrapAnnouncement",
     "MqttPrincipal",
     "MqttBrokerModeSummary",
     "MqttCapabilityFlags",

@@ -1,6 +1,6 @@
 # Synthia Core Documentation
 
-Last Updated: 2026-03-09 06:36 US/Pacific
+Last Updated: 2026-03-09 06:37 US/Pacific
 
 ## Documentation Contract
 
@@ -71,6 +71,8 @@ Core
 - [MQTT Embedded Migration Gap Note](./mqtt-embedded-gap-note.md)
 - [MQTT Embedded Architecture (Target)](./mqtt-embedded-architecture.md)
 - [MQTT Embedded Addon/Platform Contract](./mqtt-embedded-contract.md)
+- [MQTT Bootstrap Contract](./mqtt-bootstrap-contract.md)
+- [MQTT Authority Persistence Model](./mqtt-authority-persistence.md)
 - [Data Model](./data-model.md)
 - [Deployment](./deployment.md)
 - [Supervisor](./supervisor.md)

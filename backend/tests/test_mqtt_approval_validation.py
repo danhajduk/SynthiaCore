@@ -77,7 +77,7 @@ class TestMqttApprovalValidation(unittest.TestCase):
             )
         )
         self.assertEqual(rejected.status, "rejected")
-        self.assertIn("reserved platform namespace", str(rejected.reason))
+        self.assertIn("requires explicit reserved approval", str(rejected.reason))
 
     def test_access_mode_validation_rejects_invalid_value(self) -> None:
         with self.assertRaises(ValidationError):

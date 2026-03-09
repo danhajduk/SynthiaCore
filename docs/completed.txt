@@ -248,3 +248,6 @@
 184. Task 204: Refactor MQTT setup-state model away from remote-addon assumptions. - Completed on 03/09/2026 06:37
 185. Task 205: Replace provision/revoke handshake assumptions with embedded principal lifecycle. - Completed on 03/09/2026 06:37
 186. Task 206: Define Phase 1 MQTT principal model for embedded infrastructure. - Completed on 03/09/2026 06:37
+187. Task 207: Define reserved namespace enforcement for embedded MQTT. - Completed on 03/09/2026 06:37
+188. Task 208: Define anonymous bootstrap-only contract for embedded MQTT. - Completed on 03/09/2026 06:37
+189. Task 209: Design embedded MQTT authority persistence model. - Completed on 03/09/2026 06:37

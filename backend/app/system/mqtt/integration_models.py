@@ -12,6 +12,8 @@ MQTT_GRANT_STATUSES = Literal["approved", "active", "provisioned", "revoked", "e
 MQTT_HA_DISCOVERY_MODES = Literal["disabled", "gateway_managed", "addon_managed"]
 MQTT_PRINCIPAL_TYPES = Literal["synthia_addon", "synthia_node", "generic_user"]
 MQTT_PRINCIPAL_STATUSES = Literal["pending", "active", "probation", "revoked", "expired"]
+MQTT_BOOTSTRAP_TOPIC = "synthia/bootstrap/core"
+MQTT_BOOTSTRAP_VERSION = 1
 
 
 def _utcnow_iso() -> str:
@@ -73,6 +75,17 @@ class MqttPrincipal(BaseModel):
     last_revoked_at: str | None = None
     expires_at: str | None = None
     updated_at: str = Field(default_factory=_utcnow_iso)
+
+
+class MqttBootstrapAnnouncement(BaseModel):
+    topic: str = MQTT_BOOTSTRAP_TOPIC
+    bootstrap_version: int = Field(default=MQTT_BOOTSTRAP_VERSION, ge=1)
+    core_id: str = Field(..., min_length=1)
+    core_name: str = Field(..., min_length=1)
+    api_base: str = Field(..., min_length=1)
+    onboarding_endpoints: dict[str, str] = Field(default_factory=dict)
+    onboarding_mode: str = "api"
+    emitted_at: str = Field(default_factory=_utcnow_iso)
 
 
 class MqttIntegrationState(BaseModel):
