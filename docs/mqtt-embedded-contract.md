@@ -1,6 +1,6 @@
 # MQTT Embedded Addon/Platform Contract
 
-Last Updated: 2026-03-09 06:36 US/Pacific
+Last Updated: 2026-03-10 00:28 US/Pacific
 
 ## Contract Decision
 
@@ -18,7 +18,7 @@ Embedded package conventions:
 
 Platform-role constraints:
 - MQTT embedded component is discoverable like other embedded addons for UI/inventory consistency.
-- Uninstall is blocked for platform-role MQTT.
+- Uninstall is allowed when the embedded package is currently installed; platform-managed standalone-only uninstall attempts remain blocked.
 - Disable behavior is restricted or policy-gated (not equivalent to ordinary optional addons).
 
 Authority and runtime split:
@@ -38,5 +38,5 @@ Migration compatibility:
 
 ## Not Developed
 
-- Final enforcement implementation for protected uninstall/disable behavior in registry/store admin paths.
+- Final enforcement implementation for protected disable/unregister behavior in registry/admin paths.
 - Final embedded MQTT addon package implementation under `addons/mqtt/*`.

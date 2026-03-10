@@ -671,13 +671,35 @@ class TestStoreApiEndpoints(unittest.TestCase):
         )
         self.assertEqual(uninstall_res.status_code, 404, uninstall_res.text)
 
-    def test_uninstall_blocks_platform_managed_addon(self) -> None:
+    def test_uninstall_allows_platform_managed_embedded_addon(self) -> None:
         self.registry.platform_managed.add("mqtt")
-        uninstall_res = self.client.post(
-            "/api/store/uninstall",
-            headers={"X-Admin-Token": "test-token"},
-            json={"addon_id": "mqtt"},
-        )
+        addons_root = Path(self.tmp.name) / "addons"
+        mqtt_dir = addons_root / "mqtt"
+        mqtt_dir.mkdir(parents=True, exist_ok=True)
+        (mqtt_dir / "manifest.json").write_text(json.dumps({"id": "mqtt", "version": "1.0.0"}), encoding="utf-8")
+        with patch("app.store.router._addons_root", return_value=addons_root):
+            uninstall_res = self.client.post(
+                "/api/store/uninstall",
+                headers={"X-Admin-Token": "test-token"},
+                json={"addon_id": "mqtt"},
+            )
+        self.assertEqual(uninstall_res.status_code, 200, uninstall_res.text)
+        self.assertTrue(uninstall_res.json()["embedded_removed"])
+        self.assertFalse(mqtt_dir.exists())
+
+    def test_uninstall_blocks_platform_managed_when_only_standalone_installed(self) -> None:
+        self.registry.platform_managed.add("mqtt")
+        standalone_root = Path(self.tmp.name) / "SynthiaAddons"
+        addon_dir = standalone_root / "services" / "mqtt"
+        addon_dir.mkdir(parents=True, exist_ok=True)
+        with patch.dict(os.environ, {"SYNTHIA_ADDONS_DIR": str(standalone_root)}, clear=False), patch(
+            "app.store.router._addons_root", return_value=Path(self.tmp.name) / "addons"
+        ):
+            uninstall_res = self.client.post(
+                "/api/store/uninstall",
+                headers={"X-Admin-Token": "test-token"},
+                json={"addon_id": "mqtt"},
+            )
         self.assertEqual(uninstall_res.status_code, 403, uninstall_res.text)
         self.assertEqual(uninstall_res.json()["detail"], "platform_managed_addon_cannot_be_uninstalled")
 

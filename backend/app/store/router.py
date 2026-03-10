@@ -81,6 +81,15 @@ def _cleanup_store_workdirs(backup_retention: int, staging_ttl_minutes: int):
         lifecycle_mod.addons_root = orig
 
 
+def _atomic_uninstall(addon_id: str) -> None:
+    orig = lifecycle_mod.addons_root
+    lifecycle_mod.addons_root = _addons_root
+    try:
+        atomic_uninstall(addon_id)
+    finally:
+        lifecycle_mod.addons_root = orig
+
+
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -2502,8 +2511,6 @@ def build_store_router(
         require_admin_token(x_admin_token, request)
         actor = body.actor or "admin_token"
         addon_id = body.addon_id.strip()
-        if registry.is_platform_managed(addon_id):
-            raise HTTPException(status_code=403, detail="platform_managed_addon_cannot_be_uninstalled")
 
         try:
             manifest_path = _addons_root() / addon_id / "manifest.json"
@@ -2516,11 +2523,13 @@ def build_store_router(
 
             embedded_installed = (_addons_root() / addon_id).exists()
             standalone_installed = service_addon_dir(addon_id, create=False).exists()
+            if registry.is_platform_managed(addon_id) and not embedded_installed:
+                raise HTTPException(status_code=403, detail="platform_managed_addon_cannot_be_uninstalled")
             if not embedded_installed and not standalone_installed:
                 raise RuntimeError("addon_not_installed")
 
             if embedded_installed:
-                atomic_uninstall(addon_id)
+                _atomic_uninstall(addon_id)
             standalone_uninstall = _uninstall_standalone_service(addon_id) if standalone_installed else {"removed": False}
             registry.set_enabled(addon_id, False)
             deleted_registered = registry.delete_registered(addon_id)
@@ -2552,6 +2561,8 @@ def build_store_router(
                 "standalone_removed_image_ids": standalone_uninstall.get("removed_image_ids"),
                 "standalone_image_remove_error": standalone_uninstall.get("image_remove_error"),
             }
+        except HTTPException:
+            raise
         except Exception as exc:
             await audit_store.record(
                 action="uninstall",

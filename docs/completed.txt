@@ -218,6 +218,7 @@
 154. Task 169: Always set force_rebuild=true when Core rewrites standalone desired.json via /api/store/standalone/update. - Completed on 03/08/2026 16:23
 155. Task 170: Stop serving stale store catalog by forcing live source refresh on catalog reads. - Completed on 03/08/2026 17:40
 156. Task 176: Supervisor needs to mount the desired and the runtime to the docker in the state/ folder. - Completed on 03/08/2026 18:55
+157. Task 260: Platform-managed embedded addons can not be uninstalled. - Completed on 03/10/2026 00:28
 157. Task 177: same for the docker compose file. - Completed on 03/08/2026 18:55
 158. Task 178: Fix supervisor-generated state mounts to be writable in container runtime. - Completed on 03/08/2026 19:16
 159. Task 179: Investigate persistent read-only state mount error and auto-migrate stale generated compose files. - Completed on 03/08/2026 22:16

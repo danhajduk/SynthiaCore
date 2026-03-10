@@ -323,3 +323,4 @@
 2026-03-08 - Fixed supervisor state file mount modes: desired/runtime now read-write in container state path.
 2026-03-08 - Added supervisor auto-migration for legacy read-only /state desired/runtime mounts in existing compose files.
 2026-03-08 - Fixed supervisor base service-name resolution for optional docker group compose overrides (dependency-only service key support).
+2026-03-10 - Allow uninstall for platform-managed embedded addons with regression tests.
