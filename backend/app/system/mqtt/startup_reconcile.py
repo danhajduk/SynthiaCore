@@ -59,7 +59,13 @@ class EmbeddedMqttStartupReconciler:
     async def reconcile_startup(self) -> StartupReconcileResult:
         return await self.reconcile_authority(reason="startup")
 
-    async def reconcile_authority(self, *, reason: str) -> StartupReconcileResult:
+    async def reconcile_authority(
+        self,
+        *,
+        reason: str,
+        update_setup_state: bool = True,
+        publish_bootstrap: bool = True,
+    ) -> StartupReconcileResult:
         state = await self._state_store.get_state()
         try:
             acl = self._acl_compiler.compile(state)
@@ -81,18 +87,21 @@ class EmbeddedMqttStartupReconciler:
             artifacts["passwords.conf"] = self._credential_store.render_password_file(state)
             apply_result = await self._pipeline.apply(artifacts)
             authority_ready = bool(apply_result.ok and apply_result.runtime.healthy)
-            next_setup = MqttSetupStateUpdate(
-                requires_setup=state.requires_setup,
-                setup_complete=authority_ready,
-                setup_status=("ready" if authority_ready else "degraded"),
-                broker_mode=state.broker_mode,
-                direct_mqtt_supported=state.direct_mqtt_supported,
-                setup_error=(None if authority_ready else (apply_result.error or "reconcile_failed")),
-                authority_mode="embedded_platform",
-                authority_ready=authority_ready,
-            )
-            await self._state_store.update_setup_state(next_setup)
-            if authority_ready:
+            setup_status = "ready" if authority_ready else "degraded"
+            if update_setup_state:
+                next_setup = MqttSetupStateUpdate(
+                    requires_setup=state.requires_setup,
+                    setup_complete=authority_ready,
+                    setup_status=setup_status,
+                    broker_mode=state.broker_mode,
+                    direct_mqtt_supported=state.direct_mqtt_supported,
+                    setup_error=(None if authority_ready else (apply_result.error or "reconcile_failed")),
+                    authority_mode="embedded_platform",
+                    authority_ready=authority_ready,
+                )
+                await self._state_store.update_setup_state(next_setup)
+                setup_status = next_setup.setup_status
+            if authority_ready and publish_bootstrap:
                 await self.ensure_bootstrap_published()
             await self._audit.append_event(
                 event_type="mqtt_startup_reconcile",
@@ -107,7 +116,7 @@ class EmbeddedMqttStartupReconciler:
             result = StartupReconcileResult(
                 ok=authority_ready,
                 status=("ok" if authority_ready else "degraded"),
-                setup_status=next_setup.setup_status,
+                setup_status=setup_status,
                 runtime_state=apply_result.runtime.state,
                 error=(None if authority_ready else apply_result.error),
             )

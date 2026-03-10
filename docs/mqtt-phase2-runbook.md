@@ -159,6 +159,13 @@ Implemented semantics:
 - `setup/apply`: persists selected MQTT mode/settings, initializes local runtime through reconcile/ensure-running path, retries once on `config_missing` (`reason=api_setup_apply_local_config_missing`), or validates external endpoint reachability and updates setup state.
 - `setup/test-connection`: runs a lightweight endpoint reachability test for external broker setup flow without marking setup complete.
 
+Local setup/apply enforced order:
+1. persist selected setup settings
+2. reconcile artifacts (without final setup-state mutation/bootstrap publish)
+3. ensure runtime is running (with config-missing reconcile retry)
+4. publish bootstrap after runtime healthy
+5. mark setup state ready/degraded
+
 Audit trail:
 - runtime actions append `event_type=mqtt_runtime_control` entries in `/api/system/mqtt/audit`.
 

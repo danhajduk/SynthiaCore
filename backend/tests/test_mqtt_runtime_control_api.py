@@ -103,10 +103,29 @@ class _FakeConfigMissingRuntimeBoundary(_FakeRuntimeBoundary):
 class _FakeRuntimeReconciler:
     def __init__(self) -> None:
         self.reasons: list[str] = []
+        self.calls: list[dict[str, object]] = []
+        self.bootstrap_publish_calls = 0
 
-    async def reconcile_authority(self, *, reason: str):
+    async def reconcile_authority(
+        self,
+        *,
+        reason: str,
+        update_setup_state: bool = True,
+        publish_bootstrap: bool = True,
+    ):
         self.reasons.append(reason)
+        self.calls.append(
+            {
+                "reason": reason,
+                "update_setup_state": bool(update_setup_state),
+                "publish_bootstrap": bool(publish_bootstrap),
+            }
+        )
         return {"ok": True, "status": "ok", "runtime_state": "running", "reason": reason}
+
+    async def ensure_bootstrap_published(self, *, force: bool = False):
+        self.bootstrap_publish_calls += 1
+        return True
 
 
 class _FakeAuditStore:
@@ -228,6 +247,10 @@ class TestMqttRuntimeControlApi(unittest.TestCase):
 
         self.assertIn("api_runtime_init", reconciler.reasons)
         self.assertIn("api_runtime_rebuild", reconciler.reasons)
+        init_call = next(item for item in reconciler.calls if item["reason"] == "api_runtime_init")
+        self.assertFalse(bool(init_call["update_setup_state"]))
+        self.assertFalse(bool(init_call["publish_bootstrap"]))
+        self.assertGreaterEqual(reconciler.bootstrap_publish_calls, 1)
 
     def test_runtime_control_requires_runtime_boundary(self) -> None:
         manager = _FakeMqttManager()
@@ -293,6 +316,10 @@ class TestMqttRuntimeControlApi(unittest.TestCase):
         self.assertEqual(self.settings._data.get("mqtt.local.host"), "127.0.0.1")
         self.assertEqual(self.settings._data.get("mqtt.local.port"), 1883)
         self.assertIn("api_setup_apply_local", reconciler.reasons)
+        setup_call = next(item for item in reconciler.calls if item["reason"] == "api_setup_apply_local")
+        self.assertFalse(bool(setup_call["update_setup_state"]))
+        self.assertFalse(bool(setup_call["publish_bootstrap"]))
+        self.assertGreaterEqual(reconciler.bootstrap_publish_calls, 1)
         self.assertGreaterEqual(manager.restart_calls, 1)
 
     def test_setup_apply_external_uses_probe_result(self) -> None:

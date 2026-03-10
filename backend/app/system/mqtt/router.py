@@ -180,6 +180,33 @@ def build_mqtt_router(
             return fn
         return None
 
+    def _runtime_bootstrap_callable():
+        if runtime_reconciler is None:
+            return None
+        fn = getattr(runtime_reconciler, "ensure_bootstrap_published", None)
+        if callable(fn):
+            return fn
+        return None
+
+    async def _invoke_reconcile(
+        *,
+        reason: str,
+        update_setup_state: bool | None = None,
+        publish_bootstrap: bool | None = None,
+    ) -> Any:
+        reconcile_fn = _runtime_reconciler_callable()
+        if reconcile_fn is None:
+            return None
+        kwargs: dict[str, Any] = {"reason": reason}
+        if update_setup_state is not None:
+            kwargs["update_setup_state"] = bool(update_setup_state)
+        if publish_bootstrap is not None:
+            kwargs["publish_bootstrap"] = bool(publish_bootstrap)
+        try:
+            return await reconcile_fn(**kwargs)
+        except TypeError:
+            return await reconcile_fn(reason=reason)
+
     def _settings_required() -> Any:
         if settings_store is None:
             raise HTTPException(status_code=503, detail="settings_store_unavailable")
@@ -209,6 +236,8 @@ def build_mqtt_router(
         *,
         retry_reason: str,
         reconcile_payload: dict[str, Any] | None = None,
+        reconcile_update_setup_state: bool | None = None,
+        reconcile_publish_bootstrap: bool | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         existing = dict(reconcile_payload or {})
         status = await runtime.ensure_running()
@@ -216,9 +245,12 @@ def build_mqtt_router(
         if payload.get("healthy"):
             return payload, existing
         reason = str(payload.get("degraded_reason") or "").strip().lower()
-        reconcile_fn = _runtime_reconciler_callable()
-        if reason.startswith("config_missing") and reconcile_fn is not None:
-            retried = await reconcile_fn(reason=retry_reason)
+        if reason.startswith("config_missing") and _runtime_reconciler_callable() is not None:
+            retried = await _invoke_reconcile(
+                reason=retry_reason,
+                update_setup_state=reconcile_update_setup_state,
+                publish_bootstrap=reconcile_publish_bootstrap,
+            )
             existing = _reconcile_payload(retried)
             status = await runtime.ensure_running()
             payload = _runtime_status_payload(status)
@@ -314,15 +346,23 @@ def build_mqtt_router(
                 status_payload = await _manager_status_safe()
         else:
             runtime = _runtime_required()
-            reconcile_fn = _runtime_reconciler_callable()
-            if reconcile_fn is not None:
-                reconcile_result = await reconcile_fn(reason="api_setup_apply_local")
+            if _runtime_reconciler_callable() is not None:
+                reconcile_result = await _invoke_reconcile(
+                    reason="api_setup_apply_local",
+                    update_setup_state=False,
+                    publish_bootstrap=False,
+                )
                 reconcile_payload = _reconcile_payload(reconcile_result)
             runtime_payload, reconcile_payload = await _ensure_runtime_with_config_retry(
                 runtime,
                 retry_reason="api_setup_apply_local_config_missing",
                 reconcile_payload=reconcile_payload,
+                reconcile_update_setup_state=False,
+                reconcile_publish_bootstrap=False,
             )
+            bootstrap_fn = _runtime_bootstrap_callable()
+            if bool(runtime_payload.get("healthy")) and bootstrap_fn is not None:
+                await bootstrap_fn()
             if body.initialize and bool(runtime_payload.get("healthy")):
                 await manager.restart()
             status_payload = await _manager_status_safe()
@@ -440,15 +480,23 @@ def build_mqtt_router(
         require_admin_token(x_admin_token, request)
         runtime = _runtime_required()
         reconcile_result = None
-        reconcile_fn = _runtime_reconciler_callable()
-        if reconcile_fn is not None:
-            reconcile_result = await reconcile_fn(reason="api_runtime_init")
+        if _runtime_reconciler_callable() is not None:
+            reconcile_result = await _invoke_reconcile(
+                reason="api_runtime_init",
+                update_setup_state=False,
+                publish_bootstrap=False,
+            )
         reconcile_payload = _reconcile_payload(reconcile_result)
         runtime_payload, reconcile_payload = await _ensure_runtime_with_config_retry(
             runtime,
             retry_reason="api_runtime_init_config_missing",
             reconcile_payload=reconcile_payload,
+            reconcile_update_setup_state=False,
+            reconcile_publish_bootstrap=False,
         )
+        bootstrap_fn = _runtime_bootstrap_callable()
+        if bool(runtime_payload.get("healthy")) and bootstrap_fn is not None:
+            await bootstrap_fn()
         if bool(runtime_payload.get("healthy")):
             await manager.restart()
         health = await _manager_status_safe()

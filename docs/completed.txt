@@ -368,3 +368,4 @@
 303. Task 322: Implement staged → live artifact promotion - Completed on 03/10/2026 02:43
 304. Task 323: Add runtime preflight validation before broker start - Completed on 03/10/2026 02:45
 305. Task 324: Improve runtime config_missing error diagnostics - Completed on 03/10/2026 02:46
+306. Task 325: Enforce correct initialization order in setup apply/init - Completed on 03/10/2026 02:49
