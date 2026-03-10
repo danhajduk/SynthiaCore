@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-10 02:03 US/Pacific
+Last Updated: 2026-03-10 02:24 US/Pacific
 
 ## Stack
 
@@ -95,6 +95,16 @@ Last Updated: 2026-03-10 02:03 US/Pacific
   - setup actions in embedded MQTT UI call Core setup APIs:
     - `POST /api/system/mqtt/setup/apply`
     - `POST /api/system/mqtt/setup/test-connection`
+  - post-setup operator pages are rendered in MQTT embedded UI shell sections:
+    - `overview`: authority/runtime/setup/bootstrap health pills + summary metrics
+    - `principals`: principal table with type/status filters and id search
+    - `users`: generic-user table with status filter and username search
+    - `runtime`: runtime summary + safe runtime actions (init/start/stop/rebuild/health)
+    - `audit`: audit table with action search and result filter
+    - `noisy-clients`: noisy-client table with state filter and principal search
+  - page-level section error handling:
+    - section load error banner with inline retry action
+    - empty and no-match table states
 - when iframe is same-origin accessible (proxy path), `AddonFrame` injects Core theme tokens and base component classes into iframe document on load
   - verification markers:
     - iframe element attribute: `data-core-theme-injected=true|false`

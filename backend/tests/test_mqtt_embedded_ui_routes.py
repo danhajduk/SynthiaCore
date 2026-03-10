@@ -23,6 +23,18 @@ class TestMqttEmbeddedUiRoutes(unittest.TestCase):
         self.assertIn('id="username"', res.text)
         self.assertIn('id="password"', res.text)
         self.assertIn("Test Connection", res.text)
+        self.assertIn("data-section=\"overview\"", res.text)
+        self.assertIn("data-section=\"principals\"", res.text)
+        self.assertIn("data-section=\"users\"", res.text)
+        self.assertIn("data-section=\"runtime\"", res.text)
+        self.assertIn("data-section=\"audit\"", res.text)
+        self.assertIn("data-section=\"noisy-clients\"", res.text)
+        self.assertIn(".pill {", res.text)
+        self.assertIn(".stats {", res.text)
+        self.assertIn("data-filter='principals-q'", res.text)
+        self.assertIn("data-filter='users-q'", res.text)
+        self.assertIn("data-filter='audit-q'", res.text)
+        self.assertIn("data-filter='noisy-q'", res.text)
 
     def test_subroute_ui_page_serves_same_shell(self) -> None:
         res = self.client.get("/api/addons/mqtt/principals")

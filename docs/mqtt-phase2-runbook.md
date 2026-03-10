@@ -1,6 +1,6 @@
 # MQTT Embedded Phase 2 Runbook
 
-Last Updated: 2026-03-10 02:14 US/Pacific
+Last Updated: 2026-03-10 02:24 US/Pacific
 
 ## Scope
 
@@ -164,6 +164,16 @@ Audit trail:
 
 Addon UI mapping:
 - `/addons/mqtt` Runtime section now exposes buttons for `Init`, `Start`, `Stop`, `Rebuild`, and `Check Health`, wired to the endpoints above.
+- `/addons/mqtt` post-setup navigation sections:
+  - Overview: setup/runtime/authority/bootstrap summary
+  - Principals: principal list with type/status filters
+  - Generic Users: broker-user list with status filter
+  - Runtime: runtime details + runtime control actions
+  - Audit: authority/runtime audit history with result filters
+  - Noisy Clients: noisy-state visibility with state filter
+- Setup gating behavior:
+  - when `setup_complete=false` and `requires_setup=true`, only Setup section is available
+  - once setup completes, post-setup sections unlock automatically
 
 ## Docker Runtime Operations (Local Mode)
 

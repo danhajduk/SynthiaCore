@@ -216,6 +216,59 @@ def addon_ui_root() -> str:
     .runtime-actions {
       margin-bottom: 10px;
     }
+    .pill {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 12px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+    .pill.ok { border-color: #166534; color: #86efac; }
+    .pill.warn { border-color: #92400e; color: #fde68a; }
+    .pill.bad { border-color: #991b1b; color: #fecaca; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #0b1220;
+    }
+    .stat .k {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .stat .v {
+      display: block;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0;
+      align-items: center;
+    }
+    .toolbar input,
+    .toolbar select {
+      min-width: 180px;
+      max-width: 260px;
+    }
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
@@ -346,6 +399,13 @@ def addon_ui_root() -> str:
       lastExternalTest: null,
       runtimeActionStatus: "",
       runtimeActionKind: "",
+      sectionCache: {},
+      filters: {
+        principals: { q: "", type: "", status: "" },
+        users: { q: "", status: "" },
+        audit: { q: "", status: "" },
+        noisyClients: { q: "", state: "" },
+      },
     };
 
     function sectionFromPath() {
@@ -519,6 +579,87 @@ def addon_ui_root() -> str:
         "Setup required: only the setup page is available until MQTT initialization completes.";
     }
 
+    function healthPill(text, tone) {
+      return `<span class="pill ${escapeHtml(tone)}">${escapeHtml(text)}</span>`;
+    }
+
+    function renderStats(items) {
+      return `<div class="stats">` + items.map((item) =>
+        `<div class="stat"><span class="k">${escapeHtml(item.k)}</span><span class="v">${escapeHtml(item.v)}</span></div>`
+      ).join("") + `</div>`;
+    }
+
+    function statusTone(value) {
+      const v = String(value || "").toLowerCase();
+      if (v.includes("ready") || v.includes("healthy") || v.includes("active") || v === "ok" || v === "normal") return "ok";
+      if (v.includes("degraded") || v.includes("probation") || v.includes("watch") || v.includes("warn")) return "warn";
+      return "bad";
+    }
+
+    async function loadOverviewPayload() {
+      const [principals, noisy, audit] = await Promise.all([
+        fetchJson("/api/system/mqtt/principals"),
+        fetchJson("/api/system/mqtt/noisy-clients"),
+        fetchJson("/api/system/mqtt/audit?limit=20"),
+      ]);
+      return {
+        principals: Array.isArray(principals.items) ? principals.items : [],
+        noisy: Array.isArray(noisy.items) ? noisy.items : [],
+        audit: Array.isArray(audit.items) ? audit.items : [],
+      };
+    }
+
+    function filteredPrincipals(items) {
+      const q = String(state.filters.principals.q || "").trim().toLowerCase();
+      const type = String(state.filters.principals.type || "").trim().toLowerCase();
+      const status = String(state.filters.principals.status || "").trim().toLowerCase();
+      return items.filter((item) => {
+        const pid = String(item.principal_id || "").toLowerCase();
+        const ptype = String(item.principal_type || item.type || "").toLowerCase();
+        const pstatus = String(item.status || "").toLowerCase();
+        if (q && !pid.includes(q)) return false;
+        if (type && ptype !== type) return false;
+        if (status && pstatus !== status) return false;
+        return true;
+      });
+    }
+
+    function filteredUsers(items) {
+      const q = String(state.filters.users.q || "").trim().toLowerCase();
+      const status = String(state.filters.users.status || "").trim().toLowerCase();
+      return items.filter((item) => {
+        const name = String(item.username || item.logical_identity || item.principal_id || "").toLowerCase();
+        const ustatus = String(item.status || "").toLowerCase();
+        if (q && !name.includes(q)) return false;
+        if (status && ustatus !== status) return false;
+        return true;
+      });
+    }
+
+    function filteredAudit(items) {
+      const q = String(state.filters.audit.q || "").trim().toLowerCase();
+      const status = String(state.filters.audit.status || "").trim().toLowerCase();
+      return items.filter((item) => {
+        const action = String(item.event_type || "").toLowerCase();
+        const result = String(item.status || "").toLowerCase();
+        if (q && !action.includes(q)) return false;
+        if (status && result !== status) return false;
+        return true;
+      });
+    }
+
+    function filteredNoisy(items) {
+      const q = String(state.filters.noisyClients.q || "").trim().toLowerCase();
+      const stateFilter = String(state.filters.noisyClients.state || "").trim().toLowerCase();
+      return items.filter((item) => {
+        const principal = String(item.principal_id || "").toLowerCase();
+        const noisyState = String(item.noisy_state || item.status || "").toLowerCase();
+        if (q && !principal.includes(q)) return false;
+        if (stateFilter && noisyState !== stateFilter) return false;
+        return true;
+      });
+    }
+
     async function loadSectionPayload(section) {
       if (section === "principals" || section === "users") {
         const principals = await fetchJson("/api/system/mqtt/principals");
@@ -558,16 +699,37 @@ def addon_ui_root() -> str:
         sectionTitle.textContent = "Overview";
         const setup = state.setupSummary && state.setupSummary.setup ? state.setupSummary.setup : {};
         const broker = state.setupSummary && state.setupSummary.broker ? state.setupSummary.broker : {};
+        const effective = state.setupSummary && state.setupSummary.effective_status ? state.setupSummary.effective_status : {};
+        let overview = state.sectionCache.overview;
+        if (!overview) {
+          overview = await loadOverviewPayload();
+          state.sectionCache.overview = overview;
+        }
+        const principals = Array.isArray(overview.principals) ? overview.principals : [];
+        const genericUsers = principals.filter((item) => String(item.principal_type || "").toLowerCase() === "generic_user");
+        const noisy = Array.isArray(overview.noisy) ? overview.noisy : [];
+        const blocked = noisy.filter((item) => String(item.noisy_state || "").toLowerCase() === "blocked");
+        const auditItems = Array.isArray(overview.audit) ? overview.audit : [];
+        const degraded = String(effective.status || "").toLowerCase() === "degraded";
         sectionContent.innerHTML =
+          (degraded ? `<div class='status error'>MQTT is degraded: ${(effective.reasons || []).map((x) => escapeHtml(x)).join(", ") || "unknown reason"}</div>` : "") +
+          `<div>${healthPill(`Authority ${setup.authority_ready ? "ready" : "degraded"}`, setup.authority_ready ? "ok" : "bad")}` +
+          `${healthPill(`Runtime ${state.statusPayload && state.statusPayload.connected ? "connected" : "disconnected"}`, state.statusPayload && state.statusPayload.connected ? "ok" : "warn")}` +
+          `${healthPill(`Bootstrap ${(state.setupSummary && state.setupSummary.bootstrap_publish && state.setupSummary.bootstrap_publish.published) ? "published" : "pending"}`, (state.setupSummary && state.setupSummary.bootstrap_publish && state.setupSummary.bootstrap_publish.published) ? "ok" : "warn")}` +
+          `${healthPill(`Setup ${setup.setup_status || "unknown"}`, statusTone(setup.setup_status || "unknown"))}</div>` +
+          renderStats([
+            { k: "Principals", v: principals.length },
+            { k: "Generic Users", v: genericUsers.length },
+            { k: "Noisy", v: noisy.length },
+            { k: "Blocked", v: blocked.length },
+            { k: "Recent Audit", v: auditItems.length },
+          ]) +
           `<div class='mono'>` +
-          `connected: ${escapeHtml(state.statusPayload && state.statusPayload.connected ? "true" : "false")}\\n` +
           `mode: ${escapeHtml(state.statusPayload && state.statusPayload.mode ? state.statusPayload.mode : "unknown")}\\n` +
           `endpoint: ${escapeHtml(state.statusPayload && state.statusPayload.host ? `${state.statusPayload.host}:${state.statusPayload.port || "-"}` : "not configured")}\\n` +
-          `setup_status: ${escapeHtml(setup.setup_status || "unknown")}\\n` +
-          `requires_setup: ${escapeHtml(setup.requires_setup ? "true" : "false")}\\n` +
-          `setup_complete: ${escapeHtml(setup.setup_complete ? "true" : "false")}\\n` +
           `broker_mode: ${escapeHtml(broker.broker_mode || "unknown")}\\n` +
-          `direct_mqtt_supported: ${escapeHtml(broker.direct_mqtt_supported ? "true" : "false")}` +
+          `direct_mqtt_supported: ${escapeHtml(broker.direct_mqtt_supported ? "true" : "false")}\\n` +
+          `recent_activity: ${escapeHtml(auditItems.slice(0, 3).map((x) => x.event_type || "-").join(", ") || "none")}` +
           `</div>`;
         return;
       }
@@ -601,11 +763,48 @@ def addon_ui_root() -> str:
       sectionContent.innerHTML = "<div class='status'>Loading...</div>";
       try {
         const items = await loadSectionPayload(section);
+        state.sectionCache[section] = items;
         if (!Array.isArray(items) || items.length === 0) {
-          sectionContent.innerHTML = "<div class='status'>No items.</div>";
+          sectionContent.innerHTML = "<div class='empty'>No items.</div>";
           return;
         }
-        const rows = items
+        let visible = items;
+        let toolbar = "";
+        if (section === "principals") {
+          toolbar =
+            `<div class='toolbar'>` +
+            `<input data-filter='principals-q' placeholder='Search principal id' value='${escapeHtml(state.filters.principals.q)}' />` +
+            `<select data-filter='principals-type'><option value='' ${state.filters.principals.type === "" ? "selected" : ""}>All types</option><option value='synthia_addon' ${state.filters.principals.type === "synthia_addon" ? "selected" : ""}>Addon</option><option value='synthia_node' ${state.filters.principals.type === "synthia_node" ? "selected" : ""}>Node</option></select>` +
+            `<select data-filter='principals-status'><option value='' ${state.filters.principals.status === "" ? "selected" : ""}>All status</option><option value='pending' ${state.filters.principals.status === "pending" ? "selected" : ""}>Pending</option><option value='active' ${state.filters.principals.status === "active" ? "selected" : ""}>Active</option><option value='probation' ${state.filters.principals.status === "probation" ? "selected" : ""}>Probation</option><option value='revoked' ${state.filters.principals.status === "revoked" ? "selected" : ""}>Revoked</option><option value='expired' ${state.filters.principals.status === "expired" ? "selected" : ""}>Expired</option></select>` +
+            `</div>`;
+          visible = filteredPrincipals(items);
+        } else if (section === "users") {
+          toolbar =
+            `<div class='toolbar'>` +
+            `<input data-filter='users-q' placeholder='Search username' value='${escapeHtml(state.filters.users.q)}' />` +
+            `<select data-filter='users-status'><option value='' ${state.filters.users.status === "" ? "selected" : ""}>All status</option><option value='active' ${state.filters.users.status === "active" ? "selected" : ""}>Active</option><option value='probation' ${state.filters.users.status === "probation" ? "selected" : ""}>Probation</option><option value='revoked' ${state.filters.users.status === "revoked" ? "selected" : ""}>Revoked</option></select>` +
+            `</div>`;
+          visible = filteredUsers(items);
+        } else if (section === "audit") {
+          toolbar =
+            `<div class='toolbar'>` +
+            `<input data-filter='audit-q' placeholder='Search action' value='${escapeHtml(state.filters.audit.q)}' />` +
+            `<select data-filter='audit-status'><option value='' ${state.filters.audit.status === "" ? "selected" : ""}>All results</option><option value='ok' ${state.filters.audit.status === "ok" ? "selected" : ""}>Success</option><option value='error' ${state.filters.audit.status === "error" ? "selected" : ""}>Failure</option><option value='degraded' ${state.filters.audit.status === "degraded" ? "selected" : ""}>Degraded</option><option value='warn' ${state.filters.audit.status === "warn" ? "selected" : ""}>Warning</option></select>` +
+            `</div>`;
+          visible = filteredAudit(items);
+        } else if (section === "noisy-clients") {
+          toolbar =
+            `<div class='toolbar'>` +
+            `<input data-filter='noisy-q' placeholder='Search principal id' value='${escapeHtml(state.filters.noisyClients.q)}' />` +
+            `<select data-filter='noisy-state'><option value='' ${state.filters.noisyClients.state === "" ? "selected" : ""}>All noisy states</option><option value='watch' ${state.filters.noisyClients.state === "watch" ? "selected" : ""}>Watch</option><option value='noisy' ${state.filters.noisyClients.state === "noisy" ? "selected" : ""}>Noisy</option><option value='blocked' ${state.filters.noisyClients.state === "blocked" ? "selected" : ""}>Blocked</option></select>` +
+            `</div>`;
+          visible = filteredNoisy(items);
+        }
+        if (!Array.isArray(visible) || visible.length === 0) {
+          sectionContent.innerHTML = toolbar + "<div class='empty'>No matching records.</div>";
+          return;
+        }
+        const rows = visible
           .slice(0, 50)
           .map((item) => {
             const a = escapeHtml(item.principal_id || item.id || "-");
@@ -615,9 +814,10 @@ def addon_ui_root() -> str:
           })
           .join("");
         sectionContent.innerHTML =
+          toolbar +
           `<table class='table'><thead><tr><th>ID</th><th>Status/Type</th><th>Updated/Reason</th></tr></thead><tbody>${rows}</tbody></table>`;
       } catch (error) {
-        sectionContent.innerHTML = `<div class='status error'>Section load failed: ${escapeHtml(error && error.message ? error.message : String(error))}</div>`;
+        sectionContent.innerHTML = `<div class='status error'>Section load failed: ${escapeHtml(error && error.message ? error.message : String(error))}</div><button id='section-retry'>Retry section</button>`;
       }
     }
 
@@ -631,6 +831,7 @@ def addon_ui_root() -> str:
       tabButtons.forEach((node) => {
         const section = node.getAttribute("data-section");
         const locked = state.gateActive && section !== "setup";
+        node.style.display = state.gateActive && section !== "setup" ? "none" : "";
         node.classList.toggle("active", section === active);
         node.classList.toggle("locked", locked);
         node.disabled = locked;
@@ -668,6 +869,7 @@ def addon_ui_root() -> str:
       const setupPayload = await setupRes.json();
       state.statusPayload = statusPayload;
       state.setupSummary = setupPayload;
+      state.sectionCache = {};
       state.gateActive = gateIsActive(setupPayload);
       const connected = statusPayload.connected ? "connected" : "disconnected";
       const modeText = statusPayload.mode || "unknown";
@@ -796,6 +998,36 @@ def addon_ui_root() -> str:
       const action = btn.getAttribute("data-runtime-action");
       if (!action) return;
       void runRuntimeAction(action);
+    });
+    sectionContent.addEventListener("click", async (event) => {
+      const retry = event.target.closest("#section-retry");
+      if (!retry) return;
+      await renderSectionBody();
+    });
+    sectionContent.addEventListener("input", (event) => {
+      const node = event.target;
+      if (!node || !node.getAttribute) return;
+      const name = node.getAttribute("data-filter");
+      if (!name) return;
+      const value = String(node.value || "");
+      if (name === "principals-q") state.filters.principals.q = value;
+      if (name === "users-q") state.filters.users.q = value;
+      if (name === "audit-q") state.filters.audit.q = value;
+      if (name === "noisy-q") state.filters.noisyClients.q = value;
+      void renderSectionBody();
+    });
+    sectionContent.addEventListener("change", (event) => {
+      const node = event.target;
+      if (!node || !node.getAttribute) return;
+      const name = node.getAttribute("data-filter");
+      if (!name) return;
+      const value = String(node.value || "");
+      if (name === "principals-type") state.filters.principals.type = value;
+      if (name === "principals-status") state.filters.principals.status = value;
+      if (name === "users-status") state.filters.users.status = value;
+      if (name === "audit-status") state.filters.audit.status = value;
+      if (name === "noisy-state") state.filters.noisyClients.state = value;
+      void renderSectionBody();
     });
     window.addEventListener("popstate", () => {
       state.currentSection = sectionFromPath();

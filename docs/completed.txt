@@ -342,3 +342,20 @@
 277. Task 297: Wire Docker runtime provider into apply/reconcile pipeline - Completed on 03/10/2026 02:13
 278. Task 298: Add regression/integration tests for Docker-managed local broker mode - Completed on 03/10/2026 02:13
 279. Task 299: Update operator runbook for Docker-managed local broker - Completed on 03/10/2026 02:13
+280. Task 300: Create post-setup MQTT addon layout and navigation shell - Completed on 03/10/2026 02:25
+281. Task 301: Implement MQTT Overview page shell - Completed on 03/10/2026 02:25
+282. Task 302: Wire Overview page to Core status and summary APIs - Completed on 03/10/2026 02:25
+283. Task 303: Implement MQTT Principals page shell - Completed on 03/10/2026 02:25
+284. Task 304: Wire Principals page to Core principal APIs - Completed on 03/10/2026 02:25
+285. Task 305: Implement Generic Users page shell - Completed on 03/10/2026 02:25
+286. Task 306: Wire Generic Users page to Core user APIs - Completed on 03/10/2026 02:25
+287. Task 307: Implement Runtime page shell - Completed on 03/10/2026 02:25
+288. Task 308: Wire Runtime page to Core runtime and health APIs - Completed on 03/10/2026 02:25
+289. Task 309: Implement Audit page shell - Completed on 03/10/2026 02:25
+290. Task 310: Wire Audit page to Core audit/event APIs - Completed on 03/10/2026 02:25
+291. Task 311: Implement Noisy Clients page shell - Completed on 03/10/2026 02:25
+292. Task 312: Wire Noisy Clients page to observability and noisy-signal APIs - Completed on 03/10/2026 02:25
+293. Task 313: Add shared MQTT admin UI components - Completed on 03/10/2026 02:25
+294. Task 314: Add page-level error handling and fallback UX across MQTT addon UI - Completed on 03/10/2026 02:25
+295. Task 315: Add route and page tests for post-setup UI - Completed on 03/10/2026 02:25
+296. Task 316: Update MQTT addon UI docs for post-setup operator pages - Completed on 03/10/2026 02:25
