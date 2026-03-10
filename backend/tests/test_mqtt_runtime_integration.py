@@ -20,7 +20,7 @@ from app.system.mqtt.apply_pipeline import MqttApplyPipeline
 from app.system.mqtt.authority_audit import MqttAuthorityAuditStore
 from app.system.mqtt.config_renderer import MqttBrokerConfigRenderer
 from app.system.mqtt.credential_store import MqttCredentialStore
-from app.system.mqtt.integration_models import MqttCapabilityFlags, MqttRegistrationRequest
+from app.system.mqtt.integration_models import MqttCapabilityFlags, MqttRegistrationRequest, MqttSetupStateUpdate
 from app.system.mqtt.integration_state import MqttIntegrationStateStore
 from app.system.mqtt.router import build_mqtt_router
 from app.system.mqtt.runtime_boundary import InMemoryBrokerRuntimeBoundary
@@ -33,6 +33,10 @@ class _FakeSettingsStore:
 
     async def get(self, key: str):
         return self._data.get(key)
+
+    async def set(self, key: str, value):
+        self._data[key] = value
+        return value
 
 
 class _FakeMqttManager:
@@ -63,6 +67,20 @@ class TestMqttRuntimeIntegration(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
         self.state_store = MqttIntegrationStateStore(str(root / "state.json"))
+        asyncio.run(
+            self.state_store.update_setup_state(
+                MqttSetupStateUpdate(
+                    requires_setup=True,
+                    setup_complete=True,
+                    setup_status="ready",
+                    broker_mode="local",
+                    direct_mqtt_supported=False,
+                    setup_error=None,
+                    authority_mode="embedded_platform",
+                    authority_ready=True,
+                )
+            )
+        )
         self.audit_store = MqttAuthorityAuditStore(str(root / "audit.db"))
         self.credential_store = MqttCredentialStore(str(root / "credentials.json"))
         self.acl_compiler = MqttAclCompiler()
@@ -115,9 +133,11 @@ class TestMqttRuntimeIntegration(unittest.TestCase):
                 self.registry,
                 self.state_store,
                 self.key_store,
+                settings_store=self.settings,
                 approval_service=self.approval,
                 acl_compiler=self.acl_compiler,
                 runtime_reconciler=self.reconciler,
+                runtime_boundary=self.boundary,
             ),
             prefix="/api/system",
         )
@@ -132,7 +152,7 @@ class TestMqttRuntimeIntegration(unittest.TestCase):
             addon_id="vision",
             access_mode="gateway",
             publish_topics=["synthia/addons/vision/state/#"],
-            subscribe_topics=["synthia/bootstrap/core"],
+            subscribe_topics=["synthia/addons/vision/command/#"],
             capabilities=MqttCapabilityFlags(),
         )
         approved = asyncio.run(self.approval.approve(req))
@@ -147,6 +167,8 @@ class TestMqttRuntimeIntegration(unittest.TestCase):
         self.assertIn("synthia/bootstrap/core", published_topics)
 
         live_dir = Path(self.reconciler.live_dir())
+        staged_dir = live_dir.parent / "staged"
+        self.assertTrue((staged_dir / "broker.conf").exists())
         acl_text = (live_dir / "acl_compiled.conf").read_text(encoding="utf-8")
         self.assertIn("anonymous allow subscribe synthia/bootstrap/core", acl_text)
         self.assertIn("anonymous deny publish #", acl_text)
@@ -158,6 +180,25 @@ class TestMqttRuntimeIntegration(unittest.TestCase):
         cred_payload = json.loads(Path(self.credential_store.path).read_text(encoding="utf-8"))
         self.assertIn("addon:vision", cred_payload.get("credentials", {}))
         self.assertTrue(cred_payload["credentials"]["addon:vision"]["password"])
+
+    def test_setup_apply_local_creates_staged_and_live_runtime_artifacts(self) -> None:
+        resp = self.client.post(
+            "/api/system/mqtt/setup/apply",
+            headers={"X-Admin-Token": "test-token"},
+            json={"mode": "local", "host": "127.0.0.1", "port": 1883, "initialize": True},
+        )
+        self.assertEqual(resp.status_code, 200, resp.text)
+        payload = resp.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["mode"], "local")
+        self.assertTrue(payload["runtime"]["healthy"])
+
+        live_dir = Path(self.reconciler.live_dir())
+        staged_dir = live_dir.parent / "staged"
+        self.assertTrue((staged_dir / "broker.conf").exists())
+        self.assertTrue((live_dir / "broker.conf").exists())
+        self.assertTrue((live_dir / "acl_compiled.conf").exists())
+        self.assertTrue((live_dir / "passwords.conf").exists())
 
     def test_debug_endpoints_and_topic_validation(self) -> None:
         denied = self.client.get("/api/system/mqtt/debug/acl")

@@ -341,3 +341,4 @@
 2026-03-10 - Completed Task 323: added runtime preflight artifact checks before broker start with actionable config_missing guidance.
 2026-03-10 - Completed Task 324: expanded config_missing diagnostics with expected path plus staged/live existence indicators.
 2026-03-10 - Completed Task 325: enforced setup apply/init ordering by deferring setup-state finalize/bootstrap until runtime health is confirmed.
+2026-03-10 - Completed Task 326: added regression coverage for staged/live artifact creation and runtime-start failure when live artifacts are missing.

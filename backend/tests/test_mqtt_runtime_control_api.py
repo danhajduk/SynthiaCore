@@ -12,7 +12,7 @@ from app.addons.registry import AddonRegistry
 from app.system.auth import ServiceTokenKeyStore
 from app.system.mqtt.integration_state import MqttIntegrationStateStore
 from app.system.mqtt.router import build_mqtt_router
-from app.system.mqtt.runtime_boundary import BrokerRuntimeStatus
+from app.system.mqtt.runtime_boundary import BrokerRuntimeStatus, DockerMosquittoRuntimeBoundary
 
 
 class _FakeSettingsStore:
@@ -379,6 +379,24 @@ class TestMqttRuntimeControlApi(unittest.TestCase):
         self.assertEqual(runtime.ensure_running_calls, 2)
         self.assertIn("api_setup_apply_local", reconciler.reasons)
         self.assertIn("api_setup_apply_local_config_missing", reconciler.reasons)
+
+    def test_runtime_start_fails_when_live_artifacts_missing(self) -> None:
+        manager = _FakeMqttManager()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runtime = DockerMosquittoRuntimeBoundary(
+                live_dir=str(root / "live"),
+                staged_dir=str(root / "staged"),
+                data_dir=str(root / "data"),
+                log_dir=str(root / "logs"),
+            )
+            client = self._client(manager=manager, runtime_boundary=runtime, runtime_reconciler=None, audit_store=_FakeAuditStore())
+            start = client.post("/api/system/mqtt/runtime/start", headers={"X-Admin-Token": "test-token"})
+
+        self.assertEqual(start.status_code, 200, start.text)
+        payload = start.json()
+        self.assertFalse(payload["ok"])
+        self.assertTrue(str(payload["runtime"]["degraded_reason"]).startswith("config_missing:"))
 
 
 if __name__ == "__main__":
