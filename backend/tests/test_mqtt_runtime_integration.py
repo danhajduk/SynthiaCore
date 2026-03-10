@@ -180,6 +180,13 @@ class TestMqttRuntimeIntegration(unittest.TestCase):
         cred_payload = json.loads(Path(self.credential_store.path).read_text(encoding="utf-8"))
         self.assertIn("addon:vision", cred_payload.get("credentials", {}))
         self.assertTrue(cred_payload["credentials"]["addon:vision"]["password"])
+        principals = self.client.get("/api/system/mqtt/principals", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(principals.status_code, 200, principals.text)
+        by_id = {item["principal_id"]: item for item in principals.json()["items"]}
+        self.assertEqual(by_id["core.scheduler"]["principal_type"], "system")
+        self.assertEqual(by_id["core.scheduler"]["managed_by"], "core")
+        self.assertEqual(by_id["core.bootstrap"]["principal_type"], "system")
+        self.assertEqual(by_id["core.bootstrap"]["managed_by"], "core")
 
     def test_setup_apply_local_creates_staged_and_live_runtime_artifacts(self) -> None:
         resp = self.client.post(

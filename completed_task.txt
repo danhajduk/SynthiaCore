@@ -345,3 +345,4 @@
 2026-03-10 - Completed Task 327: added startup bootstrap logic that creates mqtt runtime directories (root/staged/live/data/logs).
 2026-03-10 - Completed Task 328: enforced bootstrap publish runtime-health guard and added regression coverage.
 2026-03-10 - Completed Task 329: updated MQTT runtime docs with staged/live pipeline, file tree, startup bootstrap, and preflight diagnostic expectations.
+2026-03-10 - Completed Task 340: exposed core system principals in MQTT principals API with startup reconciliation recreation and managed_by metadata.

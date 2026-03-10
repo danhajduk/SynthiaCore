@@ -272,7 +272,14 @@ class MqttRegistrationApprovalService:
 
     async def list_principals(self) -> list[dict[str, Any]]:
         state = await self._state_store.get_state()
-        return [item.model_dump(mode="json") for item in sorted(state.principals.values(), key=lambda x: x.principal_id)]
+        out: list[dict[str, Any]] = []
+        for item in sorted(state.principals.values(), key=lambda x: x.principal_id):
+            payload = item.model_dump(mode="json")
+            if not payload.get("managed_by"):
+                principal_type = str(payload.get("principal_type") or "")
+                payload["managed_by"] = "core" if principal_type == "system" else "authority"
+            out.append(payload)
+        return out
 
     async def get_principal(self, principal_id: str) -> dict[str, Any] | None:
         state = await self._state_store.get_state()
@@ -352,6 +359,7 @@ class MqttRegistrationApprovalService:
             principal.status = "active"
         if notes is not None:
             principal.notes = notes
+        principal.managed_by = principal.managed_by or "operator"
         principal.last_activated_at = principal.last_activated_at or _utcnow_iso()
         await self._state_store.upsert_principal(principal)
         await self._reconcile_runtime_if_needed(reason=f"generic_user_update:{principal_id}")
@@ -455,6 +463,7 @@ class MqttRegistrationApprovalService:
             status=("active" if grant.status == "active" else "pending"),
             logical_identity=grant.addon_id,
             linked_addon_id=grant.addon_id,
+            managed_by="authority",
             publish_topics=sorted({str(topic).strip() for topic in grant.publish_topics if str(topic).strip()}),
             subscribe_topics=sorted({str(topic).strip() for topic in grant.subscribe_topics if str(topic).strip()}),
             approved_reserved_topics=sorted({str(topic).strip() for topic in approved_reserved_topics if str(topic).strip()}),

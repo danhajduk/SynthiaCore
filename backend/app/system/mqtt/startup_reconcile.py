@@ -27,6 +27,14 @@ class StartupReconcileResult:
 
 
 class EmbeddedMqttStartupReconciler:
+    _SYSTEM_PRINCIPAL_IDS: tuple[str, ...] = (
+        "core.scheduler",
+        "core.supervisor",
+        "core.telemetry",
+        "core.runtime",
+        "core.bootstrap",
+    )
+
     def __init__(
         self,
         *,
@@ -66,6 +74,7 @@ class EmbeddedMqttStartupReconciler:
         update_setup_state: bool = True,
         publish_bootstrap: bool = True,
     ) -> StartupReconcileResult:
+        await self._ensure_system_principals()
         state = await self._state_store.get_state()
         try:
             acl = self._acl_compiler.compile(state)
@@ -200,3 +209,23 @@ class EmbeddedMqttStartupReconciler:
         self._last_reconcile_status = result.status
         self._last_reconcile_error = result.error
         self._last_runtime_state = result.runtime_state
+
+    async def _ensure_system_principals(self) -> None:
+        from .integration_models import MqttPrincipal
+
+        state = await self._state_store.get_state()
+        existing = dict(state.principals or {})
+        for principal_id in self._SYSTEM_PRINCIPAL_IDS:
+            current = existing.get(principal_id)
+            next_principal = current.model_copy(deep=True) if current is not None else MqttPrincipal(
+                principal_id=principal_id,
+                principal_type="system",
+                status="active",
+                logical_identity=principal_id,
+            )
+            next_principal.principal_type = "system"
+            if next_principal.status in {"revoked", "expired"}:
+                next_principal.status = "active"
+            next_principal.managed_by = "core"
+            next_principal.notes = "core_system_principal"
+            await self._state_store.upsert_principal(next_principal)

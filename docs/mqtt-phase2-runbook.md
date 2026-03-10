@@ -240,6 +240,15 @@ Addon UI mapping:
 - Setup gating behavior:
   - when `setup_complete=false` and `requires_setup=true`, only Setup section is available
   - once setup completes, post-setup sections unlock automatically
+- Principals API/system visibility:
+  - `GET /api/system/mqtt/principals` includes Core system principals:
+    - `core.scheduler`
+    - `core.supervisor`
+    - `core.telemetry`
+    - `core.runtime`
+    - `core.bootstrap`
+  - system principals are marked with `principal_type=system` and `managed_by=core`
+  - startup reconciliation recreates missing Core system principals automatically
 
 ## Docker Runtime Operations (Local Mode)
 

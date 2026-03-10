@@ -10,7 +10,7 @@ MQTT_SETUP_STATES = Literal["unconfigured", "configuring", "ready", "error", "de
 MQTT_ACCESS_MODES = Literal["gateway", "direct", "both"]
 MQTT_GRANT_STATUSES = Literal["approved", "active", "provisioned", "revoked", "error"]
 MQTT_HA_DISCOVERY_MODES = Literal["disabled", "gateway_managed", "addon_managed"]
-MQTT_PRINCIPAL_TYPES = Literal["synthia_addon", "synthia_node", "generic_user"]
+MQTT_PRINCIPAL_TYPES = Literal["synthia_addon", "synthia_node", "generic_user", "system"]
 MQTT_PRINCIPAL_STATUSES = Literal["pending", "active", "probation", "revoked", "expired"]
 MQTT_NOISY_STATES = Literal["normal", "watch", "noisy", "blocked"]
 MQTT_BOOTSTRAP_TOPIC = "synthia/bootstrap/core"
@@ -71,6 +71,7 @@ class MqttPrincipal(BaseModel):
     linked_addon_id: str | None = None
     linked_node_id: str | None = None
     username: str | None = None
+    managed_by: str | None = None
     publish_topics: list[str] = Field(default_factory=list)
     subscribe_topics: list[str] = Field(default_factory=list)
     approved_reserved_topics: list[str] = Field(default_factory=list)

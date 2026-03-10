@@ -70,6 +70,17 @@ class TestMqttStartupReconcile(unittest.TestCase):
             self.assertGreaterEqual(len(fake_manager.published), 2)
             password_text = (Path(tmp) / "live" / "passwords.conf").read_text(encoding="utf-8")
             self.assertIn("vision-user:$7$", password_text)
+            state = asyncio.run(state_store.get_state())
+            for principal_id in [
+                "core.scheduler",
+                "core.supervisor",
+                "core.telemetry",
+                "core.runtime",
+                "core.bootstrap",
+            ]:
+                self.assertIn(principal_id, state.principals)
+                self.assertEqual(state.principals[principal_id].principal_type, "system")
+                self.assertEqual(state.principals[principal_id].managed_by, "core")
 
     def test_bootstrap_publish_retries_after_runtime_available(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

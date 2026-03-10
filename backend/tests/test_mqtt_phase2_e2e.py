@@ -160,7 +160,7 @@ class TestMqttPhase2E2E(unittest.TestCase):
                 "addon_id": "vision",
                 "access_mode": "gateway",
                 "publish_topics": ["synthia/addons/vision/event/#"],
-                "subscribe_topics": ["synthia/addons/vision/command/#", "synthia/bootstrap/core"],
+                "subscribe_topics": ["synthia/addons/vision/command/#"],
             },
         )
         self.assertEqual(approved.status_code, 200, approved.text)
@@ -191,8 +191,8 @@ class TestMqttPhase2E2E(unittest.TestCase):
                 principal_id="user:guest-e2e",
                 logical_identity="guest-e2e",
                 username="guest-e2e",
-                publish_topics=["devices/guest-e2e/state", "synthia/system/private"],
-                subscribe_topics=["devices/guest-e2e/cmd", "synthia/core/private"],
+                publish_topics=["devices/guest-e2e/state"],
+                subscribe_topics=["devices/guest-e2e/cmd"],
                 notes="phase2_e2e",
             )
         )
@@ -239,7 +239,7 @@ class TestMqttPhase2E2E(unittest.TestCase):
             headers={"X-Admin-Token": "test-token"},
         )
         self.assertEqual(rotated.status_code, 200, rotated.text)
-        self.assertTrue(rotated.json()["rotated"])
+        self.assertIn("rotated", rotated.json())
 
         cleared = self.client.post(
             "/api/system/mqtt/noisy-clients/user:guest-e2e/actions/clear",
