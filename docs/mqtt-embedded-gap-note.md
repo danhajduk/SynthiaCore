@@ -1,6 +1,6 @@
 # MQTT Embedded Migration Gap Note
 
-Last Updated: 2026-03-10 00:33 US/Pacific
+Last Updated: 2026-03-10 00:45 US/Pacific
 
 ## Scope
 
@@ -52,13 +52,17 @@ This note audits current MQTT code paths in Core and marks where current behavio
 Compatibility approach:
 - Keep routes/fields temporarily but back them with Core-owned embedded authority actions during migration.
 
-## Embedded UI Visibility Investigation (Task 261)
+## Embedded UI Visibility (Task 261)
 
-Observed with current code:
-- `GET /ui/addons/mqtt` returns `404` with `registered_addon_not_found`.
-- `GET /api/store/status/mqtt` returns `loaded=true` and `ui_reachable=false` with `ui_reason=runtime_unavailable`.
+Implemented:
+- Addon proxy now resolves local embedded addon targets from `registry.addons` for `/ui/addons/{addon_id}` and `/addons/{addon_id}`.
+- MQTT embedded addon exposes a local UI root at `GET /api/addons/mqtt` (served via addon router root entry).
+- Store status now reports embedded addons as UI-reachable when embedded package is installed:
+  - `ui_reachable=true`
+  - `ui_reason=embedded_local`
+  - `ui_embed_target=/ui/addons/{addon_id}`
+- Frontend `AddonFrame` treats loaded embedded addons (without standalone runtime payload) as reachable to avoid false fallback states.
 
-Root causes:
-- Addon UI proxying (`/ui/addons/{addon_id}` and `/addons/{addon_id}`) depends on `registry.registered[addon_id]` in `backend/app/addons/proxy.py`.
-- Embedded/local addons are loaded into `registry.addons` by discovery and are not automatically present in `registry.registered`.
-- Frontend `AddonFrame` currently waits for `ui_reachable=true` from store status before showing iframe UI; embedded addons report standalone-oriented UI readiness fields and remain in fallback state.
+Validation snapshot:
+- `GET /ui/addons/mqtt` returns `200` with MQTT embedded HTML content.
+- `GET /api/store/status/mqtt` returns `loaded=true`, `installed=true`, `ui_reachable=true`, `ui_reason=embedded_local`.

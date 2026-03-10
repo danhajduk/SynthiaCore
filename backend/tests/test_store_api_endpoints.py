@@ -872,6 +872,23 @@ class TestStoreApiEndpoints(unittest.TestCase):
         self.assertIsNone(payload["ui_redirect_target"])
         self.assertEqual(payload["ui_embed_target"], "/ui/addons/hello_world")
 
+    def test_status_marks_embedded_local_ui_reachable(self) -> None:
+        self.registry.addons["mqtt"] = _FakeAddon("0.1.0")
+        addons_root = Path(self.tmp.name) / "addons"
+        mqtt_dir = addons_root / "mqtt"
+        mqtt_dir.mkdir(parents=True, exist_ok=True)
+        (mqtt_dir / "manifest.json").write_text(json.dumps({"id": "mqtt", "version": "0.1.0"}), encoding="utf-8")
+        with patch("app.store.router._addons_root", return_value=addons_root):
+            res = self.client.get("/api/store/status/mqtt")
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertTrue(payload["loaded"])
+        self.assertTrue(payload["installed"])
+        self.assertTrue(payload["ui_reachable"])
+        self.assertEqual(payload["ui_redirect_target"], "/addons/mqtt")
+        self.assertEqual(payload["ui_embed_target"], "/ui/addons/mqtt")
+        self.assertEqual(payload["ui_reason"], "embedded_local")
+
     def test_status_marks_ui_reachable_when_running_with_published_ports(self) -> None:
         runtime_path = Path(self.tmp.name) / "SynthiaAddons" / "services" / "hello_world" / "runtime.json"
         runtime_path.parent.mkdir(parents=True, exist_ok=True)

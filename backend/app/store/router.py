@@ -557,9 +557,21 @@ def _runtime_error_summary(runtime_payload: dict[str, Any]) -> str | None:
     return last_error
 
 
-def _standalone_ui_redirect_info(addon_id: str, runtime_payload: dict[str, Any]) -> dict[str, Any]:
+def _standalone_ui_redirect_info(
+    addon_id: str,
+    runtime_payload: dict[str, Any],
+    *,
+    embedded_installed: bool = False,
+) -> dict[str, Any]:
     runtime_state = str(runtime_payload.get("runtime_state") or "unknown").strip() or "unknown"
     ui_embed_target = f"/ui/addons/{addon_id}"
+    if embedded_installed:
+        return {
+            "ui_reachable": True,
+            "ui_redirect_target": f"/addons/{addon_id}",
+            "ui_embed_target": ui_embed_target,
+            "ui_reason": "embedded_local",
+        }
     runtime = runtime_payload.get("standalone_runtime")
     if not isinstance(runtime, dict):
         return {
@@ -1802,7 +1814,7 @@ def build_store_router(
                 )
                 write_desired_state_atomic(desired_path, desired_payload)
                 runtime_payload = _read_standalone_runtime(manifest.id, standalone_runtime)
-                ui_redirect = _standalone_ui_redirect_info(manifest.id, runtime_payload)
+                ui_redirect = _standalone_ui_redirect_info(manifest.id, runtime_payload, embedded_installed=False)
                 standalone_runtime_payload = runtime_payload.get("standalone_runtime")
                 active_version = (
                     standalone_runtime_payload.get("active_version")
@@ -2474,7 +2486,7 @@ def build_store_router(
         )
         write_desired_state_atomic(desired_path, desired_payload)
         runtime_payload = _read_standalone_runtime(addon_id, standalone_runtime)
-        ui_redirect = _standalone_ui_redirect_info(addon_id, runtime_payload)
+        ui_redirect = _standalone_ui_redirect_info(addon_id, runtime_payload, embedded_installed=False)
 
         await audit_store.record(
             action="standalone_update",
@@ -2596,7 +2608,7 @@ def build_store_router(
         if not isinstance(last_install_error, dict):
             last_install_error = None
         runtime_payload = _read_standalone_runtime(addon_id, standalone_runtime)
-        ui_redirect = _standalone_ui_redirect_info(addon_id, runtime_payload)
+        ui_redirect = _standalone_ui_redirect_info(addon_id, runtime_payload, embedded_installed=target.exists())
 
         return {
             "ok": True,

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter
+from fastapi.responses import HTMLResponse
 
 from app.addons.models import AddonMeta, BackendAddon
 
@@ -13,6 +14,18 @@ _config: dict[str, Any] = {}
 
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+@router.get("", response_class=HTMLResponse)
+def addon_ui_root() -> str:
+    return (
+        "<!doctype html><html><head><meta charset='utf-8'><title>Synthia MQTT</title></head>"
+        "<body>"
+        "<h1>Synthia MQTT</h1>"
+        "<p>Embedded platform-managed MQTT addon is loaded.</p>"
+        "<p>Use Core Settings and MQTT APIs for configuration and operations.</p>"
+        "</body></html>"
+    )
 
 
 @router.get("/api/addon/meta")

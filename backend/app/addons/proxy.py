@@ -38,6 +38,11 @@ REQUEST_HEADER_ALLOWLIST = {
     "user-agent",
 }
 
+LOCAL_PROXY_RETRIES = 1
+LOCAL_PROXY_TIMEOUT_SECONDS = 10.0
+LOCAL_PROXY_CIRCUIT_FAIL_THRESHOLD = 3
+LOCAL_PROXY_CIRCUIT_OPEN_SECONDS = 30
+
 
 @dataclass
 class CircuitState:
@@ -57,11 +62,13 @@ class AddonProxy:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    def _target_base(self, addon_id: str) -> str:
+    def _target_base(self, addon_id: str, request: Request) -> str:
         addon = self._registry.registered.get(addon_id)
-        if addon is None:
-            raise HTTPException(status_code=404, detail="registered_addon_not_found")
-        return addon.base_url.rstrip("/")
+        if addon is not None:
+            return addon.base_url.rstrip("/")
+        if addon_id in self._registry.addons:
+            return f"{str(request.base_url).rstrip('/')}/api/addons/{quote(addon_id, safe='')}"
+        raise HTTPException(status_code=404, detail="registered_addon_not_found")
 
     def _auth_headers(self, addon_id: str) -> dict[str, str]:
         addon = self._registry.registered.get(addon_id)
@@ -78,21 +85,40 @@ class AddonProxy:
             return {addon.auth_header_name: secret_value}
         return {}
 
+    def _proxy_tuning(self, addon_id: str) -> tuple[int, httpx.Timeout, int, int]:
+        addon = self._registry.registered.get(addon_id)
+        if addon is None:
+            return (
+                LOCAL_PROXY_RETRIES,
+                httpx.Timeout(LOCAL_PROXY_TIMEOUT_SECONDS),
+                LOCAL_PROXY_CIRCUIT_FAIL_THRESHOLD,
+                LOCAL_PROXY_CIRCUIT_OPEN_SECONDS,
+            )
+        return (
+            max(0, int(addon.proxy_retries)),
+            httpx.Timeout(max(0.1, float(addon.proxy_timeout_s))),
+            max(1, int(addon.proxy_circuit_fail_threshold)),
+            max(1, int(addon.proxy_circuit_open_seconds)),
+        )
+
     def _open_circuit(self, addon_id: str) -> None:
-        addon = self._registry.registered[addon_id]
+        addon = self._registry.registered.get(addon_id)
         state = self._circuits.setdefault(addon_id, CircuitState())
         state.failures += 1
-        if state.failures >= max(1, int(addon.proxy_circuit_fail_threshold)):
-            state.open_until_monotonic = time.monotonic() + max(1, int(addon.proxy_circuit_open_seconds))
-            addon.health_status = "circuit_open"
+        _, _, fail_threshold, open_seconds = self._proxy_tuning(addon_id)
+        if state.failures >= fail_threshold:
+            state.open_until_monotonic = time.monotonic() + open_seconds
+            if addon is not None:
+                addon.health_status = "circuit_open"
 
     def _record_success(self, addon_id: str) -> None:
-        addon = self._registry.registered[addon_id]
+        addon = self._registry.registered.get(addon_id)
         state = self._circuits.setdefault(addon_id, CircuitState())
         state.failures = 0
         state.open_until_monotonic = 0.0
-        addon.health_status = "ok"
-        addon.last_seen = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if addon is not None:
+            addon.health_status = "ok"
+            addon.last_seen = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
     def _is_circuit_open(self, addon_id: str) -> bool:
         state = self._circuits.setdefault(addon_id, CircuitState())
@@ -124,22 +150,19 @@ class AddonProxy:
         return headers
 
     async def forward(self, request: Request, addon_id: str, path: str = "") -> Response:
-        if addon_id not in self._registry.registered:
-            raise HTTPException(status_code=404, detail="registered_addon_not_found")
+        target_base = self._target_base(addon_id, request)
         if self._is_circuit_open(addon_id):
             raise HTTPException(status_code=503, detail="addon_circuit_open")
 
-        addon = self._registry.registered[addon_id]
         target = (
-            f"{self._target_base(addon_id)}/{quote(path.lstrip('/'), safe='/')}"
+            f"{target_base}/{quote(path.lstrip('/'), safe='/')}"
             if path
-            else self._target_base(addon_id)
+            else target_base
         )
         if request.url.query:
             target = f"{target}?{request.url.query}"
         body = await request.body()
-        retries = max(0, int(addon.proxy_retries))
-        timeout = httpx.Timeout(max(0.1, float(addon.proxy_timeout_s)))
+        retries, timeout, _, _ = self._proxy_tuning(addon_id)
         last_exc: Exception | None = None
 
         for attempt in range(retries + 1):
