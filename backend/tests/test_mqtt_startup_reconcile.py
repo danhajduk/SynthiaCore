@@ -25,6 +25,9 @@ class _FakeMqttManager:
         self.published.append((topic, payload))
         return {"ok": True, "topic": topic, "rc": 0}
 
+    async def status(self):
+        return {"host": "127.0.0.1", "port": 1883}
+
     def _core_info_payload(self) -> dict:
         return {"source": "synthia-core", "type": "core-mqtt-info"}
 
@@ -68,6 +71,10 @@ class TestMqttStartupReconcile(unittest.TestCase):
             self.assertTrue(result.ok)
             self.assertEqual(result.setup_status, "ready")
             self.assertGreaterEqual(len(fake_manager.published), 2)
+            bootstrap_payload = next((payload for topic, payload in fake_manager.published if topic == "synthia/bootstrap/core"), {})
+            self.assertEqual(bootstrap_payload.get("core_version"), "0.1.0")
+            self.assertEqual(bootstrap_payload.get("mqtt_host"), "127.0.0.1")
+            self.assertEqual(bootstrap_payload.get("mqtt_port"), 1883)
             password_text = (Path(tmp) / "live" / "passwords.conf").read_text(encoding="utf-8")
             self.assertIn("vision-user:$7$", password_text)
             state = asyncio.run(state_store.get_state())

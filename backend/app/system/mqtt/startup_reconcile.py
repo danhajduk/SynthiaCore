@@ -182,11 +182,22 @@ class EmbeddedMqttStartupReconciler:
         self._bootstrap_last_attempt_at = _utcnow_iso()
         core_id = "synthia-core"
         core_name = "Synthia Core"
+        core_version = str(os.getenv("SYNTHIA_CORE_VERSION", "0.1.0"))
         api_base = "http://127.0.0.1:9001/api"
+        mqtt_status = {}
+        status_fn = getattr(self._mqtt, "status", None)
+        if callable(status_fn):
+            try:
+                mqtt_status = await status_fn()
+            except Exception:
+                mqtt_status = {}
         payload = MqttBootstrapAnnouncement(
             core_id=core_id,
             core_name=core_name,
+            core_version=core_version,
             api_base=api_base,
+            mqtt_host=(str(mqtt_status.get("host")) if mqtt_status and mqtt_status.get("host") else None),
+            mqtt_port=(int(mqtt_status.get("port")) if mqtt_status and mqtt_status.get("port") is not None else None),
             onboarding_endpoints={
                 "register": "/api/system/mqtt/registrations/approve",
                 "setup_state": "/api/system/mqtt/setup-state",

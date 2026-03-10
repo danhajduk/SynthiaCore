@@ -361,3 +361,8 @@
 2026-03-10 - Task 352: added generic user edit/delete APIs and wired UI actions.
 2026-03-10 - Task 353: fixed local-mode MQTT connection drift by ignoring stale local auth/tls settings.
 2026-03-10 - Task 354: added bootstrap republish endpoint and runtime UI action.
+2026-03-10 - Task 355: added generic user access_mode/allowed_topics model and UI/API support.
+2026-03-10 - Task 356: enforced reserved-topic denial for generic users across access modes.
+2026-03-10 - Task 357: expanded reserved topic families to include remote/bridges/import namespaces.
+2026-03-10 - Task 358: refined bootstrap/system topic contracts and expanded bootstrap payload metadata.
+2026-03-10 - Session complete: finished MQTT task queue (351-358) including actions UX, connection reliability, bootstrap republish, access-mode grants, and reserved-family hardening.

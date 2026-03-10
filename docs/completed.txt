@@ -388,3 +388,7 @@
 323. Task 352: Add generic user edit/delete support (API + UI) - Completed on 03/10/2026 07:07
 324. Task 353: Fix local-mode mqtt_runtime_not_connected by hardening manager local config loading - Completed on 03/10/2026 07:12
 325. Task 354: Add Core bootstrap republish endpoint and runtime UI action - Completed on 03/10/2026 07:12
+326. Task 355: Add generic user access_mode + allowed_topics model/API/UI support - Completed on 03/10/2026 07:18
+327. Task 356: Enforce reserved topic protections for generic users in ACL/effective access - Completed on 03/10/2026 07:18
+328. Task 357: Reserve future federation/import topic families (remote/bridges/import) - Completed on 03/10/2026 07:18
+329. Task 358: Refine system topic families and bootstrap payload contract fields - Completed on 03/10/2026 07:18

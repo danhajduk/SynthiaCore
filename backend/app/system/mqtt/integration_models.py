@@ -13,6 +13,7 @@ MQTT_HA_DISCOVERY_MODES = Literal["disabled", "gateway_managed", "addon_managed"
 MQTT_PRINCIPAL_TYPES = Literal["synthia_addon", "synthia_node", "generic_user", "system"]
 MQTT_PRINCIPAL_STATUSES = Literal["pending", "active", "probation", "revoked", "expired"]
 MQTT_NOISY_STATES = Literal["normal", "watch", "noisy", "blocked"]
+MQTT_GENERIC_ACCESS_MODES = Literal["private", "custom", "non_reserved", "admin"]
 MQTT_BOOTSTRAP_TOPIC = "synthia/bootstrap/core"
 MQTT_BOOTSTRAP_VERSION = 1
 
@@ -72,6 +73,8 @@ class MqttPrincipal(BaseModel):
     linked_node_id: str | None = None
     username: str | None = None
     topic_prefix: str | None = None
+    access_mode: MQTT_GENERIC_ACCESS_MODES = "private"
+    allowed_topics: list[str] = Field(default_factory=list)
     managed_by: str | None = None
     publish_topics: list[str] = Field(default_factory=list)
     subscribe_topics: list[str] = Field(default_factory=list)
@@ -92,7 +95,10 @@ class MqttBootstrapAnnouncement(BaseModel):
     bootstrap_version: int = Field(default=MQTT_BOOTSTRAP_VERSION, ge=1)
     core_id: str = Field(..., min_length=1)
     core_name: str = Field(..., min_length=1)
+    core_version: str | None = None
     api_base: str = Field(..., min_length=1)
+    mqtt_host: str | None = None
+    mqtt_port: int | None = None
     onboarding_endpoints: dict[str, str] = Field(default_factory=dict)
     onboarding_mode: str = "api"
     emitted_at: str = Field(default_factory=_utcnow_iso)

@@ -5,12 +5,17 @@ from typing import Literal
 
 TopicFamily = Literal[
     "bootstrap",
+    "runtime",
     "core",
     "system",
     "supervisor",
     "scheduler",
     "policy",
     "telemetry",
+    "events",
+    "remote",
+    "bridges",
+    "import",
     "services",
     "addons",
     "nodes",
@@ -21,21 +26,32 @@ TopicFamily = Literal[
 
 BOOTSTRAP_TOPIC = "synthia/bootstrap/core"
 PLATFORM_RESERVED_PREFIXES: tuple[str, ...] = (
+    "synthia/bootstrap/",
+    "synthia/runtime/",
     "synthia/system/",
     "synthia/core/",
     "synthia/supervisor/",
     "synthia/scheduler/",
     "synthia/policy/",
     "synthia/telemetry/",
+    "synthia/events/",
+    "synthia/remote/",
+    "synthia/bridges/",
+    "synthia/import/",
 )
 TOP_LEVEL_RESERVED_FAMILIES: tuple[str, ...] = (
     "bootstrap",
+    "runtime",
     "core",
     "system",
     "supervisor",
     "scheduler",
     "policy",
     "telemetry",
+    "events",
+    "remote",
+    "bridges",
+    "import",
     "services",
     "addons",
     "nodes",
@@ -66,7 +82,23 @@ def topic_family(topic: str) -> TopicFamily:
     if len(parts) < 2:
         return "synthia_other"
     family = parts[1]
-    if family in {"bootstrap", "core", "system", "supervisor", "scheduler", "policy", "telemetry", "services", "addons", "nodes"}:
+    if family in {
+        "bootstrap",
+        "runtime",
+        "core",
+        "system",
+        "supervisor",
+        "scheduler",
+        "policy",
+        "telemetry",
+        "events",
+        "remote",
+        "bridges",
+        "import",
+        "services",
+        "addons",
+        "nodes",
+    }:
         return family  # type: ignore[return-value]
     return "synthia_other"
 

@@ -10,12 +10,18 @@ from .topic_families import BOOTSTRAP_TOPIC
 
 DEFAULT_RESERVED_PREFIXES: tuple[str, ...] = (
     "synthia/#",
+    "synthia/bootstrap/#",
+    "synthia/runtime/#",
     "synthia/system/#",
     "synthia/core/#",
     "synthia/supervisor/#",
     "synthia/scheduler/#",
     "synthia/policy/#",
     "synthia/telemetry/#",
+    "synthia/events/#",
+    "synthia/remote/#",
+    "synthia/bridges/#",
+    "synthia/import/#",
 )
 DEFAULT_BOOTSTRAP_TOPIC = BOOTSTRAP_TOPIC
 

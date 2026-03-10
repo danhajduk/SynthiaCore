@@ -40,6 +40,8 @@ class TestMqttEmbeddedUiRoutes(unittest.TestCase):
         self.assertIn("data-ui-action='open-add-user'", res.text)
         self.assertIn("id='create-user-username'", res.text)
         self.assertIn("id='create-user-prefix'", res.text)
+        self.assertIn("id='create-user-access-mode'", res.text)
+        self.assertIn("id='create-user-allowed-topics'", res.text)
         self.assertIn("data-generic-action='rotate'", res.text)
         self.assertIn("data-generic-action='edit'", res.text)
         self.assertIn("data-generic-action='delete'", res.text)

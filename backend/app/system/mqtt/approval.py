@@ -338,6 +338,8 @@ class MqttRegistrationApprovalService:
         logical_identity: str,
         username: str | None,
         topic_prefix: str | None = None,
+        access_mode: str = "private",
+        allowed_topics: list[str] | None = None,
         publish_topics: list[str],
         subscribe_topics: list[str],
         approved_reserved_topics: list[str] | None = None,
@@ -364,6 +366,8 @@ class MqttRegistrationApprovalService:
         principal.username = username or principal.username
         if topic_prefix is not None:
             principal.topic_prefix = topic_prefix
+        principal.access_mode = str(access_mode or "private")
+        principal.allowed_topics = sorted({str(topic).strip() for topic in (allowed_topics or []) if str(topic).strip()})
         principal.publish_topics = sorted({topic for topic in publish_topics if topic and not is_platform_reserved_topic(topic)})
         principal.subscribe_topics = sorted({topic for topic in subscribe_topics if topic and not is_platform_reserved_topic(topic)})
         principal.approved_reserved_topics = []
@@ -387,7 +391,14 @@ class MqttRegistrationApprovalService:
             await self._append_lifecycle_audit("principal_activated", principal_id=principal_id, actor="operator")
         return {"ok": True, "principal": principal.model_dump(mode="json")}
 
-    async def update_generic_user_topic_prefix(self, *, principal_id: str, topic_prefix: str) -> dict[str, Any]:
+    async def update_generic_user_topic_prefix(
+        self,
+        *,
+        principal_id: str,
+        topic_prefix: str,
+        access_mode: str | None = None,
+        allowed_topics: list[str] | None = None,
+    ) -> dict[str, Any]:
         state = await self._state_store.get_state()
         current = state.principals.get(principal_id)
         if current is None:
@@ -395,16 +406,32 @@ class MqttRegistrationApprovalService:
         if current.principal_type != "generic_user":
             return {"ok": False, "error": "principal_type_invalid"}
         prefix = str(topic_prefix or "").strip().strip("/")
-        if not prefix:
-            return {"ok": False, "error": "topic_prefix_required"}
-        scope = f"{prefix}/#"
+        mode = str(access_mode or current.access_mode or "private").strip().lower()
+        if mode not in {"private", "custom", "non_reserved", "admin"}:
+            return {"ok": False, "error": "access_mode_invalid"}
+        if mode == "private":
+            if not prefix:
+                return {"ok": False, "error": "topic_prefix_required"}
+            topics = [f"{prefix}/#"]
+        elif mode == "custom":
+            topics = sorted({str(topic).strip() for topic in (allowed_topics or current.allowed_topics) if str(topic).strip()})
+            if not topics:
+                return {"ok": False, "error": "allowed_topics_required"}
+            if not prefix:
+                prefix = current.topic_prefix or ""
+        else:
+            topics = ["#"]
+            if not prefix:
+                prefix = current.topic_prefix or ""
         result = await self.create_or_update_generic_user(
             principal_id=principal_id,
             logical_identity=current.logical_identity,
             username=current.username,
             topic_prefix=prefix,
-            publish_topics=[scope],
-            subscribe_topics=[scope],
+            access_mode=mode,
+            allowed_topics=(topics if mode == "custom" else []),
+            publish_topics=topics,
+            subscribe_topics=topics,
             notes=current.notes,
         )
         if result.get("ok"):
@@ -412,7 +439,7 @@ class MqttRegistrationApprovalService:
                 event_type="mqtt_generic_user_action",
                 status="ok",
                 message="edit",
-                payload={"principal_id": principal_id, "topic_prefix": prefix},
+                payload={"principal_id": principal_id, "topic_prefix": prefix, "access_mode": mode},
             )
         return result
 

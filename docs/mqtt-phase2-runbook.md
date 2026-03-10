@@ -1,6 +1,6 @@
 # MQTT Embedded Phase 2 Runbook
 
-Last Updated: 2026-03-10 07:12 US/Pacific
+Last Updated: 2026-03-10 07:18 US/Pacific
 
 ## Scope
 
@@ -102,6 +102,8 @@ Create user (operator contract):
   - `username`
   - `password` (`generated` for auto-generated credential)
   - `topic_prefix` (must resolve to `external/<username>`)
+  - `access_mode` (`private|custom|non_reserved|admin`)
+  - `allowed_topics` (required for `custom`, comma/list form in UI)
 
 Create or update generic user:
 - `POST /api/system/mqtt/generic-users`
@@ -117,8 +119,16 @@ Rotate credentials:
 - `POST /api/system/mqtt/users/{principal_id}/rotate`
 
 Implemented policy boundary:
-- allow scope for users API: `external/<username>/#`
-- deny scope for generic users includes `synthia/#`
+- `private`: scope locked to `external/<username>/#`
+- `custom`: scope from `allowed_topics` (reserved topics denied)
+- `non_reserved`: broad `#` allow with reserved-prefix denies
+- `admin`: broad `#` allow with reserved-prefix denies
+- deny scope for generic users includes reserved families:
+  - `synthia/#`
+  - `synthia/runtime/#`
+  - `synthia/remote/#`
+  - `synthia/bridges/#`
+  - `synthia/import/#`
 - generic users cannot keep reserved Synthia topic families in effective access
 
 ## Noisy-Client State and Actions

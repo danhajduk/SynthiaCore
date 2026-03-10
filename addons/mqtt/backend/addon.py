@@ -587,11 +587,18 @@ def addon_ui_root() -> str:
       const usernameNode = document.getElementById("create-user-username");
       const passwordNode = document.getElementById("create-user-password");
       const prefixNode = document.getElementById("create-user-prefix");
+      const modeNode = document.getElementById("create-user-access-mode");
+      const topicsNode = document.getElementById("create-user-allowed-topics");
       const statusNode = document.getElementById("create-user-status");
-      if (!usernameNode || !passwordNode || !prefixNode || !statusNode) return;
+      if (!usernameNode || !passwordNode || !prefixNode || !modeNode || !topicsNode || !statusNode) return;
       const usernameValue = String(usernameNode.value || "").trim();
       const prefixValue = String(prefixNode.value || "").trim();
       const passwordValue = String(passwordNode.value || "").trim() || "generated";
+      const accessMode = String(modeNode.value || "private").trim();
+      const allowedTopics = String(topicsNode.value || "")
+        .split(",")
+        .map((item) => String(item || "").trim())
+        .filter((item) => item.length > 0);
       statusNode.textContent = "Creating user...";
       statusNode.className = "status";
       try {
@@ -603,6 +610,8 @@ def addon_ui_root() -> str:
             username: usernameValue,
             password: passwordValue,
             topic_prefix: prefixValue,
+            access_mode: accessMode,
+            allowed_topics: allowedTopics,
           }),
         });
         const payload = await response.json();
@@ -619,7 +628,7 @@ def addon_ui_root() -> str:
       }
     }
 
-    async function runGenericUserAction(action, principalId, topicPrefix) {
+    async function runGenericUserAction(action, principalId, topicPrefix, accessMode, allowedTopics) {
       const id = String(principalId || "").trim();
       if (!id) return;
       const normalized = String(action || "").trim().toLowerCase();
@@ -638,10 +647,20 @@ def addon_ui_root() -> str:
         url = `/api/system/mqtt/generic-users/${encodeURIComponent(id)}/rotate-credentials`;
       } else if (normalized === "edit") {
         const nextPrefix = window.prompt("Topic prefix", String(topicPrefix || ""));
-        if (!nextPrefix) return;
+        const nextMode = window.prompt("Access mode (private/custom/non_reserved/admin)", String(accessMode || "private"));
+        if (!nextPrefix || !nextMode) return;
+        let nextAllowed = [];
+        if (String(nextMode).toLowerCase() === "custom") {
+          const base = Array.isArray(allowedTopics) ? allowedTopics.join(",") : String(allowedTopics || "");
+          const raw = window.prompt("Allowed topics (comma separated)", base);
+          nextAllowed = String(raw || "")
+            .split(",")
+            .map((item) => String(item || "").trim())
+            .filter((item) => item.length > 0);
+        }
         url = `/api/system/mqtt/users/${encodeURIComponent(id)}`;
         method = "PATCH";
-        body = { topic_prefix: nextPrefix };
+        body = { topic_prefix: nextPrefix, access_mode: nextMode, allowed_topics: nextAllowed };
       } else if (normalized === "delete") {
         if (!window.confirm(`Delete ${id}?`)) return;
         url = `/api/system/mqtt/users/${encodeURIComponent(id)}`;
@@ -864,6 +883,8 @@ def addon_ui_root() -> str:
         `<label>Username<input id='create-user-username' placeholder='homeassistant' /></label>` +
         `<label>Password<input id='create-user-password' placeholder='generated' value='generated' /></label>` +
         `<label>Topic Prefix<input id='create-user-prefix' placeholder='external/homeassistant' /></label>` +
+        `<label>Access Mode<select id='create-user-access-mode'><option value='private'>private</option><option value='custom'>custom</option><option value='non_reserved'>non_reserved</option><option value='admin'>admin</option></select></label>` +
+        `<label>Allowed Topics (comma separated)<input id='create-user-allowed-topics' placeholder='external/homeassistant/sensors/#' /></label>` +
         `</div>` +
         `<div class='modal-actions'>` +
         `<button class='primary' data-ui-action='submit-add-user'>Create</button>` +
@@ -1042,6 +1063,8 @@ def addon_ui_root() -> str:
                   const principalType = escapeHtml(String(item.principal_type || item.type || key));
                   const status = escapeHtml(String(item.status || "-"));
                   const topicPrefix = escapeHtml(String(item.topic_prefix || "-"));
+                  const accessMode = escapeHtml(String(item.access_mode || "private"));
+                  const allowedTopics = escapeHtml(Array.isArray(item.allowed_topics) ? item.allowed_topics.join(",") : "");
                   const managed = String(item.managed_by || "").toLowerCase() === "core";
                   const managedBadge = managed ? `<span class='badge core'>Core Managed</span>` : "";
                   const updated = escapeHtml(item.updated_at || item.ts || item.reason || "-");
@@ -1057,7 +1080,7 @@ def addon_ui_root() -> str:
                     ? `<button class='mini' data-generic-action='revoke' data-principal-id='${principalId}'>Revoke</button>` +
                       `<button class='mini' data-generic-action='disable' data-principal-id='${principalId}'>Disable</button>` +
                       `<button class='mini' data-generic-action='rotate' data-principal-id='${principalId}'>Rotate Password</button>` +
-                      `<button class='mini' data-generic-action='edit' data-principal-id='${principalId}' data-topic-prefix='${topicPrefix}'>Edit</button>` +
+                      `<button class='mini' data-generic-action='edit' data-principal-id='${principalId}' data-topic-prefix='${topicPrefix}' data-access-mode='${accessMode}' data-allowed-topics='${allowedTopics}'>Edit</button>` +
                       `<button class='mini' data-generic-action='delete' data-principal-id='${principalId}'>Delete</button>`
                     : "";
                   const principalActions = key !== "generic" && !systemLocked
@@ -1294,7 +1317,12 @@ def addon_ui_root() -> str:
         const action = genericAction.getAttribute("data-generic-action");
         const principalId = genericAction.getAttribute("data-principal-id");
         const topicPrefix = genericAction.getAttribute("data-topic-prefix");
-        if (action && principalId) void runGenericUserAction(action, principalId, topicPrefix);
+        const accessMode = genericAction.getAttribute("data-access-mode");
+        const allowedTopics = String(genericAction.getAttribute("data-allowed-topics") || "")
+          .split(",")
+          .map((item) => String(item || "").trim())
+          .filter((item) => item.length > 0);
+        if (action && principalId) void runGenericUserAction(action, principalId, topicPrefix, accessMode, allowedTopics);
         return;
       }
       const principalAction = event.target.closest("[data-principal-action]");

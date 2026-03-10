@@ -41,6 +41,29 @@ class TestMqttAclCompiler(unittest.TestCase):
         self.assertIn("topic write synthia/addons/vision/event/#", acl)
         self.assertIn("topic read synthia/system/health", acl)
 
+    def test_generic_user_reserved_denies_include_future_federation_families(self) -> None:
+        state = MqttIntegrationState(
+            principals={
+                "user:guest": MqttPrincipal(
+                    principal_id="user:guest",
+                    principal_type="generic_user",
+                    status="active",
+                    logical_identity="guest",
+                    username="guest",
+                    access_mode="custom",
+                    allowed_topics=["external/guest/#"],
+                    publish_topics=["external/guest/#"],
+                    subscribe_topics=["external/guest/#"],
+                )
+            }
+        )
+        compiler = MqttAclCompiler()
+        acl = compiler.compile(state).acl_text
+        self.assertIn("topic deny synthia/runtime/#", acl)
+        self.assertIn("topic deny synthia/remote/#", acl)
+        self.assertIn("topic deny synthia/bridges/#", acl)
+        self.assertIn("topic deny synthia/import/#", acl)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 # MQTT Bootstrap Contract (Phase 1)
 
-Last Updated: 2026-03-09 06:37 US/Pacific
+Last Updated: 2026-03-10 07:18 US/Pacific
 
 ## Topic
 
@@ -23,7 +23,10 @@ Payload fields:
 - `bootstrap_version`
 - `core_id`
 - `core_name`
+- `core_version`
 - `api_base`
+- `mqtt_host`
+- `mqtt_port`
 - `onboarding_endpoints`
 - `onboarding_mode`
 - `emitted_at`

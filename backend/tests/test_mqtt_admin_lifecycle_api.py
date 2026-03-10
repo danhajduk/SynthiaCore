@@ -237,6 +237,8 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
                 "username": "HomeAssistant",
                 "password": "generated",
                 "topic_prefix": "external/homeassistant",
+                "access_mode": "custom",
+                "allowed_topics": ["external/homeassistant/sensors/#", "external/homeassistant/controls/#"],
             },
         )
         self.assertEqual(created.status_code, 200, created.text)
@@ -244,7 +246,9 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["username"], "homeassistant")
         self.assertEqual(payload["topic_prefix"], "external/homeassistant")
-        self.assertEqual(payload["scope"], "external/homeassistant/#")
+        self.assertEqual(payload["scope"], "external/homeassistant/controls/#")
+        self.assertEqual(payload["access_mode"], "custom")
+        self.assertEqual(len(payload["allowed_topics"]), 2)
         self.assertEqual(payload["password_mode"], "generated")
         self.assertTrue(payload.get("password"))
 
@@ -253,22 +257,25 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertIsNotNone(principal)
         self.assertEqual(principal.principal_type, "generic_user")
         self.assertEqual(principal.topic_prefix, "external/homeassistant")
+        self.assertEqual(principal.access_mode, "custom")
+        self.assertIn("external/homeassistant/sensors/#", principal.allowed_topics)
 
         acl = MqttAclCompiler().compile(state).acl_text
         self.assertIn("user homeassistant", acl)
-        self.assertIn("topic write external/homeassistant/#", acl)
-        self.assertIn("topic read external/homeassistant/#", acl)
+        self.assertIn("topic write external/homeassistant/controls/#", acl)
+        self.assertIn("topic read external/homeassistant/sensors/#", acl)
         self.assertIn("topic deny synthia/#", acl)
 
         edited = self.client.patch(
             "/api/system/mqtt/users/user:homeassistant",
             headers={"X-Admin-Token": "test-token"},
-            json={"topic_prefix": "external/homeassistant-v2"},
+            json={"topic_prefix": "external/homeassistant-v2", "access_mode": "private"},
         )
         self.assertEqual(edited.status_code, 200, edited.text)
         self.assertTrue(edited.json()["ok"])
         state_after_edit = asyncio.run(self.state_store.get_state())
         self.assertEqual(state_after_edit.principals["user:homeassistant"].topic_prefix, "external/homeassistant-v2")
+        self.assertEqual(state_after_edit.principals["user:homeassistant"].access_mode, "private")
 
         deleted = self.client.delete(
             "/api/system/mqtt/users/user:homeassistant",

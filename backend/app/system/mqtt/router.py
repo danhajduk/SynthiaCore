@@ -48,10 +48,14 @@ class MqttUserCreateRequest(BaseModel):
     username: str = Field(..., min_length=1)
     password: str | None = "generated"
     topic_prefix: str | None = None
+    access_mode: str = "private"
+    allowed_topics: list[str] = Field(default_factory=list)
 
 
 class MqttUserUpdateRequest(BaseModel):
-    topic_prefix: str = Field(..., min_length=1)
+    topic_prefix: str | None = None
+    access_mode: str | None = None
+    allowed_topics: list[str] = Field(default_factory=list)
 
 
 class MqttGenericUserGrantUpdateRequest(BaseModel):
@@ -98,6 +102,28 @@ def _normalize_topic_prefix(value: str | None) -> str:
     while "//" in raw:
         raw = raw.replace("//", "/")
     return raw
+
+
+def _compute_generic_scopes(
+    *,
+    username: str,
+    topic_prefix: str,
+    access_mode: str,
+    allowed_topics: list[str],
+) -> tuple[str, list[str], list[str], list[str]]:
+    mode = str(access_mode or "private").strip().lower()
+    if mode not in {"private", "custom", "non_reserved", "admin"}:
+        raise HTTPException(status_code=400, detail="access_mode_invalid")
+    if mode == "private":
+        scope = f"{topic_prefix}/#"
+        return mode, [scope], [scope], []
+    if mode == "custom":
+        topics = sorted({str(item).strip() for item in allowed_topics if str(item).strip()})
+        if not topics:
+            raise HTTPException(status_code=400, detail="allowed_topics_required")
+        return mode, topics, topics, topics
+    # non_reserved/admin both grant broad publish/subscribe; ACL enforcement determines reserved boundaries.
+    return mode, ["#"], ["#"], []
 
 
 async def _authorize_mqtt_request(
@@ -700,7 +726,12 @@ def build_mqtt_router(
         if requested_prefix and requested_prefix != expected_prefix:
             raise HTTPException(status_code=400, detail="topic_prefix_invalid")
         topic_prefix = requested_prefix or expected_prefix
-        topic_scope = f"{topic_prefix}/#"
+        mode, publish_topics, subscribe_topics, allowed_topics = _compute_generic_scopes(
+            username=normalized_username,
+            topic_prefix=topic_prefix,
+            access_mode=body.access_mode,
+            allowed_topics=body.allowed_topics,
+        )
         principal_id = f"user:{normalized_username}"
         requested_password = str(body.password or "generated").strip()
         result = await approval.create_or_update_generic_user(
@@ -708,8 +739,10 @@ def build_mqtt_router(
             logical_identity=f"generic:{normalized_username}",
             username=normalized_username,
             topic_prefix=topic_prefix,
-            publish_topics=[topic_scope],
-            subscribe_topics=[topic_scope],
+            access_mode=mode,
+            allowed_topics=allowed_topics,
+            publish_topics=publish_topics,
+            subscribe_topics=subscribe_topics,
             notes="generic_user_api_create",
         )
         if not result.get("ok"):
@@ -732,8 +765,10 @@ def build_mqtt_router(
                         logical_identity=f"generic:{normalized_username}",
                         username=normalized_username,
                         topic_prefix=topic_prefix,
-                        publish_topics=[topic_scope],
-                        subscribe_topics=[topic_scope],
+                        access_mode=mode,
+                        allowed_topics=allowed_topics,
+                        publish_topics=publish_topics,
+                        subscribe_topics=subscribe_topics,
                         notes="generic_user_api_create",
                     )
                     if not result.get("ok"):
@@ -749,7 +784,9 @@ def build_mqtt_router(
             "principal": principal,
             "username": normalized_username,
             "topic_prefix": topic_prefix,
-            "scope": topic_scope,
+            "scope": publish_topics[0] if publish_topics else None,
+            "access_mode": mode,
+            "allowed_topics": allowed_topics,
             "password_mode": password_mode,
             "password": (credential or {}).get("password"),
         }
@@ -763,7 +800,12 @@ def build_mqtt_router(
     ):
         require_admin_token(x_admin_token, request)
         prefix = _normalize_topic_prefix(body.topic_prefix)
-        result = await approval.update_generic_user_topic_prefix(principal_id=principal_id, topic_prefix=prefix)
+        result = await approval.update_generic_user_topic_prefix(
+            principal_id=principal_id,
+            topic_prefix=prefix,
+            access_mode=body.access_mode,
+            allowed_topics=body.allowed_topics,
+        )
         if not result.get("ok"):
             error = str(result.get("error") or "generic_user_update_failed")
             if error == "principal_not_found":

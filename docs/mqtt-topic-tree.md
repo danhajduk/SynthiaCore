@@ -1,6 +1,6 @@
 # Synthia MQTT Topic Tree (Canonical)
 
-Last Updated: 2026-03-09 06:59 US/Pacific
+Last Updated: 2026-03-10 07:18 US/Pacific
 
 ## Contract
 
@@ -15,12 +15,17 @@ Control-plane rule:
 | Family | Owner | Phase 1 Status | Notes |
 |---|---|---|---|
 | `synthia/bootstrap/...` | Core | Implemented (core bootstrap topic) | Anonymous bootstrap-only subscribe contract |
+| `synthia/runtime/...` | Core Platform | Reserved | Runtime state/health/config family |
 | `synthia/core/...` | Core | Partially Implemented | `synthia/core/mqtt/info` implemented |
 | `synthia/system/...` | Core Platform | Reserved | Protected namespace |
 | `synthia/supervisor/...` | Core Platform | Reserved | Protected namespace |
 | `synthia/scheduler/...` | Core Platform | Reserved | Protected namespace |
 | `synthia/policy/...` | Core Policy | Implemented | Grant/revocation distribution topics implemented |
 | `synthia/telemetry/...` | Core Platform | Reserved | Protected namespace |
+| `synthia/events/...` | Core Platform | Reserved | Shared platform event-visibility root (reserved) |
+| `synthia/remote/...` | Core Platform | Reserved | Future federation/remote family |
+| `synthia/bridges/...` | Core Platform | Reserved | Future bridge family |
+| `synthia/import/...` | Core Platform | Reserved | Future import family |
 | `synthia/services/...` | Core Services | Partially Implemented | `synthia/services/+/catalog` subscription implemented |
 | `synthia/addons/<addon_id>/...` | Addon Principal + Core policy | Implemented (announce/health + scoped publish rules) | Addon publish must stay in addon namespace unless explicitly approved reserved access |
 | `synthia/nodes/<node_id>/...` | Synthia Node Principal | Not developed | Reserved planned family for Phase 1+ |
@@ -39,6 +44,17 @@ Planned/Not developed:
 
 Boundary:
 - deterministic Core control actions remain HTTP APIs.
+
+### Runtime Family (`synthia/runtime/...`)
+
+Reserved runtime subtree targets:
+- `synthia/runtime/status`
+- `synthia/runtime/health`
+- `synthia/runtime/broker/...`
+- `synthia/runtime/config/...`
+
+Status:
+- reserved/partially implemented for platform runtime visibility; do not grant to generic users.
 
 ### Addon Family (`synthia/addons/<addon_id>/...`)
 
@@ -106,6 +122,10 @@ Reserved ownership:
 - `synthia/system/...`
 - `synthia/supervisor/...`
 - `synthia/scheduler/...`
+- `synthia/events/...` (shared platform visibility root)
+- `synthia/remote/...` (future federation)
+- `synthia/bridges/...` (future bridging)
+- `synthia/import/...` (future imported traffic)
 
 Boundary:
 - reserved for platform-owned semantics.
@@ -152,12 +172,17 @@ Contract:
 | Family | Owner | Allowed Publishers | Allowed Subscribers | Retained Default | QoS Default | Implementation |
 |---|---|---|---|---|---|---|
 | `synthia/bootstrap/...` | Core | Core | Anonymous, Synthia principals, generic users | `true` for `synthia/bootstrap/core` | `1` | Implemented (`core` topic) |
+| `synthia/runtime/...` | Core Platform | Core/runtime services | Core/platform services | topic-specific | topic-specific | Reserved |
 | `synthia/core/...` | Core | Core | Core + platform observers | `true` for `synthia/core/mqtt/info` | `1` | Partially Implemented |
 | `synthia/system/...` | Core Platform | Core platform services | Core platform services | topic-specific | topic-specific | Reserved |
 | `synthia/supervisor/...` | Core Platform | Core/supervisor services | Core/supervisor services | topic-specific | topic-specific | Reserved |
 | `synthia/scheduler/...` | Core Platform | Core/scheduler services | Core/scheduler services | topic-specific | topic-specific | Reserved |
 | `synthia/policy/...` | Core Policy | Core policy publisher | Policy consumers, Core | `true` | `1` | Implemented |
 | `synthia/telemetry/...` | Core Platform | Core platform telemetry producers | Core/platform consumers | topic-specific | topic-specific | Reserved |
+| `synthia/events/...` | Core Platform | Core/platform services | Core/platform services | topic-specific | topic-specific | Reserved |
+| `synthia/remote/...` | Core Platform | Core federation services | Core federation services | topic-specific | topic-specific | Reserved |
+| `synthia/bridges/...` | Core Platform | Core bridge services | Core bridge services | topic-specific | topic-specific | Reserved |
+| `synthia/import/...` | Core Platform | Core import services | Core import services | topic-specific | topic-specific | Reserved |
 | `synthia/services/...` | Core Services | Service publishers (catalog implemented) | Core service catalog consumer | producer-defined | `1` (Core subscription) | Partially Implemented |
 | `synthia/addons/<addon_id>/...` | Addon + Core policy | Matching addon principal (and Core when required) | Core + authorized clients | producer-defined | `1` (announce/health subscriptions) | Implemented/Scoped |
 | `synthia/nodes/<node_id>/...` | Node + Core policy | Core-approved node principal | Core + authorized clients | topic-specific | topic-specific | Not developed |

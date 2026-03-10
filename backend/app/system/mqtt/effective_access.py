@@ -26,12 +26,18 @@ class MqttEffectiveAccessCompiler:
     def __init__(self, *, bootstrap_topic: str = BOOTSTRAP_TOPIC, reserved_prefixes: list[str] | None = None) -> None:
         self._bootstrap_topic = str(bootstrap_topic).strip() or BOOTSTRAP_TOPIC
         self._reserved_prefixes = _sorted_unique(reserved_prefixes or [
+            "synthia/bootstrap/#",
+            "synthia/runtime/#",
             "synthia/system/#",
             "synthia/core/#",
             "synthia/supervisor/#",
             "synthia/scheduler/#",
             "synthia/policy/#",
             "synthia/telemetry/#",
+            "synthia/events/#",
+            "synthia/remote/#",
+            "synthia/bridges/#",
+            "synthia/import/#",
         ])
 
     def compile(self, state: MqttIntegrationState) -> list[MqttEffectiveAccessEntry]:
@@ -88,9 +94,18 @@ class MqttEffectiveAccessCompiler:
             publish_topics = _sorted_unique(list(grant.publish_topics))
             subscribe_topics = _sorted_unique(list(grant.subscribe_topics))
         elif principal.principal_type == "generic_user":
+            mode = str(getattr(principal, "access_mode", "private") or "private").strip().lower()
             generic_non_reserved_only = True
             publish_topics = _sorted_unique([topic for topic in principal.publish_topics if not is_platform_reserved_topic(topic)])
             subscribe_topics = _sorted_unique([topic for topic in principal.subscribe_topics if not is_platform_reserved_topic(topic)])
+            if mode in {"admin", "non_reserved"}:
+                publish_topics = ["#"]
+                subscribe_topics = ["#"]
+            if mode == "custom":
+                custom_topics = _sorted_unique([topic for topic in principal.allowed_topics if not is_platform_reserved_topic(topic)])
+                if custom_topics:
+                    publish_topics = list(custom_topics)
+                    subscribe_topics = list(custom_topics)
             reserved_denies = list(self._reserved_prefixes)
         else:
             return None

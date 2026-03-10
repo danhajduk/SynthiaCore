@@ -16,6 +16,10 @@ from app.system.mqtt.topic_families import (
 class TestMqttTopicFamilies(unittest.TestCase):
     def test_reserved_family_recognition(self) -> None:
         self.assertTrue(is_reserved_family_topic("synthia/core/mqtt/info"))
+        self.assertTrue(is_reserved_family_topic("synthia/runtime/health"))
+        self.assertTrue(is_reserved_family_topic("synthia/remote/node-1/state"))
+        self.assertTrue(is_reserved_family_topic("synthia/bridges/edge-1/status"))
+        self.assertTrue(is_reserved_family_topic("synthia/import/frigate/event"))
         self.assertTrue(is_reserved_family_topic("synthia/policy/grants/vision"))
         self.assertFalse(is_reserved_family_topic("devices/home/state"))
 
@@ -35,6 +39,8 @@ class TestMqttTopicFamilies(unittest.TestCase):
 
     def test_generic_user_reserved_vs_non_reserved(self) -> None:
         self.assertTrue(is_platform_reserved_topic("synthia/system/health"))
+        self.assertTrue(is_platform_reserved_topic("synthia/runtime/health"))
+        self.assertTrue(is_platform_reserved_topic("synthia/remote/cluster/info"))
         self.assertFalse(is_generic_non_reserved_topic("synthia/system/health"))
         self.assertTrue(is_generic_non_reserved_topic("devices/home/state"))
         self.assertFalse(is_generic_non_reserved_topic("synthia/addons/vision/announce"))
