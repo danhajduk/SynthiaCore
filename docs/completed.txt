@@ -363,3 +363,4 @@
 298. Task 318: Add runtime supervisor self-heal path for config_missing via reconcile - Completed on 03/10/2026 02:30
 299. Task 319: Add regression tests for config_missing recovery behavior - Completed on 03/10/2026 02:30
 300. Task 320: Update runbook/docs for config_missing recovery behavior - Completed on 03/10/2026 02:30
+301. Task 320: Audit MQTT apply/init pipeline ordering - Completed on 03/10/2026 02:39

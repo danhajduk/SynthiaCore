@@ -335,3 +335,4 @@
 2026-03-10 - Completed Tasks 279-284 (Docker runtime batch): switched embedded local broker provider to Docker-managed Mosquitto with boundary compatibility, wiring, tests, and runbook updates.
 2026-03-10 - Completed Tasks 300-316: implemented post-setup MQTT operator page shells with overview metrics, page filters/search, section-level fallback UX, tests, and docs updates.
 2026-03-10 - Completed Tasks 317-320: added config_missing reconcile+retry recovery in MQTT runtime setup/start/init, supervisor self-heal retry, regression tests, and runbook updates.
+2026-03-10 - Completed Task 320 (new queue): audited MQTT setup/apply/init ordering and documented current vs strict target sequence.

@@ -162,6 +162,62 @@ Implemented semantics:
 Audit trail:
 - runtime actions append `event_type=mqtt_runtime_control` entries in `/api/system/mqtt/audit`.
 
+### Pipeline Ordering Audit (Task 320)
+
+Current local setup call path (`POST /api/system/mqtt/setup/apply`):
+
+```text
+UI setup action
+  -> /api/system/mqtt/setup/apply
+    -> persist mqtt.mode + mqtt.<mode>.* settings
+    -> reconcile_authority(reason=api_setup_apply_local)
+      -> compile ACL + render broker files
+      -> apply_pipeline.apply(artifacts)
+        -> write temp staged dir (system temp)
+        -> backup live dir
+        -> promote temp staged -> live dir
+        -> runtime.reload()
+        -> runtime.controlled_restart() when reload unhealthy
+    -> runtime.ensure_running()
+      -> (if config_missing) reconcile_authority(reason=api_setup_apply_local_config_missing)
+      -> runtime.ensure_running() retry once
+    -> manager.restart() when initialize=true and runtime healthy
+    -> update setup state ready/degraded
+```
+
+Current startup/runtime init paths:
+
+```text
+Core startup -> reconcile_startup()
+  -> reconcile_authority(reason=startup)
+  -> apply_pipeline.apply(...)
+  -> runtime reload/restart inside pipeline
+  -> publish bootstrap only when authority_ready=true
+
+POST /api/system/mqtt/runtime/init
+  -> reconcile_authority(reason=api_runtime_init)
+  -> runtime.ensure_running()
+  -> config_missing retry reconcile + ensure_running
+  -> manager.restart() when runtime healthy
+```
+
+Observed divergence vs strict staged/live intent:
+- The apply pipeline stages into an OS temp directory, not a persistent `var/mqtt_runtime/staged/` path.
+- Runtime start is currently protected by reconcile before `ensure_running`, but there is no explicit persistent staged artifact contract yet.
+
+Expected strict order target:
+
+```text
+1) persist setup state
+2) render broker config
+3) write artifacts to var/mqtt_runtime/staged/
+4) atomically promote staged -> live
+5) run reconcile
+6) ensure runtime running
+7) publish bootstrap
+8) mark setup complete
+```
+
 Addon UI mapping:
 - `/addons/mqtt` Runtime section now exposes buttons for `Init`, `Start`, `Stop`, `Rebuild`, and `Check Health`, wired to the endpoints above.
 - `/addons/mqtt` post-setup navigation sections:
