@@ -374,3 +374,4 @@
 309. Task 328: Verify bootstrap publish occurs only after runtime healthy - Completed on 03/10/2026 02:56
 310. Task 329: Update MQTT runtime documentation - Completed on 03/10/2026 02:58
 311. Task 340: Expose system principals in MQTT principals API - Completed on 03/10/2026 06:39
+312. Task 341: Show system principals in Principals UI - Completed on 03/10/2026 06:42

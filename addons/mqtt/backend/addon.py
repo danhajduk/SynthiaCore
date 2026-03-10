@@ -269,6 +269,36 @@ def addon_ui_root() -> str:
       color: var(--muted);
       font-size: 13px;
     }
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      margin-left: 6px;
+    }
+    .badge.core {
+      border-color: #0369a1;
+      color: #7dd3fc;
+      background: #082f49;
+    }
+    .group-title {
+      margin: 12px 0 6px;
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .mini {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
@@ -615,13 +645,30 @@ def addon_ui_root() -> str:
       const status = String(state.filters.principals.status || "").trim().toLowerCase();
       return items.filter((item) => {
         const pid = String(item.principal_id || "").toLowerCase();
-        const ptype = String(item.principal_type || item.type || "").toLowerCase();
+        const ptype = principalGroup(item);
         const pstatus = String(item.status || "").toLowerCase();
         if (q && !pid.includes(q)) return false;
         if (type && ptype !== type) return false;
         if (status && pstatus !== status) return false;
         return true;
       });
+    }
+
+    function principalGroup(item) {
+      const raw = String(item.principal_type || item.type || "").toLowerCase();
+      if (raw.includes("system")) return "system";
+      if (raw.includes("addon")) return "addon";
+      if (raw.includes("node")) return "node";
+      if (raw.includes("generic")) return "generic";
+      return "other";
+    }
+
+    function principalGroupLabel(group) {
+      if (group === "system") return "System";
+      if (group === "addon") return "Addon";
+      if (group === "node") return "Node";
+      if (group === "generic") return "Generic";
+      return "Other";
     }
 
     function filteredUsers(items) {
@@ -774,7 +821,7 @@ def addon_ui_root() -> str:
           toolbar =
             `<div class='toolbar'>` +
             `<input data-filter='principals-q' placeholder='Search principal id' value='${escapeHtml(state.filters.principals.q)}' />` +
-            `<select data-filter='principals-type'><option value='' ${state.filters.principals.type === "" ? "selected" : ""}>All types</option><option value='synthia_addon' ${state.filters.principals.type === "synthia_addon" ? "selected" : ""}>Addon</option><option value='synthia_node' ${state.filters.principals.type === "synthia_node" ? "selected" : ""}>Node</option></select>` +
+            `<select data-filter='principals-type'><option value='' ${state.filters.principals.type === "" ? "selected" : ""}>All types</option><option value='system' ${state.filters.principals.type === "system" ? "selected" : ""}>System</option><option value='addon' ${state.filters.principals.type === "addon" ? "selected" : ""}>Addon</option><option value='node' ${state.filters.principals.type === "node" ? "selected" : ""}>Node</option><option value='generic' ${state.filters.principals.type === "generic" ? "selected" : ""}>Generic</option></select>` +
             `<select data-filter='principals-status'><option value='' ${state.filters.principals.status === "" ? "selected" : ""}>All status</option><option value='pending' ${state.filters.principals.status === "pending" ? "selected" : ""}>Pending</option><option value='active' ${state.filters.principals.status === "active" ? "selected" : ""}>Active</option><option value='probation' ${state.filters.principals.status === "probation" ? "selected" : ""}>Probation</option><option value='revoked' ${state.filters.principals.status === "revoked" ? "selected" : ""}>Revoked</option><option value='expired' ${state.filters.principals.status === "expired" ? "selected" : ""}>Expired</option></select>` +
             `</div>`;
           visible = filteredPrincipals(items);
@@ -804,6 +851,44 @@ def addon_ui_root() -> str:
           sectionContent.innerHTML = toolbar + "<div class='empty'>No matching records.</div>";
           return;
         }
+        if (section === "principals") {
+          const order = ["system", "addon", "node", "generic", "other"];
+          const groups = {};
+          visible.forEach((item) => {
+            const key = principalGroup(item);
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(item);
+          });
+          const chunks = order
+            .filter((key) => Array.isArray(groups[key]) && groups[key].length > 0)
+            .map((key) => {
+              const rows = groups[key]
+                .slice(0, 50)
+                .map((item) => {
+                  const principalId = escapeHtml(item.principal_id || item.id || "-");
+                  const principalType = escapeHtml(String(item.principal_type || item.type || key));
+                  const status = escapeHtml(String(item.status || "-"));
+                  const managed = String(item.managed_by || "").toLowerCase() === "core";
+                  const managedBadge = managed ? `<span class='badge core'>Core Managed</span>` : "";
+                  const updated = escapeHtml(item.updated_at || item.ts || item.reason || "-");
+                  const systemLocked = key === "system";
+                  const destructive = `<button class='mini' disabled title='System principals are Core-managed'>Revoke</button>` +
+                    `<button class='mini' disabled title='System principals are Core-managed'>Delete</button>` +
+                    `<button class='mini' disabled title='System principals are Core-managed'>Rotate Password</button>` +
+                    `<button class='mini' disabled title='System principals are Core-managed'>Edit Policy</button>`;
+                  const readonly = `<button class='mini' title='Read-only view'>Details</button>` +
+                    `<button class='mini' title='Read-only view'>Permissions</button>` +
+                    `<button class='mini' title='Read-only view'>Last Seen</button>`;
+                  return `<tr><td>${principalId}</td><td>${principalType}${managedBadge}</td><td>${status}</td><td>${updated}</td><td><div class='row-actions'>${readonly}${systemLocked ? destructive : ""}</div></td></tr>`;
+                })
+                .join("");
+              return `<div class='group-title'>${escapeHtml(principalGroupLabel(key))}</div><table class='table'><thead><tr><th>Principal</th><th>Type</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+            })
+            .join("");
+          sectionContent.innerHTML = toolbar + chunks;
+          return;
+        }
+
         const rows = visible
           .slice(0, 50)
           .map((item) => {
