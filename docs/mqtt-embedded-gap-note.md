@@ -69,3 +69,4 @@ Validation snapshot:
 
 Routing note:
 - Local embedded addon UI alias requests now short-circuit to local addon routes (`/api/addons/{addon_id}`) instead of relying on outbound proxy network hops.
+- MQTT setup controls are now rendered in embedded addon UI (`/addons/mqtt`) rather than Settings page connectivity form.
