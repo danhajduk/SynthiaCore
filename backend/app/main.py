@@ -429,6 +429,7 @@ def create_app() -> FastAPI:
             image=os.getenv("SYNTHIA_MQTT_DOCKER_IMAGE", "eclipse-mosquitto:2"),
             host=str(os.getenv("SYNTHIA_MQTT_HOST", "127.0.0.1")),
             port=int(os.getenv("SYNTHIA_MQTT_PORT", "1883")),
+            bootstrap_port=int(os.getenv("SYNTHIA_MQTT_BOOTSTRAP_PORT", "1884")),
         )
     mqtt_acl_compiler = MqttAclCompiler()
     mqtt_config_renderer = MqttBrokerConfigRenderer()

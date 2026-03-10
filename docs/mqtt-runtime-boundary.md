@@ -29,8 +29,10 @@ Current implementation in repo:
 - `DockerMosquittoRuntimeBoundary` (also exposed via legacy alias `MosquittoProcessRuntimeBoundary`) is the active local broker runtime provider:
   - container image: `eclipse-mosquitto:2` (override: `SYNTHIA_MQTT_DOCKER_IMAGE`)
   - container name: `synthia-mqtt-broker` (override: `SYNTHIA_MQTT_DOCKER_CONTAINER`)
+  - published ports:
+    - main listener: `SYNTHIA_MQTT_PORT` (default `1883`) -> container `1883`
+    - bootstrap listener: `SYNTHIA_MQTT_BOOTSTRAP_PORT` (default `1884`) -> container `1884`
   - startup command: `docker run ... mosquitto -c <live_dir>/broker.conf`
-  - network mode: `host`
   - restart policy: `unless-stopped`
   - reload: `docker kill --signal HUP <container>`
   - stop: `docker rm -f <container>`
@@ -92,6 +94,9 @@ Startup bootstrap:
   - `var/mqtt_runtime/live/`
   - `var/mqtt_runtime/data/`
   - `var/mqtt_runtime/logs/`
+- Runtime boundary also normalizes permissions before launch:
+  - `data/` and `logs/` are set writable (`0777`) for container process writes.
+  - required live runtime files (`broker.conf`, `acl_compiled.conf`, `passwords.conf`, etc.) are normalized to readable mode (`0644`).
 
 Runtime preflight expectations:
 - Runtime start validates required live files before attempting Docker start:

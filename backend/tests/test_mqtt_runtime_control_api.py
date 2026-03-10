@@ -389,6 +389,7 @@ class TestMqttRuntimeControlApi(unittest.TestCase):
                 staged_dir=str(root / "staged"),
                 data_dir=str(root / "data"),
                 log_dir=str(root / "logs"),
+                container_name="synthia-mqtt-broker-test-control-missing-live",
             )
             client = self._client(manager=manager, runtime_boundary=runtime, runtime_reconciler=None, audit_store=_FakeAuditStore())
             start = client.post("/api/system/mqtt/runtime/start", headers={"X-Admin-Token": "test-token"})

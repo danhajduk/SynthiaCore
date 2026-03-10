@@ -100,6 +100,7 @@ class DockerMosquittoRuntimeBoundary:
         image: str = "eclipse-mosquitto:2",
         host: str = "127.0.0.1",
         port: int = 1883,
+        bootstrap_port: int = 1884,
     ) -> None:
         self._provider = "embedded_mosquitto_docker"
         self._live_dir = os.path.abspath(live_dir)
@@ -113,6 +114,7 @@ class DockerMosquittoRuntimeBoundary:
         self._image = str(image).strip() or "eclipse-mosquitto:2"
         self._host = str(host).strip() or "127.0.0.1"
         self._port = int(port)
+        self._bootstrap_port = int(bootstrap_port)
         self._state = "stopped"
         self._healthy = False
         self._degraded_reason: str | None = "runtime_not_started"
@@ -240,8 +242,7 @@ class DockerMosquittoRuntimeBoundary:
         os.makedirs(self._live_dir, exist_ok=True)
         os.makedirs(self._data_dir, exist_ok=True)
         os.makedirs(self._log_dir, exist_ok=True)
-        os.chmod(self._data_dir, 0o777)
-        os.chmod(self._log_dir, 0o777)
+        self._prepare_runtime_permissions()
         if self._container_exists_sync() and not self._container_running_sync():
             self._remove_container_sync()
         if not self._container_exists_sync():
@@ -253,8 +254,10 @@ class DockerMosquittoRuntimeBoundary:
                     self._container_name,
                     "--restart",
                     "unless-stopped",
-                    "--network",
-                    "host",
+                    "-p",
+                    f"{self._port}:{self._port}",
+                    "-p",
+                    f"{self._bootstrap_port}:{self._bootstrap_port}",
                     "-v",
                     f"{self._live_dir}:{self._live_dir}:ro",
                     "-v",
@@ -298,6 +301,21 @@ class DockerMosquittoRuntimeBoundary:
             if os.path.getsize(path) <= 0:
                 missing.append(path)
         return missing
+
+    def _prepare_runtime_permissions(self) -> None:
+        os.chmod(self._data_dir, 0o777)
+        os.chmod(self._log_dir, 0o777)
+        for name in [
+            self._config_filename,
+            "acl_compiled.conf",
+            "passwords.conf",
+            "acl.conf",
+            "auth.conf",
+            "listeners.conf",
+        ]:
+            path = os.path.join(self._live_dir, name)
+            if os.path.isfile(path):
+                os.chmod(path, 0o644)
 
     def _docker_available(self) -> bool:
         return bool(shutil.which("docker"))
