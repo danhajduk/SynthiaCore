@@ -1,6 +1,6 @@
 # MQTT Embedded Phase 2 Runbook
 
-Last Updated: 2026-03-10 07:00 US/Pacific
+Last Updated: 2026-03-10 07:07 US/Pacific
 
 ## Scope
 
@@ -260,6 +260,8 @@ Addon UI mapping:
 - `/addons/mqtt` post-setup navigation sections:
   - Overview: setup/runtime/authority/bootstrap summary
   - Principals: principal list with type/status filters, topic-prefix visibility, and generic-user actions (revoke/disable/rotate)
+    - non-system principals now expose activate/disable/revoke actions
+    - generic principals now expose edit/delete actions
   - Generic Users: broker-user list with status filter and Add User workflow shortcut
   - Runtime: runtime details + runtime control actions
   - Audit: authority/runtime audit history with result filters
@@ -315,3 +317,7 @@ Failure and recovery:
 4. Supervisor self-heal path:
    - runtime supervision loop performs reconcile+retry when runtime health remains degraded with `config_missing` (`reason=runtime_supervisor_config_missing`)
 5. Re-check `effective_status`, runtime health, and bootstrap publish status.
+- edit user topic prefix:
+  - `PATCH /api/system/mqtt/users/{principal_id}`
+- delete user:
+  - `DELETE /api/system/mqtt/users/{principal_id}`

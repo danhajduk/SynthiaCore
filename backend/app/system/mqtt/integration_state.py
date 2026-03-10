@@ -48,6 +48,15 @@ class MqttIntegrationStateStore:
             await asyncio.to_thread(self._write_sync, next_state)
             return next_state
 
+    async def remove_principal(self, principal_id: str) -> MqttIntegrationState:
+        async with self._lock:
+            state = await asyncio.to_thread(self._read_sync)
+            principals = dict(state.principals)
+            principals.pop(principal_id, None)
+            next_state = state.model_copy(update={"principals": principals, "updated_at": _utcnow_iso()})
+            await asyncio.to_thread(self._write_sync, next_state)
+            return next_state
+
     async def update_setup_state(self, setup: MqttSetupStateUpdate) -> MqttIntegrationState:
         async with self._lock:
             state = await asyncio.to_thread(self._read_sync)

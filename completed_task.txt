@@ -357,3 +357,5 @@
 2026-03-10 - Task 349: added users-contract credential rotation endpoint with regenerated credential response.
 2026-03-10 - Task 350: emitted dedicated MQTT principal lifecycle audit events (created/activated/revoked/password_rotated).
 2026-03-10 - Session complete: finished MQTT principals task queue (342-350) including lifecycle fixes, users API, UI actions, and audit coverage.
+2026-03-10 - Task 351: enabled non-system principal actions in MQTT Principals UI.
+2026-03-10 - Task 352: added generic user edit/delete APIs and wired UI actions.

@@ -50,6 +50,10 @@ class MqttUserCreateRequest(BaseModel):
     topic_prefix: str | None = None
 
 
+class MqttUserUpdateRequest(BaseModel):
+    topic_prefix: str = Field(..., min_length=1)
+
+
 class MqttGenericUserGrantUpdateRequest(BaseModel):
     publish_topics: list[str] = Field(default_factory=list)
     subscribe_topics: list[str] = Field(default_factory=list)
@@ -749,6 +753,38 @@ def build_mqtt_router(
             "password_mode": password_mode,
             "password": (credential or {}).get("password"),
         }
+
+    @router.patch("/mqtt/users/{principal_id}")
+    async def mqtt_users_update(
+        principal_id: str,
+        body: MqttUserUpdateRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        prefix = _normalize_topic_prefix(body.topic_prefix)
+        result = await approval.update_generic_user_topic_prefix(principal_id=principal_id, topic_prefix=prefix)
+        if not result.get("ok"):
+            error = str(result.get("error") or "generic_user_update_failed")
+            if error == "principal_not_found":
+                raise HTTPException(status_code=404, detail=error)
+            raise HTTPException(status_code=400, detail=error)
+        return result
+
+    @router.delete("/mqtt/users/{principal_id}")
+    async def mqtt_users_delete(
+        principal_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        result = await approval.delete_generic_user(principal_id)
+        if not result.get("ok"):
+            error = str(result.get("error") or "generic_user_delete_failed")
+            if error == "principal_not_found":
+                raise HTTPException(status_code=404, detail=error)
+            raise HTTPException(status_code=400, detail=error)
+        return result
 
     @router.patch("/mqtt/generic-users/{principal_id}/grants")
     async def mqtt_generic_user_update_grants(

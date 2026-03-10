@@ -384,3 +384,5 @@
 319. Task 348: Extend Principals table for generic user topic-prefix and actions - Completed on 03/10/2026 06:56
 320. Task 349: Add `/api/system/mqtt/users/{principal_id}/rotate` credential rotation endpoint - Completed on 03/10/2026 07:00
 321. Task 350: Emit MQTT principal lifecycle audit events - Completed on 03/10/2026 07:00
+322. Task 351: Enable actionable principal controls in MQTT Principals table - Completed on 03/10/2026 07:07
+323. Task 352: Add generic user edit/delete support (API + UI) - Completed on 03/10/2026 07:07

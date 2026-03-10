@@ -387,6 +387,58 @@ class MqttRegistrationApprovalService:
             await self._append_lifecycle_audit("principal_activated", principal_id=principal_id, actor="operator")
         return {"ok": True, "principal": principal.model_dump(mode="json")}
 
+    async def update_generic_user_topic_prefix(self, *, principal_id: str, topic_prefix: str) -> dict[str, Any]:
+        state = await self._state_store.get_state()
+        current = state.principals.get(principal_id)
+        if current is None:
+            return {"ok": False, "error": "principal_not_found"}
+        if current.principal_type != "generic_user":
+            return {"ok": False, "error": "principal_type_invalid"}
+        prefix = str(topic_prefix or "").strip().strip("/")
+        if not prefix:
+            return {"ok": False, "error": "topic_prefix_required"}
+        scope = f"{prefix}/#"
+        result = await self.create_or_update_generic_user(
+            principal_id=principal_id,
+            logical_identity=current.logical_identity,
+            username=current.username,
+            topic_prefix=prefix,
+            publish_topics=[scope],
+            subscribe_topics=[scope],
+            notes=current.notes,
+        )
+        if result.get("ok"):
+            await self._append_audit(
+                event_type="mqtt_generic_user_action",
+                status="ok",
+                message="edit",
+                payload={"principal_id": principal_id, "topic_prefix": prefix},
+            )
+        return result
+
+    async def delete_generic_user(self, principal_id: str) -> dict[str, Any]:
+        state = await self._state_store.get_state()
+        current = state.principals.get(principal_id)
+        if current is None:
+            return {"ok": False, "error": "principal_not_found"}
+        if current.principal_type != "generic_user":
+            return {"ok": False, "error": "principal_type_invalid"}
+        await self._state_store.remove_principal(principal_id)
+        if callable(self._credential_rotate_hook):
+            try:
+                self._credential_rotate_hook(principal_id)
+            except Exception:
+                pass
+        await self._reconcile_runtime_if_needed(reason=f"generic_user_delete:{principal_id}")
+        await self._append_audit(
+            event_type="mqtt_generic_user_action",
+            status="ok",
+            message="delete",
+            payload={"principal_id": principal_id},
+        )
+        await self._append_lifecycle_audit("principal_revoked", principal_id=principal_id, actor="operator")
+        return {"ok": True, "principal_id": principal_id}
+
     async def list_noisy_clients(self) -> list[dict[str, Any]]:
         principals = await self.list_principals()
         out: list[dict[str, Any]] = []

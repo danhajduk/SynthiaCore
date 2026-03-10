@@ -619,7 +619,7 @@ def addon_ui_root() -> str:
       }
     }
 
-    async function runGenericUserAction(action, principalId) {
+    async function runGenericUserAction(action, principalId, topicPrefix) {
       const id = String(principalId || "").trim();
       if (!id) return;
       const normalized = String(action || "").trim().toLowerCase();
@@ -636,6 +636,16 @@ def addon_ui_root() -> str:
         body = { reason: "ui_disable" };
       } else if (normalized === "rotate") {
         url = `/api/system/mqtt/generic-users/${encodeURIComponent(id)}/rotate-credentials`;
+      } else if (normalized === "edit") {
+        const nextPrefix = window.prompt("Topic prefix", String(topicPrefix || ""));
+        if (!nextPrefix) return;
+        url = `/api/system/mqtt/users/${encodeURIComponent(id)}`;
+        method = "PATCH";
+        body = { topic_prefix: nextPrefix };
+      } else if (normalized === "delete") {
+        if (!window.confirm(`Delete ${id}?`)) return;
+        url = `/api/system/mqtt/users/${encodeURIComponent(id)}`;
+        method = "DELETE";
       } else {
         return;
       }
@@ -655,6 +665,31 @@ def addon_ui_root() -> str:
         setStatus(`${normalized} completed for ${id}.`, "ok");
       } catch (error) {
         setStatus(`${normalized} failed for ${id}: ${error && error.message ? error.message : String(error)}`, "error");
+      }
+    }
+
+    async function runPrincipalAction(action, principalId) {
+      const id = String(principalId || "").trim();
+      const act = String(action || "").trim().toLowerCase();
+      if (!id || !act) return;
+      if (act === "revoke" && !window.confirm(`Revoke ${id}?`)) return;
+      const reason = act === "probation" ? "ui_probation" : act === "revoke" ? "ui_revoke" : "ui_action";
+      setStatus(`Running ${act} for ${id}...`, "");
+      try {
+        const response = await fetch(`/api/system/mqtt/principals/${encodeURIComponent(id)}/actions/${encodeURIComponent(act)}`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason }),
+        });
+        const payload = await response.json();
+        if (!response.ok || (payload && payload.ok === false)) {
+          throw new Error(payload && payload.detail ? payload.detail : `${act}_failed`);
+        }
+        await loadStatus();
+        setStatus(`${act} completed for ${id}.`, "ok");
+      } catch (error) {
+        setStatus(`${act} failed for ${id}: ${error && error.message ? error.message : String(error)}`, "error");
       }
     }
 
@@ -1019,9 +1054,16 @@ def addon_ui_root() -> str:
                   const genericActions = key === "generic"
                     ? `<button class='mini' data-generic-action='revoke' data-principal-id='${principalId}'>Revoke</button>` +
                       `<button class='mini' data-generic-action='disable' data-principal-id='${principalId}'>Disable</button>` +
-                      `<button class='mini' data-generic-action='rotate' data-principal-id='${principalId}'>Rotate Password</button>`
+                      `<button class='mini' data-generic-action='rotate' data-principal-id='${principalId}'>Rotate Password</button>` +
+                      `<button class='mini' data-generic-action='edit' data-principal-id='${principalId}' data-topic-prefix='${topicPrefix}'>Edit</button>` +
+                      `<button class='mini' data-generic-action='delete' data-principal-id='${principalId}'>Delete</button>`
                     : "";
-                  return `<tr><td>${principalId}</td><td>${principalType}${managedBadge}</td><td>${status}</td><td>${topicPrefix}</td><td>${updated}</td><td><div class='row-actions'>${readonly}${systemLocked ? destructive : genericActions}</div></td></tr>`;
+                  const principalActions = key !== "generic" && !systemLocked
+                    ? `<button class='mini' data-principal-action='activate' data-principal-id='${principalId}'>Activate</button>` +
+                      `<button class='mini' data-principal-action='probation' data-principal-id='${principalId}'>Disable</button>` +
+                      `<button class='mini' data-principal-action='revoke' data-principal-id='${principalId}'>Revoke</button>`
+                    : "";
+                  return `<tr><td>${principalId}</td><td>${principalType}${managedBadge}</td><td>${status}</td><td>${topicPrefix}</td><td>${updated}</td><td><div class='row-actions'>${readonly}${systemLocked ? destructive : (key === "generic" ? genericActions : principalActions)}</div></td></tr>`;
                 })
                 .join("");
               return `<div class='group-title'>${escapeHtml(principalGroupLabel(key))}</div><table class='table'><thead><tr><th>Principal</th><th>Type</th><th>Status</th><th>Topic Prefix</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -1249,7 +1291,15 @@ def addon_ui_root() -> str:
       if (genericAction) {
         const action = genericAction.getAttribute("data-generic-action");
         const principalId = genericAction.getAttribute("data-principal-id");
-        if (action && principalId) void runGenericUserAction(action, principalId);
+        const topicPrefix = genericAction.getAttribute("data-topic-prefix");
+        if (action && principalId) void runGenericUserAction(action, principalId, topicPrefix);
+        return;
+      }
+      const principalAction = event.target.closest("[data-principal-action]");
+      if (principalAction) {
+        const action = principalAction.getAttribute("data-principal-action");
+        const principalId = principalAction.getAttribute("data-principal-id");
+        if (action && principalId) void runPrincipalAction(action, principalId);
       }
     });
     sectionContent.addEventListener("click", async (event) => {

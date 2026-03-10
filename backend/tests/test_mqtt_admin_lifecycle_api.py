@@ -260,6 +260,25 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertIn("topic read external/homeassistant/#", acl)
         self.assertIn("topic deny synthia/#", acl)
 
+        edited = self.client.patch(
+            "/api/system/mqtt/users/user:homeassistant",
+            headers={"X-Admin-Token": "test-token"},
+            json={"topic_prefix": "external/homeassistant-v2"},
+        )
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertTrue(edited.json()["ok"])
+        state_after_edit = asyncio.run(self.state_store.get_state())
+        self.assertEqual(state_after_edit.principals["user:homeassistant"].topic_prefix, "external/homeassistant-v2")
+
+        deleted = self.client.delete(
+            "/api/system/mqtt/users/user:homeassistant",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        self.assertTrue(deleted.json()["ok"])
+        state_after_delete = asyncio.run(self.state_store.get_state())
+        self.assertNotIn("user:homeassistant", state_after_delete.principals)
+
     def test_noisy_client_manual_actions(self) -> None:
         created = asyncio.run(
             self.approval.create_or_update_generic_user(
