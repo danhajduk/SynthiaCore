@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-08 15:38 US/Pacific
+Last Updated: 2026-03-10 00:45 US/Pacific
 
 ## Stack
 
@@ -84,6 +84,7 @@ Last Updated: 2026-03-08 15:38 US/Pacific
   - `ui_embed_target` for iframe source path when addon is loaded/registered in Core
   - `standalone_runtime.published_ports` as direct fallback target when runtime is running but addon is not yet loaded in Core
   - `ui_reachable` and `ui_reason` for loading/fallback state
+  - embedded local addons are treated as reachable when `loaded=true` with no standalone runtime payload (`embedded_local`)
   - `runtime_state` to stop loading early when standalone runtime is in error state
 - when iframe is same-origin accessible (proxy path), `AddonFrame` injects Core theme tokens and base component classes into iframe document on load
   - verification markers:

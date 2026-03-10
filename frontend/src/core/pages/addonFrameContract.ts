@@ -44,8 +44,15 @@ export function resolveAddonUiEmbedState(
     }
   }
   const reachable = payload.ui_reachable === true;
+  const embeddedLocal =
+    payload.loaded === true &&
+    !payload.standalone_runtime &&
+    (runtimeState === "" || runtimeState === "unknown");
   const reason =
     typeof payload.ui_reason === "string" && payload.ui_reason.trim() ? payload.ui_reason.trim() : "unknown";
+  if (!reachable && embeddedLocal) {
+    return { frameSrc, reachable: true, reason: "embedded_local" };
+  }
   return { frameSrc, reachable, reason };
 }
 
@@ -63,6 +70,8 @@ export function addonUiFallbackReason(reason: string): string {
       return "Unable to query addon runtime status.";
     case "status_unavailable":
       return "No addon runtime status was returned.";
+    case "embedded_local":
+      return "Embedded addon UI is served by Core.";
     case "frame_load_failed":
       return "The addon UI failed to load in the frame.";
     case "timeout":

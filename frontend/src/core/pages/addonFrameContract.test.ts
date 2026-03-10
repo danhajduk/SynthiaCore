@@ -38,4 +38,17 @@ describe("addonFrameContract", () => {
   it("maps fallback reasons to readable text", () => {
     expect(addonUiFallbackReason("no_published_ports")).toContain("published UI ports");
   });
+
+  it("treats loaded embedded addons as reachable without standalone runtime", () => {
+    const resolved = resolveAddonUiEmbedState("mqtt", {
+      loaded: true,
+      runtime_state: "unknown",
+      ui_reachable: false,
+      ui_embed_target: "/ui/addons/mqtt",
+      ui_reason: "runtime_unavailable",
+    });
+    expect(resolved.reachable).toBe(true);
+    expect(resolved.reason).toBe("embedded_local");
+    expect(resolved.frameSrc.endsWith("/ui/addons/mqtt")).toBe(true);
+  });
 });
