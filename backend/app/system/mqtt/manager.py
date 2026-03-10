@@ -202,6 +202,13 @@ class MqttManager:
         tls_enabled = bool((await self._settings.get(tls_key)) or False)
         keepalive_s = int((await self._settings.get("mqtt.keepalive_s")) or 30)
         client_id = str((await self._settings.get("mqtt.client_id")) or "synthia-core")
+        if mode == "local":
+            # Local embedded runtime is broker-authoritative; avoid stale external settings causing auth/connect drift.
+            host = str(os.getenv("SYNTHIA_MQTT_HOST", "127.0.0.1")).strip() or "127.0.0.1"
+            port = int(os.getenv("SYNTHIA_MQTT_PORT", str(port)))
+            username = None
+            password = None
+            tls_enabled = False
         return MqttConfig(
             mode=mode,
             host=host,

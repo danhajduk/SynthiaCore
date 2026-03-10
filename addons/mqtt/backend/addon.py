@@ -715,6 +715,7 @@ def addon_ui_root() -> str:
       if (normalized === "init") return { method: "POST", url: "/api/system/mqtt/runtime/init" };
       if (normalized === "start") return { method: "POST", url: "/api/system/mqtt/runtime/start" };
       if (normalized === "stop") return { method: "POST", url: "/api/system/mqtt/runtime/stop" };
+      if (normalized === "bootstrap") return { method: "POST", url: "/api/system/mqtt/bootstrap/publish" };
       return { method: "POST", url: "/api/system/mqtt/runtime/rebuild" };
     }
 
@@ -958,6 +959,7 @@ def addon_ui_root() -> str:
           `<button data-runtime-action='start'>Start</button>` +
           `<button data-runtime-action='stop'>Stop</button>` +
           `<button data-runtime-action='rebuild'>Rebuild</button>` +
+          `<button data-runtime-action='bootstrap'>Publish Bootstrap</button>` +
           `<button data-runtime-action='health'>Check Health</button>` +
           `</div>` +
           `<div id='runtime-action-status' class='${state.runtimeActionKind ? "status " + state.runtimeActionKind : "status"}'>${escapeHtml(state.runtimeActionStatus || "")}</div>` +

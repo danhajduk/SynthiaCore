@@ -993,6 +993,31 @@ def build_mqtt_router(
             "effective_status": summary.get("effective_status", {}),
         }
 
+    @router.post("/mqtt/bootstrap/publish")
+    async def mqtt_bootstrap_publish(
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        publish_fn = _runtime_bootstrap_callable()
+        if publish_fn is None:
+            raise HTTPException(status_code=503, detail="runtime_bootstrap_unavailable")
+        published = bool(await publish_fn(force=True))
+        if published:
+            await _audit_runtime_action(
+                action="bootstrap_publish",
+                status="ok",
+                payload={"published": True},
+            )
+        else:
+            await _audit_runtime_action(
+                action="bootstrap_publish",
+                status="error",
+                message="publish_failed",
+                payload={"published": False},
+            )
+        return {"ok": published, "published": published}
+
     @router.post("/mqtt/setup-state")
     async def mqtt_setup_state(
         body: MqttSetupStateUpdate,

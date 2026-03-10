@@ -27,6 +27,7 @@ class TestMqttEmbeddedUiRoutes(unittest.TestCase):
         self.assertIn("data-section=\"principals\"", res.text)
         self.assertIn("data-section=\"users\"", res.text)
         self.assertIn("data-section=\"runtime\"", res.text)
+        self.assertIn("Publish Bootstrap", res.text)
         self.assertIn("data-section=\"audit\"", res.text)
         self.assertIn("data-section=\"noisy-clients\"", res.text)
         self.assertIn(".pill {", res.text)

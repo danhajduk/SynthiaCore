@@ -359,3 +359,5 @@
 2026-03-10 - Session complete: finished MQTT principals task queue (342-350) including lifecycle fixes, users API, UI actions, and audit coverage.
 2026-03-10 - Task 351: enabled non-system principal actions in MQTT Principals UI.
 2026-03-10 - Task 352: added generic user edit/delete APIs and wired UI actions.
+2026-03-10 - Task 353: fixed local-mode MQTT connection drift by ignoring stale local auth/tls settings.
+2026-03-10 - Task 354: added bootstrap republish endpoint and runtime UI action.

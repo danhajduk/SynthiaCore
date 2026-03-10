@@ -13,6 +13,14 @@ class _FakeSettingsStore:
         return None
 
 
+class _MapSettingsStore:
+    def __init__(self, values: dict[str, object]) -> None:
+        self.values = values
+
+    async def get(self, key: str):
+        return self.values.get(key)
+
+
 class _FakeRegistry:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict]] = []
@@ -195,6 +203,56 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(manager._connected)
         self.assertEqual(client.subscribed, MQTT_SUBSCRIPTIONS)
+
+    async def test_load_config_local_ignores_stale_auth_settings(self) -> None:
+        manager = MqttManager(
+            settings_store=_MapSettingsStore(
+                {
+                    "mqtt.mode": "local",
+                    "mqtt.local.host": "10.0.0.100",
+                    "mqtt.local.port": 1883,
+                    "mqtt.local.username": "admin",
+                    "mqtt.local.password": "bad",
+                    "mqtt.local.tls_enabled": True,
+                    "mqtt.client_id": "synthia-core",
+                }
+            ),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        cfg = await manager._load_config()
+        self.assertEqual(cfg.mode, "local")
+        self.assertEqual(cfg.host, "127.0.0.1")
+        self.assertEqual(cfg.port, 1883)
+        self.assertIsNone(cfg.username)
+        self.assertIsNone(cfg.password)
+        self.assertFalse(cfg.tls_enabled)
+
+    async def test_load_config_external_keeps_auth_settings(self) -> None:
+        manager = MqttManager(
+            settings_store=_MapSettingsStore(
+                {
+                    "mqtt.mode": "external",
+                    "mqtt.external.host": "10.0.0.200",
+                    "mqtt.external.port": 2883,
+                    "mqtt.external.username": "broker-user",
+                    "mqtt.external.password": "broker-pass",
+                    "mqtt.external.tls_enabled": True,
+                    "mqtt.client_id": "synthia-core",
+                }
+            ),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        cfg = await manager._load_config()
+        self.assertEqual(cfg.mode, "external")
+        self.assertEqual(cfg.host, "10.0.0.200")
+        self.assertEqual(cfg.port, 2883)
+        self.assertEqual(cfg.username, "broker-user")
+        self.assertEqual(cfg.password, "broker-pass")
+        self.assertTrue(cfg.tls_enabled)
 
 
 if __name__ == "__main__":

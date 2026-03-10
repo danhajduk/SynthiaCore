@@ -386,3 +386,5 @@
 321. Task 350: Emit MQTT principal lifecycle audit events - Completed on 03/10/2026 07:00
 322. Task 351: Enable actionable principal controls in MQTT Principals table - Completed on 03/10/2026 07:07
 323. Task 352: Add generic user edit/delete support (API + UI) - Completed on 03/10/2026 07:07
+324. Task 353: Fix local-mode mqtt_runtime_not_connected by hardening manager local config loading - Completed on 03/10/2026 07:12
+325. Task 354: Add Core bootstrap republish endpoint and runtime UI action - Completed on 03/10/2026 07:12

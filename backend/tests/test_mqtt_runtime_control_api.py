@@ -252,6 +252,26 @@ class TestMqttRuntimeControlApi(unittest.TestCase):
         self.assertFalse(bool(init_call["publish_bootstrap"]))
         self.assertGreaterEqual(reconciler.bootstrap_publish_calls, 1)
 
+    def test_bootstrap_publish_endpoint_forces_republish(self) -> None:
+        manager = _FakeMqttManager()
+        runtime = _FakeRuntimeBoundary()
+        reconciler = _FakeRuntimeReconciler()
+        audit = _FakeAuditStore()
+        client = self._client(
+            manager=manager,
+            runtime_boundary=runtime,
+            runtime_reconciler=reconciler,
+            audit_store=audit,
+        )
+
+        resp = client.post("/api/system/mqtt/bootstrap/publish", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertTrue(resp.json()["ok"])
+        self.assertTrue(resp.json()["published"])
+        self.assertGreaterEqual(reconciler.bootstrap_publish_calls, 1)
+        actions = [item["payload"].get("action") for item in audit.events if item.get("event_type") == "mqtt_runtime_control"]
+        self.assertIn("bootstrap_publish", actions)
+
     def test_runtime_control_requires_runtime_boundary(self) -> None:
         manager = _FakeMqttManager()
         client = self._client(manager=manager, runtime_boundary=None, runtime_reconciler=None, audit_store=None)

@@ -1,6 +1,6 @@
 # MQTT Embedded Phase 2 Runbook
 
-Last Updated: 2026-03-10 07:07 US/Pacific
+Last Updated: 2026-03-10 07:12 US/Pacific
 
 ## Scope
 
@@ -169,6 +169,7 @@ Runtime control endpoints (admin token required):
 - `POST /api/system/mqtt/runtime/start`
 - `POST /api/system/mqtt/runtime/stop`
 - `POST /api/system/mqtt/runtime/rebuild`
+- `POST /api/system/mqtt/bootstrap/publish`
 - `POST /api/system/mqtt/setup/apply`
 - `POST /api/system/mqtt/setup/test-connection`
 
@@ -177,6 +178,7 @@ Implemented semantics:
 - `start`: ensures broker runtime process is running, and if runtime reports `degraded_reason=config_missing` performs one reconcile+retry (`reason=api_runtime_start_config_missing`) before restarting Core MQTT client connection.
 - `stop`: stops broker runtime process and stops Core MQTT client connection.
 - `rebuild`: triggers authority reconcile (`reason=api_runtime_rebuild`) and validates runtime health.
+- `bootstrap/publish`: forces retained bootstrap republish from Core (`synthia/bootstrap/core`).
 - `health`: returns runtime provider state/health and current MQTT manager connection status.
 - `setup/apply`: persists selected MQTT mode/settings, initializes local runtime through reconcile/ensure-running path, retries once on `config_missing` (`reason=api_setup_apply_local_config_missing`), or validates external endpoint reachability and updates setup state.
 - `setup/test-connection`: runs a lightweight endpoint reachability test for external broker setup flow without marking setup complete.
@@ -190,6 +192,9 @@ Local setup/apply enforced order:
 
 Bootstrap publish guard:
 - `ensure_bootstrap_published` now checks runtime health before publishing and skips publish when runtime is unhealthy.
+
+Local mode connection guard:
+- Core local-mode MQTT client now ignores stale local username/password/tls settings and uses local broker host defaults, preventing `mqtt_runtime_not_connected` caused by old external credentials persisted under local mode.
 
 Audit trail:
 - runtime actions append `event_type=mqtt_runtime_control` entries in `/api/system/mqtt/audit`.
