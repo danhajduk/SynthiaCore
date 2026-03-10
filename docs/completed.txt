@@ -359,3 +359,7 @@
 294. Task 314: Add page-level error handling and fallback UX across MQTT addon UI - Completed on 03/10/2026 02:25
 295. Task 315: Add route and page tests for post-setup UI - Completed on 03/10/2026 02:25
 296. Task 316: Update MQTT addon UI docs for post-setup operator pages - Completed on 03/10/2026 02:25
+297. Task 317: Add config_missing recovery retry in MQTT setup apply/runtime start flows - Completed on 03/10/2026 02:30
+298. Task 318: Add runtime supervisor self-heal path for config_missing via reconcile - Completed on 03/10/2026 02:30
+299. Task 319: Add regression tests for config_missing recovery behavior - Completed on 03/10/2026 02:30
+300. Task 320: Update runbook/docs for config_missing recovery behavior - Completed on 03/10/2026 02:30

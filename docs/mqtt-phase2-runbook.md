@@ -151,12 +151,12 @@ Runtime control endpoints (admin token required):
 - `POST /api/system/mqtt/setup/test-connection`
 
 Implemented semantics:
-- `init`: triggers authority reconcile (`reason=api_runtime_init`), ensures runtime is running, then restarts Core MQTT client connection.
-- `start`: ensures broker runtime process is running, then restarts Core MQTT client connection.
+- `init`: triggers authority reconcile (`reason=api_runtime_init`), ensures runtime is running, and if runtime reports `degraded_reason=config_missing` performs one reconcile+retry (`reason=api_runtime_init_config_missing`) before restarting Core MQTT client connection.
+- `start`: ensures broker runtime process is running, and if runtime reports `degraded_reason=config_missing` performs one reconcile+retry (`reason=api_runtime_start_config_missing`) before restarting Core MQTT client connection.
 - `stop`: stops broker runtime process and stops Core MQTT client connection.
 - `rebuild`: triggers authority reconcile (`reason=api_runtime_rebuild`) and validates runtime health.
 - `health`: returns runtime provider state/health and current MQTT manager connection status.
-- `setup/apply`: persists selected MQTT mode/settings, initializes local runtime through reconcile/ensure-running path, or validates external endpoint reachability and updates setup state.
+- `setup/apply`: persists selected MQTT mode/settings, initializes local runtime through reconcile/ensure-running path, retries once on `config_missing` (`reason=api_setup_apply_local_config_missing`), or validates external endpoint reachability and updates setup state.
 - `setup/test-connection`: runs a lightweight endpoint reachability test for external broker setup flow without marking setup complete.
 
 Audit trail:
@@ -194,4 +194,6 @@ Failure and recovery:
 3. Trigger controlled path:
    - `POST /api/system/mqtt/runtime/rebuild` (preferred)
    - or `POST /api/system/mqtt/runtime/start`
-4. Re-check `effective_status`, runtime health, and bootstrap publish status.
+4. Supervisor self-heal path:
+   - runtime supervision loop performs reconcile+retry when runtime health remains degraded with `config_missing` (`reason=runtime_supervisor_config_missing`)
+5. Re-check `effective_status`, runtime health, and bootstrap publish status.

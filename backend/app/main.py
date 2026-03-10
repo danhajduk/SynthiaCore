@@ -179,6 +179,13 @@ def create_app() -> FastAPI:
                         status = await runtime.health_check()
                         if not status.healthy:
                             status = await runtime.ensure_running()
+                            if (
+                                not status.healthy
+                                and str(getattr(status, "degraded_reason", "") or "").lower() == "config_missing"
+                                and startup_reconciler is not None
+                            ):
+                                await startup_reconciler.reconcile_authority(reason="runtime_supervisor_config_missing")
+                                status = await runtime.ensure_running()
                         state = await state_store.get_state()
                         if not status.healthy:
                             await state_store.update_setup_state(

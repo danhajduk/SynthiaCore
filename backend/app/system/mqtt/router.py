@@ -172,6 +172,14 @@ def build_mqtt_router(
             raise HTTPException(status_code=503, detail="runtime_boundary_unavailable")
         return runtime_boundary
 
+    def _runtime_reconciler_callable():
+        if runtime_reconciler is None:
+            return None
+        fn = getattr(runtime_reconciler, "reconcile_authority", None)
+        if callable(fn):
+            return fn
+        return None
+
     def _settings_required() -> Any:
         if settings_store is None:
             raise HTTPException(status_code=503, detail="settings_store_unavailable")
@@ -195,6 +203,26 @@ def build_mqtt_router(
             return {"ok": False, "result": "unreachable", "detail": "connect_failed"}
         except Exception:
             return {"ok": False, "result": "unreachable", "detail": "connect_failed"}
+
+    async def _ensure_runtime_with_config_retry(
+        runtime,
+        *,
+        retry_reason: str,
+        reconcile_payload: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        existing = dict(reconcile_payload or {})
+        status = await runtime.ensure_running()
+        payload = _runtime_status_payload(status)
+        if payload.get("healthy"):
+            return payload, existing
+        reason = str(payload.get("degraded_reason") or "").strip().lower()
+        reconcile_fn = _runtime_reconciler_callable()
+        if reason == "config_missing" and reconcile_fn is not None:
+            retried = await reconcile_fn(reason=retry_reason)
+            existing = _reconcile_payload(retried)
+            status = await runtime.ensure_running()
+            payload = _runtime_status_payload(status)
+        return payload, existing
 
     @router.get("/mqtt/status")
     async def mqtt_status():
@@ -285,12 +313,16 @@ def build_mqtt_router(
                 await manager.restart()
                 status_payload = await _manager_status_safe()
         else:
-            if runtime_reconciler is not None and hasattr(runtime_reconciler, "reconcile_authority"):
-                reconcile_result = await runtime_reconciler.reconcile_authority(reason="api_setup_apply_local")
-                reconcile_payload = _reconcile_payload(reconcile_result)
             runtime = _runtime_required()
-            runtime_status = await runtime.ensure_running()
-            runtime_payload = _runtime_status_payload(runtime_status)
+            reconcile_fn = _runtime_reconciler_callable()
+            if reconcile_fn is not None:
+                reconcile_result = await reconcile_fn(reason="api_setup_apply_local")
+                reconcile_payload = _reconcile_payload(reconcile_result)
+            runtime_payload, reconcile_payload = await _ensure_runtime_with_config_retry(
+                runtime,
+                retry_reason="api_setup_apply_local_config_missing",
+                reconcile_payload=reconcile_payload,
+            )
             if body.initialize and bool(runtime_payload.get("healthy")):
                 await manager.restart()
             status_payload = await _manager_status_safe()
@@ -352,21 +384,29 @@ def build_mqtt_router(
     async def mqtt_runtime_start(request: Request, x_admin_token: str | None = Header(default=None)):
         require_admin_token(x_admin_token, request)
         runtime = _runtime_required()
-        runtime_status = await runtime.ensure_running()
-        if getattr(runtime_status, "healthy", False):
+        runtime_payload, reconcile_payload = await _ensure_runtime_with_config_retry(
+            runtime,
+            retry_reason="api_runtime_start_config_missing",
+        )
+        if bool(runtime_payload.get("healthy")):
             await manager.restart()
         health = await _manager_status_safe()
         result = {
-            "ok": bool(getattr(runtime_status, "healthy", False)),
+            "ok": bool(runtime_payload.get("healthy", False)),
             "action": "start",
-            "runtime": _runtime_status_payload(runtime_status),
+            "runtime": runtime_payload,
             "health": health,
+            "reconciliation": reconcile_payload,
         }
         await _audit_runtime_action(
             action="start",
             status=("ok" if result["ok"] else "degraded"),
             message=result["runtime"].get("degraded_reason"),
-            payload={"runtime": result["runtime"], "health_connected": bool(health.get("connected"))},
+            payload={
+                "runtime": result["runtime"],
+                "reconciliation": reconcile_payload,
+                "health_connected": bool(health.get("connected")),
+            },
         )
         return result
 
@@ -400,18 +440,24 @@ def build_mqtt_router(
         require_admin_token(x_admin_token, request)
         runtime = _runtime_required()
         reconcile_result = None
-        if runtime_reconciler is not None and hasattr(runtime_reconciler, "reconcile_authority"):
-            reconcile_result = await runtime_reconciler.reconcile_authority(reason="api_runtime_init")
-        runtime_status = await runtime.ensure_running()
-        if getattr(runtime_status, "healthy", False):
+        reconcile_fn = _runtime_reconciler_callable()
+        if reconcile_fn is not None:
+            reconcile_result = await reconcile_fn(reason="api_runtime_init")
+        reconcile_payload = _reconcile_payload(reconcile_result)
+        runtime_payload, reconcile_payload = await _ensure_runtime_with_config_retry(
+            runtime,
+            retry_reason="api_runtime_init_config_missing",
+            reconcile_payload=reconcile_payload,
+        )
+        if bool(runtime_payload.get("healthy")):
             await manager.restart()
         health = await _manager_status_safe()
         result = {
-            "ok": bool(getattr(runtime_status, "healthy", False)),
+            "ok": bool(runtime_payload.get("healthy", False)),
             "action": "init",
-            "runtime": _runtime_status_payload(runtime_status),
+            "runtime": runtime_payload,
             "health": health,
-            "reconciliation": _reconcile_payload(reconcile_result),
+            "reconciliation": reconcile_payload,
         }
         await _audit_runtime_action(
             action="init",

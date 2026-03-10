@@ -85,6 +85,21 @@ class _FakeRuntimeBoundary:
         return await self.health_check()
 
 
+class _FakeConfigMissingRuntimeBoundary(_FakeRuntimeBoundary):
+    def __init__(self) -> None:
+        super().__init__()
+        self._first = True
+
+    async def ensure_running(self) -> BrokerRuntimeStatus:
+        self.ensure_running_calls += 1
+        if self._first:
+            self._first = False
+            self.state = "stopped"
+            return BrokerRuntimeStatus(provider=self.provider, state="stopped", healthy=False, degraded_reason="config_missing")
+        self.state = "running"
+        return BrokerRuntimeStatus(provider=self.provider, state="running", healthy=True, degraded_reason=None)
+
+
 class _FakeRuntimeReconciler:
     def __init__(self) -> None:
         self.reasons: list[str] = []
@@ -222,6 +237,31 @@ class TestMqttRuntimeControlApi(unittest.TestCase):
         self.assertEqual(start.status_code, 503, start.text)
         self.assertEqual(start.json()["detail"], "runtime_boundary_unavailable")
 
+    def test_runtime_start_recovers_from_config_missing_with_reconcile_retry(self) -> None:
+        manager = _FakeMqttManager()
+        runtime = _FakeConfigMissingRuntimeBoundary()
+        reconciler = _FakeRuntimeReconciler()
+        client = self._client(manager=manager, runtime_boundary=runtime, runtime_reconciler=reconciler, audit_store=_FakeAuditStore())
+
+        start = client.post("/api/system/mqtt/runtime/start", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(start.status_code, 200, start.text)
+        self.assertTrue(start.json()["ok"])
+        self.assertEqual(runtime.ensure_running_calls, 2)
+        self.assertIn("api_runtime_start_config_missing", reconciler.reasons)
+
+    def test_runtime_init_recovers_from_config_missing_with_reconcile_retry(self) -> None:
+        manager = _FakeMqttManager()
+        runtime = _FakeConfigMissingRuntimeBoundary()
+        reconciler = _FakeRuntimeReconciler()
+        client = self._client(manager=manager, runtime_boundary=runtime, runtime_reconciler=reconciler, audit_store=_FakeAuditStore())
+
+        init_resp = client.post("/api/system/mqtt/runtime/init", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(init_resp.status_code, 200, init_resp.text)
+        self.assertTrue(init_resp.json()["ok"])
+        self.assertEqual(runtime.ensure_running_calls, 2)
+        self.assertIn("api_runtime_init", reconciler.reasons)
+        self.assertIn("api_runtime_init_config_missing", reconciler.reasons)
+
     def test_setup_apply_local_persists_settings_and_initializes(self) -> None:
         manager = _FakeMqttManager()
         runtime = _FakeRuntimeBoundary()
@@ -294,6 +334,24 @@ class TestMqttRuntimeControlApi(unittest.TestCase):
         payload = resp.json()
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["result"], "unreachable")
+
+    def test_setup_apply_local_recovers_config_missing(self) -> None:
+        manager = _FakeMqttManager()
+        runtime = _FakeConfigMissingRuntimeBoundary()
+        reconciler = _FakeRuntimeReconciler()
+        client = self._client(manager=manager, runtime_boundary=runtime, runtime_reconciler=reconciler, audit_store=_FakeAuditStore())
+
+        resp = client.post(
+            "/api/system/mqtt/setup/apply",
+            headers={"X-Admin-Token": "test-token"},
+            json={"mode": "local", "host": "127.0.0.1", "port": 1883, "initialize": True},
+        )
+        self.assertEqual(resp.status_code, 200, resp.text)
+        payload = resp.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(runtime.ensure_running_calls, 2)
+        self.assertIn("api_setup_apply_local", reconciler.reasons)
+        self.assertIn("api_setup_apply_local_config_missing", reconciler.reasons)
 
 
 if __name__ == "__main__":
