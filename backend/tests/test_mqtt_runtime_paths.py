@@ -15,6 +15,8 @@ class TestMqttRuntimePaths(unittest.TestCase):
             self.assertTrue((root / "live").exists())
             self.assertTrue((root / "data").exists())
             self.assertTrue((root / "logs").exists())
+            self.assertEqual((root / "data").stat().st_mode & 0o777, 0o777)
+            self.assertEqual((root / "logs").stat().st_mode & 0o777, 0o777)
 
 
 if __name__ == "__main__":

@@ -240,6 +240,8 @@ class DockerMosquittoRuntimeBoundary:
         os.makedirs(self._live_dir, exist_ok=True)
         os.makedirs(self._data_dir, exist_ok=True)
         os.makedirs(self._log_dir, exist_ok=True)
+        os.chmod(self._data_dir, 0o777)
+        os.chmod(self._log_dir, 0o777)
         if self._container_exists_sync() and not self._container_running_sync():
             self._remove_container_sync()
         if not self._container_exists_sync():
