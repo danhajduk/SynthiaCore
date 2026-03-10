@@ -25,6 +25,7 @@ from .observability_store import MqttObservabilityStore
 from .runtime_boundary import (
     BrokerRuntimeBoundary,
     BrokerRuntimeStatus,
+    DockerMosquittoRuntimeBoundary,
     InMemoryBrokerRuntimeBoundary,
     MosquittoProcessRuntimeBoundary,
 )
@@ -59,6 +60,7 @@ __all__ = [
     "MqttListenerSpec",
     "BrokerRuntimeBoundary",
     "BrokerRuntimeStatus",
+    "DockerMosquittoRuntimeBoundary",
     "InMemoryBrokerRuntimeBoundary",
     "MosquittoProcessRuntimeBoundary",
     "EmbeddedMqttStartupReconciler",

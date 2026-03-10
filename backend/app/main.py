@@ -37,9 +37,9 @@ from app.system.scheduler.history import SchedulerHistoryStore
 from app.system.settings.store import SettingsStore
 from app.system.settings.router import build_settings_router
 from app.system.mqtt import (
+    DockerMosquittoRuntimeBoundary,
     EmbeddedMqttStartupReconciler,
     InMemoryBrokerRuntimeBoundary,
-    MosquittoProcessRuntimeBoundary,
     MqttAclCompiler,
     MqttAuthorityAuditStore,
     MqttBrokerConfigRenderer,
@@ -407,11 +407,19 @@ def create_app() -> FastAPI:
     mqtt_credential_store = MqttCredentialStore(
         os.getenv("MQTT_CREDENTIAL_STORE_PATH", os.path.join(os.getcwd(), "var", "mqtt_credentials.json"))
     )
-    runtime_provider = str(os.getenv("SYNTHIA_MQTT_RUNTIME_PROVIDER", "mosquitto")).strip().lower()
+    runtime_provider = str(os.getenv("SYNTHIA_MQTT_RUNTIME_PROVIDER", "docker")).strip().lower()
     if runtime_provider in {"memory", "inmemory"}:
         mqtt_runtime_boundary = InMemoryBrokerRuntimeBoundary(provider="embedded_mosquitto")
     else:
-        mqtt_runtime_boundary = MosquittoProcessRuntimeBoundary(live_dir=mqtt_live_dir)
+        mqtt_runtime_boundary = DockerMosquittoRuntimeBoundary(
+            live_dir=mqtt_live_dir,
+            data_dir=os.path.join(os.getcwd(), "var", "mqtt_runtime", "data"),
+            log_dir=os.path.join(os.getcwd(), "var", "mqtt_runtime", "logs"),
+            container_name=os.getenv("SYNTHIA_MQTT_DOCKER_CONTAINER", "synthia-mqtt-broker"),
+            image=os.getenv("SYNTHIA_MQTT_DOCKER_IMAGE", "eclipse-mosquitto:2"),
+            host=str(os.getenv("SYNTHIA_MQTT_HOST", "127.0.0.1")),
+            port=int(os.getenv("SYNTHIA_MQTT_PORT", "1883")),
+        )
     mqtt_acl_compiler = MqttAclCompiler()
     mqtt_config_renderer = MqttBrokerConfigRenderer()
     mqtt_apply_pipeline = MqttApplyPipeline(

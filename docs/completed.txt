@@ -336,3 +336,9 @@
 271. Task 291: Add setup failure and retry UX - Completed on 03/10/2026 02:02
 272. Task 292: Add setup-only mode frontend tests - Completed on 03/10/2026 02:03
 273. Task 293: Update MQTT frontend docs and runbook for setup-first workflow - Completed on 03/10/2026 02:03
+274. Task 279: Replace direct-process Mosquitto runtime with Docker-managed broker provider - Completed on 03/10/2026 02:13
+275. Task 280: Define Docker runtime contract for embedded MQTT broker - Completed on 03/10/2026 02:13
+276. Task 281: Implement Docker runtime orchestration in runtime boundary/provider - Completed on 03/10/2026 02:13
+277. Task 282: Wire Docker runtime provider into apply/reconcile pipeline - Completed on 03/10/2026 02:13
+278. Task 283: Add regression/integration tests for Docker-managed local broker mode - Completed on 03/10/2026 02:13
+279. Task 284: Update operator runbook for Docker-managed local broker - Completed on 03/10/2026 02:13

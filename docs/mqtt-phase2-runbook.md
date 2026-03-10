@@ -1,6 +1,6 @@
 # MQTT Embedded Phase 2 Runbook
 
-Last Updated: 2026-03-10 02:03 US/Pacific
+Last Updated: 2026-03-10 02:14 US/Pacific
 
 ## Scope
 
@@ -24,6 +24,11 @@ Observability events:
 
 Live runtime artifacts:
 - `var/mqtt_runtime/live/*`
+
+Local broker runtime container:
+- name: `synthia-mqtt-broker` (default)
+- image: `eclipse-mosquitto:2` (default)
+- runtime provider selection: `SYNTHIA_MQTT_RUNTIME_PROVIDER` (`docker` default, `memory` for deterministic test mode)
 
 ## Health and Degraded-State Checks
 
@@ -159,3 +164,24 @@ Audit trail:
 
 Addon UI mapping:
 - `/addons/mqtt` Runtime section now exposes buttons for `Init`, `Start`, `Stop`, `Rebuild`, and `Check Health`, wired to the endpoints above.
+
+## Docker Runtime Operations (Local Mode)
+
+Runtime files:
+- live rendered config/auth/ACL: `var/mqtt_runtime/live/*`
+- data: `var/mqtt_runtime/data/*`
+- logs: `var/mqtt_runtime/logs/*`
+
+Container behavior:
+- Core starts broker container with host networking and mounts runtime paths.
+- Core health checks combine container running state + TCP reachability.
+- `reload` uses Docker signal flow (`HUP`) and keeps container identity stable.
+- `controlled_restart` uses stop/remove + fresh start path.
+
+Failure and recovery:
+1. Check setup/runtime summary: `GET /api/system/mqtt/setup-summary`
+2. Check runtime endpoint: `GET /api/system/mqtt/runtime/health`
+3. Trigger controlled path:
+   - `POST /api/system/mqtt/runtime/rebuild` (preferred)
+   - or `POST /api/system/mqtt/runtime/start`
+4. Re-check `effective_status`, runtime health, and bootstrap publish status.

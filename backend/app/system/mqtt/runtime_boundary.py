@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
-import signal
 import socket
 import subprocess
 from dataclasses import dataclass
@@ -88,21 +87,28 @@ class InMemoryBrokerRuntimeBoundary:
         )
 
 
-class MosquittoProcessRuntimeBoundary:
+class DockerMosquittoRuntimeBoundary:
     def __init__(
         self,
         *,
         live_dir: str,
+        data_dir: str,
+        log_dir: str,
         config_filename: str = "broker.conf",
+        container_name: str = "synthia-mqtt-broker",
+        image: str = "eclipse-mosquitto:2",
         host: str = "127.0.0.1",
         port: int = 1883,
     ) -> None:
-        self._provider = "embedded_mosquitto"
+        self._provider = "embedded_mosquitto_docker"
         self._live_dir = os.path.abspath(live_dir)
+        self._data_dir = os.path.abspath(data_dir)
+        self._log_dir = os.path.abspath(log_dir)
         self._config_filename = config_filename
-        self._host = host
+        self._container_name = str(container_name).strip() or "synthia-mqtt-broker"
+        self._image = str(image).strip() or "eclipse-mosquitto:2"
+        self._host = str(host).strip() or "127.0.0.1"
         self._port = int(port)
-        self._process: subprocess.Popen[str] | None = None
         self._state = "stopped"
         self._healthy = False
         self._degraded_reason: str | None = "runtime_not_started"
@@ -126,36 +132,43 @@ class MosquittoProcessRuntimeBoundary:
         return self._status()
 
     def _ensure_running_sync(self) -> BrokerRuntimeStatus:
+        if not self._docker_available():
+            self._state = "stopped"
+            self._healthy = False
+            self._degraded_reason = "docker_binary_not_found"
+            return self._status()
         status = self._health_check_sync()
         if status.healthy:
             return status
+        if self._container_exists_sync() and not self._container_running_sync():
+            self._remove_container_sync()
         return self._start_sync()
 
     def _stop_sync(self) -> BrokerRuntimeStatus:
-        proc = self._process
-        self._process = None
-        if proc is not None and proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait(timeout=2)
+        if not self._docker_available():
+            self._state = "stopped"
+            self._healthy = False
+            self._degraded_reason = "docker_binary_not_found"
+            return self._status()
+        self._remove_container_sync()
         self._state = "stopped"
         self._healthy = False
         self._degraded_reason = "runtime_stopped"
         return self._status()
 
     def _reload_sync(self) -> BrokerRuntimeStatus:
-        proc = self._process
-        if proc is None or proc.poll() is not None:
+        if not self._docker_available():
+            self._state = "stopped"
+            self._healthy = False
+            self._degraded_reason = "docker_binary_not_found"
+            return self._status()
+        if not self._container_running_sync():
             self._state = "stopped"
             self._healthy = False
             self._degraded_reason = "runtime_not_running"
             return self._status()
-        try:
-            proc.send_signal(signal.SIGHUP)
-        except Exception:
+        cmd = self._docker_cmd(["kill", "--signal", "HUP", self._container_name])
+        if cmd.returncode != 0:
             self._healthy = False
             self._degraded_reason = "reload_signal_failed"
             return self._status()
@@ -166,17 +179,21 @@ class MosquittoProcessRuntimeBoundary:
         return self._start_sync()
 
     def _health_check_sync(self) -> BrokerRuntimeStatus:
-        proc = self._process
-        if proc is None:
+        if not self._docker_available():
             self._state = "stopped"
             self._healthy = False
-            if self._degraded_reason is None:
+            self._degraded_reason = "docker_binary_not_found"
+            return self._status()
+        if not self._container_exists_sync():
+            self._state = "stopped"
+            self._healthy = False
+            if self._degraded_reason in {None, "runtime_stopped"}:
                 self._degraded_reason = "runtime_not_started"
             return self._status()
-        if proc.poll() is not None:
+        if not self._container_running_sync():
             self._state = "stopped"
             self._healthy = False
-            self._degraded_reason = f"process_exited:{proc.returncode}"
+            self._degraded_reason = "container_not_running"
             return self._status()
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(0.5)
@@ -201,28 +218,84 @@ class MosquittoProcessRuntimeBoundary:
             self._healthy = False
             self._degraded_reason = "config_missing"
             return self._status()
-        cmd = shutil.which("mosquitto")
-        if not cmd:
+        if not self._docker_available():
             self._state = "stopped"
             self._healthy = False
-            self._degraded_reason = "mosquitto_binary_not_found"
+            self._degraded_reason = "docker_binary_not_found"
             return self._status()
-        try:
-            os.makedirs(self._live_dir, exist_ok=True)
-            self._process = subprocess.Popen(
-                [cmd, "-c", conf_path],
-                cwd=self._live_dir,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                text=True,
+        os.makedirs(self._live_dir, exist_ok=True)
+        os.makedirs(self._data_dir, exist_ok=True)
+        os.makedirs(self._log_dir, exist_ok=True)
+        if self._container_exists_sync() and not self._container_running_sync():
+            self._remove_container_sync()
+        if not self._container_exists_sync():
+            run = self._docker_cmd(
+                [
+                    "run",
+                    "-d",
+                    "--name",
+                    self._container_name,
+                    "--restart",
+                    "unless-stopped",
+                    "--network",
+                    "host",
+                    "-v",
+                    f"{self._live_dir}:{self._live_dir}:ro",
+                    "-v",
+                    f"{self._data_dir}:{self._data_dir}",
+                    "-v",
+                    f"{self._log_dir}:{self._log_dir}",
+                    self._image,
+                    "mosquitto",
+                    "-c",
+                    conf_path,
+                ]
             )
-        except Exception:
-            self._state = "stopped"
-            self._healthy = False
-            self._degraded_reason = "runtime_start_failed"
-            self._process = None
-            return self._status()
+            if run.returncode != 0:
+                self._state = "stopped"
+                self._healthy = False
+                self._degraded_reason = "runtime_start_failed"
+                return self._status()
+        else:
+            start = self._docker_cmd(["start", self._container_name])
+            if start.returncode != 0:
+                self._state = "stopped"
+                self._healthy = False
+                self._degraded_reason = "runtime_start_failed"
+                return self._status()
         return self._health_check_sync()
+
+    def _docker_available(self) -> bool:
+        return bool(shutil.which("docker"))
+
+    def _docker_cmd(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["docker", *args],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def _container_exists_sync(self) -> bool:
+        result = self._docker_cmd(
+            ["ps", "-a", "--filter", f"name=^/{self._container_name}$", "--format", "{{.Names}}"]
+        )
+        if result.returncode != 0:
+            return False
+        return self._container_name in (result.stdout or "").splitlines()
+
+    def _container_running_sync(self) -> bool:
+        result = self._docker_cmd(
+            ["ps", "--filter", f"name=^/{self._container_name}$", "--filter", "status=running", "--format", "{{.Names}}"]
+        )
+        if result.returncode != 0:
+            return False
+        return self._container_name in (result.stdout or "").splitlines()
+
+    def _remove_container_sync(self) -> None:
+        if not self._container_exists_sync():
+            return
+        self._docker_cmd(["rm", "-f", self._container_name])
 
     def _status(self) -> BrokerRuntimeStatus:
         return BrokerRuntimeStatus(
@@ -232,3 +305,7 @@ class MosquittoProcessRuntimeBoundary:
             degraded_reason=self._degraded_reason,
             checked_at=_utcnow_iso(),
         )
+
+
+# Backward-compatible alias (legacy class name retained in imports).
+MosquittoProcessRuntimeBoundary = DockerMosquittoRuntimeBoundary

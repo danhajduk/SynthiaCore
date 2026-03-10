@@ -1,6 +1,6 @@
 # MQTT Broker Runtime Boundary (Embedded)
 
-Last Updated: 2026-03-10 02:03 US/Pacific
+Last Updated: 2026-03-10 02:14 US/Pacific
 
 ## Boundary Definition
 
@@ -26,12 +26,31 @@ Runtime status contract:
 
 Current implementation in repo:
 - `InMemoryBrokerRuntimeBoundary` provides deterministic behavior for boundary integration/testing.
-- `MosquittoProcessRuntimeBoundary` provides Phase 1 process control for an embedded Mosquitto runtime:
-  - start (`mosquitto -c <live>/broker.conf`)
-  - stop (graceful terminate + forced kill fallback)
-  - reload (`SIGHUP`)
-  - health checks (process alive + TCP connect probe)
-  - connection/runtime status via boundary status object
+- `DockerMosquittoRuntimeBoundary` (also exposed via legacy alias `MosquittoProcessRuntimeBoundary`) is the active local broker runtime provider:
+  - container image: `eclipse-mosquitto:2` (override: `SYNTHIA_MQTT_DOCKER_IMAGE`)
+  - container name: `synthia-mqtt-broker` (override: `SYNTHIA_MQTT_DOCKER_CONTAINER`)
+  - startup command: `docker run ... mosquitto -c <live_dir>/broker.conf`
+  - network mode: `host`
+  - restart policy: `unless-stopped`
+  - reload: `docker kill --signal HUP <container>`
+  - stop: `docker rm -f <container>`
+
+## Docker Runtime Contract
+
+Mount contract (host path -> same path in container):
+- `var/mqtt_runtime/live` -> mounted read-only; authoritative rendered broker/auth/ACL configs from Core apply pipeline
+- `var/mqtt_runtime/data` -> mounted read-write for broker persistence
+- `var/mqtt_runtime/logs` -> mounted read-write for broker logs
+
+Behavior contract:
+- Core remains the authority for rendered files and runtime lifecycle actions.
+- Generated runtime files under `var/mqtt_runtime/*` are runtime artifacts, not source-of-truth policy definitions.
+- `ensure_running` is idempotent:
+  - healthy running container -> no-op success
+  - stopped/exited container -> remove/recreate path
+- `health_check` requires both:
+  - container running state
+  - broker TCP reachability at configured host/port
 
 ## Runtime Control API Surface
 
