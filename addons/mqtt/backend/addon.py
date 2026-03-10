@@ -299,6 +299,43 @@ def addon_ui_root() -> str:
       font-size: 11px;
       border-radius: 6px;
     }
+    .toolbar-spacer {
+      flex: 1 1 auto;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 16px;
+    }
+    .modal-backdrop.hidden {
+      display: none;
+    }
+    .modal {
+      width: min(520px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      padding: 14px;
+    }
+    .modal h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+    .modal-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
   </style>
 </head>
 <body>
@@ -546,6 +583,81 @@ def addon_ui_root() -> str:
       return res.json();
     }
 
+    async function createUserFromModal() {
+      const usernameNode = document.getElementById("create-user-username");
+      const passwordNode = document.getElementById("create-user-password");
+      const prefixNode = document.getElementById("create-user-prefix");
+      const statusNode = document.getElementById("create-user-status");
+      if (!usernameNode || !passwordNode || !prefixNode || !statusNode) return;
+      const usernameValue = String(usernameNode.value || "").trim();
+      const prefixValue = String(prefixNode.value || "").trim();
+      const passwordValue = String(passwordNode.value || "").trim() || "generated";
+      statusNode.textContent = "Creating user...";
+      statusNode.className = "status";
+      try {
+        const response = await fetch("/api/system/mqtt/users", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: usernameValue,
+            password: passwordValue,
+            topic_prefix: prefixValue,
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload && payload.detail ? payload.detail : "create_user_failed");
+        }
+        const passwordOut = payload.password ? ` Password: ${payload.password}` : "";
+        statusNode.textContent = `Created ${payload.username}.${passwordOut}`;
+        statusNode.className = "status ok";
+        await loadStatus();
+      } catch (error) {
+        statusNode.textContent = `Create failed: ${error && error.message ? error.message : String(error)}`;
+        statusNode.className = "status error";
+      }
+    }
+
+    async function runGenericUserAction(action, principalId) {
+      const id = String(principalId || "").trim();
+      if (!id) return;
+      const normalized = String(action || "").trim().toLowerCase();
+      let method = "POST";
+      let url = "";
+      let body = null;
+      if (normalized === "revoke") {
+        if (!window.confirm(`Revoke ${id}?`)) return;
+        url = `/api/system/mqtt/generic-users/${encodeURIComponent(id)}/revoke`;
+        body = { reason: "ui_revoke" };
+      } else if (normalized === "disable") {
+        if (!window.confirm(`Disable ${id}?`)) return;
+        url = `/api/system/mqtt/principals/${encodeURIComponent(id)}/actions/probation`;
+        body = { reason: "ui_disable" };
+      } else if (normalized === "rotate") {
+        url = `/api/system/mqtt/generic-users/${encodeURIComponent(id)}/rotate-credentials`;
+      } else {
+        return;
+      }
+      setStatus(`Running ${normalized} for ${id}...`, "");
+      try {
+        const response = await fetch(url, {
+          method,
+          credentials: "include",
+          headers: body ? { "Content-Type": "application/json" } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        const payload = await response.json();
+        if (!response.ok || (payload && payload.ok === false)) {
+          throw new Error(payload && payload.detail ? payload.detail : `${normalized}_failed`);
+        }
+        await loadStatus();
+        setStatus(`${normalized} completed for ${id}.`, "ok");
+      } catch (error) {
+        setStatus(`${normalized} failed for ${id}: ${error && error.message ? error.message : String(error)}`, "error");
+      }
+    }
+
     function setRuntimeActionStatus(message, kind) {
       state.runtimeActionStatus = message || "";
       state.runtimeActionKind = kind || "";
@@ -707,6 +819,26 @@ def addon_ui_root() -> str:
       });
     }
 
+    function createUserModalMarkup() {
+      return (
+        `<div id='create-user-modal' class='modal-backdrop hidden'>` +
+        `<div class='modal'>` +
+        `<h3>Create MQTT User</h3>` +
+        `<div class='modal-grid'>` +
+        `<label>Username<input id='create-user-username' placeholder='homeassistant' /></label>` +
+        `<label>Password<input id='create-user-password' placeholder='generated' value='generated' /></label>` +
+        `<label>Topic Prefix<input id='create-user-prefix' placeholder='external/homeassistant' /></label>` +
+        `</div>` +
+        `<div class='modal-actions'>` +
+        `<button class='primary' data-ui-action='submit-add-user'>Create</button>` +
+        `<button data-ui-action='close-add-user'>Cancel</button>` +
+        `</div>` +
+        `<div id='create-user-status' class='status'></div>` +
+        `</div>` +
+        `</div>`
+      );
+    }
+
     async function loadSectionPayload(section) {
       if (section === "principals" || section === "users") {
         const principals = await fetchJson("/api/system/mqtt/principals");
@@ -823,6 +955,8 @@ def addon_ui_root() -> str:
             `<input data-filter='principals-q' placeholder='Search principal id' value='${escapeHtml(state.filters.principals.q)}' />` +
             `<select data-filter='principals-type'><option value='' ${state.filters.principals.type === "" ? "selected" : ""}>All types</option><option value='system' ${state.filters.principals.type === "system" ? "selected" : ""}>System</option><option value='addon' ${state.filters.principals.type === "addon" ? "selected" : ""}>Addon</option><option value='node' ${state.filters.principals.type === "node" ? "selected" : ""}>Node</option><option value='generic' ${state.filters.principals.type === "generic" ? "selected" : ""}>Generic</option></select>` +
             `<select data-filter='principals-status'><option value='' ${state.filters.principals.status === "" ? "selected" : ""}>All status</option><option value='pending' ${state.filters.principals.status === "pending" ? "selected" : ""}>Pending</option><option value='active' ${state.filters.principals.status === "active" ? "selected" : ""}>Active</option><option value='probation' ${state.filters.principals.status === "probation" ? "selected" : ""}>Probation</option><option value='revoked' ${state.filters.principals.status === "revoked" ? "selected" : ""}>Revoked</option><option value='expired' ${state.filters.principals.status === "expired" ? "selected" : ""}>Expired</option></select>` +
+            `<span class='toolbar-spacer'></span>` +
+            `<button class='mini primary' data-ui-action='open-add-user'>Add User</button>` +
             `</div>`;
           visible = filteredPrincipals(items);
         } else if (section === "users") {
@@ -830,6 +964,8 @@ def addon_ui_root() -> str:
             `<div class='toolbar'>` +
             `<input data-filter='users-q' placeholder='Search username' value='${escapeHtml(state.filters.users.q)}' />` +
             `<select data-filter='users-status'><option value='' ${state.filters.users.status === "" ? "selected" : ""}>All status</option><option value='active' ${state.filters.users.status === "active" ? "selected" : ""}>Active</option><option value='probation' ${state.filters.users.status === "probation" ? "selected" : ""}>Probation</option><option value='revoked' ${state.filters.users.status === "revoked" ? "selected" : ""}>Revoked</option></select>` +
+            `<span class='toolbar-spacer'></span>` +
+            `<button class='mini primary' data-ui-action='open-add-user'>Add User</button>` +
             `</div>`;
           visible = filteredUsers(items);
         } else if (section === "audit") {
@@ -868,6 +1004,7 @@ def addon_ui_root() -> str:
                   const principalId = escapeHtml(item.principal_id || item.id || "-");
                   const principalType = escapeHtml(String(item.principal_type || item.type || key));
                   const status = escapeHtml(String(item.status || "-"));
+                  const topicPrefix = escapeHtml(String(item.topic_prefix || "-"));
                   const managed = String(item.managed_by || "").toLowerCase() === "core";
                   const managedBadge = managed ? `<span class='badge core'>Core Managed</span>` : "";
                   const updated = escapeHtml(item.updated_at || item.ts || item.reason || "-");
@@ -879,13 +1016,18 @@ def addon_ui_root() -> str:
                   const readonly = `<button class='mini' title='Read-only view'>Details</button>` +
                     `<button class='mini' title='Read-only view'>Permissions</button>` +
                     `<button class='mini' title='Read-only view'>Last Seen</button>`;
-                  return `<tr><td>${principalId}</td><td>${principalType}${managedBadge}</td><td>${status}</td><td>${updated}</td><td><div class='row-actions'>${readonly}${systemLocked ? destructive : ""}</div></td></tr>`;
+                  const genericActions = key === "generic"
+                    ? `<button class='mini' data-generic-action='revoke' data-principal-id='${principalId}'>Revoke</button>` +
+                      `<button class='mini' data-generic-action='disable' data-principal-id='${principalId}'>Disable</button>` +
+                      `<button class='mini' data-generic-action='rotate' data-principal-id='${principalId}'>Rotate Password</button>`
+                    : "";
+                  return `<tr><td>${principalId}</td><td>${principalType}${managedBadge}</td><td>${status}</td><td>${topicPrefix}</td><td>${updated}</td><td><div class='row-actions'>${readonly}${systemLocked ? destructive : genericActions}</div></td></tr>`;
                 })
                 .join("");
-              return `<div class='group-title'>${escapeHtml(principalGroupLabel(key))}</div><table class='table'><thead><tr><th>Principal</th><th>Type</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+              return `<div class='group-title'>${escapeHtml(principalGroupLabel(key))}</div><table class='table'><thead><tr><th>Principal</th><th>Type</th><th>Status</th><th>Topic Prefix</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
             })
             .join("");
-          sectionContent.innerHTML = toolbar + chunks;
+          sectionContent.innerHTML = toolbar + chunks + createUserModalMarkup();
           return;
         }
 
@@ -900,7 +1042,8 @@ def addon_ui_root() -> str:
           .join("");
         sectionContent.innerHTML =
           toolbar +
-          `<table class='table'><thead><tr><th>ID</th><th>Status/Type</th><th>Updated/Reason</th></tr></thead><tbody>${rows}</tbody></table>`;
+          `<table class='table'><thead><tr><th>ID</th><th>Status/Type</th><th>Updated/Reason</th></tr></thead><tbody>${rows}</tbody></table>` +
+          (section === "users" ? createUserModalMarkup() : "");
       } catch (error) {
         sectionContent.innerHTML = `<div class='status error'>Section load failed: ${escapeHtml(error && error.message ? error.message : String(error))}</div><button id='section-retry'>Retry section</button>`;
       }
@@ -1083,6 +1226,31 @@ def addon_ui_root() -> str:
       const action = btn.getAttribute("data-runtime-action");
       if (!action) return;
       void runRuntimeAction(action);
+    });
+    sectionContent.addEventListener("click", (event) => {
+      const open = event.target.closest("[data-ui-action='open-add-user']");
+      if (open) {
+        const modal = document.getElementById("create-user-modal");
+        if (modal) modal.classList.remove("hidden");
+        return;
+      }
+      const close = event.target.closest("[data-ui-action='close-add-user']");
+      if (close) {
+        const modal = document.getElementById("create-user-modal");
+        if (modal) modal.classList.add("hidden");
+        return;
+      }
+      const submit = event.target.closest("[data-ui-action='submit-add-user']");
+      if (submit) {
+        void createUserFromModal();
+        return;
+      }
+      const genericAction = event.target.closest("[data-generic-action]");
+      if (genericAction) {
+        const action = genericAction.getAttribute("data-generic-action");
+        const principalId = genericAction.getAttribute("data-principal-id");
+        if (action && principalId) void runGenericUserAction(action, principalId);
+      }
     });
     sectionContent.addEventListener("click", async (event) => {
       const retry = event.target.closest("#section-retry");

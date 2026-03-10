@@ -380,3 +380,5 @@
 315. Task 344: Fix addon principal activation pipeline after runtime apply - Completed on 03/10/2026 06:49
 316. Task 345: Implement `/api/system/mqtt/users` generic user create endpoint - Completed on 03/10/2026 06:52
 317. Task 346: Enforce generic user ACL boundary (allow external/<username>/#, deny synthia/#) - Completed on 03/10/2026 06:52
+318. Task 347: Add MQTT UI Add User workflow (modal + /mqtt/users submit) - Completed on 03/10/2026 06:56
+319. Task 348: Extend Principals table for generic user topic-prefix and actions - Completed on 03/10/2026 06:56

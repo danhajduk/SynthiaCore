@@ -1,6 +1,6 @@
 # MQTT Embedded Phase 2 Runbook
 
-Last Updated: 2026-03-10 06:52 US/Pacific
+Last Updated: 2026-03-10 06:56 US/Pacific
 
 ## Scope
 
@@ -253,8 +253,8 @@ Addon UI mapping:
 - `/addons/mqtt` Runtime section now exposes buttons for `Init`, `Start`, `Stop`, `Rebuild`, and `Check Health`, wired to the endpoints above.
 - `/addons/mqtt` post-setup navigation sections:
   - Overview: setup/runtime/authority/bootstrap summary
-  - Principals: principal list with type/status filters
-  - Generic Users: broker-user list with status filter
+  - Principals: principal list with type/status filters, topic-prefix visibility, and generic-user actions (revoke/disable/rotate)
+  - Generic Users: broker-user list with status filter and Add User workflow shortcut
   - Runtime: runtime details + runtime control actions
   - Audit: authority/runtime audit history with result filters
   - Noisy Clients: noisy-state visibility with state filter
@@ -270,6 +270,10 @@ Addon UI mapping:
     - `core.bootstrap`
   - system principals are marked with `principal_type=system` and `managed_by=core`
   - startup reconciliation recreates missing Core system principals automatically
+  - Add User workflow:
+    - open from Principals or Generic Users section
+    - submits `username/password/topic_prefix` to `POST /api/system/mqtt/users`
+    - refreshes principals after create
 
 ## Docker Runtime Operations (Local Mode)
 
