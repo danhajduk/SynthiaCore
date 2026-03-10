@@ -1,6 +1,6 @@
 # MQTT Embedded Migration Gap Note
 
-Last Updated: 2026-03-10 01:08 US/Pacific
+Last Updated: 2026-03-10 01:21 US/Pacific
 
 ## Scope
 
@@ -70,3 +70,14 @@ Validation snapshot:
 Routing note:
 - Local embedded addon UI alias requests now short-circuit to local addon routes (`/api/addons/{addon_id}`) instead of relying on outbound proxy network hops.
 - MQTT setup controls are now rendered in embedded addon UI (`/addons/mqtt`) rather than Settings page connectivity form.
+
+Setup-first UI behavior:
+- MQTT addon UI now provides setup-first shell with sections: `setup`, `overview`, `principals`, `users`, `runtime`, `audit`, `noisy-clients`.
+- If setup summary reports `requires_setup=true` and `setup_complete=false`, UI gate allows only `setup` and blocks all other sections.
+- Setup page includes:
+  - broker mode selector (`local` vs `external`)
+  - local/external forms
+  - reserved topic/bootstrap info panel
+  - preflight checks (`ready`, `warning`, `failed`)
+  - actions: `Save and Initialize`, `Save + Restart MQTT`, `Test Connection`, `Retry Last Action`, `Re-check`
+- Frontend route layer supports sectioned paths (`/addons/mqtt/:section`) and redirects protected sections to `/addons/mqtt/setup` while gate is active.

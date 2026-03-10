@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import "./addon-frame.css";
 import { addonUiFrameSrc } from "./addonFrameUrl";
 import { addonUiFallbackReason, resolveAddonUiEmbedState, type AddonUiStatusPayload } from "./addonFrameContract";
 import { injectCoreCssIntoIframe } from "./addonFrameThemeInject";
+import { resolveMqttSetupSection } from "./mqttSetupGate";
 
 type FramePhase = "checking" | "ready" | "fallback";
 
 export default function AddonFrame() {
-  const params = useParams<{ addonId: string }>();
+  const params = useParams<{ addonId: string; section?: string }>();
+  const navigate = useNavigate();
   const addonId = (params.addonId || "").trim();
-  const fallbackSrc = useMemo(() => addonUiFrameSrc(addonId), [addonId]);
+  const requestedSection = String(params.section || "").trim();
+  const fallbackSrc = useMemo(() => {
+    const base = addonUiFrameSrc(addonId);
+    if (!base) return "";
+    if (!requestedSection) return base;
+    return `${base}/${encodeURIComponent(requestedSection)}`;
+  }, [addonId, requestedSection]);
   const [src, setSrc] = useState(fallbackSrc);
   const [phase, setPhase] = useState<FramePhase>("checking");
   const [reason, setReason] = useState("runtime_unavailable");
@@ -36,8 +44,28 @@ export default function AddonFrame() {
         if (nonceRef.current !== nonce) return;
         if (res.ok) {
           const payload = (await res.json()) as AddonUiStatusPayload;
+          if (addonId === "mqtt") {
+            try {
+              const setupRes = await fetch("/api/system/mqtt/setup-summary", { credentials: "include", cache: "no-store" });
+              if (setupRes.ok) {
+                const setupPayload = await setupRes.json();
+                const guard = resolveMqttSetupSection(requestedSection, setupPayload);
+                if (guard.redirected) {
+                  navigate(`/addons/mqtt/${guard.section}`, { replace: true });
+                  return;
+                }
+              }
+            } catch {
+              // Ignore setup-summary errors and keep existing fallback behavior.
+            }
+          }
           const resolved = resolveAddonUiEmbedState(addonId, payload);
-          setSrc(resolved.frameSrc);
+          let nextSrc = resolved.frameSrc;
+          if (addonId === "mqtt" && requestedSection && nextSrc.includes(`/ui/addons/${encodeURIComponent(addonId)}`)) {
+            const clean = nextSrc.replace(/\/+$/, "");
+            nextSrc = `${clean}/${encodeURIComponent(requestedSection)}`;
+          }
+          setSrc(nextSrc);
           setReason(resolved.reason);
           if (resolved.reachable) {
             setPhase("ready");
@@ -61,7 +89,7 @@ export default function AddonFrame() {
     if (nonceRef.current !== nonce) return;
     setReason("timeout");
     setPhase("fallback");
-  }, [addonId, fallbackSrc]);
+  }, [addonId, fallbackSrc, navigate, requestedSection]);
 
   useEffect(() => {
     void probe();

@@ -328,3 +328,4 @@
 2026-03-10 - Implemented MQTT embedded addon UI visibility fix across proxy/status/frontend contract.
 2026-03-10 - Resolved addon page registered_addon_not_found by redirecting local embedded UI aliases to /api/addons/{id}.
 2026-03-10 - Moved MQTT setup controls from Settings page into embedded MQTT addon UI.
+2026-03-10 - Implemented MQTT setup-first addon UI with section gating, preflight, initialize/retry flow, and section route support.

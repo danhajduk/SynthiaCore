@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Last Updated: 2026-03-10 01:08 US/Pacific
+Last Updated: 2026-03-10 01:21 US/Pacific
 
 ## Stack
 
@@ -21,6 +21,7 @@ Last Updated: 2026-03-10 01:08 US/Pacific
 - Admin-gated:
   - `/store`
   - `/addons`
+  - `/addons/:addonId/:section` (sectioned addon UI route; currently used by MQTT setup-gate flow)
   - `/settings`
   - `/settings/jobs`
   - `/settings/metrics`
@@ -80,12 +81,17 @@ Last Updated: 2026-03-10 01:08 US/Pacific
 - dynamic route loading via `loadAddons.ts`
 - addon routes wrapped in same admin-guard logic as core protected routes
 - `/addons/:addonId` renders `AddonFrame` with an iframe that targets backend addon UI proxy (`/ui/addons/{addonId}`) via backend base URL, preventing self-embedding of the main frontend app in dev mode.
+- `/addons/:addonId/:section` is supported for addon section routing. For MQTT, setup gate may force section redirect to `setup`.
 - `AddonFrame` queries `/api/store/status/{addonId}` and consumes:
   - `ui_embed_target` for iframe source path when addon is loaded/registered in Core
   - `standalone_runtime.published_ports` as direct fallback target when runtime is running but addon is not yet loaded in Core
   - `ui_reachable` and `ui_reason` for loading/fallback state
   - embedded local addons are treated as reachable when `loaded=true` with no standalone runtime payload (`embedded_local`)
   - `runtime_state` to stop loading early when standalone runtime is in error state
+- MQTT setup-first routing:
+  - `AddonFrame` reads `/api/system/mqtt/setup-summary` for `addonId=mqtt`
+  - when `requires_setup=true` and `setup_complete=false`, requested MQTT sections are redirected to `/addons/mqtt/setup`
+  - once setup completes, normal MQTT sections unlock
 - when iframe is same-origin accessible (proxy path), `AddonFrame` injects Core theme tokens and base component classes into iframe document on load
   - verification markers:
     - iframe element attribute: `data-core-theme-injected=true|false`

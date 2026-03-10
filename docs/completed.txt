@@ -306,3 +306,14 @@
 241. Task 261: implement embedded MQTT UI visibility fix for /addons/mqtt (proxy + status + frame readiness) - Completed on 03/10/2026 00:45
 242. Task 262: resolve :{"detail":"registered_addon_not_found"} on addon page - Completed on 03/10/2026 01:08
 243. Task 263: remove the mqtt setup from the http://<host>:8080/settings and put it in the addon ui - Completed on 03/10/2026 01:13
+244. Task 264: Add MQTT setup-gate routing for embedded addon UI - Completed on 03/10/2026 01:21
+245. Task 265: Create MQTT Setup page shell - Completed on 03/10/2026 01:21
+246. Task 266: Add broker mode selector to setup page - Completed on 03/10/2026 01:21
+247. Task 267: Add local broker setup form - Completed on 03/10/2026 01:21
+248. Task 268: Add external broker setup form - Completed on 03/10/2026 01:21
+249. Task 269: Add setup information panels for reserved topics and bootstrap behavior - Completed on 03/10/2026 01:21
+250. Task 270: Add setup preflight / validation state UI - Completed on 03/10/2026 01:21
+251. Task 271: Add Save and Initialize action flow to setup page - Completed on 03/10/2026 01:21
+252. Task 272: Add setup failure and retry UX - Completed on 03/10/2026 01:21
+253. Task 273: Add route protection tests for setup-only mode - Completed on 03/10/2026 01:21
+254. Task 274: Update MQTT addon UI docs for setup-first behavior - Completed on 03/10/2026 01:21
