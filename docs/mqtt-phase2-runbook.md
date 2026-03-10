@@ -1,6 +1,6 @@
 # MQTT Embedded Phase 2 Runbook
 
-Last Updated: 2026-03-10 06:56 US/Pacific
+Last Updated: 2026-03-10 07:00 US/Pacific
 
 ## Scope
 
@@ -114,6 +114,7 @@ Revoke generic user:
 
 Rotate credentials:
 - `POST /api/system/mqtt/generic-users/{principal_id}/rotate-credentials`
+- `POST /api/system/mqtt/users/{principal_id}/rotate`
 
 Implemented policy boundary:
 - allow scope for users API: `external/<username>/#`
@@ -192,6 +193,11 @@ Bootstrap publish guard:
 
 Audit trail:
 - runtime actions append `event_type=mqtt_runtime_control` entries in `/api/system/mqtt/audit`.
+- principal lifecycle events:
+  - `principal_created`
+  - `principal_activated`
+  - `principal_revoked`
+  - `password_rotated`
 
 ### Pipeline Ordering Audit (Task 320)
 

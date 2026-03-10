@@ -108,6 +108,7 @@ class MqttRegistrationApprovalService:
             last_revoked_at=(existing.last_revoked_at if existing else None),
         )
         await self._state_store.upsert_grant(grant)
+        prior_principal = state_before.principals.get(f"addon:{addon_id}")
         await self._state_store.upsert_principal(self._principal_from_grant(grant))
         await self._reconcile_runtime_if_needed(reason=f"approve:{addon_id}")
         await self._append_audit(
@@ -116,6 +117,8 @@ class MqttRegistrationApprovalService:
             message="approve_grant",
             payload={"addon_id": addon_id},
         )
+        if prior_principal is None:
+            await self._append_lifecycle_audit("principal_created", principal_id=f"addon:{addon_id}", actor="authority")
         if existing is not None and self._grant_materially_changed(existing, grant) and existing.status in {"approved", "provisioned", "error"}:
             await self.provision_grant(addon_id, reason="grant_scope_changed")
         return approved
@@ -166,6 +169,7 @@ class MqttRegistrationApprovalService:
             message="provision_grant",
             payload={"addon_id": addon_id},
         )
+        await self._append_lifecycle_audit("principal_activated", principal_id=principal.principal_id, actor="authority")
         details = {
             "mode": "embedded_core_authority",
             "reason": reason,
@@ -196,6 +200,7 @@ class MqttRegistrationApprovalService:
             message="revoke_grant",
             payload={"addon_id": addon_id, "reason": reason},
         )
+        await self._append_lifecycle_audit("principal_revoked", principal_id=principal.principal_id, actor="authority")
         details = {
             "mode": "embedded_core_authority",
             "reason": reason,
@@ -320,6 +325,10 @@ class MqttRegistrationApprovalService:
             message=act,
             payload={"principal_id": principal_id, "reason": reason},
         )
+        if act in {"activate", "promote"}:
+            await self._append_lifecycle_audit("principal_activated", principal_id=principal_id, actor="admin")
+        elif act == "revoke":
+            await self._append_lifecycle_audit("principal_revoked", principal_id=principal_id, actor="admin")
         return {"ok": True, "principal": next_principal.model_dump(mode="json")}
 
     async def create_or_update_generic_user(
@@ -372,6 +381,10 @@ class MqttRegistrationApprovalService:
             message="upsert",
             payload={"principal_id": principal_id},
         )
+        if existing is None:
+            await self._append_lifecycle_audit("principal_created", principal_id=principal_id, actor="operator")
+        if principal.status == "active":
+            await self._append_lifecycle_audit("principal_activated", principal_id=principal_id, actor="operator")
         return {"ok": True, "principal": principal.model_dump(mode="json")}
 
     async def list_noisy_clients(self) -> list[dict[str, Any]]:
@@ -424,6 +437,8 @@ class MqttRegistrationApprovalService:
                 message=act,
                 payload={"principal_id": principal_id, "reason": reason, "rotated": rotated},
             )
+            if act in {"revoke_credentials", "rotate_credentials"} and rotated:
+                await self._append_lifecycle_audit("password_rotated", principal_id=principal_id, actor="admin")
             return {"ok": True, "principal": next_principal.model_dump(mode="json"), "rotated": rotated}
         else:
             return {"ok": False, "error": "noisy_action_invalid", "principal_id": principal_id}
@@ -505,3 +520,15 @@ class MqttRegistrationApprovalService:
             await self._audit.append_event(event_type=event_type, status=status, message=message, payload=payload)
         except Exception:
             return
+
+    async def _append_lifecycle_audit(self, action: str, *, principal_id: str, actor: str) -> None:
+        await self._append_audit(
+            event_type=action,
+            status="ok",
+            message=action,
+            payload={
+                "actor": actor,
+                "principal_id": principal_id,
+                "action": action,
+            },
+        )

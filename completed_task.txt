@@ -354,3 +354,6 @@
 2026-03-10 - Task 346: enforced generic-user ACL reserved deny (`synthia/#`) and external namespace scope contract.
 2026-03-10 - Task 347: added Add User modal workflow in MQTT UI with `/api/system/mqtt/users` submission and refresh.
 2026-03-10 - Task 348: extended Principals table with topic-prefix visibility and generic-user revoke/disable/rotate actions.
+2026-03-10 - Task 349: added users-contract credential rotation endpoint with regenerated credential response.
+2026-03-10 - Task 350: emitted dedicated MQTT principal lifecycle audit events (created/activated/revoked/password_rotated).
+2026-03-10 - Session complete: finished MQTT principals task queue (342-350) including lifecycle fixes, users API, UI actions, and audit coverage.

@@ -798,6 +798,33 @@ def build_mqtt_router(
             raise HTTPException(status_code=400, detail=str(result.get("error") or "rotate_credentials_failed"))
         return {"ok": True, "principal_id": principal_id, "rotated": bool(result.get("rotated"))}
 
+    @router.post("/mqtt/users/{principal_id}/rotate")
+    async def mqtt_user_rotate_credentials(
+        principal_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        result = await approval.apply_noisy_client_action(principal_id, "rotate_credentials", reason="api_users_rotate")
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail=str(result.get("error") or "rotate_credentials_failed"))
+        rotated = bool(result.get("rotated"))
+        credential = credential_store.get_principal_credential(principal_id) if credential_store is not None else None
+        if credential_store is not None:
+            state = await state_store.get_state()
+            if credential is None and principal_id in state.principals:
+                credential_store.render_password_file(state)
+                credential = credential_store.get_principal_credential(principal_id)
+            if not rotated and credential is not None:
+                rotated = True
+        return {
+            "ok": True,
+            "principal_id": principal_id,
+            "rotated": rotated,
+            "password": (credential or {}).get("password"),
+            "username": (credential or {}).get("username"),
+        }
+
     @router.get("/mqtt/generic-users/{principal_id}/effective-access")
     async def mqtt_generic_user_effective_access(
         principal_id: str,

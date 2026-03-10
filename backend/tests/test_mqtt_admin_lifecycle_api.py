@@ -62,6 +62,21 @@ class _FakeRuntimeReconciler:
         return "/tmp"
 
 
+class _FakeAuditStore:
+    def __init__(self) -> None:
+        self.items: list[dict[str, object]] = []
+
+    async def append_event(self, *, event_type: str, status: str, message: str | None = None, payload: dict | None = None):
+        self.items.append(
+            {
+                "event_type": event_type,
+                "status": status,
+                "message": message,
+                "payload": payload or {},
+            }
+        )
+
+
 class TestMqttAdminLifecycleApi(unittest.TestCase):
     def setUp(self) -> None:
         self.env_patch = patch.dict(os.environ, {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False)
@@ -72,6 +87,7 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.state_store = MqttIntegrationStateStore(str(Path(self.tmpdir.name) / "mqtt_state.json"))
         self.credential_store = MqttCredentialStore(str(Path(self.tmpdir.name) / "mqtt_credentials.json"))
         self.runtime = _FakeRuntimeReconciler()
+        self.audit = _FakeAuditStore()
         self.registry = AddonRegistry(
             addons={
                 "vision": BackendAddon(
@@ -94,6 +110,7 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
             registry=self.registry,
             state_store=self.state_store,
             runtime_reconcile_hook=self.runtime.reconcile_authority,
+            audit_store=self.audit,
             credential_rotate_hook=self.credential_store.rotate_principal,
         )
         app = FastAPI()
@@ -107,6 +124,7 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
                 acl_compiler=MqttAclCompiler(),
                 credential_store=self.credential_store,
                 runtime_reconciler=self.runtime,
+                audit_store=self.audit,
             ),
             prefix="/api/system",
         )
@@ -203,6 +221,14 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertEqual(inspect_debug.status_code, 200, inspect_debug.text)
         self.assertEqual(inspect_debug.json()["principal_id"], "user:guest2")
 
+        rotate_alias = self.client.post(
+            "/api/system/mqtt/users/user:guest2/rotate",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(rotate_alias.status_code, 200, rotate_alias.text)
+        self.assertTrue(rotate_alias.json()["rotated"])
+        self.assertTrue(rotate_alias.json().get("password"))
+
     def test_users_api_creates_external_scoped_generic_user(self) -> None:
         created = self.client.post(
             "/api/system/mqtt/users",
@@ -283,6 +309,30 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         )
         self.assertEqual(clear.status_code, 200, clear.text)
         self.assertEqual(clear.json()["principal"]["noisy_state"], "normal")
+
+    def test_lifecycle_audit_events_emitted(self) -> None:
+        created = self.client.post(
+            "/api/system/mqtt/users",
+            headers={"X-Admin-Token": "test-token"},
+            json={"username": "audituser", "password": "generated", "topic_prefix": "external/audituser"},
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+        rotate = self.client.post(
+            "/api/system/mqtt/users/user:audituser/rotate",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(rotate.status_code, 200, rotate.text)
+        revoke = self.client.post(
+            "/api/system/mqtt/generic-users/user:audituser/revoke",
+            headers={"X-Admin-Token": "test-token"},
+            json={"reason": "audit_revoke"},
+        )
+        self.assertEqual(revoke.status_code, 200, revoke.text)
+        event_types = [str(item.get("event_type")) for item in self.audit.items]
+        self.assertIn("principal_created", event_types)
+        self.assertIn("principal_activated", event_types)
+        self.assertIn("password_rotated", event_types)
+        self.assertIn("principal_revoked", event_types)
 
 
 if __name__ == "__main__":
