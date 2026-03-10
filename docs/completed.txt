@@ -302,3 +302,4 @@
 237. Task 257: Add degraded-state and recovery UX in Core UI. - Completed on 03/09/2026 09:04
 238. Task 258: Add end-to-end Phase 2 tests. - Completed on 03/09/2026 09:04
 239. Task 259: Update golden docs and runbook for Phase 2 operational model. - Completed on 03/09/2026 09:08
+240. Task 261: investigate why i can not see the mqtt embeded addon ui on the "host:8080/addons/mqtt" - Completed on 03/10/2026 00:33

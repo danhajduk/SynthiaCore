@@ -324,3 +324,4 @@
 2026-03-08 - Added supervisor auto-migration for legacy read-only /state desired/runtime mounts in existing compose files.
 2026-03-08 - Fixed supervisor base service-name resolution for optional docker group compose overrides (dependency-only service key support).
 2026-03-10 - Allow uninstall for platform-managed embedded addons with regression tests.
+2026-03-10 - Investigated missing MQTT embedded addon UI at /addons/mqtt (proxy registration + readiness mismatch).
