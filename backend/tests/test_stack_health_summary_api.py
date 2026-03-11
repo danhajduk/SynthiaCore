@@ -213,6 +213,26 @@ class TestStackHealthSummaryApi(unittest.TestCase):
         self.assertEqual(payload["samples"]["network_throughput"]["state"], "warming_up")
         self.assertEqual(payload["samples"]["network_metrics"]["state"], "ok")
 
+    def test_no_workers_active_reason_does_not_degrade_overall_status(self) -> None:
+        payload = stack_health._derive_overall_status(
+            {
+                "subsystems": {
+                    "core": {"state": "healthy"},
+                    "supervisor": {"state": "healthy"},
+                    "workers": {"state": "idle"},
+                    "mqtt": {"state": "connected"},
+                    "scheduler": {"state": "running"},
+                    "addons": {"unhealthy_count": 0},
+                },
+                "connectivity": {
+                    "network": {"state": "reachable"},
+                    "internet": {"state": "reachable"},
+                },
+            }
+        )
+        self.assertEqual(payload["overall"], "ok")
+        self.assertIn("No workers active", payload["reasons"])
+
     @patch("app.system.stack_health.subprocess.run")
     def test_stack_summary_uses_cached_speed_only(self, mock_run) -> None:
         stack_health._sampler._speed_cache = {

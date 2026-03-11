@@ -340,6 +340,7 @@ def _state_from_bool(value: bool | None, healthy: str, unhealthy: str, unknown: 
 
 def _derive_overall_status(payload: dict[str, Any]) -> dict[str, Any]:
     reasons: list[str] = []
+    non_degrading_reasons: set[str] = set()
     subsystems = payload.get("subsystems") or {}
     connectivity = payload.get("connectivity") or {}
 
@@ -374,7 +375,9 @@ def _derive_overall_status(payload: dict[str, Any]) -> dict[str, Any]:
 
     worker_state = subsystems.get("workers", {}).get("state")
     if worker_state == "idle":
-        reasons.append("No workers active")
+        reason = "No workers active"
+        reasons.append(reason)
+        non_degrading_reasons.add(reason)
 
     unhealthy_addons = int(subsystems.get("addons", {}).get("unhealthy_count") or 0)
     if unhealthy_addons > 0:
@@ -393,9 +396,10 @@ def _derive_overall_status(payload: dict[str, Any]) -> dict[str, Any]:
     if core_state == "unknown":
         overall = "unknown"
     elif reasons:
+        degrading_reasons = [reason for reason in reasons if reason not in non_degrading_reasons]
         if any(reason.startswith("Supervisor") for reason in reasons):
             overall = "attention"
-        else:
+        elif degrading_reasons:
             overall = "degraded"
 
     return {
