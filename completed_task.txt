@@ -420,3 +420,4 @@
 2026-03-11 - Task 447: added global node onboarding/registration architecture document and updated index/API/AI-node doc references to global authority.
 2026-03-11 - Task 448: added global node registration store/model, wired onboarding approval-to-registration binding, and added regression coverage for registration persistence/compatibility aliases.
 2026-03-11 - Task 449: made onboarding APIs node-type-aware and added canonical node_* response fields with legacy requested_* compatibility aliases.
+2026-03-11 - Task 450: added global node registrations query APIs with admin auth and filter support.

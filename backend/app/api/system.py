@@ -308,6 +308,39 @@ def build_system_router(
             payload.append(_session_payload(session))
         return {"ok": True, "items": payload}
 
+    @router.get("/system/nodes/registrations")
+    def list_node_registrations(
+        request: Request,
+        node_type: str | None = Query(default=None),
+        trust_status: str | None = Query(default=None),
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_registrations_store is None:
+            raise HTTPException(status_code=503, detail="node_registrations_unavailable")
+        entries = node_registrations_store.list()
+        if node_type:
+            node_type_filter = str(node_type).strip()
+            entries = [item for item in entries if item.node_type == node_type_filter]
+        if trust_status:
+            trust_status_filter = str(trust_status).strip().lower()
+            entries = [item for item in entries if str(item.trust_status).strip().lower() == trust_status_filter]
+        return {"ok": True, "items": [item.to_api_dict() for item in entries]}
+
+    @router.get("/system/nodes/registrations/{node_id}")
+    def get_node_registration(
+        node_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_registrations_store is None:
+            raise HTTPException(status_code=503, detail="node_registrations_unavailable")
+        item = node_registrations_store.get(node_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="node_registration_not_found")
+        return {"ok": True, "registration": item.to_api_dict()}
+
     @router.post("/system/nodes/onboarding/sessions/{session_id}/approve")
     def approve_node_onboarding_session(
         session_id: str,

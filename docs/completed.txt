@@ -474,3 +474,4 @@
 2026-03-11 - Task 447: defined canonical global node onboarding/registration architecture and positioned AI-node onboarding as a node-type profile under the global model.
 2026-03-11 - Task 448: implemented global node registration domain model/store, bound approved onboarding sessions to persistent registration records, and added compatibility alias/version strategy.
 2026-03-11 - Task 449: refactored onboarding APIs to node-type-aware validation with generic node field payloads and preserved legacy requested_* aliases.
+2026-03-11 - Task 450: implemented admin global node registry list/get APIs with node_type/trust_status filters and lifecycle/provenance fields.
