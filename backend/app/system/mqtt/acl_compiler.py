@@ -74,7 +74,7 @@ class MqttAclCompiler:
         entries = self._effective_access.compile(state)
         normalized_model = self._normalize_effective_access_model(self._build_effective_access_model(entries))
         rules = self._render_mosquitto_rules(normalized_model)
-        normalized = sorted(set(rules), key=lambda item: (item.principal_id, item.action, item.topic, item.effect))
+        normalized = self._normalize_rules(rules)
         return MqttAclCompilationResult(rules=normalized, acl_text=self._to_acl_text(state, normalized), effective_access=entries)
 
     def compile_effective_access(self, state: MqttIntegrationState) -> list[MqttEffectiveAccessEntry]:
@@ -175,11 +175,86 @@ class MqttAclCompiler:
     def _to_mosquitto_acl_line(rule: CompiledAclRule) -> str | None:
         if rule.effect == "deny":
             return f"topic deny {rule.topic}"
+        if rule.action == "readwrite":
+            return f"topic readwrite {rule.topic}"
         if rule.action == "publish":
             return f"topic write {rule.topic}"
         if rule.action == "subscribe":
             return f"topic read {rule.topic}"
         return None
+
+    @classmethod
+    def _normalize_rules(cls, rules: list[CompiledAclRule]) -> list[CompiledAclRule]:
+        deduped = sorted(set(rules), key=lambda item: (item.principal_id, item.effect, item.action, item.topic))
+        collapsed_denies = cls._collapse_redundant_denies(deduped)
+        merged_readwrite = cls._merge_readwrite_rules(collapsed_denies)
+        action_collapsed_denies = cls._collapse_duplicate_deny_actions(merged_readwrite)
+        return sorted(set(action_collapsed_denies), key=lambda item: (item.principal_id, item.effect, item.action, item.topic))
+
+    @classmethod
+    def _collapse_redundant_denies(cls, rules: list[CompiledAclRule]) -> list[CompiledAclRule]:
+        by_key: dict[tuple[str, str], list[CompiledAclRule]] = {}
+        for rule in rules:
+            if rule.effect != "deny":
+                continue
+            key = (rule.principal_id, rule.action)
+            by_key.setdefault(key, []).append(rule)
+        keep: set[CompiledAclRule] = set(rules)
+        for key, deny_rules in by_key.items():
+            topics = sorted({rule.topic for rule in deny_rules}, key=lambda topic: (len(topic), topic))
+            for topic in topics:
+                for parent in topics:
+                    if parent == topic:
+                        continue
+                    if cls._topic_covers(parent, topic):
+                        rule = CompiledAclRule(principal_id=key[0], action=key[1], topic=topic, effect="deny")
+                        if rule in keep:
+                            keep.remove(rule)
+                        break
+        return sorted(keep, key=lambda item: (item.principal_id, item.effect, item.action, item.topic))
+
+    @staticmethod
+    def _topic_covers(parent: str, child: str) -> bool:
+        p = str(parent or "").strip()
+        c = str(child or "").strip()
+        if not p or not c:
+            return False
+        if p == "#":
+            return True
+        if p.endswith("/#"):
+            prefix = p[:-1]
+            return c.startswith(prefix)
+        return p == c
+
+    @staticmethod
+    def _merge_readwrite_rules(rules: list[CompiledAclRule]) -> list[CompiledAclRule]:
+        allow_publish = {(rule.principal_id, rule.topic) for rule in rules if rule.effect == "allow" and rule.action == "publish"}
+        allow_subscribe = {(rule.principal_id, rule.topic) for rule in rules if rule.effect == "allow" and rule.action == "subscribe"}
+        merged_targets = allow_publish & allow_subscribe
+        out: list[CompiledAclRule] = []
+        for rule in rules:
+            key = (rule.principal_id, rule.topic)
+            if key in merged_targets and rule.effect == "allow" and rule.action in {"publish", "subscribe"}:
+                continue
+            out.append(rule)
+        for principal_id, topic in sorted(merged_targets):
+            out.append(CompiledAclRule(principal_id=principal_id, action="readwrite", topic=topic, effect="allow"))
+        return out
+
+    @staticmethod
+    def _collapse_duplicate_deny_actions(rules: list[CompiledAclRule]) -> list[CompiledAclRule]:
+        out: list[CompiledAclRule] = []
+        seen_deny_topics: set[tuple[str, str]] = set()
+        for rule in rules:
+            if rule.effect != "deny":
+                out.append(rule)
+                continue
+            key = (rule.principal_id, rule.topic)
+            if key in seen_deny_topics:
+                continue
+            seen_deny_topics.add(key)
+            out.append(CompiledAclRule(principal_id=rule.principal_id, action="publish", topic=rule.topic, effect="deny"))
+        return out
 
     @staticmethod
     def _principal_username(state: MqttIntegrationState, principal_id: str) -> str:

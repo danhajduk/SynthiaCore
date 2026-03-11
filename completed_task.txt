@@ -389,3 +389,6 @@
 2026-03-11 - Task 378: added runtime rebuild safety checks with active-client blocking and force override in API/UI.
 2026-03-11 - Task 379: added runtime traffic statistics history (24h retention) with messages/sec, connected clients, and errors endpoint.
 2026-03-11 - Task 380: refactored ACL compiler pipeline into explicit model-build, normalization, and Mosquitto-render stages.
+2026-03-11 - Task 381: added ACL normalization pass (dedupe, redundant deny collapse, deterministic ordering, read+write merge to readwrite).
+2026-03-11 - Task 382: removed duplicate anonymous/default deny emission in compiled ACL output.
+2026-03-11 - Task 383: removed duplicate generic-user reserved-topic deny emission via normalized deny collapse.
