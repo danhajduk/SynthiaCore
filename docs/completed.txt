@@ -494,3 +494,4 @@
 2026-03-11 15:13 - Task 467: added canonical node_type normalization for new registrations while preserving legacy `ai-node` compatibility aliases in onboarding and registration responses.
 2026-03-11 15:14 - Task 468: added backend node registry view model (`registry_state`) and `/api/system/nodes/registry` list API with state/type/status filters.
 2026-03-11 15:14 - Task 469: switched Addons/Home node data loading to `/api/system/nodes/registry` so UI consumes the normalized registry view model.
+2026-03-11 15:16 - Task 470: added Installed/Pending node tabs in Addons nodes panel while keeping a single `/addons` route model.

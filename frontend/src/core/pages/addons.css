@@ -102,6 +102,11 @@
   opacity: 0.6;
 }
 
+.addon-tab-active {
+  border-color: hsl(var(--sx-primary) / 0.6);
+  background: hsl(var(--sx-primary) / 0.22);
+}
+
 .addon-btn-danger {
   border-color: hsl(var(--sx-danger) / 0.45);
   background: hsl(var(--sx-danger) / 0.16);

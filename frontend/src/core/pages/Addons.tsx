@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiGet } from "../api/client";
 import { useAdminSession } from "../auth/AdminSessionContext";
 import {
@@ -76,6 +76,7 @@ export default function Addons() {
   const [nodesErr, setNodesErr] = useState<string | null>(null);
   const [nodesBusy, setNodesBusy] = useState(false);
   const [nodeDeleteBusy, setNodeDeleteBusy] = useState<string | null>(null);
+  const [nodesTab, setNodesTab] = useState<"installed" | "pending">("installed");
   const [catalogBusy, setCatalogBusy] = useState(false);
   const [catalogMsg, setCatalogMsg] = useState<string | null>(null);
   const [uninstallStates, setUninstallStates] = useState<Record<string, UninstallViewState>>({});
@@ -177,6 +178,16 @@ export default function Addons() {
     void refreshRuntime();
     void refreshNodes();
   }, []);
+
+  const trustedNodes = useMemo(
+    () => nodes.filter((item) => String(item.registry_state || item.trust_status || "").toLowerCase() === "trusted"),
+    [nodes],
+  );
+  const pendingNodes = useMemo(
+    () => nodes.filter((item) => String(item.registry_state || item.trust_status || "").toLowerCase() !== "trusted"),
+    [nodes],
+  );
+  const visibleNodes = nodesTab === "installed" ? trustedNodes : pendingNodes;
 
   async function setEnabled(addonId: string, enabled: boolean) {
     setErr(null);
@@ -384,19 +395,35 @@ export default function Addons() {
             <div className="addon-runtime-panel">
               <div className="addon-runtime-header">
                 <div className="addon-installer-title">Installed Nodes</div>
-                <button className="addon-btn" onClick={() => void refreshNodes()} disabled={nodesBusy}>
-                  {nodesBusy ? "Refreshing..." : "Refresh Nodes"}
-                </button>
+                <div className="addon-inline">
+                  <button
+                    className={`addon-btn${nodesTab === "installed" ? " addon-tab-active" : ""}`}
+                    onClick={() => setNodesTab("installed")}
+                    type="button"
+                  >
+                    Installed ({trustedNodes.length})
+                  </button>
+                  <button
+                    className={`addon-btn${nodesTab === "pending" ? " addon-tab-active" : ""}`}
+                    onClick={() => setNodesTab("pending")}
+                    type="button"
+                  >
+                    Pending ({pendingNodes.length})
+                  </button>
+                  <button className="addon-btn" onClick={() => void refreshNodes()} disabled={nodesBusy}>
+                    {nodesBusy ? "Refreshing..." : "Refresh Nodes"}
+                  </button>
+                </div>
               </div>
               <div className="addon-meta">
                 Registered nodes from global node onboarding and trust lifecycle.
               </div>
               {nodesErr && <pre className="addons-error">{nodesErr}</pre>}
-              {nodes.length === 0 ? (
+              {visibleNodes.length === 0 ? (
                 <div className="addon-meta">No registered nodes found.</div>
               ) : (
                 <div className="addon-runtime-list">
-                  {nodes.map((item) => (
+                  {visibleNodes.map((item) => (
                     <div key={item.node_id} className="addon-runtime-card">
                       <div className="addon-card-header">
                         <div className="addon-name">{item.node_name || item.node_id}</div>
