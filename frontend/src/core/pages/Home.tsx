@@ -140,8 +140,10 @@ function summaryLabel(overall: string): string {
 function pillTone(state: string): "ok" | "warn" | "bad" | "neutral" {
   const x = String(state || "unknown").toLowerCase();
   if (["healthy", "connected", "running", "active", "reachable", "ok", "idle"].includes(x)) return "ok";
-  if (["degraded", "unknown", "unavailable", "not_configured"].includes(x)) return "warn";
-  if (["unhealthy", "disconnected", "unreachable", "error", "failed", "down"].includes(x)) return "bad";
+  if (["degraded", "unknown", "unavailable", "not_configured", "partial", "limited"].includes(x)) return "warn";
+  if (["unhealthy", "disconnected", "unreachable", "error", "failed", "down", "offline", "stopped"].includes(x)) {
+    return "bad";
+  }
   return "neutral";
 }
 
