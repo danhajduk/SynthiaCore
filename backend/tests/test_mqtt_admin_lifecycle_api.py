@@ -28,6 +28,9 @@ class _FakeSettingsStore:
 
 
 class _FakeMqttManager:
+    def __init__(self) -> None:
+        self.published: list[dict[str, object]] = []
+
     async def status(self):
         return {"ok": True, "enabled": True, "connected": True, "last_message_at": None}
 
@@ -38,6 +41,7 @@ class _FakeMqttManager:
         return {"ok": True, "topic": topic or "synthia/core/mqtt/info", "payload": payload or {}}
 
     async def publish(self, topic: str, payload: dict, retain: bool = True, qos: int = 1):
+        self.published.append({"topic": topic, "payload": payload, "retain": retain, "qos": qos})
         return {"ok": True, "topic": topic, "rc": 0}
 
     def _core_info_payload(self) -> dict:
@@ -124,10 +128,11 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
             audit_store=self.audit,
             credential_rotate_hook=self.credential_store.rotate_principal,
         )
+        self.manager = _FakeMqttManager()
         app = FastAPI()
         app.include_router(
             build_mqtt_router(
-                _FakeMqttManager(),
+                self.manager,
                 self.registry,
                 self.state_store,
                 self.key_store,
@@ -253,6 +258,25 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
                 headers={"X-Admin-Token": "test-token"},
             )
             self.assertEqual(missing.status_code, 404, missing.text)
+
+    def test_debug_publish_blocks_reserved_topics_and_allows_external(self) -> None:
+        blocked = self.client.post(
+            "/api/system/debug/publish",
+            headers={"X-Admin-Token": "test-token"},
+            json={"topic": "synthia/runtime/health", "payload": {"x": 1}, "qos": 0, "retain": False},
+        )
+        self.assertEqual(blocked.status_code, 400, blocked.text)
+        self.assertIn("reserved_topic_publish_forbidden", blocked.text)
+
+        allowed = self.client.post(
+            "/api/system/debug/publish",
+            headers={"X-Admin-Token": "test-token"},
+            json={"topic": "external/debug/events", "payload": {"hello": "world"}, "qos": 1, "retain": True},
+        )
+        self.assertEqual(allowed.status_code, 200, allowed.text)
+        self.assertTrue(allowed.json()["ok"])
+        self.assertEqual(allowed.json()["topic"], "external/debug/events")
+        self.assertEqual(len(self.manager.published), 1)
 
     def test_rotate_credentials_and_effective_access_inspection(self) -> None:
         created = asyncio.run(

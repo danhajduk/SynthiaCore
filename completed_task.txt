@@ -371,3 +371,4 @@
 2026-03-10 - Task 361: added principal runtime connection state tracking and connected/disconnected status indicators in Principals UI.
 2026-03-10 - Task 362: added $SYS-based broker client counters, runtime session table, and runtime sessions API endpoints.
 2026-03-10 - Task 363: added admin-only MQTT debug subscribe/unsubscribe flow with temporary client, timeout, and Runtime UI stream polling.
+2026-03-11 - Task 364: added admin debug publish endpoint/UI form with reserved system topic blocking and regression coverage.

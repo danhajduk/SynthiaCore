@@ -873,6 +873,51 @@ def addon_ui_root() -> str:
       }
     }
 
+    async function runDebugPublish() {
+      const topicNode = document.getElementById("debug-publish-topic");
+      const payloadNode = document.getElementById("debug-publish-payload");
+      const qosNode = document.getElementById("debug-publish-qos");
+      const retainNode = document.getElementById("debug-publish-retain");
+      if (!topicNode || !payloadNode || !qosNode || !retainNode) return;
+      const topic = String(topicNode.value || "").trim();
+      if (!topic) {
+        setStatus("Debug publish failed: topic_required", "error");
+        return;
+      }
+      let payload = String(payloadNode.value || "").trim();
+      let parsedPayload = {};
+      if (payload) {
+        try {
+          parsedPayload = JSON.parse(payload);
+        } catch (error) {
+          parsedPayload = { value: payload };
+        }
+      }
+      const qos = Number.parseInt(String(qosNode.value || "0"), 10);
+      const retain = Boolean(retainNode.checked);
+      setStatus(`Publishing to ${topic}...`, "");
+      try {
+        const res = await fetch("/api/system/debug/publish", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            topic,
+            payload: parsedPayload,
+            qos: Number.isFinite(qos) ? qos : 0,
+            retain,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data && data.detail ? data.detail : "debug_publish_failed");
+        }
+        setStatus(`Published to ${topic} (qos=${data.qos}, retain=${data.retain ? "true" : "false"}).`, "ok");
+      } catch (error) {
+        setStatus(`Debug publish failed: ${error && error.message ? error.message : String(error)}`, "error");
+      }
+    }
+
     async function runRuntimeAction(action) {
       const endpoint = runtimeActionEndpoint(action);
       setRuntimeBusy(true);
@@ -1129,6 +1174,14 @@ def addon_ui_root() -> str:
           `bootstrap_attempts: ${escapeHtml(bootstrap.attempts || 0)}\\n` +
           `bootstrap_last_error: ${escapeHtml(bootstrap.last_error || "none")}` +
           `</div>` +
+          `<h4>Debug Publish</h4>` +
+          `<div class='grid'>` +
+          `<label>Topic<input id='debug-publish-topic' placeholder='external/test/event' /></label>` +
+          `<label>Payload (JSON or plain text)<input id='debug-publish-payload' placeholder='{\"hello\":\"world\"}' /></label>` +
+          `<label>QoS<select id='debug-publish-qos'><option value='0'>0</option><option value='1'>1</option><option value='2'>2</option></select></label>` +
+          `<label>Retain<input id='debug-publish-retain' type='checkbox' /></label>` +
+          `</div>` +
+          `<div class='row'><button data-runtime-action='debug-publish'>Publish Message</button></div>` +
           `<h4>Debug Stream</h4>` +
           `<div id='runtime-debug-stream' class='mono'>No debug messages yet.</div>`;
         renderRuntimeDebugStream();
@@ -1445,6 +1498,10 @@ def addon_ui_root() -> str:
       }
       if (action === "debug-unsubscribe") {
         void runDebugUnsubscribe();
+        return;
+      }
+      if (action === "debug-publish") {
+        void runDebugPublish();
         return;
       }
       void runRuntimeAction(action);

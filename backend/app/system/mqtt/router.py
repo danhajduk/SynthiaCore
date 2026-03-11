@@ -21,6 +21,7 @@ from .approval import MqttRegistrationApprovalService
 from .integration_models import MqttRegistrationRequest, MqttSetupStateUpdate
 from .integration_state import MqttIntegrationStateStore
 from .manager import MqttManager
+from .topic_families import is_platform_reserved_topic
 from .topic_policy import validate_topic_scopes
 
 
@@ -99,6 +100,13 @@ class MqttDebugSubscribeRequest(BaseModel):
 
 class MqttDebugUnsubscribeRequest(BaseModel):
     subscription_id: str = Field(..., min_length=1)
+
+
+class MqttDebugPublishRequest(BaseModel):
+    topic: str = Field(..., min_length=1)
+    payload: Any = Field(default_factory=dict)
+    qos: int = Field(default=0, ge=0, le=2)
+    retain: bool = False
 
 
 _MQTT_USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{3,64}$")
@@ -505,6 +513,39 @@ def build_mqtt_router(
             payload={"subscription_id": body.subscription_id},
         )
         return {"ok": True, "subscription_id": body.subscription_id}
+
+    @router.post("/debug/publish")
+    async def mqtt_debug_publish(
+        body: MqttDebugPublishRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        topic = str(body.topic or "").strip()
+        if not topic:
+            raise HTTPException(status_code=400, detail="topic_required")
+        if is_platform_reserved_topic(topic):
+            raise HTTPException(status_code=400, detail="reserved_topic_publish_forbidden")
+        payload = body.payload
+        if isinstance(payload, dict):
+            safe_payload = payload
+        else:
+            safe_payload = {"value": payload}
+        result = await manager.publish(topic, safe_payload, retain=bool(body.retain), qos=int(body.qos))
+        if not result.get("ok"):
+            raise HTTPException(status_code=400, detail=str(result.get("error") or "debug_publish_failed"))
+        await _audit_runtime_action(
+            action="debug_publish",
+            status="ok",
+            payload={"topic": topic, "qos": int(body.qos), "retain": bool(body.retain)},
+        )
+        return {
+            "ok": True,
+            "topic": topic,
+            "qos": int(body.qos),
+            "retain": bool(body.retain),
+            "rc": int(result.get("rc") or 0),
+        }
 
     @router.post("/mqtt/setup/test-connection")
     async def mqtt_setup_test_connection(

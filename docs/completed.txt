@@ -397,3 +397,4 @@
 332. Task 361: Add MQTT connection status indicator - Completed on 03/10/2026 23:44
 333. Task 362: Implement MQTT session tracking - Completed on 03/10/2026 23:44
 334. Task 363: Implement topic subscription debug tool - Completed on 03/10/2026 23:57
+335. Task 364: Implement MQTT publish debug tool - Completed on 03/11/2026 00:07
