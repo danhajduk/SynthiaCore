@@ -17,6 +17,8 @@ except Exception:  # pragma: no cover
     FASTAPI_STACK_AVAILABLE = False
 
 from app.system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore, NodeTrustIssuanceService, NodeTrustStore
+from app.system.onboarding.capability_acceptance import NodeCapabilityAcceptanceService
+from app.system.onboarding.capability_profiles import NodeCapabilityProfilesStore
 
 
 class _FakeRegistry:
@@ -45,6 +47,8 @@ class TestNodeCapabilityDeclarationApi(unittest.TestCase):
         self.registrations = NodeRegistrationsStore(path=Path(self.tmpdir.name) / "node_registrations.json")
         self.trust_store = NodeTrustStore(path=Path(self.tmpdir.name) / "node_trust_records.json")
         self.trust_issuance = NodeTrustIssuanceService(self.trust_store)
+        self.capability_profiles = NodeCapabilityProfilesStore(path=Path(self.tmpdir.name) / "node_capability_profiles.json")
+        self.capability_acceptance = NodeCapabilityAcceptanceService(self.capability_profiles)
         app = FastAPI()
         app.include_router(
             build_system_router(
@@ -52,6 +56,7 @@ class TestNodeCapabilityDeclarationApi(unittest.TestCase):
                 onboarding_sessions_store=self.sessions,
                 node_registrations_store=self.registrations,
                 node_trust_issuance=self.trust_issuance,
+                node_capability_acceptance=self.capability_acceptance,
             ),
             prefix="/api",
         )
@@ -144,6 +149,7 @@ class TestNodeCapabilityDeclarationApi(unittest.TestCase):
         self.assertEqual(payload["manifest_version"], "1.0")
         self.assertEqual(payload["declared_capabilities"], ["task.classification", "task.summarization"])
         self.assertEqual(payload["enabled_providers"], ["openai"])
+        self.assertTrue(str(payload.get("capability_profile_id") or "").startswith(f"cap-{node_id}-v"))
 
         registration = self.registrations.get(node_id)
         self.assertIsNotNone(registration)
@@ -152,6 +158,7 @@ class TestNodeCapabilityDeclarationApi(unittest.TestCase):
         self.assertEqual(registration.enabled_providers, ["openai"])
         self.assertEqual(registration.capability_declaration_version, "1.0")
         self.assertTrue(str(registration.capability_declaration_timestamp or "").strip())
+        self.assertEqual(registration.capability_profile_id, payload["capability_profile_id"])
 
     def test_rejects_untrusted_node_token(self) -> None:
         node_id, _trust_token = self._trusted_node()
@@ -186,6 +193,32 @@ class TestNodeCapabilityDeclarationApi(unittest.TestCase):
         )
         self.assertEqual(res.status_code, 400, res.text)
         self.assertEqual(res.json()["detail"]["error"], "unsupported_capability_version")
+
+    def test_rejects_unsupported_task_family_by_policy(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        manifest = self._manifest(node_id)
+        manifest["declared_task_families"] = ["task.classification", "task.unknown.future"]
+        with patch.dict(os.environ, {"SYNTHIA_NODE_ALLOWED_TASK_FAMILIES": "task.classification,task.summarization"}, clear=False):
+            res = self.client.post(
+                "/api/system/nodes/capabilities/declaration",
+                json={"manifest": manifest},
+                headers={"X-Node-Trust-Token": trust_token},
+            )
+        self.assertEqual(res.status_code, 400, res.text)
+        self.assertEqual(res.json()["detail"]["error"], "unsupported_task_family")
+
+    def test_rejects_unsupported_provider_identifier_by_policy(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        manifest = self._manifest(node_id)
+        manifest["supported_providers"] = ["openai", "provider-x"]
+        with patch.dict(os.environ, {"SYNTHIA_NODE_ALLOWED_PROVIDERS": "openai,local-llm"}, clear=False):
+            res = self.client.post(
+                "/api/system/nodes/capabilities/declaration",
+                json={"manifest": manifest},
+                headers={"X-Node-Trust-Token": trust_token},
+            )
+        self.assertEqual(res.status_code, 400, res.text)
+        self.assertEqual(res.json()["detail"]["error"], "unsupported_provider_identifier")
 
 
 if __name__ == "__main__":

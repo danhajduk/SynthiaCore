@@ -36,7 +36,14 @@ from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler.history import SchedulerHistoryStore
 from app.system.settings.store import SettingsStore
 from app.system.settings.router import build_settings_router
-from app.system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore, NodeTrustIssuanceService, NodeTrustStore
+from app.system.onboarding import (
+    NodeCapabilityAcceptanceService,
+    NodeCapabilityProfilesStore,
+    NodeOnboardingSessionsStore,
+    NodeRegistrationsStore,
+    NodeTrustIssuanceService,
+    NodeTrustStore,
+)
 from app.system.mqtt import (
     DockerMosquittoRuntimeBoundary,
     EmbeddedMqttStartupReconciler,
@@ -418,11 +425,15 @@ def create_app() -> FastAPI:
     node_registrations_store = NodeRegistrationsStore()
     node_trust_store = NodeTrustStore()
     node_trust_issuance = NodeTrustIssuanceService(node_trust_store)
+    node_capability_profiles_store = NodeCapabilityProfilesStore()
+    node_capability_acceptance = NodeCapabilityAcceptanceService(node_capability_profiles_store)
     app.state.install_sessions_store = install_sessions_store
     app.state.node_onboarding_sessions_store = node_onboarding_sessions_store
     app.state.node_registrations_store = node_registrations_store
     app.state.node_trust_store = node_trust_store
     app.state.node_trust_issuance = node_trust_issuance
+    app.state.node_capability_profiles_store = node_capability_profiles_store
+    app.state.node_capability_acceptance = node_capability_acceptance
 
     app.include_router(build_settings_router(settings_store, audit_store), prefix="/api/system", tags=["settings"])
     app.include_router(build_users_router(users_store, audit_store), prefix="/api/admin", tags=["admin-users"])
@@ -527,6 +538,7 @@ def create_app() -> FastAPI:
             onboarding_sessions_store=node_onboarding_sessions_store,
             node_registrations_store=node_registrations_store,
             node_trust_issuance=node_trust_issuance,
+            node_capability_acceptance=node_capability_acceptance,
             audit_store=audit_store,
         ),
         prefix="/api",

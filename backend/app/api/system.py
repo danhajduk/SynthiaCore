@@ -16,6 +16,7 @@ from ..addons.registry import AddonRegistry, list_addons
 from ..system.audit import AuditLogStore
 from ..system.onboarding import (
     CapabilityManifestValidationError,
+    NodeCapabilityAcceptanceService,
     NodeOnboardingSessionsStore,
     NodeRegistrationsStore,
     NodeTrustIssuanceService,
@@ -283,6 +284,7 @@ def build_system_router(
     onboarding_sessions_store: NodeOnboardingSessionsStore | None = None,
     node_registrations_store: NodeRegistrationsStore | None = None,
     node_trust_issuance: NodeTrustIssuanceService | None = None,
+    node_capability_acceptance: NodeCapabilityAcceptanceService | None = None,
     audit_store: AuditLogStore | None = None,
 ) -> APIRouter:
     router = APIRouter()
@@ -515,6 +517,8 @@ def build_system_router(
             raise HTTPException(status_code=503, detail="node_registrations_unavailable")
         if node_trust_issuance is None:
             raise HTTPException(status_code=503, detail="trust_issuance_unavailable")
+        if node_capability_acceptance is None:
+            raise HTTPException(status_code=503, detail="capability_acceptance_unavailable")
 
         try:
             manifest = validate_capability_declaration(dict(body.manifest or {}))
@@ -558,6 +562,17 @@ def build_system_router(
         registration.enabled_providers = list(manifest.get("enabled_providers") or [])
         registration.capability_declaration_version = str(manifest.get("manifest_version") or "").strip() or None
         registration.capability_declaration_timestamp = _utcnow_iso()
+        accepted = node_capability_acceptance.evaluate(node_id=node_id, manifest=manifest)
+        if not accepted.accepted:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": accepted.error_code or "capability_rejected",
+                    "message": accepted.message or "capability declaration rejected",
+                },
+            )
+        profile = accepted.profile
+        registration.capability_profile_id = profile.profile_id if profile is not None else None
         node_registrations_store.upsert(registration)
 
         _record_audit(
@@ -570,6 +585,7 @@ def build_system_router(
                 "manifest_version": registration.capability_declaration_version or "",
                 "declared_capability_count": len(registration.declared_capabilities),
                 "enabled_provider_count": len(registration.enabled_providers),
+                "capability_profile_id": registration.capability_profile_id or "",
                 "source_ip": str(request.client.host if request.client else "unknown"),
             },
         )
