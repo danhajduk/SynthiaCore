@@ -89,3 +89,12 @@ class NodeCapabilityAcceptanceService:
             manifest_version=version,
         )
         return CapabilityAcceptanceResult(accepted=True, profile=profile)
+
+    def list_profiles(self, *, node_id: str | None = None) -> list[NodeCapabilityProfileRecord]:
+        return self._profiles.list(node_id=node_id)
+
+    def get_profile(self, profile_id: str) -> NodeCapabilityProfileRecord | None:
+        return self._profiles.get(profile_id)
+
+    def latest_profile_for_node(self, node_id: str) -> NodeCapabilityProfileRecord | None:
+        return self._profiles.latest_for_node(node_id)

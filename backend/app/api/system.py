@@ -601,6 +601,32 @@ def build_system_router(
             "capability_profile_id": registration.capability_profile_id,
         }
 
+    @router.get("/system/nodes/capabilities/profiles")
+    def list_node_capability_profiles(
+        request: Request,
+        node_id: str | None = Query(default=None),
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_capability_acceptance is None:
+            raise HTTPException(status_code=503, detail="capability_acceptance_unavailable")
+        items = node_capability_acceptance.list_profiles(node_id=node_id if node_id else None)
+        return {"ok": True, "items": [item.to_dict() for item in items]}
+
+    @router.get("/system/nodes/capabilities/profiles/{profile_id}")
+    def get_node_capability_profile(
+        profile_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_capability_acceptance is None:
+            raise HTTPException(status_code=503, detail="capability_acceptance_unavailable")
+        item = node_capability_acceptance.get_profile(profile_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="node_capability_profile_not_found")
+        return {"ok": True, "profile": item.to_dict()}
+
     @router.delete("/system/nodes/registrations/{node_id}")
     def delete_node_registration(
         node_id: str,

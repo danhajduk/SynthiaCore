@@ -220,6 +220,36 @@ class TestNodeCapabilityDeclarationApi(unittest.TestCase):
         self.assertEqual(res.status_code, 400, res.text)
         self.assertEqual(res.json()["detail"]["error"], "unsupported_provider_identifier")
 
+    def test_admin_can_list_and_get_capability_profiles(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        declared = self.client.post(
+            "/api/system/nodes/capabilities/declaration",
+            json={"manifest": self._manifest(node_id)},
+            headers={"X-Node-Trust-Token": trust_token},
+        )
+        self.assertEqual(declared.status_code, 200, declared.text)
+        profile_id = declared.json()["capability_profile_id"]
+
+        listed = self.client.get(
+            f"/api/system/nodes/capabilities/profiles?node_id={node_id}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(listed.status_code, 200, listed.text)
+        items = listed.json()["items"]
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["profile_id"], profile_id)
+        self.assertEqual(items[0]["node_id"], node_id)
+
+        got = self.client.get(
+            f"/api/system/nodes/capabilities/profiles/{profile_id}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(got.status_code, 200, got.text)
+        profile = got.json()["profile"]
+        self.assertEqual(profile["profile_id"], profile_id)
+        self.assertEqual(profile["node_id"], node_id)
+        self.assertIn("declaration_raw", profile)
+
 
 if __name__ == "__main__":
     unittest.main()
