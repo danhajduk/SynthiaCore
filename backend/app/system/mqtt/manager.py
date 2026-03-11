@@ -826,25 +826,14 @@ class MqttManager:
         if "retained" in lowered and ("count" in lowered or "messages" in lowered) and value_int is not None:
             self._broker_metrics["retained_messages"] = value_int
         if lowered.endswith("/messages/received") or lowered.endswith("/messages/sent"):
-            current_total = int(self._broker_metrics.get("_counter_total") or 0)
             next_total = (value_int if value_int is not None else 0)
             if lowered.endswith("/messages/sent"):
-                received_total = int(self._broker_metrics.get("_messages_received") or 0)
-                current_total = received_total + next_total
                 self._broker_metrics["_messages_sent"] = next_total
             else:
-                sent_total = int(self._broker_metrics.get("_messages_sent") or 0)
-                current_total = sent_total + next_total
                 self._broker_metrics["_messages_received"] = next_total
-            prev_total = self._broker_metrics.get("_counter_total")
-            prev_at = self._broker_metrics.get("_counter_at")
-            now = time.time()
-            if isinstance(prev_total, (int, float)) and isinstance(prev_at, (int, float)):
-                delta = max(0.0, float(current_total) - float(prev_total))
-                dt = max(0.001, now - float(prev_at))
-                self._broker_metrics["message_rate"] = round(delta / dt, 3)
-            self._broker_metrics["_counter_total"] = current_total
-            self._broker_metrics["_counter_at"] = now
+            # message_rate is derived from observed runtime traffic in _update_runtime_message_rate().
+            # Avoid deriving from $SYS cumulative counters here because alternating received/sent samples can
+            # produce unrealistic spikes when sampled with very small dt.
         self._record_stats_sample()
 
     def _record_stats_sample(self) -> None:

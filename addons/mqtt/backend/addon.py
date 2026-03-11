@@ -575,12 +575,30 @@ def addon_ui_root() -> str:
 
     function avgMsgRateFromHistory(payload) {
       const items = Array.isArray(payload && payload.items) ? payload.items : [];
-      const values = items
-        .map((item) => Number(item && item.messages_per_second))
-        .filter((value) => Number.isFinite(value) && value >= 0);
-      if (values.length === 0) return null;
-      const total = values.reduce((sum, value) => sum + value, 0);
-      return total / values.length;
+      if (items.length === 0) return null;
+      const points = items
+        .map((item) => {
+          const rate = Number(item && item.messages_per_second);
+          const ts = Date.parse(String(item && item.timestamp || ""));
+          return { rate, ts };
+        })
+        .filter((item) => Number.isFinite(item.rate) && item.rate >= 0 && Number.isFinite(item.ts))
+        .sort((a, b) => a.ts - b.ts);
+      if (points.length === 0) return null;
+      if (points.length === 1) return points[0].rate;
+      let weighted = 0;
+      let weight = 0;
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const left = points[i];
+        const right = points[i + 1];
+        const dt = Math.max(0, right.ts - left.ts) / 1000;
+        if (!Number.isFinite(dt) || dt <= 0) continue;
+        const boundedDt = Math.min(dt, 30);
+        weighted += left.rate * boundedDt;
+        weight += boundedDt;
+      }
+      if (weight <= 0) return points[points.length - 1].rate;
+      return weighted / weight;
     }
 
     function gateIsActive(summary) {
