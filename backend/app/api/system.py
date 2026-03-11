@@ -44,11 +44,16 @@ def _onboarding_error(error: str, message: str, *, retryable: bool = False) -> d
 
 
 def _onboarding_enabled() -> bool:
-    return str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_ENABLED", "true")).strip().lower() in {"1", "true", "yes", "on"}
+    raw = str(os.getenv("SYNTHIA_NODE_ONBOARDING_ENABLED", "")).strip()
+    if not raw:
+        raw = str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_ENABLED", "true")).strip()
+    return raw.lower() in {"1", "true", "yes", "on"}
 
 
 def _supported_protocol_versions() -> set[str]:
-    raw = str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_PROTOCOLS", "1.0")).strip()
+    raw = str(os.getenv("SYNTHIA_NODE_ONBOARDING_PROTOCOLS", "")).strip()
+    if not raw:
+        raw = str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_PROTOCOLS", "1.0")).strip()
     return {item.strip() for item in raw.split(",") if item.strip()}
 
 
@@ -61,7 +66,9 @@ def _supported_node_types() -> set[str]:
 
 
 def _build_approval_url(request: Request, session_id: str, state: str) -> str:
-    configured = str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_APPROVAL_URL_BASE", "")).strip()
+    configured = str(os.getenv("SYNTHIA_NODE_ONBOARDING_APPROVAL_URL_BASE", "")).strip()
+    if not configured:
+        configured = str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_APPROVAL_URL_BASE", "")).strip()
     if configured.startswith(("http://", "https://")):
         base = configured.rstrip("/")
     else:
@@ -112,7 +119,9 @@ def _enforce_csrf_for_cookie_session(request: Request, x_admin_token: str | None
         value = str(item or "").strip().rstrip("/")
         if value.startswith(("http://", "https://")):
             trusted_origins.add(value)
-    approval_base = str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_APPROVAL_URL_BASE", "")).strip()
+    approval_base = str(os.getenv("SYNTHIA_NODE_ONBOARDING_APPROVAL_URL_BASE", "")).strip()
+    if not approval_base:
+        approval_base = str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_APPROVAL_URL_BASE", "")).strip()
     if approval_base.startswith(("http://", "https://")):
         parts = urlsplit(approval_base)
         if parts.scheme and parts.netloc:
@@ -159,7 +168,7 @@ def _apply_legacy_deprecation_headers(response: Response) -> None:
     response.headers["Deprecation"] = "true"
     response.headers["Sunset"] = _LEGACY_DEPRECATION_DATE
     response.headers["Warning"] = (
-        f'299 - "Legacy AI-node onboarding route is deprecated; migrate to /api/system/nodes/onboarding/sessions before {_LEGACY_DEPRECATION_DATE}"'
+        f'299 - "Legacy /api/system/ai-nodes onboarding alias is deprecated; migrate to /api/system/nodes/onboarding/sessions before {_LEGACY_DEPRECATION_DATE}"'
     )
 
 
