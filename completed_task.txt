@@ -404,3 +404,4 @@
 2026-03-11 - Task 431: added backend onboarding session store/model and regression tests for transitions, persistence, expiry, and consume-once behavior.
 2026-03-11 - Task 432: added AI Node onboarding API contract doc with deterministic schema/error definitions and docs cross-links.
 2026-03-11 - Task 433: added backend onboarding start endpoint and app wiring, plus onboarding start API regression tests (env-skipped where FastAPI stack unavailable).
+2026-03-11 - Task 434: added AI Node onboarding approval URL contract doc and linked it from onboarding architecture/API mapping docs.

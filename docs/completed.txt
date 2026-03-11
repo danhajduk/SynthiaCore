@@ -458,3 +458,4 @@
 2026-03-11 - Task 431: implemented AI Node onboarding session domain model/store with explicit state transitions, persistence, expiry handling, and one-time payload consumption semantics.
 2026-03-11 - Task 432: defined canonical node-initiated onboarding session creation API contract (request/response/errors/versioning) and linked it from index/API docs.
 2026-03-11 - Task 433: implemented node onboarding session creation API endpoint with validation, duplicate-active-session prevention, persisted session creation, and approval URL response payload.
+2026-03-11 - Task 434: defined onboarding approval URL + session binding rules including sid/state contract, server-side authority boundaries, expiry, and terminal decision semantics.
