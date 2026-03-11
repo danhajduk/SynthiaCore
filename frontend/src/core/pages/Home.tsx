@@ -422,68 +422,49 @@ export default function Home() {
       <section className="home-status-row">
         <StatusMini
           title="Core"
-          value={stack?.subsystems.core.state || "unknown"}
           tone={pillTone(stack?.subsystems.core.state || "unknown")}
           icon={Cpu}
         />
         <StatusMini
           title="Supervisor"
-          value={stack?.subsystems.supervisor.state || "unknown"}
           tone={pillTone(stack?.subsystems.supervisor.state || "unknown")}
           icon={ShieldCheck}
         />
         <StatusMini
           title="Scheduler"
-          value={stack?.subsystems.scheduler.state || "unknown"}
-          sub={stack ? `${stack.subsystems.scheduler.queued_jobs} queued` : undefined}
           tone={pillTone(stack?.subsystems.scheduler.state || "unknown")}
           icon={Clock3}
         />
         <StatusMini
           title="MQTT"
-          value={stack?.subsystems.mqtt.state || "unknown"}
           tone={pillTone(stack?.subsystems.mqtt.state || "unknown")}
           icon={Waypoints}
         />
         <StatusMini
           title="AI"
-          value={stack?.subsystems.ai?.state || "unknown"}
           tone={pillTone(stack?.subsystems.ai?.state || "unknown")}
           icon={BrainCircuit}
         />
         <StatusMini
           title="Workers"
-          value={String(stack?.subsystems.workers.active_count ?? 0)}
-          sub={stack?.subsystems.workers.state || "unknown"}
           tone={pillTone(stack?.subsystems.workers.state || "unknown")}
           icon={Cog}
         />
         <StatusMini
           title="Addons"
-          value={String(stack?.subsystems.addons.installed_count ?? installedAddons.length)}
-          sub={`${stack?.subsystems.addons.unhealthy_count ?? 0} unhealthy`}
           tone={pillTone(stack?.subsystems.addons.state || "unknown")}
           icon={Puzzle}
         />
         <StatusMini
-          title="Nodes"
-          value={String(installedNodes.length)}
-          sub={`${Math.max(0, nodes.length - installedNodes.length)} pending/non-trusted`}
-          tone={installedNodes.length > 0 ? "ok" : "neutral"}
-        />
-        <StatusMini
           title="Network"
-          value={stack?.connectivity.network.state || "unknown"}
           tone={pillTone(stack?.connectivity.network.state || "unknown")}
           icon={Network}
         />
         <StatusMini
           title="Internet"
-          value={stack?.connectivity.internet.state || "unknown"}
           tone={pillTone(stack?.connectivity.internet.state || "unknown")}
           icon={Globe}
         />
-        <StatusMini title="Scheduler Load" value={schedulerLoadValue(stats)} tone={schedulerLoadTone(stats)} />
       </section>
 
       {dataErr && <div className="home-data-err">Dashboard data load failed: {dataErr}</div>}
@@ -563,14 +544,10 @@ export default function Home() {
 
 function StatusMini({
   title,
-  value,
-  sub,
   icon: Icon,
   tone = "neutral",
 }: {
   title: string;
-  value: string;
-  sub?: string;
   icon?: LucideIcon;
   tone?: "ok" | "warn" | "bad" | "neutral";
 }) {
@@ -578,8 +555,6 @@ function StatusMini({
     <div className={`home-mini ${tone}`}>
       {Icon && <Icon className="home-mini-icon" />}
       <div className="home-mini-title">{title}</div>
-      <div className="home-mini-value">{displayState(value)}</div>
-      {sub && <div className="home-mini-sub">{displayState(sub)}</div>}
     </div>
   );
 }

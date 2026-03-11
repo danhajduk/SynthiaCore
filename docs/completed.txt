@@ -501,3 +501,4 @@
 2026-03-11 15:20 - Task 474: enforced duplicate identity rejection at onboarding start using stable node_id derivation from node nonce.
 2026-03-11 15:22 - Task 475: documented Phase 1 node onboarding contract (bootstrap, approval, trust activation, registry states, and MQTT principal lifecycle).
 2026-03-11 15:33 - Task 476: added `lucide-react` dependency and wired status-tile icon mapping for Home status minis (Core, Supervisor, MQTT, Scheduler, Workers, Addons, Network, Internet, AI).
+2026-03-11 15:35 - Task 477: applied status tile layout spec to Home minis (96x72, 12px radius, centered 24px icon + 12px label with 6px gap).
