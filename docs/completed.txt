@@ -486,3 +486,4 @@
 2026-03-11 14:59 - Task 459: removed the Addons install wizard UI and related client-side install-session controls from `/addons`.
 2026-03-11 15:00 - Task 460: updated onboarding approval card layout to row-based session/state/node/IP/timing fields with approve/reject controls matching the requested structure.
 2026-03-11 15:01 - Task 461: updated onboarding approval action handling to close the window after both approve and reject outcomes.
+2026-03-11 15:02 - Task 462: removed the Home "Recent Activity" panel and its events API polling from dashboard data loading.

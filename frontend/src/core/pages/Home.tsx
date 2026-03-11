@@ -30,14 +30,6 @@ type RepoStatus = {
   status?: string;
 };
 
-type EventItem = {
-  id: string;
-  event_type: string;
-  timestamp: string;
-  source: string;
-  payload?: Record<string, unknown>;
-};
-
 type StackSummary = {
   status: {
     overall: "ok" | "degraded" | "attention" | "unknown";
@@ -104,16 +96,6 @@ function fmtUptime(sec: number): string {
 
 function pct(value: number): string {
   return `${Math.max(0, Math.min(100, value)).toFixed(1)}%`;
-}
-
-function relative(ts: string): string {
-  const t = Date.parse(ts);
-  if (!Number.isFinite(t)) return ts;
-  const deltaS = Math.max(0, Math.round((Date.now() - t) / 1000));
-  if (deltaS < 60) return `${deltaS}s ago`;
-  if (deltaS < 3600) return `${Math.floor(deltaS / 60)}m ago`;
-  if (deltaS < 86400) return `${Math.floor(deltaS / 3600)}h ago`;
-  return `${Math.floor(deltaS / 86400)}d ago`;
 }
 
 function summaryTone(overall: string): "ok" | "warn" | "danger" {
@@ -223,7 +205,6 @@ export default function Home() {
   const [err, setErr] = useState<string | null>(null);
   const [addons, setAddons] = useState<AddonSummary[]>([]);
   const [stats, setStats] = useState<SystemStats | null>(null);
-  const [events, setEvents] = useState<EventItem[]>([]);
   const [repoStatus, setRepoStatus] = useState<RepoStatus | null>(null);
   const [stack, setStack] = useState<StackSummary | null>(null);
   const [nodes, setNodes] = useState<NodeRegistrationSummary[]>([]);
@@ -233,20 +214,15 @@ export default function Home() {
 
   async function loadDashboardData() {
     try {
-      const [addonsRes, statsRes, eventsRes, repoRes, stackRes, nodesRes] = await Promise.all([
+      const [addonsRes, statsRes, repoRes, stackRes, nodesRes] = await Promise.all([
         fetch("/api/addons", { cache: "no-store" }),
         fetch("/api/system/stats/current", { cache: "no-store" }),
-        fetch("/api/system/events?limit=8", { cache: "no-store" }),
         fetch("/api/system/repo/status", { cache: "no-store" }),
         fetch("/api/system/stack/summary", { cache: "no-store" }),
         fetch("/api/system/nodes/registrations", { cache: "no-store", credentials: "include" }),
       ]);
       if (addonsRes.ok) setAddons((await addonsRes.json()) as AddonSummary[]);
       if (statsRes.ok) setStats((await statsRes.json()) as SystemStats);
-      if (eventsRes.ok) {
-        const payload = (await eventsRes.json()) as { items?: EventItem[] };
-        setEvents(Array.isArray(payload.items) ? payload.items : []);
-      }
       if (repoRes.ok) setRepoStatus((await repoRes.json()) as RepoStatus);
       if (stackRes.ok) setStack((await stackRes.json()) as StackSummary);
       if (nodesRes.ok) {
@@ -518,27 +494,6 @@ export default function Home() {
                   </div>
                 );
               })}
-            </div>
-          )}
-        </article>
-
-        <article className="home-panel">
-          <div className="home-panel-head">
-            <h2>Recent Activity</h2>
-          </div>
-          {events.length === 0 ? (
-            <div className="home-empty">No recent event entries available.</div>
-          ) : (
-            <div className="home-activity-list">
-              {events.map((item) => (
-                <div key={item.id} className="home-activity-item">
-                  <div className="home-activity-top">
-                    <span className="home-chip">{item.event_type}</span>
-                    <span className="home-activity-time">{relative(item.timestamp)}</span>
-                  </div>
-                  <div className="home-activity-source">{item.source}</div>
-                </div>
-              ))}
             </div>
           )}
         </article>
