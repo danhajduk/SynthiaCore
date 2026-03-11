@@ -53,8 +53,9 @@ class _FakeInstallSessionsStore:
 
 
 class _Msg:
-    def __init__(self, topic: str, payload: dict | int | str) -> None:
+    def __init__(self, topic: str, payload: dict | int | str, *, retain: bool = False) -> None:
         self.topic = topic
+        self.retain = bool(retain)
         if isinstance(payload, (dict, list)):
             self.payload = json.dumps(payload).encode("utf-8")
         else:
@@ -263,6 +264,26 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertIn("addon:mqtt", metrics)
         self.assertGreater(float(metrics["addon:mqtt"]["messages_per_second"]), 0.0)
         self.assertGreaterEqual(int(metrics["addon:mqtt"]["topic_count"]), 1)
+
+    async def test_topic_activity_tracks_runtime_and_retained_sources(self) -> None:
+        manager = MqttManager(
+            settings_store=_FakeSettingsStore(),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        manager._loop = asyncio.get_running_loop()
+        manager._on_message(None, None, _Msg("external/frigate/events", {"ok": True}, retain=True))
+        manager._on_message(None, None, _Msg("external/frigate/events", {"ok": False}, retain=False))
+        topics = await manager.topic_activity(limit=100)
+        self.assertTrue(topics["ok"])
+        self.assertEqual(len(topics["items"]), 1)
+        item = topics["items"][0]
+        self.assertEqual(item["topic"], "external/frigate/events")
+        self.assertEqual(int(item["message_count"]), 2)
+        self.assertTrue(bool(item["retained_seen"]))
+        self.assertIn("runtime_messages", item["sources"])
+        self.assertIn("retained", item["sources"])
 
     async def test_on_connect_accepts_reason_code_object(self) -> None:
         manager = MqttManager(

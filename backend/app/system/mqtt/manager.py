@@ -87,6 +87,7 @@ class MqttManager:
             "_counter_at": None,
         }
         self._principal_traffic_windows: dict[str, dict[str, Any]] = {}
+        self._topic_activity: dict[str, dict[str, Any]] = {}
 
     async def start(self) -> None:
         if not self._enabled:
@@ -220,6 +221,25 @@ class MqttManager:
                 "disconnected": self._sys_clients_disconnected,
             },
         }
+
+    async def topic_activity(self, *, limit: int = 500) -> dict[str, Any]:
+        max_items = max(1, min(int(limit), 2000))
+        items = sorted(
+            [
+                {
+                    "topic": topic,
+                    "message_count": int(item.get("message_count") or 0),
+                    "retained_seen": bool(item.get("retained_seen", False)),
+                    "sources": sorted(set(item.get("sources") or {"runtime_messages"})),
+                    "last_seen": item.get("last_seen"),
+                }
+                for topic, item in self._topic_activity.items()
+            ],
+            key=lambda row: str(row.get("topic") or ""),
+        )
+        if len(items) > max_items:
+            items = items[-max_items:]
+        return {"ok": True, "items": items}
 
     async def debug_connection_config(self) -> dict[str, Any]:
         cfg = self._config or await self._load_config()
@@ -426,6 +446,7 @@ class MqttManager:
         except Exception:
             payload = {}
         topic = str(msg.topic)
+        self._record_topic_activity(topic=topic, retained=bool(getattr(msg, "retain", False)))
         if topic.startswith("$SYS/broker/"):
             self._update_broker_metrics(topic=topic, payload=payload, decoded=decoded)
             return
@@ -446,6 +467,21 @@ class MqttManager:
         if len(parts) >= 4 and parts[0] == "synthia" and parts[1] == "services" and parts[3] == "catalog":
             service_name = parts[2]
             self._dispatch_service_catalog_update(service_name, payload)
+
+    def _record_topic_activity(self, *, topic: str, retained: bool) -> None:
+        normalized = str(topic or "").strip()
+        if not normalized:
+            return
+        item = dict(self._topic_activity.get(normalized) or {})
+        item["message_count"] = int(item.get("message_count") or 0) + 1
+        item["retained_seen"] = bool(item.get("retained_seen") or retained)
+        sources = set(item.get("sources") or {"runtime_messages"})
+        sources.add("runtime_messages")
+        if retained:
+            sources.add("retained")
+        item["sources"] = sources
+        item["last_seen"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        self._topic_activity[normalized] = item
 
     @staticmethod
     def _parse_int_payload(payload: dict[str, Any], decoded: str) -> int | None:

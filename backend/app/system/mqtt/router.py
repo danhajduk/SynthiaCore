@@ -829,6 +829,25 @@ def build_mqtt_router(
             "broker_clients": dict(payload.get("broker_clients") or {"connected": None, "disconnected": None}),
         }
 
+    @router.get("/mqtt/runtime/topics")
+    @router.get("/runtime/topics")
+    async def mqtt_runtime_topics(
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+        limit: int = 500,
+    ):
+        require_admin_token(x_admin_token, request)
+        topic_fn = getattr(manager, "topic_activity", None)
+        if not callable(topic_fn):
+            return {"ok": True, "items": []}
+        payload = await topic_fn(limit=limit)
+        if not isinstance(payload, dict):
+            return {"ok": True, "items": []}
+        return {
+            "ok": bool(payload.get("ok", True)),
+            "items": list(payload.get("items") or []),
+        }
+
     async def _runtime_mitigation_action(
         *,
         principal_id: str,
