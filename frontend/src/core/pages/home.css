@@ -343,11 +343,23 @@
     flex-direction: column;
   }
   .home-status-row {
-    grid-template-columns: repeat(auto-fit, minmax(96px, 96px));
+    grid-template-columns: repeat(4, 96px);
     justify-content: center;
   }
   .home-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .home-status-row {
+    grid-template-columns: repeat(3, 96px);
+  }
+}
+
+@media (max-width: 360px) {
+  .home-status-row {
+    grid-template-columns: repeat(2, 96px);
   }
 }
 

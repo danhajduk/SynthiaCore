@@ -503,3 +503,4 @@
 2026-03-11 15:33 - Task 476: added `lucide-react` dependency and wired status-tile icon mapping for Home status minis (Core, Supervisor, MQTT, Scheduler, Workers, Addons, Network, Internet, AI).
 2026-03-11 15:35 - Task 477: applied status tile layout spec to Home minis (96x72, 12px radius, centered 24px icon + 12px label with 6px gap).
 2026-03-11 15:35 - Task 478: renamed Home AI status labeling to `AI Node` in status tiles/subsystem chip.
+2026-03-11 15:36 - Task 479: finalized responsive status-tile breakpoints for fixed 96x72 tiles across desktop/tablet/mobile widths.
