@@ -255,6 +255,14 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
                 return None
 
             def subscribe(self, topic, qos=0):
+                if callable(self.on_message):
+                    class _Msg:
+                        topic = "synthia/addons/vision/event/status"
+                        payload = b'{"value":42}'
+                        retain = False
+                        qos = 0
+
+                    self.on_message(self, None, _Msg())
                 return (0, 1)
 
             def disconnect(self):
@@ -281,6 +289,11 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
             self.assertEqual(messages.status_code, 200, messages.text)
             self.assertTrue(messages.json()["ok"])
             self.assertIsInstance(messages.json()["items"], list)
+            self.assertTrue(messages.json()["items"])
+            first = messages.json()["items"][0]
+            self.assertEqual(first["source_principal"], "addon:vision")
+            self.assertIn("payload_preview", first)
+            self.assertIn("timestamp", first)
 
             stopped = self.client.post(
                 "/api/system/debug/unsubscribe",

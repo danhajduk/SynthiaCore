@@ -194,6 +194,55 @@ def _compute_generic_scopes(
     return mode, ["#"], ["#"], [], [], []
 
 
+def _payload_preview(payload_text: str, *, limit: int = 240) -> str:
+    text = str(payload_text or "")
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "..."
+
+
+def _infer_source_principal(topic: str, payload_text: str) -> str | None:
+    normalized_topic = str(topic or "").strip()
+    if normalized_topic.startswith("synthia/addons/"):
+        parts = normalized_topic.split("/")
+        if len(parts) >= 3 and parts[2]:
+            return f"addon:{parts[2]}"
+    if normalized_topic.startswith("external/"):
+        parts = normalized_topic.split("/")
+        if len(parts) >= 2 and parts[1]:
+            return f"user:{parts[1]}"
+    if normalized_topic.startswith("synthia/core/"):
+        return "core.runtime"
+    if normalized_topic.startswith("synthia/scheduler/"):
+        return "core.scheduler"
+    if normalized_topic.startswith("synthia/supervisor/"):
+        return "core.supervisor"
+    if normalized_topic.startswith("synthia/telemetry/"):
+        return "core.telemetry"
+    if normalized_topic.startswith("synthia/bootstrap/"):
+        return "core.bootstrap"
+
+    payload = str(payload_text or "").strip()
+    if payload.startswith("{") and payload.endswith("}"):
+        try:
+            import json
+
+            decoded = json.loads(payload)
+            if isinstance(decoded, dict):
+                principal_id = str(decoded.get("principal_id") or decoded.get("source_principal") or "").strip()
+                if principal_id:
+                    return principal_id
+                addon_id = str(decoded.get("addon_id") or "").strip()
+                if addon_id:
+                    return f"addon:{addon_id}"
+                username = str(decoded.get("username") or "").strip()
+                if username:
+                    return f"user:{username}"
+        except Exception:
+            return None
+    return None
+
+
 async def _authorize_mqtt_request(
     *,
     request: Request,
@@ -467,14 +516,20 @@ def build_mqtt_router(
 
         def _on_message(_client, _userdata, msg) -> None:
             payload_text = msg.payload.decode("utf-8", errors="replace")
+            topic = str(msg.topic)
+            ts = datetime.now(timezone.utc).isoformat()
+            source_principal = _infer_source_principal(topic, payload_text)
             with lock:
                 queue.append(
                     {
-                        "topic": str(msg.topic),
+                        "topic": topic,
                         "payload": payload_text,
+                        "payload_preview": _payload_preview(payload_text),
+                        "source_principal": source_principal,
                         "qos": int(getattr(msg, "qos", 0)),
                         "retain": bool(getattr(msg, "retain", False)),
-                        "ts": datetime.now(timezone.utc).isoformat(),
+                        "ts": ts,
+                        "timestamp": ts,
                     }
                 )
 

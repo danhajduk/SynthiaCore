@@ -407,3 +407,4 @@
 2026-03-10 - Task 370: supported separate generic-user publish/subscribe topic arrays (`allowed_publish_topics` / `allowed_subscribe_topics`) across API, state, effective ACL compilation, and embedded MQTT UI; added topic pattern validation.
 2026-03-10 - Task 371: enriched `/api/system/mqtt/audit` items with `actor_principal`, `action`, `target`, `result`, `timestamp`; added audit filters by `principal` and `action`; updated MQTT UI audit filters/table accordingly.
 2026-03-10 - Task 372: surfaced expected/missing core MQTT principals in setup summary and added embedded UI warning banner when any core principal registration is missing.
+2026-03-10 - Task 373: implemented live MQTT message monitor enhancements (topic filter stream, payload preview, timestamp, source principal inference) and updated Runtime UI log viewer formatting.

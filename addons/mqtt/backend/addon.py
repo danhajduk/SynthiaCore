@@ -814,10 +814,11 @@ def addon_ui_root() -> str:
         return;
       }
       const lines = state.debugMessages.slice(-80).map((item) => {
-        const ts = String(item.ts || "-");
+        const ts = String(item.timestamp || item.ts || "-");
         const topic = String(item.topic || "-");
-        const payload = String(item.payload || "");
-        return `[${ts}] ${topic} -> ${payload}`;
+        const source = String(item.source_principal || "unknown");
+        const payloadPreview = String(item.payload_preview || item.payload || "");
+        return `[${ts}] [${source}] ${topic} -> ${payloadPreview}`;
       });
       node.textContent = lines.join("\\n");
     }
@@ -1269,7 +1270,7 @@ def addon_ui_root() -> str:
           `<label>Retain<input id='debug-publish-retain' type='checkbox' /></label>` +
           `</div>` +
           `<div class='row'><button data-runtime-action='debug-publish'>Publish Message</button></div>` +
-          `<h4>Debug Stream</h4>` +
+          `<h4>Live Message Monitor</h4>` +
           `<div id='runtime-debug-stream' class='mono'>No debug messages yet.</div>`;
         renderRuntimeDebugStream();
         return;
