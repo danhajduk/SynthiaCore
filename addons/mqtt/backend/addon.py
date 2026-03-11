@@ -229,6 +229,32 @@ def addon_ui_root() -> str:
     .pill.muted { border-color: #475569; color: #cbd5e1; }
     .pill.warn { border-color: #92400e; color: #fde68a; }
     .pill.bad { border-color: #991b1b; color: #fecaca; }
+    .led {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      border: 1px solid #334155;
+      background: #475569;
+    }
+    .led.ok {
+      background: #22c55e;
+      border-color: #166534;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.16);
+    }
+    .led.muted {
+      background: #94a3b8;
+      border-color: #475569;
+    }
+    .led.bad {
+      background: #ef4444;
+      border-color: #991b1b;
+      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.16);
+    }
+    .led-cell {
+      width: 28px;
+      text-align: center;
+    }
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1151,6 +1177,14 @@ def addon_ui_root() -> str:
       return "bad";
     }
 
+    function principalLedTone(item, runtimeConnected) {
+      const status = String(item && item.status ? item.status : "").toLowerCase();
+      const noisyState = String(item && item.noisy_state ? item.noisy_state : "").toLowerCase();
+      if (status === "revoked" || status === "expired" || status === "error" || noisyState === "blocked") return "bad";
+      if (runtimeConnected) return "ok";
+      return "muted";
+    }
+
     async function loadOverviewPayload() {
       const [principals, noisy, audit, runtimeHealth] = await Promise.all([
         fetchJson("/api/system/mqtt/principals"),
@@ -1519,11 +1553,10 @@ def addon_ui_root() -> str:
                   const rawStatus = String(item.status || "-");
                   const runtimeConnection = item && item.runtime_connection ? item.runtime_connection : {};
                   const runtimeConnected = Boolean(runtimeConnection && runtimeConnection.connected);
-                  const status = escapeHtml(rawStatus === "active" ? `active + ${runtimeConnected ? "connected" : "disconnected"}` : rawStatus);
-                  const connectionTone = String(rawStatus).toLowerCase() === "revoked" ? "bad" : (runtimeConnected ? "ok" : "muted");
-                  const connectionPill = String(rawStatus).toLowerCase() === "active"
-                    ? healthPill(runtimeConnected ? "connected" : "disconnected", connectionTone)
-                    : "";
+                  const status = escapeHtml(rawStatus);
+                  const ledTone = principalLedTone(item, runtimeConnected);
+                  const ledHint = runtimeConnected ? "connected" : "disconnected";
+                  const led = `<span class='led ${ledTone}' title='${escapeHtml(ledHint)}'></span>`;
                   const topicPrefix = escapeHtml(String(item.topic_prefix || "-"));
                   const accessMode = escapeHtml(String(item.access_mode || "private"));
                   const allowedTopics = escapeHtml(Array.isArray(item.allowed_topics) ? item.allowed_topics.join(",") : "");
@@ -1556,10 +1589,10 @@ def addon_ui_root() -> str:
                       `<button class='mini' data-principal-action='probation' data-principal-id='${principalId}'>Disable</button>` +
                       `<button class='mini' data-principal-action='revoke' data-principal-id='${principalId}'>Revoke</button>`
                     : "";
-                  return `<tr><td>${principalId}</td><td>${principalType}${managedBadge}</td><td>${status}${connectionPill}</td><td>${topicPrefix}</td><td>${updated}</td><td><div class='row-actions'>${readonly}${systemLocked ? destructive : (key === "generic" ? genericActions : principalActions)}</div></td></tr>`;
+                  return `<tr><td class='led-cell'>${led}</td><td>${principalId}</td><td>${principalType}${managedBadge}</td><td>${status}</td><td>${topicPrefix}</td><td>${updated}</td><td><div class='row-actions'>${readonly}${systemLocked ? destructive : (key === "generic" ? genericActions : principalActions)}</div></td></tr>`;
                 })
                 .join("");
-              return `<div class='group-title'>${escapeHtml(principalGroupLabel(key))}</div><table class='table'><thead><tr><th>Principal</th><th>Type</th><th>Status</th><th>Topic Prefix</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+              return `<div class='group-title'>${escapeHtml(principalGroupLabel(key))}</div><table class='table'><thead><tr><th class='led-cell'>State</th><th>Principal</th><th>Type</th><th>Status</th><th>Topic Prefix</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
             })
             .join("");
           sectionContent.innerHTML = toolbar + chunks + createUserModalMarkup();
