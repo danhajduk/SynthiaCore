@@ -72,6 +72,22 @@ class TestNodeTrustIssuanceService(unittest.TestCase):
         self.assertEqual(reloaded.node_id, "node-fixed-2")
         self.assertEqual(reloaded.node_trust_token, issued["node_trust_token"])
 
+    def test_sensor_node_type_activation_profile(self) -> None:
+        session = self.sessions.start_session(
+            node_nonce="nonce-d",
+            requested_node_name="sensor-d",
+            requested_node_type="sensor-node",
+            requested_node_software_version="1.4.0",
+        )
+        approved = self.sessions.approve_session(
+            session.session_id,
+            approved_by_user_id="admin_session",
+            linked_node_id="sensor-fixed-1",
+        )
+        issued = self.service.issue_for_approved_session(approved)["activation"]
+        self.assertEqual(issued["node_type"], "sensor-node")
+        self.assertEqual(issued["activation_profile"]["node_type"], "sensor-node")
+
 
 if __name__ == "__main__":
     unittest.main()

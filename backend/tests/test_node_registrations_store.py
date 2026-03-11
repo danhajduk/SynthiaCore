@@ -77,6 +77,44 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertEqual(api_payload["requested_node_type"], "ai-node")
         self.assertEqual(api_payload["requested_node_software_version"], "2.0.0")
 
+    def test_mark_trusted_by_session(self) -> None:
+        record = NodeRegistrationRecord(
+            node_id="node-910",
+            node_type="sensor-node",
+            node_name="sensor-north",
+            node_software_version="4.2.1",
+            capabilities_summary=[],
+            trust_status="approved",
+            source_onboarding_session_id="sess-910",
+            approved_by_user_id="admin:carol",
+            approved_at="2026-03-11T00:00:00+00:00",
+            created_at="2026-03-11T00:00:00+00:00",
+            updated_at="2026-03-11T00:00:00+00:00",
+        )
+        self.store.upsert(record)
+        updated = self.store.mark_trusted_by_session("sess-910")
+        self.assertIsNotNone(updated)
+        assert updated is not None
+        self.assertEqual(updated.trust_status, "trusted")
+
+    def test_set_trust_status_rejects_invalid_values(self) -> None:
+        record = NodeRegistrationRecord(
+            node_id="node-911",
+            node_type="ai-node",
+            node_name="vision-911",
+            node_software_version="1.0.0",
+            capabilities_summary=[],
+            trust_status="approved",
+            source_onboarding_session_id="sess-911",
+            approved_by_user_id="admin",
+            approved_at="2026-03-11T00:00:00+00:00",
+            created_at="2026-03-11T00:00:00+00:00",
+            updated_at="2026-03-11T00:00:00+00:00",
+        )
+        self.store.upsert(record)
+        with self.assertRaisesRegex(ValueError, "trust_status_invalid"):
+            self.store.set_trust_status("node-911", trust_status="invalid-state")
+
 
 if __name__ == "__main__":
     unittest.main()

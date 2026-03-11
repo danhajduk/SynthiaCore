@@ -198,6 +198,24 @@ class TestNodeOnboardingSessionsStore(unittest.TestCase):
         with self.assertRaisesRegex(KeyError, "session_not_found"):
             self.store.get(session.session_id)
 
+    def test_multinode_type_session_lifecycle_supported(self) -> None:
+        session = self.store.start_session(
+            node_nonce="nonce-11",
+            requested_node_name="sensor-east",
+            requested_node_type="sensor-node",
+            requested_node_software_version="3.0.0",
+        )
+        self.assertEqual(session.requested_node_type, "sensor-node")
+        approved = self.store.approve_session(
+            session.session_id,
+            approved_by_user_id="admin:global",
+            linked_node_id="sensor-001",
+        )
+        self.assertEqual(approved.session_state, "approved")
+        self.assertEqual(approved.linked_node_id, "sensor-001")
+        consumed = self.store.consume_final_payload(session.session_id)
+        self.assertEqual(consumed.session_state, "consumed")
+
 
 if __name__ == "__main__":
     unittest.main()

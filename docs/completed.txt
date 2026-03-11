@@ -479,3 +479,4 @@
 2026-03-11 - Task 452: updated MQTT bootstrap announcement with global onboarding endpoint metadata and legacy AI-node compatibility keys.
 2026-03-11 - Task 453: updated Core UI to global node onboarding language, added generic node-field rendering with legacy fallback, and added global approval route alias.
 2026-03-11 - Task 454: added legacy AI-node onboarding alias routes with deprecation/sunset headers and documented migration/sunset plan.
+2026-03-11 - Task 455: expanded onboarding/registration regression tests for multi-node-type lifecycle, trust-status promotion, compatibility aliases, and trust payload profile behavior.
