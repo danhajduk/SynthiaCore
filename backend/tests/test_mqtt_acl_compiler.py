@@ -10,8 +10,7 @@ class TestMqttAclCompiler(unittest.TestCase):
         result = compiler.compile(MqttIntegrationState())
         acl = result.acl_text
         self.assertIn("topic read synthia/bootstrap/core", acl)
-        self.assertIn("topic deny #", acl)
-        self.assertEqual(acl.count("topic deny #"), 1)
+        self.assertNotIn("topic deny #", acl)
         self.assertGreaterEqual(len(result.effective_access), 1)
 
     def test_compiles_active_synthia_principal_rules(self) -> None:

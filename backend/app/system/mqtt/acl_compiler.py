@@ -97,7 +97,9 @@ class MqttAclCompiler:
             notes: list[str] = []
             access_mode: str | None = None
             if entry.principal_id == "anonymous":
-                deny_rules = ["#"]
+                # Anonymous baseline is already default-deny in Mosquitto ACL evaluation.
+                # Emit only explicit bootstrap read allow to avoid broad deny collisions.
+                deny_rules = []
                 access_mode = "bootstrap_only"
             elif entry.principal_type == "generic_user":
                 deny_rules = list(entry.reserved_prefix_denies)
@@ -148,7 +150,7 @@ class MqttAclCompiler:
             if entry.principal_id == "anonymous":
                 for topic in entry.read_rules:
                     rules.append(CompiledAclRule("anonymous", "subscribe", topic, "allow"))
-                for topic in entry.deny_rules or ["#"]:
+                for topic in entry.deny_rules:
                     rules.append(CompiledAclRule("anonymous", "publish", topic, "deny"))
                     rules.append(CompiledAclRule("anonymous", "subscribe", topic, "deny"))
                 continue
