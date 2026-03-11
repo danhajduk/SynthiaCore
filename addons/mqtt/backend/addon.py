@@ -644,6 +644,53 @@ def addon_ui_root() -> str:
       }
     }
 
+    async function exportGenericUsers() {
+      setStatus("Exporting generic users...", "");
+      try {
+        const res = await fetch("/api/system/mqtt/users/export", { credentials: "include", cache: "no-store" });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload && payload.detail ? payload.detail : "users_export_failed");
+        }
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        window.prompt("Copy users JSON", JSON.stringify(items, null, 2));
+        setStatus(`Exported ${items.length} users.`, "ok");
+      } catch (error) {
+        setStatus(`Export failed: ${error && error.message ? error.message : String(error)}`, "error");
+      }
+    }
+
+    async function importGenericUsers() {
+      const raw = window.prompt("Paste users JSON array", "[]");
+      if (!raw) return;
+      let parsed = [];
+      try {
+        const decoded = JSON.parse(String(raw));
+        if (!Array.isArray(decoded)) throw new Error("json_array_required");
+        parsed = decoded;
+      } catch (error) {
+        setStatus(`Import failed: ${error && error.message ? error.message : "json_invalid"}`, "error");
+        return;
+      }
+      setStatus("Importing generic users...", "");
+      try {
+        const res = await fetch("/api/system/mqtt/users/import", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: parsed }),
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload && payload.detail ? payload.detail : "users_import_failed");
+        }
+        await loadStatus();
+        setStatus(`Imported ${Number(payload.imported || 0)} users.`, "ok");
+      } catch (error) {
+        setStatus(`Import failed: ${error && error.message ? error.message : String(error)}`, "error");
+      }
+    }
+
     async function runGenericUserAction(action, principalId, topicPrefix, accessMode, allowedTopics, allowedPublishTopics, allowedSubscribeTopics) {
       const id = String(principalId || "").trim();
       if (!id) return;
@@ -1339,6 +1386,8 @@ def addon_ui_root() -> str:
             `<input data-filter='users-q' placeholder='Search username' value='${escapeHtml(state.filters.users.q)}' />` +
             `<select data-filter='users-status'><option value='' ${state.filters.users.status === "" ? "selected" : ""}>All status</option><option value='active' ${state.filters.users.status === "active" ? "selected" : ""}>Active</option><option value='probation' ${state.filters.users.status === "probation" ? "selected" : ""}>Probation</option><option value='revoked' ${state.filters.users.status === "revoked" ? "selected" : ""}>Revoked</option></select>` +
             `<span class='toolbar-spacer'></span>` +
+            `<button class='mini' data-ui-action='export-users'>Export Users</button>` +
+            `<button class='mini' data-ui-action='import-users'>Import Users</button>` +
             `<button class='mini primary' data-ui-action='open-add-user'>Add User</button>` +
             `</div>`;
           visible = filteredUsers(items);
@@ -1711,6 +1760,16 @@ def addon_ui_root() -> str:
       const submit = event.target.closest("[data-ui-action='submit-add-user']");
       if (submit) {
         void createUserFromModal();
+        return;
+      }
+      const exportUsers = event.target.closest("[data-ui-action='export-users']");
+      if (exportUsers) {
+        void exportGenericUsers();
+        return;
+      }
+      const importUsers = event.target.closest("[data-ui-action='import-users']");
+      if (importUsers) {
+        void importGenericUsers();
         return;
       }
       const genericAction = event.target.closest("[data-generic-action]");

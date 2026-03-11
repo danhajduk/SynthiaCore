@@ -560,6 +560,48 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertEqual(created.status_code, 400, created.text)
         self.assertIn("topic_pattern_invalid", str(created.json().get("detail")))
 
+    def test_users_export_and_import_roundtrip(self) -> None:
+        created = self.client.post(
+            "/api/system/mqtt/users",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "username": "exportuser",
+                "password": "generated",
+                "topic_prefix": "external/exportuser",
+                "access_mode": "custom",
+                "allowed_publish_topics": ["external/exportuser/events/#"],
+                "allowed_subscribe_topics": ["external/exportuser/cmd/#"],
+            },
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+
+        exported = self.client.get("/api/system/mqtt/users/export", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(exported.status_code, 200, exported.text)
+        exported_payload = exported.json()
+        self.assertTrue(exported_payload["ok"])
+        self.assertTrue(any(str(item.get("username")) == "exportuser" for item in exported_payload["items"]))
+
+        imported = self.client.post(
+            "/api/system/mqtt/users/import",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "items": [
+                    {
+                        "username": "importuser",
+                        "topic_prefix": "external/importuser",
+                        "access_mode": "custom",
+                        "allowed_publish_topics": ["external/importuser/events/#"],
+                        "allowed_subscribe_topics": ["external/importuser/cmd/#"],
+                    }
+                ]
+            },
+        )
+        self.assertEqual(imported.status_code, 200, imported.text)
+        self.assertTrue(imported.json()["ok"])
+        self.assertEqual(imported.json()["imported"], 1)
+        state = asyncio.run(self.state_store.get_state())
+        self.assertIn("user:importuser", state.principals)
+
     def test_noisy_client_manual_actions(self) -> None:
         created = asyncio.run(
             self.approval.create_or_update_generic_user(

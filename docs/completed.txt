@@ -410,3 +410,4 @@
 2026-03-10 - Task 373: implemented live MQTT message monitor enhancements (topic filter stream, payload preview, timestamp, source principal inference) and updated Runtime UI log viewer formatting.
 2026-03-10 - Task 374: added runtime config viewer endpoint aliases (`/api/system/runtime/config`, `/api/system/mqtt/runtime/config`) and Runtime UI "View Runtime Config" action rendering key generated files.
 2026-03-10 - Task 375: finalized Overview metrics dashboard by adding `Recent Errors` and explicit `Total Principals` cards (connected clients/message rate/broker uptime already present).
+2026-03-10 - Task 376: implemented generic-user export/import (`/api/system/mqtt/users/export`, `/api/system/mqtt/users/import`) with structure/topic validation before apply, plus Users toolbar export/import actions in embedded UI.

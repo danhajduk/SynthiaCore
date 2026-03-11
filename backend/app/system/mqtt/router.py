@@ -68,6 +68,20 @@ class MqttUserUpdateRequest(BaseModel):
     allowed_subscribe_topics: list[str] = Field(default_factory=list)
 
 
+class MqttUsersImportItem(BaseModel):
+    username: str = Field(..., min_length=1)
+    password: str | None = "generated"
+    topic_prefix: str | None = None
+    access_mode: str = "private"
+    allowed_topics: list[str] = Field(default_factory=list)
+    allowed_publish_topics: list[str] = Field(default_factory=list)
+    allowed_subscribe_topics: list[str] = Field(default_factory=list)
+
+
+class MqttUsersImportRequest(BaseModel):
+    items: list[MqttUsersImportItem] = Field(default_factory=list)
+
+
 class MqttGenericUserGrantUpdateRequest(BaseModel):
     publish_topics: list[str] = Field(default_factory=list)
     subscribe_topics: list[str] = Field(default_factory=list)
@@ -1429,6 +1443,122 @@ def build_mqtt_router(
                 raise HTTPException(status_code=404, detail=error)
             raise HTTPException(status_code=400, detail=error)
         return result
+
+    @router.get("/mqtt/users/export")
+    async def mqtt_users_export(
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        principals = await approval.list_principals()
+        items: list[dict[str, Any]] = []
+        for principal in principals:
+            if str(principal.get("principal_type") or "").lower() != "generic_user":
+                continue
+            items.append(
+                {
+                    "username": str(principal.get("username") or "").strip(),
+                    "topic_prefix": str(principal.get("topic_prefix") or "").strip() or None,
+                    "access_mode": str(principal.get("access_mode") or "private"),
+                    "allowed_topics": list(principal.get("allowed_topics") or []),
+                    "allowed_publish_topics": list(principal.get("allowed_publish_topics") or []),
+                    "allowed_subscribe_topics": list(principal.get("allowed_subscribe_topics") or []),
+                }
+            )
+        items = [item for item in items if item.get("username")]
+        items.sort(key=lambda item: str(item.get("username") or ""))
+        return {"ok": True, "items": items, "count": len(items)}
+
+    @router.post("/mqtt/users/import")
+    async def mqtt_users_import(
+        body: MqttUsersImportRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if not body.items:
+            return {"ok": True, "imported": 0, "items": []}
+        normalized_items: list[dict[str, Any]] = []
+        seen_usernames: set[str] = set()
+        for idx, item in enumerate(body.items):
+            normalized_username = _normalize_generic_username(item.username)
+            if not _valid_generic_username(normalized_username):
+                raise HTTPException(status_code=400, detail=f"import_item_invalid_username:index={idx}")
+            if normalized_username in seen_usernames:
+                raise HTTPException(status_code=400, detail=f"import_item_duplicate_username:index={idx}")
+            seen_usernames.add(normalized_username)
+            expected_prefix = f"external/{normalized_username}"
+            requested_prefix = _normalize_topic_prefix(item.topic_prefix)
+            if requested_prefix and requested_prefix != expected_prefix:
+                raise HTTPException(status_code=400, detail=f"import_item_topic_prefix_invalid:index={idx}")
+            topic_prefix = requested_prefix or expected_prefix
+            mode, publish_topics, subscribe_topics, allowed_topics, allowed_publish_topics, allowed_subscribe_topics = _compute_generic_scopes(
+                username=normalized_username,
+                topic_prefix=topic_prefix,
+                access_mode=item.access_mode,
+                allowed_topics=item.allowed_topics,
+                allowed_publish_topics=item.allowed_publish_topics,
+                allowed_subscribe_topics=item.allowed_subscribe_topics,
+            )
+            normalized_items.append(
+                {
+                    "username": normalized_username,
+                    "topic_prefix": topic_prefix,
+                    "mode": mode,
+                    "publish_topics": publish_topics,
+                    "subscribe_topics": subscribe_topics,
+                    "allowed_topics": allowed_topics,
+                    "allowed_publish_topics": allowed_publish_topics,
+                    "allowed_subscribe_topics": allowed_subscribe_topics,
+                    "password": str(item.password or "generated").strip() or "generated",
+                }
+            )
+        imported: list[str] = []
+        for item in normalized_items:
+            principal_id = f"user:{item['username']}"
+            result = await approval.create_or_update_generic_user(
+                principal_id=principal_id,
+                logical_identity=f"generic:{item['username']}",
+                username=item["username"],
+                topic_prefix=item["topic_prefix"],
+                access_mode=item["mode"],
+                allowed_topics=item["allowed_topics"],
+                allowed_publish_topics=item["allowed_publish_topics"],
+                allowed_subscribe_topics=item["allowed_subscribe_topics"],
+                publish_topics=item["publish_topics"],
+                subscribe_topics=item["subscribe_topics"],
+                notes="generic_user_api_import",
+            )
+            if not result.get("ok"):
+                raise HTTPException(status_code=400, detail=str(result.get("error") or "import_apply_failed"))
+            password = item["password"]
+            if password.lower() != "generated" and credential_store is not None:
+                override_ok = bool(
+                    credential_store.set_principal_password(
+                    principal_id=principal_id,
+                    principal_type="generic_user",
+                    username=item["username"],
+                    password=password,
+                )
+                )
+                if override_ok:
+                    result = await approval.create_or_update_generic_user(
+                        principal_id=principal_id,
+                        logical_identity=f"generic:{item['username']}",
+                        username=item["username"],
+                        topic_prefix=item["topic_prefix"],
+                        access_mode=item["mode"],
+                        allowed_topics=item["allowed_topics"],
+                        allowed_publish_topics=item["allowed_publish_topics"],
+                        allowed_subscribe_topics=item["allowed_subscribe_topics"],
+                        publish_topics=item["publish_topics"],
+                        subscribe_topics=item["subscribe_topics"],
+                        notes="generic_user_api_import",
+                    )
+                    if not result.get("ok"):
+                        raise HTTPException(status_code=400, detail=str(result.get("error") or "import_apply_failed"))
+            imported.append(principal_id)
+        return {"ok": True, "imported": len(imported), "items": imported}
 
     @router.patch("/mqtt/generic-users/{principal_id}/grants")
     async def mqtt_generic_user_update_grants(
