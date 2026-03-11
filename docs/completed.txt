@@ -492,3 +492,4 @@
 2026-03-11 15:08 - Task 465: made node IDs deterministic from onboarding nonce so repeat onboarding for the same node identity reuses the same node_id instead of creating duplicates.
 2026-03-11 15:10 - Task 466: switched onboarding labeling to global node naming by adding canonical `SYNTHIA_NODE_ONBOARDING_*` env support and updating legacy alias deprecation text.
 2026-03-11 15:13 - Task 467: added canonical node_type normalization for new registrations while preserving legacy `ai-node` compatibility aliases in onboarding and registration responses.
+2026-03-11 15:14 - Task 468: added backend node registry view model (`registry_state`) and `/api/system/nodes/registry` list API with state/type/status filters.

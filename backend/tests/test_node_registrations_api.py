@@ -162,6 +162,32 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         self.assertEqual(filtered_status.status_code, 200, filtered_status.text)
         self.assertEqual(len(filtered_status.json()["items"]), 2)
 
+    def test_node_registry_view_model_filters(self) -> None:
+        first = self._start_and_approve("office-node", "ai-node", "nonce-registry-1")
+        second = self._start_and_approve("sensor-west", "sensor-node", "nonce-registry-2")
+
+        trusted = self.client.get(
+            f"/api/system/nodes/onboarding/sessions/{first['source_onboarding_session_id']}/finalize?node_nonce=nonce-registry-1"
+        )
+        self.assertEqual(trusted.status_code, 200, trusted.text)
+        self.assertEqual(trusted.json()["onboarding_status"], "approved")
+
+        listed = self.client.get("/api/system/nodes/registry", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(listed.status_code, 200, listed.text)
+        items = listed.json()["items"]
+        self.assertEqual(len(items), 2)
+        by_id = {item["node_id"]: item for item in items}
+        self.assertEqual(by_id[first["node_id"]]["registry_state"], "trusted")
+        self.assertEqual(by_id[second["node_id"]]["registry_state"], "approved")
+
+        approved_only = self.client.get(
+            "/api/system/nodes/registry?state=approved",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(approved_only.status_code, 200, approved_only.text)
+        self.assertEqual(len(approved_only.json()["items"]), 1)
+        self.assertEqual(approved_only.json()["items"][0]["node_id"], second["node_id"])
+
     def test_delete_registration_removes_trust_record(self) -> None:
         started = self.client.post(
             "/api/system/nodes/onboarding/sessions",

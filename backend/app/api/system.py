@@ -215,6 +215,32 @@ def _session_payload(session) -> dict[str, object]:
     }
 
 
+def _registry_state_from_trust_status(value: str | None) -> str:
+    status = str(value or "").strip().lower()
+    if status in {"trusted", "approved", "pending", "revoked"}:
+        return status
+    if status == "rejected":
+        return "revoked"
+    return "pending"
+
+
+def _node_registry_payload(item) -> dict[str, object]:
+    trust_status = str(getattr(item, "trust_status", "") or "").strip().lower()
+    return {
+        "node_id": getattr(item, "node_id", None),
+        "node_name": getattr(item, "node_name", None),
+        "node_type": getattr(item, "node_type", None),
+        "node_software_version": getattr(item, "node_software_version", None),
+        "trust_status": trust_status or "pending",
+        "registry_state": _registry_state_from_trust_status(trust_status),
+        "approved_by_user_id": getattr(item, "approved_by_user_id", None),
+        "approved_at": getattr(item, "approved_at", None),
+        "source_onboarding_session_id": getattr(item, "source_onboarding_session_id", None),
+        "created_at": getattr(item, "created_at", None),
+        "updated_at": getattr(item, "updated_at", None),
+    }
+
+
 def build_system_router(
     registry: AddonRegistry,
     runtime_service: StandaloneRuntimeService | None = None,
@@ -398,6 +424,30 @@ def build_system_router(
         if item is None:
             raise HTTPException(status_code=404, detail="node_registration_not_found")
         return {"ok": True, "registration": item.to_api_dict()}
+
+    @router.get("/system/nodes/registry")
+    def list_node_registry(
+        request: Request,
+        state: str | None = Query(default=None),
+        node_type: str | None = Query(default=None),
+        trust_status: str | None = Query(default=None),
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_registrations_store is None:
+            raise HTTPException(status_code=503, detail="node_registrations_unavailable")
+        entries = node_registrations_store.list()
+        if node_type:
+            node_type_filter = _canonical_node_type(node_type)
+            entries = [item for item in entries if _canonical_node_type(item.node_type) == node_type_filter]
+        if trust_status:
+            trust_status_filter = str(trust_status).strip().lower()
+            entries = [item for item in entries if str(item.trust_status).strip().lower() == trust_status_filter]
+        payload = [_node_registry_payload(item) for item in entries]
+        if state:
+            state_filter = str(state).strip().lower()
+            payload = [item for item in payload if str(item.get("registry_state") or "").strip().lower() == state_filter]
+        return {"ok": True, "items": payload}
 
     @router.delete("/system/nodes/registrations/{node_id}")
     def delete_node_registration(
