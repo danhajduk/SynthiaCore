@@ -93,6 +93,11 @@ class MqttManager:
         }
         self._principal_traffic_windows: dict[str, dict[str, Any]] = {}
         self._topic_activity: dict[str, dict[str, Any]] = {}
+        self._integration_state_path = str(
+            os.getenv("MQTT_INTEGRATION_STATE_PATH", os.path.join(os.getcwd(), "var", "mqtt_integration_state.json"))
+        ).strip()
+        self._generic_topic_scopes_by_principal: dict[str, list[str]] = {}
+        self._generic_topic_scopes_mtime: float | None = None
         self._error_count = 0
         self._stats_history: deque[dict[str, Any]] = deque(maxlen=50000)
         self._stats_retention_s = 24 * 60 * 60
@@ -524,12 +529,112 @@ class MqttManager:
             self._dispatch_service_catalog_update(service_name, payload)
 
     @staticmethod
-    def _infer_generic_principal_from_topic(topic: str) -> str | None:
+    def _topic_matches_filter(topic: str, topic_filter: str) -> bool:
+        t_levels = [level for level in str(topic or "").split("/")]
+        f_levels = [level for level in str(topic_filter or "").split("/")]
+        if not t_levels or not f_levels:
+            return False
+        ti = 0
+        fi = 0
+        while fi < len(f_levels):
+            token = f_levels[fi]
+            if token == "#":
+                return fi == len(f_levels) - 1
+            if ti >= len(t_levels):
+                return False
+            if token != "+" and token != t_levels[ti]:
+                return False
+            ti += 1
+            fi += 1
+        return ti == len(t_levels)
+
+    @staticmethod
+    def _scope_specificity(topic_filter: str) -> tuple[int, int]:
+        levels = [level for level in str(topic_filter or "").split("/") if level]
+        literal_levels = [level for level in levels if level not in {"+", "#"}]
+        literal_chars = sum(len(level) for level in literal_levels)
+        return (len(literal_levels), literal_chars)
+
+    def _refresh_generic_topic_scopes(self) -> None:
+        path = self._integration_state_path
+        if not path:
+            self._generic_topic_scopes_by_principal = {}
+            self._generic_topic_scopes_mtime = None
+            return
+        try:
+            mtime = os.path.getmtime(path)
+        except Exception:
+            self._generic_topic_scopes_by_principal = {}
+            self._generic_topic_scopes_mtime = None
+            return
+        if self._generic_topic_scopes_mtime is not None and self._generic_topic_scopes_mtime == mtime:
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except Exception:
+            self._generic_topic_scopes_by_principal = {}
+            self._generic_topic_scopes_mtime = mtime
+            return
+        principals = payload.get("principals") if isinstance(payload, dict) else None
+        if not isinstance(principals, dict):
+            self._generic_topic_scopes_by_principal = {}
+            self._generic_topic_scopes_mtime = mtime
+            return
+        out: dict[str, list[str]] = {}
+        for principal_id, row in principals.items():
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("principal_type") or "").strip().lower() != "generic_user":
+                continue
+            status = str(row.get("status") or "").strip().lower()
+            if status in {"revoked", "expired"}:
+                continue
+            scopes = sorted(
+                {
+                    str(scope).strip()
+                    for scope in (
+                        list(row.get("publish_topics") or [])
+                        + list(row.get("subscribe_topics") or [])
+                        + list(row.get("allowed_publish_topics") or [])
+                        + list(row.get("allowed_subscribe_topics") or [])
+                        + list(row.get("allowed_topics") or [])
+                    )
+                    if str(scope).strip()
+                }
+            )
+            scoped_specific = [scope for scope in scopes if self._scope_specificity(scope)[0] > 0]
+            scopes = sorted(set(scoped_specific))
+            if not scopes:
+                prefix = str(row.get("topic_prefix") or "").strip()
+                if prefix:
+                    scopes = [f"{prefix}/#"]
+            if scopes:
+                out[str(principal_id)] = scopes
+        self._generic_topic_scopes_by_principal = out
+        self._generic_topic_scopes_mtime = mtime
+
+    def _infer_generic_principal_from_topic(self, topic: str) -> str | None:
         normalized = str(topic or "").strip()
         if not normalized:
             return None
         if normalized.startswith("$SYS/") or normalized.startswith("synthia/"):
             return None
+        self._refresh_generic_topic_scopes()
+        matches: list[tuple[tuple[int, int], str]] = []
+        for principal_id, scopes in self._generic_topic_scopes_by_principal.items():
+            best_for_principal: tuple[int, int] | None = None
+            for scope in scopes:
+                if not self._topic_matches_filter(normalized, scope):
+                    continue
+                specificity = self._scope_specificity(scope)
+                if best_for_principal is None or specificity > best_for_principal:
+                    best_for_principal = specificity
+            if best_for_principal is not None:
+                matches.append((best_for_principal, principal_id))
+        if matches:
+            matches.sort(key=lambda row: (row[0][0], row[0][1], row[1]), reverse=True)
+            return matches[0][1]
         head = normalized.split("/", 1)[0].strip()
         if not head:
             return None

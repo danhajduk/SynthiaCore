@@ -267,44 +267,154 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(int(metrics["addon:mqtt"]["topic_count"]), 1)
 
     async def test_topic_activity_tracks_runtime_and_retained_sources(self) -> None:
+        old_state_path = os.environ.get("MQTT_INTEGRATION_STATE_PATH")
+        os.environ["MQTT_INTEGRATION_STATE_PATH"] = "/tmp/non-existent-mqtt-state-for-test.json"
         manager = MqttManager(
             settings_store=_FakeSettingsStore(),
             registry=_FakeRegistry(),
             service_catalog_store=_FakeServiceCatalogStore(),
             enabled=True,
         )
-        manager._loop = asyncio.get_running_loop()
-        manager._on_message(None, None, _Msg("external/frigate/events", {"ok": True}, retain=True))
-        manager._on_message(None, None, _Msg("external/frigate/events", {"ok": False}, retain=False))
-        topics = await manager.topic_activity(limit=100)
-        self.assertTrue(topics["ok"])
-        self.assertEqual(len(topics["items"]), 1)
-        item = topics["items"][0]
-        self.assertEqual(item["topic"], "external/frigate/events")
-        self.assertEqual(int(item["message_count"]), 2)
-        self.assertTrue(bool(item["retained_seen"]))
-        self.assertIn("runtime_messages", item["sources"])
-        self.assertIn("retained", item["sources"])
-        runtime = await manager.principal_connection_states()
-        self.assertIn("user:external", runtime)
-        self.assertTrue(runtime["user:external"]["connected"])
+        try:
+            manager._loop = asyncio.get_running_loop()
+            manager._on_message(None, None, _Msg("external/frigate/events", {"ok": True}, retain=True))
+            manager._on_message(None, None, _Msg("external/frigate/events", {"ok": False}, retain=False))
+            topics = await manager.topic_activity(limit=100)
+            self.assertTrue(topics["ok"])
+            self.assertEqual(len(topics["items"]), 1)
+            item = topics["items"][0]
+            self.assertEqual(item["topic"], "external/frigate/events")
+            self.assertEqual(int(item["message_count"]), 2)
+            self.assertTrue(bool(item["retained_seen"]))
+            self.assertIn("runtime_messages", item["sources"])
+            self.assertIn("retained", item["sources"])
+            runtime = await manager.principal_connection_states()
+            self.assertIn("user:external", runtime)
+            self.assertTrue(runtime["user:external"]["connected"])
+        finally:
+            if old_state_path is None:
+                del os.environ["MQTT_INTEGRATION_STATE_PATH"]
+            else:
+                os.environ["MQTT_INTEGRATION_STATE_PATH"] = old_state_path
 
     async def test_generic_topic_activity_marks_generic_principal_connected(self) -> None:
+        old_state_path = os.environ.get("MQTT_INTEGRATION_STATE_PATH")
+        os.environ["MQTT_INTEGRATION_STATE_PATH"] = "/tmp/non-existent-mqtt-state-for-test.json"
         manager = MqttManager(
             settings_store=_FakeSettingsStore(),
             registry=_FakeRegistry(),
             service_catalog_store=_FakeServiceCatalogStore(),
             enabled=True,
         )
-        manager._loop = asyncio.get_running_loop()
-        manager._on_message(None, None, _Msg("frigate/events", {"ok": True}, retain=False))
-        runtime = await manager.principal_connection_states()
-        self.assertIn("user:frigate", runtime)
-        self.assertTrue(runtime["user:frigate"]["connected"])
-        sessions = await manager.runtime_sessions()
-        by_client = {str(item["client_id"]): item for item in sessions["items"]}
-        self.assertIn("frigate", by_client)
-        self.assertEqual(by_client["frigate"]["principal_id"], "user:frigate")
+        try:
+            manager._loop = asyncio.get_running_loop()
+            manager._on_message(None, None, _Msg("frigate/events", {"ok": True}, retain=False))
+            runtime = await manager.principal_connection_states()
+            self.assertIn("user:frigate", runtime)
+            self.assertTrue(runtime["user:frigate"]["connected"])
+            sessions = await manager.runtime_sessions()
+            by_client = {str(item["client_id"]): item for item in sessions["items"]}
+            self.assertIn("frigate", by_client)
+            self.assertEqual(by_client["frigate"]["principal_id"], "user:frigate")
+        finally:
+            if old_state_path is None:
+                del os.environ["MQTT_INTEGRATION_STATE_PATH"]
+            else:
+                os.environ["MQTT_INTEGRATION_STATE_PATH"] = old_state_path
+
+    async def test_generic_topic_activity_maps_to_matching_user_scope_for_all_users(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, "mqtt_integration_state.json")
+            with open(state_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "principals": {
+                            "user:frigate": {
+                                "principal_id": "user:frigate",
+                                "principal_type": "generic_user",
+                                "status": "active",
+                                "publish_topics": ["frigate/#"],
+                                "subscribe_topics": [],
+                            },
+                            "user:homeassistant": {
+                                "principal_id": "user:homeassistant",
+                                "principal_type": "generic_user",
+                                "status": "active",
+                                "publish_topics": ["external/homeassistant/#"],
+                                "subscribe_topics": [],
+                            },
+                        }
+                    },
+                    handle,
+                )
+            old = os.environ.get("MQTT_INTEGRATION_STATE_PATH")
+            os.environ["MQTT_INTEGRATION_STATE_PATH"] = state_path
+            try:
+                manager = MqttManager(
+                    settings_store=_FakeSettingsStore(),
+                    registry=_FakeRegistry(),
+                    service_catalog_store=_FakeServiceCatalogStore(),
+                    enabled=True,
+                )
+                manager._loop = asyncio.get_running_loop()
+                manager._on_message(None, None, _Msg("external/homeassistant/events", {"ok": True}, retain=False))
+                runtime = await manager.principal_connection_states()
+                self.assertIn("user:homeassistant", runtime)
+                self.assertTrue(runtime["user:homeassistant"]["connected"])
+                self.assertNotIn("user:external", runtime)
+            finally:
+                if old is None:
+                    del os.environ["MQTT_INTEGRATION_STATE_PATH"]
+                else:
+                    os.environ["MQTT_INTEGRATION_STATE_PATH"] = old
+
+    async def test_generic_topic_activity_ignores_wildcard_only_scopes_and_uses_topic_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, "mqtt_integration_state.json")
+            with open(state_path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "principals": {
+                            "user:frigate": {
+                                "principal_id": "user:frigate",
+                                "principal_type": "generic_user",
+                                "status": "active",
+                                "topic_prefix": "external/frigate",
+                                "publish_topics": ["#"],
+                                "subscribe_topics": ["#"],
+                            },
+                            "user:homeassistant": {
+                                "principal_id": "user:homeassistant",
+                                "principal_type": "generic_user",
+                                "status": "active",
+                                "topic_prefix": "external/homeassistant",
+                                "publish_topics": ["#"],
+                                "subscribe_topics": ["#"],
+                            },
+                        }
+                    },
+                    handle,
+                )
+            old = os.environ.get("MQTT_INTEGRATION_STATE_PATH")
+            os.environ["MQTT_INTEGRATION_STATE_PATH"] = state_path
+            try:
+                manager = MqttManager(
+                    settings_store=_FakeSettingsStore(),
+                    registry=_FakeRegistry(),
+                    service_catalog_store=_FakeServiceCatalogStore(),
+                    enabled=True,
+                )
+                manager._loop = asyncio.get_running_loop()
+                manager._on_message(None, None, _Msg("external/frigate/events", {"ok": True}, retain=False))
+                manager._on_message(None, None, _Msg("external/homeassistant/events", {"ok": True}, retain=False))
+                runtime = await manager.principal_connection_states()
+                self.assertTrue(runtime["user:frigate"]["connected"])
+                self.assertTrue(runtime["user:homeassistant"]["connected"])
+            finally:
+                if old is None:
+                    del os.environ["MQTT_INTEGRATION_STATE_PATH"]
+                else:
+                    os.environ["MQTT_INTEGRATION_STATE_PATH"] = old
 
     async def test_topic_activity_limit_prefers_most_recent_topics(self) -> None:
         manager = MqttManager(
