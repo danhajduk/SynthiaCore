@@ -505,3 +505,4 @@
 2026-03-11 15:35 - Task 478: renamed Home AI status labeling to `AI Node` in status tiles/subsystem chip.
 2026-03-11 15:36 - Task 479: finalized responsive status-tile breakpoints for fixed 96x72 tiles across desktop/tablet/mobile widths.
 2026-03-11 15:37 - Task 480: added frontend regression tests validating Home status tile icon+label rendering and canonical label list (including `AI Node`).
+2026-03-11 15:38 - Task 481: updated frontend UI docs with Home status tile contract and added screenshot reference note under `docs/screenshots/`.

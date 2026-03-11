@@ -40,10 +40,42 @@ Status: Implemented
 
 Status: Implemented
 
-- Home dashboard surfaces stack health, metrics, and activity.
+- Home dashboard surfaces stack health and metrics.
 - Settings organizes platform controls by subsystem.
 - MQTT embedded UI includes overview/principals/users/runtime/audit/noisy-client pages.
 - Node onboarding approval page requires normal admin session login before showing approval context.
+
+### Home Status Tiles
+
+Status: Implemented
+
+- Location: Home dashboard status row (`frontend/src/core/pages/Home.tsx`, `frontend/src/core/pages/home.css`).
+- Icon source: `lucide-react`.
+- Tile set:
+  - `Core` -> `Cpu`
+  - `Supervisor` -> `ShieldCheck`
+  - `MQTT` -> `Waypoints`
+  - `Scheduler` -> `Clock3`
+  - `Workers` -> `Cog`
+  - `Addons` -> `Puzzle`
+  - `Network` -> `Network`
+  - `Internet` -> `Globe`
+  - `AI Node` -> `BrainCircuit`
+- Tile contract:
+  - width `96px`
+  - height `72px`
+  - border radius `12px`
+  - icon size `24px`
+  - label font size `12px`, line-height `1`
+  - icon/label gap `6px`
+  - centered tile content
+- Responsive behavior:
+  - desktop: auto-fit fixed-width `96px` tiles
+  - <=`920px`: 4 tiles per row
+  - <=`520px`: 3 tiles per row
+  - <=`360px`: 2 tiles per row
+- Screenshot reference:
+  - `docs/screenshots/home-status-tiles.md`
 
 ## Planned
 
