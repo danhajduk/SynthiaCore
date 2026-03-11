@@ -119,6 +119,13 @@ class MqttDebugPublishRequest(BaseModel):
 
 
 _MQTT_USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{3,64}$")
+_EXPECTED_CORE_PRINCIPALS: tuple[str, ...] = (
+    "core.bootstrap",
+    "core.runtime",
+    "core.scheduler",
+    "core.supervisor",
+    "core.telemetry",
+)
 
 
 def _normalize_generic_username(value: str) -> str:
@@ -1533,6 +1540,9 @@ def build_mqtt_router(
         broker = await approval.broker_summary()
         health = await manager.status()
         grants = await approval.list_grants()
+        principal_items = await approval.list_principals()
+        present_principal_ids = {str(item.get("principal_id") or "") for item in principal_items}
+        missing_core_principals = [principal_id for principal_id in _EXPECTED_CORE_PRINCIPALS if principal_id not in present_principal_ids]
         last_authority_errors = [
             {
                 "addon_id": item.get("addon_id"),
@@ -1551,6 +1561,8 @@ def build_mqtt_router(
             reasons.append("setup_not_ready")
         if not runtime_connected:
             reasons.append("mqtt_runtime_not_connected")
+        if missing_core_principals:
+            reasons.append("missing_core_principals")
         effective = {
             "status": ("healthy" if not reasons else "degraded"),
             "reasons": reasons,
@@ -1573,6 +1585,11 @@ def build_mqtt_router(
             "bootstrap_publish": (
                 runtime_reconciler.bootstrap_status() if runtime_reconciler is not None else {"published": False}
             ),
+            "core_principals": {
+                "expected": list(_EXPECTED_CORE_PRINCIPALS),
+                "missing": missing_core_principals,
+                "ok": len(missing_core_principals) == 0,
+            },
         }
 
     @router.get("/mqtt/health")

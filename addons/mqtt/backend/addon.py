@@ -1002,14 +1002,22 @@ def addon_ui_root() -> str:
     }
 
     function renderGateBanner() {
-      if (!state.gateActive) {
+      const coreStatus = state.setupSummary && state.setupSummary.core_principals ? state.setupSummary.core_principals : {};
+      const missingCorePrincipals = Array.isArray(coreStatus.missing) ? coreStatus.missing : [];
+      const messages = [];
+      if (state.gateActive) {
+        messages.push("Setup required: only the setup page is available until MQTT initialization completes.");
+      }
+      if (missingCorePrincipals.length > 0) {
+        messages.push(`Core principal registration warning: missing ${missingCorePrincipals.join(", ")}.`);
+      }
+      if (messages.length === 0) {
         setupBanner.classList.remove("visible");
         setupBanner.textContent = "";
         return;
       }
       setupBanner.classList.add("visible");
-      setupBanner.textContent =
-        "Setup required: only the setup page is available until MQTT initialization completes.";
+      setupBanner.textContent = messages.join(" ");
     }
 
     function healthPill(text, tone) {

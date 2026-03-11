@@ -51,6 +51,7 @@ class TestMqttEmbeddedUiRoutes(unittest.TestCase):
         self.assertIn("Topic Prefix", res.text)
         self.assertIn("Core Managed", res.text)
         self.assertIn("System principals are Core-managed", res.text)
+        self.assertIn("Core principal registration warning", res.text)
         self.assertIn("data-filter='users-q'", res.text)
         self.assertIn("data-filter='audit-q'", res.text)
         self.assertIn("data-filter='audit-principal'", res.text)

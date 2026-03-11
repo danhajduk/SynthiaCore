@@ -691,6 +691,14 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertEqual(action_filtered.status_code, 200, action_filtered.text)
         self.assertTrue(action_filtered.json()["items"])
 
+    def test_setup_summary_reports_missing_core_principals(self) -> None:
+        summary = self.client.get("/api/system/mqtt/setup-summary", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(summary.status_code, 200, summary.text)
+        payload = summary.json()
+        self.assertIn("core_principals", payload)
+        self.assertIn("missing", payload["core_principals"])
+        self.assertIsInstance(payload["core_principals"]["missing"], list)
+
 
 if __name__ == "__main__":
     unittest.main()

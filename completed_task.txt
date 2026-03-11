@@ -380,3 +380,4 @@
 
 2026-03-10 - Task 370: added separate generic-user publish/subscribe topic permissions with API/UI support, topic-filter validation, and regression tests.
 2026-03-10 - Task 371: enriched MQTT audit events with actor/action/target/result/timestamp and added principal/action filtering in API + UI audit tab.
+2026-03-10 - Task 372: added core principal presence reporting in setup summary and UI warning banner when expected core principals are missing.
