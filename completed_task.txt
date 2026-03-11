@@ -402,3 +402,4 @@
 2026-03-11 - Task 429: reviewed onboarding/trust docs and created queued implementation tasks 430-438 for node-login trust establishment.
 2026-03-11 - Task 430: added canonical AI Node onboarding approval architecture document and index links for upcoming implementation tasks.
 2026-03-11 - Task 431: added backend onboarding session store/model and regression tests for transitions, persistence, expiry, and consume-once behavior.
+2026-03-11 - Task 432: added AI Node onboarding API contract doc with deterministic schema/error definitions and docs cross-links.

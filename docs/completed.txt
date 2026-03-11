@@ -456,3 +456,4 @@
 2026-03-11 - Task 429: reviewed AI Node/Core onboarding docs and created implementation task breakdown (430-438) for node login during onboarding trust establishment.
 2026-03-11 - Task 430: authored canonical Core-side AI Node onboarding approval architecture doc for operator-mediated approval URL login/trust flow.
 2026-03-11 - Task 431: implemented AI Node onboarding session domain model/store with explicit state transitions, persistence, expiry handling, and one-time payload consumption semantics.
+2026-03-11 - Task 432: defined canonical node-initiated onboarding session creation API contract (request/response/errors/versioning) and linked it from index/API docs.

@@ -89,6 +89,9 @@ Status: Implemented
 
 Status: Planned
 
+- AI Node onboarding session creation contract:
+  - `POST /api/system/nodes/onboarding/sessions`
+  - Request/response/error schema authority: [AI Node Onboarding API Contract](./ai-node-onboarding-api-contract.md)
 - Formal OpenAPI-focused endpoint stability tiers.
 - Explicit deprecation lifecycle metadata per endpoint group.
 
