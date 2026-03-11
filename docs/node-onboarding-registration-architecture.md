@@ -1,7 +1,7 @@
 # Node Onboarding And Registration Architecture
 
-Status: Planned
-Implementation status: Partial (current implementation supports AI-node profile; architecture defines global multi-node model)
+Status: Partial
+Implementation status: Partial (global registration domain model/store now exists; current onboarding entrypoint still only accepts `ai-node`)
 Last updated: 2026-03-11
 
 ## Purpose
@@ -52,7 +52,7 @@ Current expectation:
 
 ## Registration Model Boundary
 
-Status: Planned
+Status: Partial
 
 Global registration record should include:
 - `node_id`
@@ -61,6 +61,11 @@ Global registration record should include:
 - `software_version`
 - trust status and lifecycle state
 - provenance fields (onboarding session, approval actor/timestamps)
+
+Implemented baseline:
+- persisted global registration store (`data/node_registrations.json`)
+- onboarding approval binds approved sessions to registration records
+- schema/version marker and compatibility aliases for legacy AI-node field names
 
 ## Security And Trust Boundary
 

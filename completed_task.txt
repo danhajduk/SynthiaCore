@@ -418,3 +418,4 @@
 2026-03-11 - Task 445: extended onboarding API regression tests (including security and terminal-state paths) and revalidated onboarding session/trust test suites.
 2026-03-11 - Task 446: updated onboarding architecture status and operators guide runbook for approve/reject/finalize outcomes and troubleshooting.
 2026-03-11 - Task 447: added global node onboarding/registration architecture document and updated index/API/AI-node doc references to global authority.
+2026-03-11 - Task 448: added global node registration store/model, wired onboarding approval-to-registration binding, and added regression coverage for registration persistence/compatibility aliases.

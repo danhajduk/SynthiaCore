@@ -472,3 +472,4 @@
 2026-03-11 - Task 445: expanded onboarding regression coverage with additional state-path tests for protocol mismatch, state tamper handling, invalid/expired finalize outcomes, and replay/terminal behavior protections.
 2026-03-11 - Task 446: finalized onboarding documentation alignment across architecture/API/operator runbook with implemented approval URL + polling flow and operator troubleshooting guidance.
 2026-03-11 - Task 447: defined canonical global node onboarding/registration architecture and positioned AI-node onboarding as a node-type profile under the global model.
+2026-03-11 - Task 448: implemented global node registration domain model/store, bound approved onboarding sessions to persistent registration records, and added compatibility alias/version strategy.

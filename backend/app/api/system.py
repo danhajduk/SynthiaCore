@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from ..addons.registry import AddonRegistry, list_addons
 from ..system.audit import AuditLogStore
-from ..system.onboarding import NodeOnboardingSessionsStore, NodeTrustIssuanceService
+from ..system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore, NodeTrustIssuanceService
 from ..system.runtime import StandaloneRuntimeService
 from .admin import require_admin_token
 
@@ -133,6 +133,7 @@ def build_system_router(
     runtime_service: StandaloneRuntimeService | None = None,
     mqtt_approval_service=None,
     onboarding_sessions_store: NodeOnboardingSessionsStore | None = None,
+    node_registrations_store: NodeRegistrationsStore | None = None,
     node_trust_issuance: NodeTrustIssuanceService | None = None,
     audit_store: AuditLogStore | None = None,
 ) -> APIRouter:
@@ -331,6 +332,13 @@ def build_system_router(
             )
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
+        registration_payload = None
+        if node_registrations_store is not None:
+            try:
+                registration = node_registrations_store.upsert_from_approved_session(decided)
+                registration_payload = registration.to_api_dict()
+            except ValueError as exc:
+                raise HTTPException(status_code=409, detail=str(exc))
         _record_audit(
             audit_store,
             event_type="node_onboarding_session_approved",
@@ -338,7 +346,10 @@ def build_system_router(
             actor_id=_admin_actor(x_admin_token),
             details={"session_id": decided.session_id, "linked_node_id": str(decided.linked_node_id or "")},
         )
-        return {"ok": True, "session": decided.to_dict()}
+        response = {"ok": True, "session": decided.to_dict()}
+        if registration_payload is not None:
+            response["registration"] = registration_payload
+        return response
 
     @router.post("/system/nodes/onboarding/sessions/{session_id}/reject")
     def reject_node_onboarding_session(

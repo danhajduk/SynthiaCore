@@ -36,7 +36,7 @@ from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler.history import SchedulerHistoryStore
 from app.system.settings.store import SettingsStore
 from app.system.settings.router import build_settings_router
-from app.system.onboarding import NodeOnboardingSessionsStore, NodeTrustIssuanceService, NodeTrustStore
+from app.system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore, NodeTrustIssuanceService, NodeTrustStore
 from app.system.mqtt import (
     DockerMosquittoRuntimeBoundary,
     EmbeddedMqttStartupReconciler,
@@ -409,10 +409,12 @@ def create_app() -> FastAPI:
     app.state.users_store = users_store
     install_sessions_store = InstallSessionsStore()
     node_onboarding_sessions_store = NodeOnboardingSessionsStore()
+    node_registrations_store = NodeRegistrationsStore()
     node_trust_store = NodeTrustStore()
     node_trust_issuance = NodeTrustIssuanceService(node_trust_store)
     app.state.install_sessions_store = install_sessions_store
     app.state.node_onboarding_sessions_store = node_onboarding_sessions_store
+    app.state.node_registrations_store = node_registrations_store
     app.state.node_trust_store = node_trust_store
     app.state.node_trust_issuance = node_trust_issuance
 
@@ -517,6 +519,7 @@ def create_app() -> FastAPI:
             runtime_service,
             mqtt_registration_approval,
             onboarding_sessions_store=node_onboarding_sessions_store,
+            node_registrations_store=node_registrations_store,
             node_trust_issuance=node_trust_issuance,
             audit_store=audit_store,
         ),

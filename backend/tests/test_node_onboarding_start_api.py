@@ -16,7 +16,7 @@ except Exception:  # pragma: no cover - local env may not include FastAPI deps
     build_system_router = None
     FASTAPI_STACK_AVAILABLE = False
 
-from app.system.onboarding import NodeOnboardingSessionsStore
+from app.system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore
 
 
 class _FakeRegistry:
@@ -42,8 +42,16 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
     def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory()
         self.store = NodeOnboardingSessionsStore(path=Path(self.tmpdir.name) / "node_onboarding_sessions.json")
+        self.registrations = NodeRegistrationsStore(path=Path(self.tmpdir.name) / "node_registrations.json")
         app = FastAPI()
-        app.include_router(build_system_router(_FakeRegistry(), onboarding_sessions_store=self.store), prefix="/api")
+        app.include_router(
+            build_system_router(
+                _FakeRegistry(),
+                onboarding_sessions_store=self.store,
+                node_registrations_store=self.registrations,
+            ),
+            prefix="/api",
+        )
         self.client = TestClient(app)
         self.env_patch = patch.dict(
             os.environ,
@@ -124,6 +132,10 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         self.assertEqual(approve.status_code, 200, approve.text)
         self.assertEqual(approve.json()["session"]["session_state"], "approved")
         self.assertEqual(approve.json()["session"]["approved_by_user_id"], "admin_token")
+        self.assertIn("registration", approve.json())
+        self.assertEqual(approve.json()["registration"]["node_type"], "ai-node")
+        linked_node_id = approve.json()["session"]["linked_node_id"]
+        self.assertIsNotNone(self.registrations.get(linked_node_id))
 
         reject_after_approve = self.client.post(
             f"/api/system/nodes/onboarding/sessions/{session_id}/reject?state={state}",
