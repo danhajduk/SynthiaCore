@@ -121,6 +121,23 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         self.assertEqual(second.status_code, 409, second.text)
         self.assertEqual(second.json()["detail"]["error"], "duplicate_active_session")
 
+    def test_duplicate_registered_identity_rejected(self) -> None:
+        started = self.client.post("/api/system/nodes/onboarding/sessions", json=self._payload())
+        self.assertEqual(started.status_code, 200, started.text)
+        session_id = started.json()["session"]["session_id"]
+        approval_url = started.json()["session"]["approval_url"]
+        state = approval_url.split("state=", 1)[1]
+        approve = self.client.post(
+            f"/api/system/nodes/onboarding/sessions/{session_id}/approve?state={state}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(approve.status_code, 200, approve.text)
+        self.store.consume_final_payload(session_id)
+
+        second = self.client.post("/api/system/nodes/onboarding/sessions", json=self._payload())
+        self.assertEqual(second.status_code, 409, second.text)
+        self.assertEqual(second.json()["detail"]["error"], "duplicate_node_identity")
+
     def test_node_type_unsupported(self) -> None:
         payload = self._payload()
         payload["node_type"] = "not-ai-node"

@@ -314,6 +314,17 @@ def build_system_router(
                 status_code=409,
                 detail=_onboarding_error("duplicate_active_session", "active onboarding session already exists"),
             )
+        node_id = _stable_node_id_from_nonce(node_nonce)
+        if node_registrations_store is not None:
+            existing_registration = node_registrations_store.get(node_id)
+            if existing_registration is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=_onboarding_error(
+                        "duplicate_node_identity",
+                        "node identity already registered",
+                    ),
+                )
 
         approval_state = secrets.token_urlsafe(18)
         session = onboarding_sessions_store.start_session(

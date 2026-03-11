@@ -498,3 +498,4 @@
 2026-03-11 15:16 - Task 471: added Home nodes summary card showing trusted/pending/error counts sourced from registry state.
 2026-03-11 15:17 - Task 472: completed approval popup flow by posting decision events to opener and refreshing parent onboarding state before window close.
 2026-03-11 15:19 - Task 473: added node revoke/untrust API + Addons action, revoking trust status and removing stored node MQTT trust credentials.
+2026-03-11 15:20 - Task 474: enforced duplicate identity rejection at onboarding start using stable node_id derivation from node nonce.
