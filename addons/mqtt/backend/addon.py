@@ -559,6 +559,20 @@ def addon_ui_root() -> str:
         .replace(/>/g, "&gt;");
     }
 
+    function formatLocalTimestamp(value) {
+      const raw = String(value || "").trim();
+      if (!raw || raw === "-") return "-";
+      const parsed = Date.parse(raw);
+      if (!Number.isFinite(parsed)) return raw;
+      return new Date(parsed).toLocaleString();
+    }
+
+    function formatMsgRate(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "-";
+      return `${num.toFixed(3)} msg/sec`;
+    }
+
     function gateIsActive(summary) {
       const setup = summary && summary.setup ? summary.setup : {};
       return Boolean(setup.requires_setup) && !Boolean(setup.setup_complete);
@@ -1416,7 +1430,7 @@ def addon_ui_root() -> str:
             { k: "Recent Audit", v: auditItems.length },
             { k: "Recent Errors", v: recentErrors.length },
             { k: "Connected Clients", v: brokerMetrics.connected_clients ?? "-" },
-            { k: "Message Rate", v: brokerMetrics.message_rate ?? "-" },
+            { k: "Message Rate", v: formatMsgRate(brokerMetrics.message_rate) },
             { k: "Dropped Messages", v: brokerMetrics.dropped_messages ?? "-" },
             { k: "Retained Messages", v: brokerMetrics.retained_messages ?? "-" },
             { k: "Broker Uptime", v: brokerMetrics.broker_uptime || "-" },
@@ -1571,7 +1585,7 @@ def addon_ui_root() -> str:
                   );
                   const managed = String(item.managed_by || "").toLowerCase() === "core";
                   const managedBadge = managed ? `<span class='badge core'>Core Managed</span>` : "";
-                  const updated = escapeHtml(item.updated_at || item.ts || item.reason || "-");
+                  const updated = escapeHtml(formatLocalTimestamp(item.updated_at || item.ts || item.reason || "-"));
                   const systemLocked = key === "system";
                   const destructive = `<button class='mini' disabled title='System principals are Core-managed'>Revoke</button>` +
                     `<button class='mini' disabled title='System principals are Core-managed'>Delete</button>` +
@@ -1654,13 +1668,37 @@ def addon_ui_root() -> str:
               const action = escapeHtml(String(item.action || item.event_type || "-"));
               const target = escapeHtml(String(item.target || "-"));
               const result = escapeHtml(String(item.result || item.status || "-"));
-              const timestamp = escapeHtml(String(item.timestamp || item.created_at || "-"));
+              const timestamp = escapeHtml(formatLocalTimestamp(item.timestamp || item.created_at || "-"));
               return `<tr><td>${actor}</td><td>${action}</td><td>${target}</td><td>${result}</td><td>${timestamp}</td></tr>`;
             })
             .join("");
           sectionContent.innerHTML =
             toolbar +
             `<table class='table'><thead><tr><th>Actor</th><th>Action</th><th>Target</th><th>Result</th><th>Timestamp</th></tr></thead><tbody>${rows}</tbody></table>`;
+          return;
+        }
+
+        if (section === "users") {
+          const rows = visible
+            .slice(0, 50)
+            .map((item) => {
+              const principalId = escapeHtml(String(item.principal_id || "-"));
+              const username = escapeHtml(String(item.username || item.logical_identity || "-"));
+              const status = escapeHtml(String(item.status || "-"));
+              const runtimeTraffic = item && item.runtime_traffic ? item.runtime_traffic : {};
+              const avgMsgRate = escapeHtml(formatMsgRate(runtimeTraffic.avg_messages_per_second));
+              const updated = escapeHtml(formatLocalTimestamp(item.updated_at || item.ts || item.reason || "-"));
+              const actions =
+                `<button class='mini' data-generic-action='revoke' data-principal-id='${principalId}'>Revoke</button>` +
+                `<button class='mini' data-generic-action='disable' data-principal-id='${principalId}'>Disable</button>` +
+                `<button class='mini' data-generic-action='rotate' data-principal-id='${principalId}'>Rotate Password</button>`;
+              return `<tr><td>${principalId}</td><td>${username}</td><td>${status}</td><td>${avgMsgRate}</td><td>${updated}</td><td><div class='row-actions'>${actions}</div></td></tr>`;
+            })
+            .join("");
+          sectionContent.innerHTML =
+            toolbar +
+            `<table class='table'><thead><tr><th>Principal</th><th>Username</th><th>Status</th><th>Avg Rate</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>` +
+            createUserModalMarkup();
           return;
         }
 

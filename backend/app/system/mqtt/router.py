@@ -1188,6 +1188,7 @@ def build_mqtt_router(
         require_admin_token(x_admin_token, request)
         items = await approval.list_principals()
         runtime_map: dict[str, dict[str, Any]] = {}
+        traffic_map: dict[str, dict[str, Any]] = {}
         runtime_fn = getattr(manager, "principal_connection_states", None)
         if callable(runtime_fn):
             try:
@@ -1196,14 +1197,30 @@ def build_mqtt_router(
                     runtime_map = payload
             except Exception:
                 runtime_map = {}
+        traffic_fn = getattr(manager, "principal_traffic_metrics", None)
+        if callable(traffic_fn):
+            try:
+                payload = await traffic_fn()
+                if isinstance(payload, dict):
+                    traffic_map = payload
+            except Exception:
+                traffic_map = {}
         for item in items:
             principal_id = str(item.get("principal_id") or "")
             state = runtime_map.get(principal_id) or {}
+            traffic = traffic_map.get(principal_id) or {}
             item["runtime_connection"] = {
                 "connected": bool(state.get("connected", False)),
                 "connected_since": state.get("connected_since"),
                 "last_seen": state.get("last_seen"),
                 "session_count": int(state.get("session_count") or 0),
+            }
+            messages_per_second = float(traffic.get("messages_per_second") or 0.0)
+            item["runtime_traffic"] = {
+                "messages_per_second": round(messages_per_second, 3),
+                "avg_messages_per_second": round(messages_per_second, 3),
+                "payload_size": int(traffic.get("payload_size") or 0),
+                "topic_count": int(traffic.get("topic_count") or 0),
             }
         return {"ok": True, "items": items}
 

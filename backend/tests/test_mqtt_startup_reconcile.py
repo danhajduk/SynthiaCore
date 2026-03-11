@@ -1,7 +1,9 @@
 import asyncio
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.system.mqtt.acl_compiler import MqttAclCompiler
 from app.system.mqtt.apply_pipeline import MqttApplyPipeline
@@ -67,14 +69,24 @@ class TestMqttStartupReconcile(unittest.TestCase):
                 credential_store=cred_store,
                 mqtt_manager=fake_manager,
             )
-            result = asyncio.run(reconciler.reconcile_startup())
+            with patch.dict(
+                os.environ,
+                {
+                    "SYNTHIA_BOOTSTRAP_ADVERTISE_HOST": "10.0.0.55",
+                    "SYNTHIA_API_BASE": "http://10.0.0.55:9001/api",
+                },
+                clear=False,
+            ):
+                result = asyncio.run(reconciler.reconcile_startup())
             self.assertTrue(result.ok)
             self.assertEqual(result.setup_status, "ready")
             self.assertGreaterEqual(len(fake_manager.published), 2)
             bootstrap_payload = next((payload for topic, payload in fake_manager.published if topic == "synthia/bootstrap/core"), {})
             self.assertEqual(bootstrap_payload.get("core_version"), "0.1.0")
-            self.assertEqual(bootstrap_payload.get("mqtt_host"), "127.0.0.1")
+            self.assertEqual(bootstrap_payload.get("api_base"), "http://10.0.0.55:9001/api")
+            self.assertEqual(bootstrap_payload.get("mqtt_host"), "10.0.0.55")
             self.assertEqual(bootstrap_payload.get("mqtt_port"), 1883)
+            self.assertNotIn("setup_state", dict(bootstrap_payload.get("onboarding_endpoints") or {}))
             password_text = (Path(tmp) / "live" / "passwords.conf").read_text(encoding="utf-8")
             self.assertIn("vision-user:$7$", password_text)
             state = asyncio.run(state_store.get_state())

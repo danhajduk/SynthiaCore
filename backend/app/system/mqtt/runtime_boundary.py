@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 import socket
@@ -146,7 +147,22 @@ class DockerMosquittoRuntimeBoundary:
         status = self._health_check_sync()
         if status.healthy:
             return status
-        if self._container_exists_sync() and not self._container_running_sync():
+        if self._container_exists_sync():
+            if not self._container_has_expected_port_bindings_sync():
+                self._remove_container_sync()
+                return self._start_sync()
+            if self._container_running_sync():
+                if status.degraded_reason in {"broker_unreachable", "bootstrap_listener_unreachable"}:
+                    self._remove_container_sync()
+                    return self._start_sync()
+                return self._health_check_sync()
+            start = self._docker_cmd(["start", self._container_name])
+            if start.returncode == 0:
+                started = self._health_check_sync()
+                if started.healthy:
+                    return started
+                if started.degraded_reason not in {"broker_unreachable", "bootstrap_listener_unreachable"}:
+                    return started
             self._remove_container_sync()
         return self._start_sync()
 
@@ -201,17 +217,16 @@ class DockerMosquittoRuntimeBoundary:
             self._healthy = False
             self._degraded_reason = "container_not_running"
             return self._status()
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(0.5)
-        try:
-            sock.connect((self._host, self._port))
-        except Exception:
+        if not self._can_connect(self._host, self._port):
             self._state = "running"
             self._healthy = False
             self._degraded_reason = "broker_unreachable"
             return self._status()
-        finally:
-            sock.close()
+        if not self._can_connect(self._host, self._bootstrap_port):
+            self._state = "running"
+            self._healthy = False
+            self._degraded_reason = "bootstrap_listener_unreachable"
+            return self._status()
         self._state = "running"
         self._healthy = True
         self._degraded_reason = None
@@ -344,10 +359,52 @@ class DockerMosquittoRuntimeBoundary:
             return False
         return self._container_name in (result.stdout or "").splitlines()
 
+    def _container_has_expected_port_bindings_sync(self) -> bool:
+        result = self._docker_cmd(["inspect", "--format", "{{json .NetworkSettings.Ports}}", self._container_name])
+        if result.returncode != 0:
+            return False
+        raw = str(result.stdout or "").strip()
+        if not raw:
+            return False
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            return False
+        if not isinstance(payload, dict):
+            return False
+
+        def _bound(container_port: int) -> bool:
+            tcp_key = f"{int(container_port)}/tcp"
+            udp_key = f"{int(container_port)}/udp"
+            entries = payload.get(tcp_key) or payload.get(udp_key)
+            if not isinstance(entries, list):
+                return False
+            for item in entries:
+                if not isinstance(item, dict):
+                    continue
+                host_port = str(item.get("HostPort") or "").strip()
+                if host_port == str(int(container_port)):
+                    return True
+            return False
+
+        return _bound(self._port) and _bound(self._bootstrap_port)
+
     def _remove_container_sync(self) -> None:
         if not self._container_exists_sync():
             return
         self._docker_cmd(["rm", "-f", self._container_name])
+
+    @staticmethod
+    def _can_connect(host: str, port: int) -> bool:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(0.5)
+        try:
+            sock.connect((host, int(port)))
+            return True
+        except Exception:
+            return False
+        finally:
+            sock.close()
 
     def _status(self) -> BrokerRuntimeStatus:
         return BrokerRuntimeStatus(

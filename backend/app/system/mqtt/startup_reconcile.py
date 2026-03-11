@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -15,6 +16,38 @@ from .integration_state import MqttIntegrationStateStore
 
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _is_loopback_host(value: str | None) -> bool:
+    host = str(value or "").strip().lower()
+    if not host:
+        return True
+    return host in {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
+
+
+def _detect_advertise_host() -> str:
+    sock: socket.socket | None = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect(("8.8.8.8", 80))
+        host = str(sock.getsockname()[0] or "").strip()
+        if host and not _is_loopback_host(host):
+            return host
+    except Exception:
+        pass
+    finally:
+        try:
+            if sock is not None:
+                sock.close()
+        except Exception:
+            pass
+    try:
+        host = socket.gethostbyname(socket.gethostname())
+        if host and not _is_loopback_host(host):
+            return host
+    except Exception:
+        pass
+    return "127.0.0.1"
 
 
 @dataclass(frozen=True)
@@ -183,7 +216,11 @@ class EmbeddedMqttStartupReconciler:
         core_id = "synthia-core"
         core_name = "Synthia Core"
         core_version = str(os.getenv("SYNTHIA_CORE_VERSION", "0.1.0"))
-        api_base = "http://127.0.0.1:9001/api"
+        advertise_host = str(os.getenv("SYNTHIA_BOOTSTRAP_ADVERTISE_HOST", "")).strip() or _detect_advertise_host()
+        api_base = str(os.getenv("SYNTHIA_API_BASE", "")).strip()
+        if not api_base:
+            api_port = int(os.getenv("SYNTHIA_API_PORT", "9001"))
+            api_base = f"http://{advertise_host}:{api_port}/api"
         mqtt_status = {}
         status_fn = getattr(self._mqtt, "status", None)
         if callable(status_fn):
@@ -191,16 +228,18 @@ class EmbeddedMqttStartupReconciler:
                 mqtt_status = await status_fn()
             except Exception:
                 mqtt_status = {}
+        mqtt_host = str(mqtt_status.get("host") or "").strip()
+        if _is_loopback_host(mqtt_host):
+            mqtt_host = advertise_host
         payload = MqttBootstrapAnnouncement(
             core_id=core_id,
             core_name=core_name,
             core_version=core_version,
             api_base=api_base,
-            mqtt_host=(str(mqtt_status.get("host")) if mqtt_status and mqtt_status.get("host") else None),
+            mqtt_host=(mqtt_host or None),
             mqtt_port=(int(mqtt_status.get("port")) if mqtt_status and mqtt_status.get("port") is not None else None),
             onboarding_endpoints={
                 "register": "/api/system/mqtt/registrations/approve",
-                "setup_state": "/api/system/mqtt/setup-state",
             },
             onboarding_mode="api",
         ).model_dump(mode="json")
