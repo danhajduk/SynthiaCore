@@ -250,7 +250,8 @@ def create_app() -> FastAPI:
                                 )
                             )
                         if status.healthy and startup_reconciler is not None:
-                            await startup_reconciler.ensure_bootstrap_published()
+                            # Keep bootstrap discovery fresh for listeners that join later.
+                            await startup_reconciler.ensure_bootstrap_published(force=True)
                     if mqtt_manager is not None and mqtt_obsv is not None:
                         manager_status = await mqtt_manager.status()
                         denied_count = await mqtt_obsv.count_events(event_type="denied_topic_attempt")
