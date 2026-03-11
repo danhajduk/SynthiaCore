@@ -136,7 +136,7 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         )
         self.assertEqual(finalized.status_code, 200, finalized.text)
         self.assertEqual(finalized.json()["onboarding_status"], "approved")
-        self.assertEqual(finalized.json()["activation"]["node_type"], "ai")
+        self.assertEqual(finalized.json()["activation"]["node_type"], "ai-node")
 
         got = self.client.get(f"/api/system/nodes/registrations/{node_id}", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(got.status_code, 200, got.text)

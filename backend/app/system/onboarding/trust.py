@@ -171,7 +171,10 @@ class NodeTrustIssuanceService:
             return {"ok": True, "activation": existing.to_dict()}
 
         node_id = str(session.linked_node_id or "").strip() or f"node-{session.session_id[:12]}"
-        node_type = str(session.requested_node_type or "").strip() or "unknown"
+        requested_node_type = str((session.request_metadata or {}).get("requested_node_type") or "").strip()
+        node_type = requested_node_type or str(session.requested_node_type or "").strip() or "unknown"
+        if node_type != "unknown" and not node_type.endswith("-node"):
+            node_type = f"{node_type}-node"
         baseline_policy_version = "1"
         baseline_policy = {
             "version": baseline_policy_version,
