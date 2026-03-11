@@ -3,6 +3,6 @@
   "name": "Synthia MQTT",
   "version": "0.1.0",
   "description": "Platform-managed embedded MQTT infrastructure addon.",
-  "show_sidebar": false,
+  "show_sidebar": true,
   "platform_managed": true
 }
