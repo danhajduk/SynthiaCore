@@ -509,3 +509,4 @@
 2026-03-11 15:47 - Task 482: moved Home status tiles into `.home-status-card` and removed the separate status-row section below the card.
 2026-03-11 15:48 - Task 483: removed deprecated `.home-subsystem` CSS styles after migrating to tile-based status rendering.
 2026-03-11 16:10 - Task 484: fixed Home status-pill severity mapping so `offline/stopped` subsystem states render warning/error tones instead of neutral.
+2026-03-11 16:40 - Task 447 (Phase 2): defined Core-side node capability activation architecture baseline covering capability registry, governance service, node management responsibilities, and post-trust interaction flow.
