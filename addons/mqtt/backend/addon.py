@@ -474,7 +474,7 @@ def addon_ui_root() -> str:
       filters: {
         principals: { q: "", type: "", status: "" },
         users: { q: "", status: "" },
-        audit: { q: "", status: "" },
+        audit: { q: "", status: "", principal: "", action: "" },
         noisyClients: { q: "", state: "" },
       },
     };
@@ -1091,11 +1091,18 @@ def addon_ui_root() -> str:
     function filteredAudit(items) {
       const q = String(state.filters.audit.q || "").trim().toLowerCase();
       const status = String(state.filters.audit.status || "").trim().toLowerCase();
+      const principal = String(state.filters.audit.principal || "").trim().toLowerCase();
+      const actionType = String(state.filters.audit.action || "").trim().toLowerCase();
       return items.filter((item) => {
-        const action = String(item.event_type || "").toLowerCase();
-        const result = String(item.status || "").toLowerCase();
-        if (q && !action.includes(q)) return false;
+        const action = String(item.action || item.event_type || "").toLowerCase();
+        const eventType = String(item.event_type || "").toLowerCase();
+        const result = String(item.result || item.status || "").toLowerCase();
+        const actor = String(item.actor_principal || "").toLowerCase();
+        const target = String(item.target || "").toLowerCase();
+        if (q && !action.includes(q) && !eventType.includes(q) && !actor.includes(q) && !target.includes(q)) return false;
         if (status && result !== status) return false;
+        if (principal && !actor.includes(principal) && !target.includes(principal)) return false;
+        if (actionType && !action.includes(actionType) && !eventType.includes(actionType)) return false;
         return true;
       });
     }
@@ -1154,7 +1161,13 @@ def addon_ui_root() -> str:
         return Array.isArray(noisy.items) ? noisy.items : [];
       }
       if (section === "audit") {
-        const audit = await fetchJson("/api/system/mqtt/audit?limit=50");
+        const params = new URLSearchParams();
+        params.set("limit", "50");
+        const principal = String(state.filters.audit.principal || "").trim();
+        const action = String(state.filters.audit.action || "").trim();
+        if (principal) params.set("principal", principal);
+        if (action) params.set("action", action);
+        const audit = await fetchJson(`/api/system/mqtt/audit?${params.toString()}`);
         return Array.isArray(audit.items) ? audit.items : [];
       }
       return null;
@@ -1289,6 +1302,8 @@ def addon_ui_root() -> str:
           toolbar =
             `<div class='toolbar'>` +
             `<input data-filter='audit-q' placeholder='Search action' value='${escapeHtml(state.filters.audit.q)}' />` +
+            `<input data-filter='audit-principal' placeholder='Filter principal' value='${escapeHtml(state.filters.audit.principal)}' />` +
+            `<input data-filter='audit-action' placeholder='Filter action type' value='${escapeHtml(state.filters.audit.action)}' />` +
             `<select data-filter='audit-status'><option value='' ${state.filters.audit.status === "" ? "selected" : ""}>All results</option><option value='ok' ${state.filters.audit.status === "ok" ? "selected" : ""}>Success</option><option value='error' ${state.filters.audit.status === "error" ? "selected" : ""}>Failure</option><option value='degraded' ${state.filters.audit.status === "degraded" ? "selected" : ""}>Degraded</option><option value='warn' ${state.filters.audit.status === "warn" ? "selected" : ""}>Warning</option></select>` +
             `</div>`;
           visible = filteredAudit(items);
@@ -1391,6 +1406,24 @@ def addon_ui_root() -> str:
           sectionContent.innerHTML =
             toolbar +
             `<table class='table'><thead><tr><th>Principal</th><th>Noisy State</th><th>msg/s</th><th>Payload Size</th><th>Topic Count</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+          return;
+        }
+
+        if (section === "audit") {
+          const rows = visible
+            .slice(0, 50)
+            .map((item) => {
+              const actor = escapeHtml(String(item.actor_principal || "-"));
+              const action = escapeHtml(String(item.action || item.event_type || "-"));
+              const target = escapeHtml(String(item.target || "-"));
+              const result = escapeHtml(String(item.result || item.status || "-"));
+              const timestamp = escapeHtml(String(item.timestamp || item.created_at || "-"));
+              return `<tr><td>${actor}</td><td>${action}</td><td>${target}</td><td>${result}</td><td>${timestamp}</td></tr>`;
+            })
+            .join("");
+          sectionContent.innerHTML =
+            toolbar +
+            `<table class='table'><thead><tr><th>Actor</th><th>Action</th><th>Target</th><th>Result</th><th>Timestamp</th></tr></thead><tbody>${rows}</tbody></table>`;
           return;
         }
 
@@ -1688,6 +1721,8 @@ def addon_ui_root() -> str:
       if (name === "principals-q") state.filters.principals.q = value;
       if (name === "users-q") state.filters.users.q = value;
       if (name === "audit-q") state.filters.audit.q = value;
+      if (name === "audit-principal") state.filters.audit.principal = value;
+      if (name === "audit-action") state.filters.audit.action = value;
       if (name === "noisy-q") state.filters.noisyClients.q = value;
       void renderSectionBody();
     });

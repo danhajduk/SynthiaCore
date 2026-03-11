@@ -82,14 +82,51 @@ class _FakeAuditStore:
         self.items: list[dict[str, object]] = []
 
     async def append_event(self, *, event_type: str, status: str, message: str | None = None, payload: dict | None = None):
+        now = time.time()
+        payload_obj = payload or {}
+        actor_principal = str(
+            payload_obj.get("actor_principal")
+            or payload_obj.get("principal_id")
+            or payload_obj.get("addon_id")
+            or payload_obj.get("actor")
+            or ""
+        ).strip()
+        action = str(payload_obj.get("action") or message or event_type or "").strip()
+        target = str(payload_obj.get("target") or payload_obj.get("principal_id") or payload_obj.get("addon_id") or "").strip()
         self.items.append(
             {
                 "event_type": event_type,
                 "status": status,
                 "message": message,
-                "payload": payload or {},
+                "payload": payload_obj,
+                "created_at": str(now),
+                "actor_principal": actor_principal or None,
+                "action": action or None,
+                "target": target or None,
+                "result": status,
+                "timestamp": str(now),
             }
         )
+
+    async def list_events(self, limit: int = 100, *, principal: str | None = None, action: str | None = None):
+        principal_filter = str(principal or "").strip().lower()
+        action_filter = str(action or "").strip().lower()
+        out: list[dict[str, object]] = []
+        for item in reversed(self.items):
+            actor = str(item.get("actor_principal") or "").lower()
+            target = str(item.get("target") or "").lower()
+            payload = item.get("payload") if isinstance(item.get("payload"), dict) else {}
+            principal_payload = str(payload.get("principal_id") or payload.get("addon_id") or "").lower()
+            if principal_filter and principal_filter not in actor and principal_filter not in target and principal_filter not in principal_payload:
+                continue
+            item_action = str(item.get("action") or "").lower()
+            event_type = str(item.get("event_type") or "").lower()
+            if action_filter and action_filter not in item_action and action_filter not in event_type:
+                continue
+            out.append(item)
+            if len(out) >= max(1, min(1000, int(limit))):
+                break
+        return out
 
 
 class TestMqttAdminLifecycleApi(unittest.TestCase):
@@ -612,6 +649,47 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertIn("principal_activated", event_types)
         self.assertIn("password_rotated", event_types)
         self.assertIn("principal_revoked", event_types)
+
+    def test_audit_endpoint_includes_enriched_fields_and_filters(self) -> None:
+        created = self.client.post(
+            "/api/system/mqtt/users",
+            headers={"X-Admin-Token": "test-token"},
+            json={"username": "filteruser", "password": "generated", "topic_prefix": "external/filteruser"},
+        )
+        self.assertEqual(created.status_code, 200, created.text)
+
+        all_events = self.client.get("/api/system/mqtt/audit?limit=20", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(all_events.status_code, 200, all_events.text)
+        items = all_events.json()["items"]
+        self.assertTrue(items)
+        self.assertIn("actor_principal", items[0])
+        self.assertIn("action", items[0])
+        self.assertIn("target", items[0])
+        self.assertIn("result", items[0])
+        self.assertIn("timestamp", items[0])
+
+        principal_filtered = self.client.get(
+            "/api/system/mqtt/audit?limit=20&principal=filteruser",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(principal_filtered.status_code, 200, principal_filtered.text)
+        filtered_items = principal_filtered.json()["items"]
+        self.assertTrue(filtered_items)
+        self.assertTrue(
+            any(
+                "filteruser" in str(item.get("actor_principal") or "").lower()
+                or "filteruser" in str(item.get("target") or "").lower()
+                or "filteruser" in str((item.get("payload") or {}).get("principal_id") or "").lower()
+                for item in filtered_items
+            )
+        )
+
+        action_filtered = self.client.get(
+            "/api/system/mqtt/audit?limit=20&action=principal_created",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(action_filtered.status_code, 200, action_filtered.text)
+        self.assertTrue(action_filtered.json()["items"])
 
 
 if __name__ == "__main__":

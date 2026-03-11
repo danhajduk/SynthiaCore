@@ -53,6 +53,8 @@ class TestMqttEmbeddedUiRoutes(unittest.TestCase):
         self.assertIn("System principals are Core-managed", res.text)
         self.assertIn("data-filter='users-q'", res.text)
         self.assertIn("data-filter='audit-q'", res.text)
+        self.assertIn("data-filter='audit-principal'", res.text)
+        self.assertIn("data-filter='audit-action'", res.text)
         self.assertIn("data-filter='noisy-q'", res.text)
 
     def test_subroute_ui_page_serves_same_shell(self) -> None:

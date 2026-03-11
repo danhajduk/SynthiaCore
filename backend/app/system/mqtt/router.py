@@ -1511,11 +1511,20 @@ def build_mqtt_router(
         request: Request,
         x_admin_token: str | None = Header(default=None),
         limit: int = 100,
+        principal: str | None = None,
+        action: str | None = None,
     ):
         require_admin_token(x_admin_token, request)
         if audit_store is None:
             return {"ok": True, "items": []}
-        return {"ok": True, "items": await audit_store.list_events(limit=limit)}
+        list_events = getattr(audit_store, "list_events", None)
+        if not callable(list_events):
+            return {"ok": True, "items": []}
+        try:
+            items = await list_events(limit=limit, principal=principal, action=action)
+        except TypeError:
+            items = await list_events(limit=limit)
+        return {"ok": True, "items": items}
 
     @router.get("/mqtt/setup-summary")
     async def mqtt_setup_summary(request: Request, x_admin_token: str | None = Header(default=None)):
