@@ -6,7 +6,7 @@ import secrets
 import time
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
 from ..addons.registry import AddonRegistry, list_addons
@@ -63,7 +63,7 @@ def _build_approval_url(request: Request, session_id: str, state: str) -> str:
     if configured.startswith(("http://", "https://")):
         base = configured.rstrip("/")
     else:
-        path = configured or "/onboarding/nodes/approve"
+        path = configured or "/onboarding/registrations/approve"
         if not path.startswith("/"):
             path = f"/{path}"
         base = f"{str(request.base_url).rstrip('/')}{path}"
@@ -75,6 +75,7 @@ def _admin_actor(x_admin_token: str | None) -> str:
 
 
 _RATE_WINDOWS: dict[str, list[float]] = {}
+_LEGACY_DEPRECATION_DATE = "2026-09-30"
 
 
 def _rate_limit(key: str, *, limit: int, window_seconds: int) -> bool:
@@ -134,6 +135,14 @@ def _expire_if_needed(store: NodeOnboardingSessionsStore | None) -> None:
     if store is None:
         return
     store.expire_stale_sessions()
+
+
+def _apply_legacy_deprecation_headers(response: Response) -> None:
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = _LEGACY_DEPRECATION_DATE
+    response.headers["Warning"] = (
+        f'299 - "Legacy AI-node onboarding route is deprecated; migrate to /api/system/nodes/onboarding/sessions before {_LEGACY_DEPRECATION_DATE}"'
+    )
 
 
 def _session_payload(session) -> dict[str, object]:
@@ -520,6 +529,64 @@ def build_system_router(
                 "activation": issued.get("activation"),
             }
         return {"ok": True, "onboarding_status": "invalid"}
+
+    @router.post("/system/ai-nodes/onboarding/sessions", include_in_schema=False)
+    def legacy_start_ai_node_onboarding_session(body: NodeOnboardingStartRequest, request: Request, response: Response):
+        _apply_legacy_deprecation_headers(response)
+        return start_node_onboarding_session(body, request)
+
+    @router.get("/system/ai-nodes/onboarding/sessions", include_in_schema=False)
+    def legacy_list_ai_node_onboarding_sessions(
+        request: Request,
+        response: Response,
+        state: str | None = Query(default=None),
+        x_admin_token: str | None = Header(default=None),
+    ):
+        _apply_legacy_deprecation_headers(response)
+        return list_node_onboarding_sessions(request, state=state, x_admin_token=x_admin_token)
+
+    @router.get("/system/ai-nodes/onboarding/sessions/{session_id}", include_in_schema=False)
+    def legacy_get_ai_node_onboarding_session(
+        session_id: str,
+        request: Request,
+        response: Response,
+        state: str = Query(...),
+        x_admin_token: str | None = Header(default=None),
+    ):
+        _apply_legacy_deprecation_headers(response)
+        return get_node_onboarding_session(session_id, request, state=state, x_admin_token=x_admin_token)
+
+    @router.post("/system/ai-nodes/onboarding/sessions/{session_id}/approve", include_in_schema=False)
+    def legacy_approve_ai_node_onboarding_session(
+        session_id: str,
+        request: Request,
+        response: Response,
+        state: str = Query(...),
+        x_admin_token: str | None = Header(default=None),
+    ):
+        _apply_legacy_deprecation_headers(response)
+        return approve_node_onboarding_session(session_id, request, state=state, x_admin_token=x_admin_token)
+
+    @router.post("/system/ai-nodes/onboarding/sessions/{session_id}/reject", include_in_schema=False)
+    def legacy_reject_ai_node_onboarding_session(
+        session_id: str,
+        body: NodeOnboardingRejectRequest,
+        request: Request,
+        response: Response,
+        state: str = Query(...),
+        x_admin_token: str | None = Header(default=None),
+    ):
+        _apply_legacy_deprecation_headers(response)
+        return reject_node_onboarding_session(session_id, body, request, state=state, x_admin_token=x_admin_token)
+
+    @router.get("/system/ai-nodes/onboarding/sessions/{session_id}/finalize", include_in_schema=False)
+    def legacy_finalize_ai_node_onboarding_session(
+        session_id: str,
+        response: Response,
+        node_nonce: str = Query(...),
+    ):
+        _apply_legacy_deprecation_headers(response)
+        return finalize_node_onboarding_session(session_id, node_nonce=node_nonce)
 
     @router.get("/system/addons/runtime")
     def list_standalone_runtimes(

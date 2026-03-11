@@ -424,3 +424,4 @@
 2026-03-11 - Task 451: migrated trust issuance/finalization to global node model with node_type metadata and trusted-status promotion.
 2026-03-11 - Task 452: updated bootstrap payload to advertise global node onboarding/registration endpoints plus legacy AI-node compatibility metadata.
 2026-03-11 - Task 453: generalized onboarding approval/settings UI for multi-node-type context and added global approval route.
+2026-03-11 - Task 454: implemented AI-node compatibility alias routes with Warning/Deprecation/Sunset headers and created migration guide.

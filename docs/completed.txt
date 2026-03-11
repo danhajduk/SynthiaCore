@@ -478,3 +478,4 @@
 2026-03-11 - Task 451: made trust issuance node-type-aware with extensible activation profile and updated finalize flow to mark bound registrations as trusted.
 2026-03-11 - Task 452: updated MQTT bootstrap announcement with global onboarding endpoint metadata and legacy AI-node compatibility keys.
 2026-03-11 - Task 453: updated Core UI to global node onboarding language, added generic node-field rendering with legacy fallback, and added global approval route alias.
+2026-03-11 - Task 454: added legacy AI-node onboarding alias routes with deprecation/sunset headers and documented migration/sunset plan.

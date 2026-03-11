@@ -94,6 +94,24 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         self.assertIn("expires_at", session)
         self.assertEqual(session["finalize"]["method"], "GET")
         self.assertIn("/api/system/nodes/onboarding/sessions/", session["finalize"]["path"])
+        self.assertIn("/onboarding/registrations/approve", session["approval_url"])
+
+    def test_legacy_ai_node_alias_routes_emit_deprecation_headers(self) -> None:
+        started = self.client.post("/api/system/ai-nodes/onboarding/sessions", json=self._payload())
+        self.assertEqual(started.status_code, 200, started.text)
+        self.assertEqual(started.headers.get("Deprecation"), "true")
+        self.assertEqual(started.headers.get("Sunset"), "2026-09-30")
+        self.assertIn("deprecated", str(started.headers.get("Warning") or "").lower())
+
+        session_id = started.json()["session"]["session_id"]
+        approval_url = started.json()["session"]["approval_url"]
+        state = approval_url.split("state=", 1)[1]
+        approved = self.client.post(
+            f"/api/system/ai-nodes/onboarding/sessions/{session_id}/approve?state={state}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(approved.status_code, 200, approved.text)
+        self.assertEqual(approved.headers.get("Deprecation"), "true")
 
     def test_duplicate_active_session(self) -> None:
         first = self.client.post("/api/system/nodes/onboarding/sessions", json=self._payload())
