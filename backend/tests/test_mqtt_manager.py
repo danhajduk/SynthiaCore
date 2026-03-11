@@ -285,6 +285,26 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(bool(item["retained_seen"]))
         self.assertIn("runtime_messages", item["sources"])
         self.assertIn("retained", item["sources"])
+        runtime = await manager.principal_connection_states()
+        self.assertIn("user:external", runtime)
+        self.assertTrue(runtime["user:external"]["connected"])
+
+    async def test_generic_topic_activity_marks_generic_principal_connected(self) -> None:
+        manager = MqttManager(
+            settings_store=_FakeSettingsStore(),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        manager._loop = asyncio.get_running_loop()
+        manager._on_message(None, None, _Msg("frigate/events", {"ok": True}, retain=False))
+        runtime = await manager.principal_connection_states()
+        self.assertIn("user:frigate", runtime)
+        self.assertTrue(runtime["user:frigate"]["connected"])
+        sessions = await manager.runtime_sessions()
+        by_client = {str(item["client_id"]): item for item in sessions["items"]}
+        self.assertIn("frigate", by_client)
+        self.assertEqual(by_client["frigate"]["principal_id"], "user:frigate")
 
     async def test_topic_activity_limit_prefers_most_recent_topics(self) -> None:
         manager = MqttManager(

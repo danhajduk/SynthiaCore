@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -31,6 +32,8 @@ MQTT_SUBSCRIPTIONS = [
     ("$SYS/broker/clients/connected", 0),
     ("$SYS/broker/clients/disconnected", 0),
 ]
+
+_GENERIC_TOPIC_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 
 
 @dataclass
@@ -493,6 +496,15 @@ class MqttManager:
         if topic.startswith("$SYS/broker/"):
             self._update_broker_metrics(topic=topic, payload=payload, decoded=decoded)
             return
+        inferred_principal = self._infer_generic_principal_from_topic(topic)
+        if inferred_principal is not None:
+            inferred_client = inferred_principal.split(":", 1)[1]
+            self._touch_principal_runtime(inferred_principal, client_id=inferred_client)
+            self._record_principal_traffic(
+                principal_id=inferred_principal,
+                topic=topic,
+                payload_size=len(getattr(msg, "payload", b"") or b""),
+            )
         parts = topic.split("/")
         if len(parts) >= 4 and parts[0] == "synthia" and parts[1] == "addons":
             addon_id = parts[2]
@@ -510,6 +522,20 @@ class MqttManager:
         if len(parts) >= 4 and parts[0] == "synthia" and parts[1] == "services" and parts[3] == "catalog":
             service_name = parts[2]
             self._dispatch_service_catalog_update(service_name, payload)
+
+    @staticmethod
+    def _infer_generic_principal_from_topic(topic: str) -> str | None:
+        normalized = str(topic or "").strip()
+        if not normalized:
+            return None
+        if normalized.startswith("$SYS/") or normalized.startswith("synthia/"):
+            return None
+        head = normalized.split("/", 1)[0].strip()
+        if not head:
+            return None
+        if not _GENERIC_TOPIC_SEGMENT_RE.match(head):
+            return None
+        return f"user:{head}"
 
     def _record_topic_activity(self, *, topic: str, retained: bool) -> None:
         normalized = str(topic or "").strip()
