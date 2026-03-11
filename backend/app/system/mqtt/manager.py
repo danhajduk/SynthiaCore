@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import time
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -88,6 +89,9 @@ class MqttManager:
         }
         self._principal_traffic_windows: dict[str, dict[str, Any]] = {}
         self._topic_activity: dict[str, dict[str, Any]] = {}
+        self._error_count = 0
+        self._stats_history: deque[dict[str, Any]] = deque(maxlen=50000)
+        self._stats_retention_s = 24 * 60 * 60
 
     async def start(self) -> None:
         if not self._enabled:
@@ -123,6 +127,8 @@ class MqttManager:
         except Exception as e:
             self._connected = False
             self._last_error = f"connect_failed:{type(e).__name__}"
+            self._error_count += 1
+            self._record_stats_sample()
             log.exception("MQTT restart failed")
 
     async def status(self) -> dict[str, Any]:
@@ -240,6 +246,32 @@ class MqttManager:
         if len(items) > max_items:
             items = items[-max_items:]
         return {"ok": True, "items": items}
+
+    async def runtime_stats_history(self, *, hours: int = 24, limit: int = 1440) -> dict[str, Any]:
+        self._prune_stats_history()
+        window_hours = max(1, min(int(hours), 24))
+        max_items = max(1, min(int(limit), 5000))
+        since_epoch = time.time() - (window_hours * 60 * 60)
+        items = [
+            item
+            for item in self._stats_history
+            if float(item.get("_ts_epoch") or 0.0) >= since_epoch
+        ]
+        if len(items) > max_items:
+            items = items[-max_items:]
+        return {
+            "ok": True,
+            "hours": window_hours,
+            "items": [
+                {
+                    "timestamp": item.get("timestamp"),
+                    "messages_per_second": item.get("messages_per_second"),
+                    "connected_clients": item.get("connected_clients"),
+                    "errors": item.get("errors"),
+                }
+                for item in items
+            ],
+        }
 
     async def debug_connection_config(self) -> dict[str, Any]:
         cfg = self._config or await self._load_config()
@@ -387,11 +419,13 @@ class MqttManager:
             self._last_error = f"connect_rc:{rc}"
             if rc in {4, 5, 134, 135}:
                 self._auth_failures += 1
+                self._error_count += 1
             self._record_observability_event(
                 event_type="connection_failed",
                 severity="warn",
                 metadata={"reason_code": rc},
             )
+            self._record_stats_sample()
             return
         now = time.monotonic()
         if self._last_connected_monotonic is not None and (now - self._last_connected_monotonic) < 60.0:
@@ -408,6 +442,7 @@ class MqttManager:
             severity="info",
             metadata={"reason_code": rc},
         )
+        self._record_stats_sample()
 
     def _on_disconnect(self, client: Any, userdata: Any, disconnect_flags: Any, reason_code: Any, properties: Any = None) -> None:
         self._connected = False
@@ -416,11 +451,13 @@ class MqttManager:
         self._mark_principal_runtime_disconnected("core.runtime", client_id=client_id)
         if rc != 0:
             self._last_error = f"disconnect_rc:{rc}"
+            self._error_count += 1
             self._record_observability_event(
                 event_type="disconnect_error",
                 severity="warn",
                 metadata={"reason_code": rc},
             )
+            self._record_stats_sample()
 
     @staticmethod
     def _reason_code_value(reason_code: Any) -> int:
@@ -604,12 +641,15 @@ class MqttManager:
         if topic == "$SYS/broker/clients/connected":
             self._sys_clients_connected = value_int
             self._broker_metrics["connected_clients"] = value_int
+            self._record_stats_sample()
             return
         if topic == "$SYS/broker/clients/disconnected":
             self._sys_clients_disconnected = value_int
+            self._record_stats_sample()
             return
         if topic == "$SYS/broker/uptime":
             self._broker_metrics["broker_uptime"] = value_raw or None
+            self._record_stats_sample()
             return
         lowered = topic.lower()
         if "dropped" in lowered and value_int is not None:
@@ -636,6 +676,38 @@ class MqttManager:
                 self._broker_metrics["message_rate"] = round(delta / dt, 3)
             self._broker_metrics["_counter_total"] = current_total
             self._broker_metrics["_counter_at"] = now
+        self._record_stats_sample()
+
+    def _record_stats_sample(self) -> None:
+        now = time.time()
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+        sample = {
+            "_ts_epoch": now,
+            "timestamp": timestamp,
+            "messages_per_second": self._broker_metrics.get("message_rate"),
+            "connected_clients": self._broker_metrics.get("connected_clients"),
+            "errors": int(self._error_count),
+        }
+        last = self._stats_history[-1] if self._stats_history else None
+        if isinstance(last, dict):
+            # Avoid high-frequency duplicates with no metric changes.
+            if (
+                sample.get("messages_per_second") == last.get("messages_per_second")
+                and sample.get("connected_clients") == last.get("connected_clients")
+                and sample.get("errors") == last.get("errors")
+                and (now - float(last.get("_ts_epoch") or 0.0)) < 1.0
+            ):
+                return
+        self._stats_history.append(sample)
+        self._prune_stats_history()
+
+    def _prune_stats_history(self) -> None:
+        cutoff = time.time() - float(self._stats_retention_s)
+        while self._stats_history:
+            first = self._stats_history[0]
+            if float(first.get("_ts_epoch") or 0.0) >= cutoff:
+                break
+            self._stats_history.popleft()
 
     def _dispatch_registry_update(self, addon_id: str, payload: dict[str, Any], announce: bool) -> None:
         loop = self._loop

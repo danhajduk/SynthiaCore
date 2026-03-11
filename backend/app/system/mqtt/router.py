@@ -852,6 +852,27 @@ def build_mqtt_router(
             "items": list(payload.get("items") or []),
         }
 
+    @router.get("/mqtt/runtime/stats/history")
+    @router.get("/runtime/stats/history")
+    async def mqtt_runtime_stats_history(
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+        hours: int = 24,
+        limit: int = 1440,
+    ):
+        require_admin_token(x_admin_token, request)
+        history_fn = getattr(manager, "runtime_stats_history", None)
+        if not callable(history_fn):
+            return {"ok": True, "hours": max(1, min(int(hours), 24)), "items": []}
+        payload = await history_fn(hours=hours, limit=limit)
+        if not isinstance(payload, dict):
+            return {"ok": True, "hours": max(1, min(int(hours), 24)), "items": []}
+        return {
+            "ok": bool(payload.get("ok", True)),
+            "hours": int(payload.get("hours") or max(1, min(int(hours), 24))),
+            "items": list(payload.get("items") or []),
+        }
+
     async def _runtime_mitigation_action(
         *,
         principal_id: str,

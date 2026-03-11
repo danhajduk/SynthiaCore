@@ -385,3 +385,6 @@
 2026-03-10 - Task 374: added runtime config viewer aliases and Runtime UI action to display broker.conf/acl_compiled.conf/passwords.conf.
 2026-03-10 - Task 375: completed Overview dashboard metric set with explicit Total Principals and Recent Errors cards.
 2026-03-10 - Task 376: added generic users export/import API + UI actions with full pre-validation before applying imports.
+2026-03-11 - Task 377: added runtime topic explorer API and hierarchical Topics tab sourced from runtime/retained observations.
+2026-03-11 - Task 378: added runtime rebuild safety checks with active-client blocking and force override in API/UI.
+2026-03-11 - Task 379: added runtime traffic statistics history (24h retention) with messages/sec, connected clients, and errors endpoint.

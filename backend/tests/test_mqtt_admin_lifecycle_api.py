@@ -72,6 +72,20 @@ class _FakeMqttManager:
             ],
         }
 
+    async def runtime_stats_history(self, *, hours: int = 24, limit: int = 1440):
+        return {
+            "ok": True,
+            "hours": max(1, min(int(hours), 24)),
+            "items": [
+                {
+                    "timestamp": "2026-03-11T00:00:00Z",
+                    "messages_per_second": 2.5,
+                    "connected_clients": 3,
+                    "errors": 0,
+                }
+            ],
+        }
+
 
 class _FakeRuntimeReconciler:
     def __init__(self) -> None:
@@ -364,6 +378,14 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertTrue(payload["items"])
         self.assertEqual(payload["items"][0]["topic"], "external/test/events")
+
+    def test_runtime_stats_history_endpoint(self) -> None:
+        history = self.client.get("/api/system/runtime/stats/history", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(history.status_code, 200, history.text)
+        payload = history.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["hours"], 24)
+        self.assertTrue(payload["items"])
 
     def test_topic_scope_rejection_writes_violation_audit(self) -> None:
         rejected = self.client.post(

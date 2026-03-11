@@ -411,3 +411,6 @@
 2026-03-10 - Task 374: added runtime config viewer endpoint aliases (`/api/system/runtime/config`, `/api/system/mqtt/runtime/config`) and Runtime UI "View Runtime Config" action rendering key generated files.
 2026-03-10 - Task 375: finalized Overview metrics dashboard by adding `Recent Errors` and explicit `Total Principals` cards (connected clients/message rate/broker uptime already present).
 2026-03-10 - Task 376: implemented generic-user export/import (`/api/system/mqtt/users/export`, `/api/system/mqtt/users/import`) with structure/topic validation before apply, plus Users toolbar export/import actions in embedded UI.
+2026-03-11 - Task 377: implemented MQTT topic explorer using runtime topic activity (`/api/system/runtime/topics`) and new Topics UI tab with hierarchical tree + observed-topic table.
+2026-03-11 - Task 378: added rebuild safety guard that blocks runtime rebuild while active non-core clients exist unless `force=true`, plus UI confirm/retry flow.
+2026-03-11 - Task 379: implemented 24-hour runtime stats history tracking in manager and exposed `/api/system/runtime/stats/history` (`messages_per_second`, `connected_clients`, `errors`).

@@ -285,6 +285,27 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertIn("runtime_messages", item["sources"])
         self.assertIn("retained", item["sources"])
 
+    async def test_runtime_stats_history_tracks_message_rate_clients_and_errors(self) -> None:
+        manager = MqttManager(
+            settings_store=_FakeSettingsStore(),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        manager._loop = asyncio.get_running_loop()
+        manager._on_message(None, None, _Msg("$SYS/broker/clients/connected", 4))
+        manager._on_message(None, None, _Msg("$SYS/broker/messages/sent", 100))
+        manager._on_message(None, None, _Msg("$SYS/broker/messages/received", 120))
+        manager._on_disconnect(None, None, None, 5)
+        history = await manager.runtime_stats_history(hours=24, limit=100)
+        self.assertTrue(history["ok"])
+        self.assertTrue(history["items"])
+        sample = history["items"][-1]
+        self.assertIn("timestamp", sample)
+        self.assertIn("messages_per_second", sample)
+        self.assertIn("connected_clients", sample)
+        self.assertIn("errors", sample)
+
     async def test_on_connect_accepts_reason_code_object(self) -> None:
         manager = MqttManager(
             settings_store=_FakeSettingsStore(),
