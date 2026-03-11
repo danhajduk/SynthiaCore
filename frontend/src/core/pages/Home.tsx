@@ -100,6 +100,18 @@ type NodeRegistrationSummary = {
   registry_state?: string;
 };
 
+export const HOME_STATUS_TILE_TITLES = [
+  "Core",
+  "Supervisor",
+  "MQTT",
+  "Scheduler",
+  "Workers",
+  "Addons",
+  "Network",
+  "Internet",
+  "AI Node",
+] as const;
+
 function fmtUptime(sec: number): string {
   const h = sec / 3600;
   if (h < 48) return `${h.toFixed(1)}h`;
@@ -542,7 +554,7 @@ export default function Home() {
   );
 }
 
-function StatusMini({
+export function StatusMini({
   title,
   icon: Icon,
   tone = "neutral",
