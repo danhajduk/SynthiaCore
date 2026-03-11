@@ -573,6 +573,16 @@ def addon_ui_root() -> str:
       return `${num.toFixed(3)} msg/sec`;
     }
 
+    function avgMsgRateFromHistory(payload) {
+      const items = Array.isArray(payload && payload.items) ? payload.items : [];
+      const values = items
+        .map((item) => Number(item && item.messages_per_second))
+        .filter((value) => Number.isFinite(value) && value >= 0);
+      if (values.length === 0) return null;
+      const total = values.reduce((sum, value) => sum + value, 0);
+      return total / values.length;
+    }
+
     function gateIsActive(summary) {
       const setup = summary && summary.setup ? summary.setup : {};
       return Boolean(setup.requires_setup) && !Boolean(setup.setup_complete);
@@ -1203,17 +1213,19 @@ def addon_ui_root() -> str:
     }
 
     async function loadOverviewPayload() {
-      const [principals, noisy, audit, runtimeHealth] = await Promise.all([
+      const [principals, noisy, audit, runtimeHealth, runtimeStats] = await Promise.all([
         fetchJson("/api/system/mqtt/principals"),
         fetchJson("/api/system/mqtt/noisy-clients"),
         fetchJson("/api/system/mqtt/audit?limit=20"),
         fetchJson("/api/system/runtime/health"),
+        fetchJson("/api/system/runtime/stats/history?hours=1&limit=3600"),
       ]);
       return {
         principals: Array.isArray(principals.items) ? principals.items : [],
         noisy: Array.isArray(noisy.items) ? noisy.items : [],
         audit: Array.isArray(audit.items) ? audit.items : [],
         brokerMetrics: runtimeHealth && runtimeHealth.broker_metrics ? runtimeHealth.broker_metrics : {},
+        avgMessageRate: avgMsgRateFromHistory(runtimeStats),
       };
     }
 
@@ -1430,7 +1442,8 @@ def addon_ui_root() -> str:
             { k: "Recent Audit", v: auditItems.length },
             { k: "Recent Errors", v: recentErrors.length },
             { k: "Connected Clients", v: brokerMetrics.connected_clients ?? "-" },
-            { k: "Message Rate", v: formatMsgRate(brokerMetrics.message_rate) },
+            { k: "Current Message Rate", v: formatMsgRate(brokerMetrics.message_rate) },
+            { k: "Avg Message Rate", v: formatMsgRate(overview.avgMessageRate) },
             { k: "Dropped Messages", v: brokerMetrics.dropped_messages ?? "-" },
             { k: "Retained Messages", v: brokerMetrics.retained_messages ?? "-" },
             { k: "Broker Uptime", v: brokerMetrics.broker_uptime || "-" },
