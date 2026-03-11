@@ -44,6 +44,7 @@ export default function OnboardingNodeApproval() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<"approve" | "reject" | null>(null);
+  const [approvalWaitMsg, setApprovalWaitMsg] = useState<string | null>(null);
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
@@ -127,6 +128,7 @@ export default function OnboardingNodeApproval() {
     if (!session || actionBusy) return;
     setActionBusy(action);
     setActionError(null);
+    setApprovalWaitMsg(null);
     try {
       const suffix = query ? `?${query}` : "";
       const payload = action === "reject" ? { rejection_reason: "operator_rejected" } : undefined;
@@ -144,13 +146,60 @@ export default function OnboardingNodeApproval() {
         const detail = typeof body?.detail === "string" ? body.detail : body?.detail?.error || `HTTP ${res.status}`;
         throw new Error(detail);
       }
+      if (action === "approve") {
+        setApprovalWaitMsg("Approval recorded. Waiting for node finalization...");
+        await waitForApprovalFinalization(session.session_id);
+      }
       notifyParent(action, session.session_id);
       closeApprovalWindow();
     } catch (e: unknown) {
       setActionError(e instanceof Error ? e.message : String(e));
     } finally {
       setActionBusy(null);
+      setApprovalWaitMsg(null);
     }
+  }
+
+  async function waitForApprovalFinalization(sessionId: string): Promise<void> {
+    const suffix = query ? `?${query}` : "";
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      const sessionRes = await fetch(
+        `/api/system/nodes/onboarding/sessions/${encodeURIComponent(sessionId)}${suffix}`,
+        { credentials: "include", cache: "no-store" },
+      );
+      const sessionBody = await sessionRes.json().catch(() => ({}));
+      if (!sessionRes.ok) {
+        const detail =
+          typeof sessionBody?.detail === "string"
+            ? sessionBody.detail
+            : sessionBody?.detail?.error || `HTTP ${sessionRes.status}`;
+        throw new Error(detail);
+      }
+      const latest = (sessionBody as { session?: ApprovalSession }).session || null;
+      setSession(latest);
+      const stateNow = String(latest?.session_state || "").toLowerCase();
+      if (stateNow === "consumed") return;
+
+      const linkedNodeId = String(latest?.linked_node_id || "").trim();
+      if (linkedNodeId) {
+        const nodeRes = await fetch(`/api/system/nodes/registry`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const nodeBody = await nodeRes.json().catch(() => ({}));
+        if (nodeRes.ok) {
+          const items = Array.isArray((nodeBody as { items?: unknown[] }).items)
+            ? ((nodeBody as { items?: Array<Record<string, unknown>> }).items as Array<Record<string, unknown>>)
+            : [];
+          const node = items.find((item) => String(item?.node_id || "").trim() === linkedNodeId) || null;
+          const registryState = String(node?.registry_state || node?.trust_status || "").toLowerCase();
+          if (registryState === "trusted") return;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
+    throw new Error("approval_finalize_timeout");
   }
 
   if (!sid || !state) {
@@ -245,7 +294,9 @@ export default function OnboardingNodeApproval() {
               disabled={session.session_state !== "pending" || actionBusy !== null}
               onClick={() => void decide("approve")}
             >
-              {actionBusy === "approve" ? "Approving..." : "Approve"}
+              {actionBusy === "approve"
+                ? approvalWaitMsg || "Approving..."
+                : "Approve"}
             </button>
             <button
               className="addon-btn"
@@ -256,6 +307,7 @@ export default function OnboardingNodeApproval() {
               {actionBusy === "reject" ? "Rejecting..." : "Reject"}
             </button>
           </div>
+          {approvalWaitMsg && actionBusy === "approve" && <div className="onboard-meta">{approvalWaitMsg}</div>}
           {actionError && <div className="onboard-error">{actionError}</div>}
         </div>
       )}
