@@ -1,5 +1,5 @@
 [Unit]
-Description=Synthia Frontend Dev Service (Vite on 5173)
+Description=Synthia Frontend Dev Service (Vite on 80)
 After=network.target
 
 [Service]
@@ -8,7 +8,7 @@ WorkingDirectory=@INSTALL_DIR@/frontend
 # Optional override: set VITE_API_TARGET in ~/.config/synthia/frontend.env
 EnvironmentFile=-%h/.config/synthia/frontend.env
 EnvironmentFile=-@INSTALL_DIR@/scripts/synthia.env
-ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 5173
+ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 80
 Restart=always
 RestartSec=2
 

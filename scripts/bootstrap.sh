@@ -199,6 +199,6 @@ fi
 
 echo "[bootstrap] Done."
 echo "Backend:  http://$(hostname -I | awk '{print $1}'):9001/api/health"
-echo "Frontend: http://$(hostname -I | awk '{print $1}'):5173"
+echo "Frontend: http://$(hostname -I | awk '{print $1}')"
 echo "Updater unit installed: synthia-updater.service (trigger via: systemctl --user start synthia-updater.service)"
 echo "Supervisor unit installed: synthia-supervisor.service (trigger via: systemctl --user start synthia-supervisor.service)"

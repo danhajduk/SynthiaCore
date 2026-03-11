@@ -481,3 +481,4 @@
 2026-03-11 - Task 454: added legacy AI-node onboarding alias routes with deprecation/sunset headers and documented migration/sunset plan.
 2026-03-11 - Task 455: expanded onboarding/registration regression tests for multi-node-type lifecycle, trust-status promotion, compatibility aliases, and trust payload profile behavior.
 2026-03-11 - Task 456: updated onboarding/registration documentation to global node model with canonical API/payload contracts, runbook updates, and migration/sunset guidance.
+2026-03-11 14:55 - Task 457: switched core frontend runtime defaults from port 5173 to port 80 across service template, Vite dev config, onboarding approval URL example, and bootstrap/dev operator output.
