@@ -400,3 +400,4 @@
 2026-03-11 - Task 388: updated runbook ACL output examples to reflect normalized anonymous/addon/generic blocks and rebuild-force behavior.
 2026-03-11 - Completed documentation migration tasks 400-420: built canonical doc set, archived superseded legacy docs, and finalized migration map/index/summary artifacts.
 2026-03-11 - Task 429: reviewed onboarding/trust docs and created queued implementation tasks 430-438 for node-login trust establishment.
+2026-03-11 - Task 430: added canonical AI Node onboarding approval architecture document and index links for upcoming implementation tasks.
