@@ -418,3 +418,8 @@
 2026-03-11 - Task 381: implemented ACL normalization pass for duplicate/redundant cleanup, child-deny collapse, safe publish+subscribe merge to `readwrite`, and deterministic ordering.
 2026-03-11 - Task 382: fixed duplicate anonymous/default ACL deny emission (`topic deny #` now emitted once).
 2026-03-11 - Task 383: fixed duplicate generic-user reserved-topic deny emission by collapsing overlapping deny topics/actions.
+2026-03-11 - Task 384: made generic-user ACL access-mode behavior explicit: `private`/`custom` scoped rules, `non_reserved` via `readwrite #` + canonical reserved denies, and `admin` full access without reserved overlays.
+2026-03-11 - Task 385: centralized canonical reserved-prefix list (including `$SYS/#`) and reused it in effective-access + ACL normalization collapse logic.
+2026-03-11 - Task 386: added normalized effective-access debug surface (`/api/system/mqtt/debug/effective-access-normalized/{principal_id}`) and normalized payloads on existing effective-access endpoints.
+2026-03-11 - Task 387: added ACL regression tests for anonymous deny dedupe, duplicate `synthia/#` removal, child-deny collapse, `readwrite` merge, and non_reserved/admin semantics.
+2026-03-11 - Task 389: extended permissions API payloads with normalized permission summary fields (`publish_scopes`, `subscribe_scopes`, `reserved_denies`, `normalization_notes`).

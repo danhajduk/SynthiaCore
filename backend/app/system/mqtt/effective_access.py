@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .integration_models import MqttAddonGrant, MqttIntegrationState, MqttPrincipal
-from .topic_families import BOOTSTRAP_TOPIC, is_platform_reserved_topic
+from .topic_families import BOOTSTRAP_TOPIC, canonical_reserved_prefixes, is_platform_reserved_topic
 
 
 def _sorted_unique(items: list[str]) -> list[str]:
@@ -25,20 +25,7 @@ class MqttEffectiveAccessEntry:
 class MqttEffectiveAccessCompiler:
     def __init__(self, *, bootstrap_topic: str = BOOTSTRAP_TOPIC, reserved_prefixes: list[str] | None = None) -> None:
         self._bootstrap_topic = str(bootstrap_topic).strip() or BOOTSTRAP_TOPIC
-        self._reserved_prefixes = _sorted_unique(reserved_prefixes or [
-            "synthia/bootstrap/#",
-            "synthia/runtime/#",
-            "synthia/system/#",
-            "synthia/core/#",
-            "synthia/supervisor/#",
-            "synthia/scheduler/#",
-            "synthia/policy/#",
-            "synthia/telemetry/#",
-            "synthia/events/#",
-            "synthia/remote/#",
-            "synthia/bridges/#",
-            "synthia/import/#",
-        ])
+        self._reserved_prefixes = _sorted_unique(reserved_prefixes or canonical_reserved_prefixes())
 
     def compile(self, state: MqttIntegrationState) -> list[MqttEffectiveAccessEntry]:
         out: list[MqttEffectiveAccessEntry] = [
@@ -95,10 +82,13 @@ class MqttEffectiveAccessCompiler:
             subscribe_topics = _sorted_unique(list(grant.subscribe_topics))
         elif principal.principal_type == "generic_user":
             mode = str(getattr(principal, "access_mode", "private") or "private").strip().lower()
-            generic_non_reserved_only = True
+            generic_non_reserved_only = mode == "non_reserved"
             publish_topics = _sorted_unique([topic for topic in principal.publish_topics if not is_platform_reserved_topic(topic)])
             subscribe_topics = _sorted_unique([topic for topic in principal.subscribe_topics if not is_platform_reserved_topic(topic)])
-            if mode in {"admin", "non_reserved"}:
+            if mode == "admin":
+                publish_topics = ["#"]
+                subscribe_topics = ["#"]
+            elif mode == "non_reserved":
                 publish_topics = ["#"]
                 subscribe_topics = ["#"]
             if mode == "custom":
@@ -120,7 +110,7 @@ class MqttEffectiveAccessCompiler:
                     publish_topics = list(custom_publish_topics)
                 if custom_subscribe_topics:
                     subscribe_topics = list(custom_subscribe_topics)
-            reserved_denies = list(self._reserved_prefixes)
+            reserved_denies = [] if mode == "admin" else list(self._reserved_prefixes)
         else:
             return None
 

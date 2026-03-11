@@ -5,24 +5,10 @@ from typing import Iterable
 
 from .effective_access import MqttEffectiveAccessCompiler, MqttEffectiveAccessEntry
 from .integration_models import MqttIntegrationState
-from .topic_families import BOOTSTRAP_TOPIC
+from .topic_families import BOOTSTRAP_TOPIC, canonical_reserved_prefixes
 
 
-DEFAULT_RESERVED_PREFIXES: tuple[str, ...] = (
-    "synthia/#",
-    "synthia/bootstrap/#",
-    "synthia/runtime/#",
-    "synthia/system/#",
-    "synthia/core/#",
-    "synthia/supervisor/#",
-    "synthia/scheduler/#",
-    "synthia/policy/#",
-    "synthia/telemetry/#",
-    "synthia/events/#",
-    "synthia/remote/#",
-    "synthia/bridges/#",
-    "synthia/import/#",
-)
+DEFAULT_RESERVED_PREFIXES: tuple[str, ...] = tuple(canonical_reserved_prefixes())
 DEFAULT_BOOTSTRAP_TOPIC = BOOTSTRAP_TOPIC
 
 
@@ -45,11 +31,13 @@ class MqttAclCompilationResult:
 class NormalizedEffectiveAccess:
     principal_id: str
     principal_type: str
+    access_mode: str | None
     bootstrap_only: bool
     all_non_reserved: bool
     read_rules: list[str]
     write_rules: list[str]
     deny_rules: list[str]
+    normalization_notes: list[str]
 
 
 def _sorted_unique(items: Iterable[str]) -> list[str]:
@@ -72,7 +60,7 @@ class MqttAclCompiler:
 
     def compile(self, state: MqttIntegrationState) -> MqttAclCompilationResult:
         entries = self._effective_access.compile(state)
-        normalized_model = self._normalize_effective_access_model(self._build_effective_access_model(entries))
+        normalized_model = self._normalize_effective_access_model(self._build_effective_access_model(state, entries))
         rules = self._render_mosquitto_rules(normalized_model)
         normalized = self._normalize_rules(rules)
         return MqttAclCompilationResult(rules=normalized, acl_text=self._to_acl_text(state, normalized), effective_access=entries)
@@ -80,27 +68,49 @@ class MqttAclCompiler:
     def compile_effective_access(self, state: MqttIntegrationState) -> list[MqttEffectiveAccessEntry]:
         return self._effective_access.compile(state)
 
+    def compile_normalized_effective_access(self, state: MqttIntegrationState) -> list[NormalizedEffectiveAccess]:
+        entries = self._effective_access.compile(state)
+        return self._normalize_effective_access_model(self._build_effective_access_model(state, entries))
+
     def inspect_effective_access(self, state: MqttIntegrationState, principal_id: str) -> MqttEffectiveAccessEntry | None:
         return self._effective_access.inspect_principal(state, principal_id)
 
+    def inspect_normalized_effective_access(self, state: MqttIntegrationState, principal_id: str) -> NormalizedEffectiveAccess | None:
+        model = self.compile_normalized_effective_access(state)
+        for item in model:
+            if item.principal_id == principal_id:
+                return item
+        return None
+
     @staticmethod
-    def _build_effective_access_model(entries: list[MqttEffectiveAccessEntry]) -> list[NormalizedEffectiveAccess]:
+    def _build_effective_access_model(state: MqttIntegrationState, entries: list[MqttEffectiveAccessEntry]) -> list[NormalizedEffectiveAccess]:
         model: list[NormalizedEffectiveAccess] = []
         for entry in entries:
             deny_rules: list[str] = []
+            notes: list[str] = []
+            access_mode: str | None = None
             if entry.principal_id == "anonymous":
                 deny_rules = ["#"]
+                access_mode = "bootstrap_only"
             elif entry.principal_type == "generic_user":
                 deny_rules = list(entry.reserved_prefix_denies)
+                principal = state.principals.get(entry.principal_id)
+                access_mode = str(getattr(principal, "access_mode", "private") or "private").strip().lower()
+                if access_mode == "non_reserved":
+                    notes.append("render_strategy:allow_all_with_reserved_denies")
+                if access_mode == "admin":
+                    notes.append("render_strategy:full_access")
             model.append(
                 NormalizedEffectiveAccess(
                     principal_id=entry.principal_id,
                     principal_type=entry.principal_type,
+                    access_mode=access_mode,
                     bootstrap_only=bool(entry.anonymous_bootstrap_only),
                     all_non_reserved=bool(entry.generic_non_reserved_only),
                     read_rules=_sorted_unique(entry.subscribe_scopes),
                     write_rules=_sorted_unique(entry.publish_scopes),
                     deny_rules=_sorted_unique(deny_rules),
+                    normalization_notes=notes,
                 )
             )
         return model
@@ -113,11 +123,13 @@ class MqttAclCompiler:
                 NormalizedEffectiveAccess(
                     principal_id=entry.principal_id,
                     principal_type=entry.principal_type,
+                    access_mode=entry.access_mode,
                     bootstrap_only=bool(entry.bootstrap_only),
                     all_non_reserved=bool(entry.all_non_reserved),
                     read_rules=_sorted_unique(entry.read_rules),
                     write_rules=_sorted_unique(entry.write_rules),
                     deny_rules=_sorted_unique(entry.deny_rules),
+                    normalization_notes=_sorted_unique(entry.normalization_notes),
                 )
             )
         return normalized
@@ -206,7 +218,7 @@ class MqttAclCompiler:
                 for parent in topics:
                     if parent == topic:
                         continue
-                    if cls._topic_covers(parent, topic):
+                    if cls._is_deny_covered_by_existing(parent, topic):
                         rule = CompiledAclRule(principal_id=key[0], action=key[1], topic=topic, effect="deny")
                         if rule in keep:
                             keep.remove(rule)
@@ -225,6 +237,10 @@ class MqttAclCompiler:
             prefix = p[:-1]
             return c.startswith(prefix)
         return p == c
+
+    @classmethod
+    def _is_deny_covered_by_existing(cls, existing: str, candidate: str) -> bool:
+        return cls._topic_covers(existing, candidate)
 
     @staticmethod
     def _merge_readwrite_rules(rules: list[CompiledAclRule]) -> list[CompiledAclRule]:

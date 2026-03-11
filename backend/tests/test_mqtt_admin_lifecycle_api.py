@@ -436,8 +436,9 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         )
         self.assertEqual(inspect_access.status_code, 200, inspect_access.text)
         payload = inspect_access.json()["effective_access"]
-        self.assertTrue(payload["generic_non_reserved_only"])
+        self.assertFalse(payload["generic_non_reserved_only"])
         self.assertIn("synthia/core/#", payload["reserved_prefix_denies"])
+        self.assertIn("normalized_effective_access", inspect_access.json())
 
         inspect_debug = self.client.get(
             "/api/system/mqtt/debug/effective-access/user:guest2",
@@ -445,6 +446,15 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         )
         self.assertEqual(inspect_debug.status_code, 200, inspect_debug.text)
         self.assertEqual(inspect_debug.json()["principal_id"], "user:guest2")
+        normalized_debug = self.client.get(
+            "/api/system/mqtt/debug/effective-access-normalized/user:guest2",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(normalized_debug.status_code, 200, normalized_debug.text)
+        self.assertEqual(
+            normalized_debug.json()["normalized_effective_access"]["principal_id"],
+            "user:guest2",
+        )
 
         rotate_alias = self.client.post(
             "/api/system/mqtt/users/user:guest2/rotate",
@@ -483,6 +493,9 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertEqual(permissions.status_code, 200, permissions.text)
         self.assertEqual(permissions.json()["permissions"]["principal_id"], principal_id)
         self.assertTrue(permissions.json()["permissions"]["publish_topics"])
+        self.assertIn("publish_scopes", permissions.json()["permissions"])
+        self.assertIn("subscribe_scopes", permissions.json()["permissions"])
+        self.assertIn("reserved_denies", permissions.json()["permissions"])
 
         last_seen = self.client.get(
             f"/api/system/principals/{principal_id}/last_seen",

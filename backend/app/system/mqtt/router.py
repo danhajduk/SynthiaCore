@@ -1207,7 +1207,7 @@ def build_mqtt_router(
             }
         return {"ok": True, "items": items}
 
-    def _principal_permissions_payload(item: dict[str, Any]) -> dict[str, Any]:
+    def _principal_permissions_payload(item: dict[str, Any], normalized: dict[str, Any] | None = None) -> dict[str, Any]:
         allowed_publish_topics = list(item.get("allowed_publish_topics") or [])
         allowed_subscribe_topics = list(item.get("allowed_subscribe_topics") or [])
         allowed_topics = list(item.get("allowed_topics") or [])
@@ -1215,6 +1215,7 @@ def build_mqtt_router(
             allowed_publish_topics = list(allowed_topics)
         if not allowed_subscribe_topics and allowed_topics:
             allowed_subscribe_topics = list(allowed_topics)
+        normalized_payload = dict(normalized or {})
         return {
             "principal_id": str(item.get("principal_id") or ""),
             "principal_type": str(item.get("principal_type") or ""),
@@ -1225,6 +1226,10 @@ def build_mqtt_router(
             "publish_topics": list(item.get("publish_topics") or []),
             "subscribe_topics": list(item.get("subscribe_topics") or []),
             "approved_reserved_topics": list(item.get("approved_reserved_topics") or []),
+            "publish_scopes": list(normalized_payload.get("write_rules") or item.get("publish_topics") or []),
+            "subscribe_scopes": list(normalized_payload.get("read_rules") or item.get("subscribe_topics") or []),
+            "reserved_denies": list(normalized_payload.get("deny_rules") or []),
+            "normalization_notes": list(normalized_payload.get("normalization_notes") or []),
         }
 
     def _principal_last_seen_payload(item: dict[str, Any]) -> dict[str, Any]:
@@ -1266,7 +1271,20 @@ def build_mqtt_router(
         item = await approval.get_principal(principal_id)
         if item is None:
             raise HTTPException(status_code=404, detail="principal_not_found")
-        return {"ok": True, "permissions": _principal_permissions_payload(item)}
+        normalized_payload: dict[str, Any] | None = None
+        compiler = acl_compiler or getattr(runtime_reconciler, "_acl_compiler", None)
+        if compiler is not None and hasattr(compiler, "inspect_normalized_effective_access"):
+            try:
+                state = await state_store.get_state()
+                normalized = compiler.inspect_normalized_effective_access(state, principal_id)
+                if normalized is not None:
+                    normalized_payload = dict(normalized.__dict__)
+            except Exception:
+                normalized_payload = None
+        permissions = _principal_permissions_payload(item, normalized_payload)
+        if normalized_payload is not None:
+            permissions["normalized_effective_access"] = normalized_payload
+        return {"ok": True, "permissions": permissions}
 
     @router.get("/mqtt/principals/{principal_id}/last-seen")
     @router.get("/principals/{principal_id}/last_seen")
@@ -1750,7 +1768,18 @@ def build_mqtt_router(
         access = compiler.inspect_effective_access(state, principal_id)
         if access is None:
             raise HTTPException(status_code=404, detail="principal_not_found")
-        return {"ok": True, "principal_id": principal_id, "effective_access": access.__dict__}
+        normalized = None
+        if hasattr(compiler, "inspect_normalized_effective_access"):
+            try:
+                normalized = compiler.inspect_normalized_effective_access(state, principal_id)
+            except Exception:
+                normalized = None
+        return {
+            "ok": True,
+            "principal_id": principal_id,
+            "effective_access": access.__dict__,
+            "normalized_effective_access": (normalized.__dict__ if normalized is not None else None),
+        }
 
     @router.get("/mqtt/debug/effective-access/{principal_id}")
     async def mqtt_debug_effective_access(
@@ -1766,7 +1795,34 @@ def build_mqtt_router(
         access = compiler.inspect_effective_access(state, principal_id)
         if access is None:
             raise HTTPException(status_code=404, detail="principal_not_found")
-        return {"ok": True, "principal_id": principal_id, "effective_access": access.__dict__}
+        normalized = None
+        if hasattr(compiler, "inspect_normalized_effective_access"):
+            try:
+                normalized = compiler.inspect_normalized_effective_access(state, principal_id)
+            except Exception:
+                normalized = None
+        return {
+            "ok": True,
+            "principal_id": principal_id,
+            "effective_access": access.__dict__,
+            "normalized_effective_access": (normalized.__dict__ if normalized is not None else None),
+        }
+
+    @router.get("/mqtt/debug/effective-access-normalized/{principal_id}")
+    async def mqtt_debug_effective_access_normalized(
+        principal_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        compiler = acl_compiler or getattr(runtime_reconciler, "_acl_compiler", None)
+        if compiler is None or not hasattr(compiler, "inspect_normalized_effective_access"):
+            raise HTTPException(status_code=503, detail="acl_compiler_unavailable")
+        state = await state_store.get_state()
+        normalized = compiler.inspect_normalized_effective_access(state, principal_id)
+        if normalized is None:
+            raise HTTPException(status_code=404, detail="principal_not_found")
+        return {"ok": True, "principal_id": principal_id, "normalized_effective_access": normalized.__dict__}
 
     @router.get("/mqtt/noisy-clients")
     async def mqtt_noisy_clients(request: Request, x_admin_token: str | None = Header(default=None)):

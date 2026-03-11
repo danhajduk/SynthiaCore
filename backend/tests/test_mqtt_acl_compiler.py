@@ -11,6 +11,7 @@ class TestMqttAclCompiler(unittest.TestCase):
         acl = result.acl_text
         self.assertIn("topic read synthia/bootstrap/core", acl)
         self.assertIn("topic deny #", acl)
+        self.assertEqual(acl.count("topic deny #"), 1)
         self.assertGreaterEqual(len(result.effective_access), 1)
 
     def test_compiles_active_synthia_principal_rules(self) -> None:
@@ -60,6 +61,8 @@ class TestMqttAclCompiler(unittest.TestCase):
         compiler = MqttAclCompiler()
         acl = compiler.compile(state).acl_text
         self.assertIn("topic deny synthia/#", acl)
+        self.assertIn("topic deny $SYS/#", acl)
+        self.assertEqual(acl.count("topic deny synthia/#"), 1)
 
     def test_collapses_redundant_deny_children_under_parent(self) -> None:
         rules = [
@@ -92,6 +95,68 @@ class TestMqttAclCompiler(unittest.TestCase):
         )
         acl = MqttAclCompiler().compile(state).acl_text
         self.assertIn("topic readwrite external/guest/#", acl)
+
+    def test_non_reserved_mode_keeps_deny_strategy_and_admin_mode_is_full_access(self) -> None:
+        state = MqttIntegrationState(
+            principals={
+                "user:nonres": MqttPrincipal(
+                    principal_id="user:nonres",
+                    principal_type="generic_user",
+                    status="active",
+                    logical_identity="nonres",
+                    username="nonres",
+                    access_mode="non_reserved",
+                    publish_topics=["#"],
+                    subscribe_topics=["#"],
+                ),
+                "user:admin": MqttPrincipal(
+                    principal_id="user:admin",
+                    principal_type="generic_user",
+                    status="active",
+                    logical_identity="admin",
+                    username="admin",
+                    access_mode="admin",
+                    publish_topics=["#"],
+                    subscribe_topics=["#"],
+                ),
+            }
+        )
+        compiler = MqttAclCompiler()
+        acl = compiler.compile(state).acl_text
+        self.assertIn("user nonres", acl)
+        self.assertIn("topic readwrite #", acl)
+        self.assertIn("topic deny synthia/#", acl)
+        self.assertIn("topic deny $SYS/#", acl)
+        self.assertIn("user admin", acl)
+        # Admin mode keeps broad allow without reserved deny overlays.
+        admin_section = acl.split("user admin", 1)[1].split("\n\nuser ", 1)[0]
+        self.assertIn("topic readwrite #", admin_section)
+        self.assertNotIn("topic deny synthia/#", admin_section)
+
+    def test_normalized_effective_access_exposes_permission_summary(self) -> None:
+        state = MqttIntegrationState(
+            principals={
+                "user:guest": MqttPrincipal(
+                    principal_id="user:guest",
+                    principal_type="generic_user",
+                    status="active",
+                    logical_identity="guest",
+                    username="guest",
+                    access_mode="non_reserved",
+                    publish_topics=["#"],
+                    subscribe_topics=["#"],
+                )
+            }
+        )
+        normalized = MqttAclCompiler().inspect_normalized_effective_access(state, "user:guest")
+        self.assertIsNotNone(normalized)
+        item = normalized
+        assert item is not None
+        self.assertEqual(item.access_mode, "non_reserved")
+        self.assertTrue(item.all_non_reserved)
+        self.assertIn("#", item.read_rules)
+        self.assertIn("#", item.write_rules)
+        self.assertIn("synthia/#", item.deny_rules)
 
 
 if __name__ == "__main__":

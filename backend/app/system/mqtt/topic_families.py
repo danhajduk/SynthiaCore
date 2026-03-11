@@ -39,6 +39,22 @@ PLATFORM_RESERVED_PREFIXES: tuple[str, ...] = (
     "synthia/bridges/",
     "synthia/import/",
 )
+CANONICAL_RESERVED_PREFIXES: tuple[str, ...] = (
+    "synthia/#",
+    "$SYS/#",
+    "synthia/bootstrap/#",
+    "synthia/runtime/#",
+    "synthia/system/#",
+    "synthia/core/#",
+    "synthia/supervisor/#",
+    "synthia/scheduler/#",
+    "synthia/policy/#",
+    "synthia/telemetry/#",
+    "synthia/events/#",
+    "synthia/remote/#",
+    "synthia/bridges/#",
+    "synthia/import/#",
+)
 TOP_LEVEL_RESERVED_FAMILIES: tuple[str, ...] = (
     "bootstrap",
     "runtime",
@@ -159,3 +175,7 @@ def is_policy_topic_path(topic: str) -> bool:
     if parts[2] not in {"grants", "revocations"}:
         return False
     return bool(parts[3].strip())
+
+
+def canonical_reserved_prefixes() -> list[str]:
+    return sorted({str(item).strip() for item in CANONICAL_RESERVED_PREFIXES if str(item).strip()})

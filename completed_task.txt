@@ -392,3 +392,8 @@
 2026-03-11 - Task 381: added ACL normalization pass (dedupe, redundant deny collapse, deterministic ordering, read+write merge to readwrite).
 2026-03-11 - Task 382: removed duplicate anonymous/default deny emission in compiled ACL output.
 2026-03-11 - Task 383: removed duplicate generic-user reserved-topic deny emission via normalized deny collapse.
+2026-03-11 - Task 384: made generic-user ACL access-mode rendering explicit (private/custom/non_reserved/admin) with deterministic strategy notes.
+2026-03-11 - Task 385: centralized canonical reserved-prefix logic (including $SYS/#) for deny collapse + rendering.
+2026-03-11 - Task 386: added normalized effective-access inspection endpoint and payload fields for debugging.
+2026-03-11 - Task 387: expanded ACL regression coverage for anonymous dedupe, deny collapse, readwrite merge, and mode semantics.
+2026-03-11 - Task 389: exposed normalized permission summary fields (publish/subscribe scopes, reserved denies, access mode, notes) on principal permissions APIs.
