@@ -204,3 +204,15 @@ class NodeTrustIssuanceService:
 
     def revoke_node(self, node_id: str) -> bool:
         return self._store.delete_by_node(node_id) is not None
+
+    def authenticate_node(self, node_id: str, node_trust_token: str) -> NodeTrustRecord | None:
+        node_key = str(node_id or "").strip()
+        token = str(node_trust_token or "").strip()
+        if not node_key or not token:
+            return None
+        record = self._store.get_by_node(node_key)
+        if record is None:
+            return None
+        if str(record.node_trust_token or "").strip() != token:
+            return None
+        return record

@@ -5,6 +5,7 @@ import hashlib
 import os
 import secrets
 import time
+from datetime import datetime, timezone
 from urllib.parse import urlsplit
 from urllib.parse import urlencode
 
@@ -13,7 +14,13 @@ from pydantic import BaseModel
 
 from ..addons.registry import AddonRegistry, list_addons
 from ..system.audit import AuditLogStore
-from ..system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore, NodeTrustIssuanceService
+from ..system.onboarding import (
+    CapabilityManifestValidationError,
+    NodeOnboardingSessionsStore,
+    NodeRegistrationsStore,
+    NodeTrustIssuanceService,
+    validate_capability_declaration,
+)
 from ..system.runtime import StandaloneRuntimeService
 from .admin import require_admin_token
 
@@ -34,6 +41,10 @@ class NodeOnboardingStartRequest(BaseModel):
 
 class NodeOnboardingRejectRequest(BaseModel):
     rejection_reason: str | None = None
+
+
+class NodeCapabilityDeclarationRequest(BaseModel):
+    manifest: dict
 
 
 def _onboarding_error(error: str, message: str, *, retryable: bool = False) -> dict[str, object]:
@@ -99,6 +110,10 @@ def _build_approval_url(request: Request, session_id: str, state: str) -> str:
 
 def _admin_actor(x_admin_token: str | None) -> str:
     return "admin_token" if (x_admin_token or "").strip() else "admin_session"
+
+
+def _utcnow_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 _RATE_WINDOWS: dict[str, list[float]] = {}
@@ -486,6 +501,89 @@ def build_system_router(
             state_filter = str(state).strip().lower()
             payload = [item for item in payload if str(item.get("registry_state") or "").strip().lower() == state_filter]
         return {"ok": True, "items": payload}
+
+    @router.post("/system/nodes/capabilities/declaration")
+    def declare_node_capabilities(
+        body: NodeCapabilityDeclarationRequest,
+        request: Request,
+        x_node_trust_token: str | None = Header(default=None),
+    ):
+        node_token = str(x_node_trust_token or "").strip()
+        if not node_token:
+            raise HTTPException(status_code=401, detail="node_trust_token_required")
+        if node_registrations_store is None:
+            raise HTTPException(status_code=503, detail="node_registrations_unavailable")
+        if node_trust_issuance is None:
+            raise HTTPException(status_code=503, detail="trust_issuance_unavailable")
+
+        try:
+            manifest = validate_capability_declaration(dict(body.manifest or {}))
+        except CapabilityManifestValidationError as exc:
+            detail = str(exc)
+            if "unsupported_capability_manifest_version" in detail:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": "unsupported_capability_version",
+                        "message": detail,
+                    },
+                )
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "invalid_schema",
+                    "message": detail,
+                },
+            )
+
+        node_payload = manifest.get("node") if isinstance(manifest.get("node"), dict) else {}
+        node_id = str(node_payload.get("node_id") or "").strip()
+        if not node_id:
+            raise HTTPException(status_code=400, detail={"error": "invalid_schema", "message": "node_id_required"})
+
+        trust_record = node_trust_issuance.authenticate_node(node_id, node_token)
+        if trust_record is None:
+            raise HTTPException(status_code=403, detail={"error": "untrusted_node", "message": "node not trusted"})
+
+        registration = node_registrations_store.get(node_id)
+        if registration is None:
+            raise HTTPException(status_code=403, detail={"error": "untrusted_node", "message": "node not registered"})
+        if str(registration.trust_status or "").strip().lower() != "trusted":
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "untrusted_node", "message": f"node trust_status is {registration.trust_status}"},
+            )
+
+        registration.declared_capabilities = list(manifest.get("declared_task_families") or [])
+        registration.enabled_providers = list(manifest.get("enabled_providers") or [])
+        registration.capability_declaration_version = str(manifest.get("manifest_version") or "").strip() or None
+        registration.capability_declaration_timestamp = _utcnow_iso()
+        node_registrations_store.upsert(registration)
+
+        _record_audit(
+            audit_store,
+            event_type="node_capability_declaration_accepted",
+            actor_role="node",
+            actor_id=node_id,
+            details={
+                "node_id": node_id,
+                "manifest_version": registration.capability_declaration_version or "",
+                "declared_capability_count": len(registration.declared_capabilities),
+                "enabled_provider_count": len(registration.enabled_providers),
+                "source_ip": str(request.client.host if request.client else "unknown"),
+            },
+        )
+
+        return {
+            "ok": True,
+            "acceptance_status": "accepted",
+            "node_id": node_id,
+            "manifest_version": registration.capability_declaration_version,
+            "accepted_at": registration.capability_declaration_timestamp,
+            "declared_capabilities": list(registration.declared_capabilities),
+            "enabled_providers": list(registration.enabled_providers),
+            "capability_profile_id": registration.capability_profile_id,
+        }
 
     @router.delete("/system/nodes/registrations/{node_id}")
     def delete_node_registration(
