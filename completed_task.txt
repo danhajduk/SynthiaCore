@@ -376,3 +376,4 @@
 2026-03-11 - Task 366: added $SYS broker health metric aggregation, runtime health API metrics payload, and Overview metric cards.
 2026-03-11 - Task 367: implemented traffic-threshold noisy detection (msg/s, payload size, topic count) and surfaced metrics in Noisy Clients UI.
 2026-03-11 - Task 368: added runtime disconnect/block/throttle mitigation endpoints and Noisy Clients UI action controls.
+2026-03-11 - Task 369: added explicit reserved-topic violation audit logging for scope rejections and debug publish blocks.

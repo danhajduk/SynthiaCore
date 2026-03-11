@@ -77,6 +77,12 @@ class MqttRegistrationApprovalService:
                 severity="warn",
                 metadata={"addon_id": addon_id, "errors": topic_errors},
             )
+            await self._append_audit(
+                event_type="mqtt_topic_violation",
+                status="warn",
+                message="addon_scope_rejected",
+                payload={"addon_id": addon_id, "errors": topic_errors},
+            )
             return MqttRegistrationApprovalResult(
                 addon_id=addon_id,
                 status="rejected",
@@ -352,6 +358,12 @@ class MqttRegistrationApprovalService:
             approved_reserved_topics=approved_reserved_topics or [],
         )
         if policy_errors:
+            await self._append_audit(
+                event_type="mqtt_topic_violation",
+                status="warn",
+                message="generic_scope_rejected",
+                payload={"principal_id": principal_id, "errors": policy_errors},
+            )
             return {"ok": False, "error": "generic_user_scope_invalid", "details": policy_errors}
         state = await self._state_store.get_state()
         existing = state.principals.get(principal_id)

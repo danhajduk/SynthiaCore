@@ -267,6 +267,13 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         )
         self.assertEqual(blocked.status_code, 400, blocked.text)
         self.assertIn("reserved_topic_publish_forbidden", blocked.text)
+        self.assertTrue(
+            any(
+                str(item.get("event_type")) == "mqtt_runtime_control"
+                and str(item.get("message")) == "reserved_topic_publish_forbidden"
+                for item in self.audit.items
+            )
+        )
 
         allowed = self.client.post(
             "/api/system/debug/publish",
@@ -277,6 +284,28 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertTrue(allowed.json()["ok"])
         self.assertEqual(allowed.json()["topic"], "external/debug/events")
         self.assertEqual(len(self.manager.published), 1)
+
+    def test_topic_scope_rejection_writes_violation_audit(self) -> None:
+        rejected = self.client.post(
+            "/api/system/mqtt/registrations/approve",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "addon_id": "vision",
+                "access_mode": "gateway",
+                "publish_topics": ["synthia/runtime/health"],
+                "subscribe_topics": ["synthia/addons/vision/command/#"],
+                "capabilities": {},
+            },
+        )
+        self.assertEqual(rejected.status_code, 200, rejected.text)
+        self.assertFalse(rejected.json()["ok"])
+        self.assertTrue(
+            any(
+                str(item.get("event_type")) == "mqtt_topic_violation"
+                and str(item.get("message")) == "addon_scope_rejected"
+                for item in self.audit.items
+            )
+        )
 
     def test_rotate_credentials_and_effective_access_inspection(self) -> None:
         created = asyncio.run(

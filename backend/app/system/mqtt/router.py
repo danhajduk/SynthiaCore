@@ -530,6 +530,12 @@ def build_mqtt_router(
         if not topic:
             raise HTTPException(status_code=400, detail="topic_required")
         if is_platform_reserved_topic(topic):
+            await _audit_runtime_action(
+                action="debug_publish",
+                status="warn",
+                message="reserved_topic_publish_forbidden",
+                payload={"topic": topic},
+            )
             raise HTTPException(status_code=400, detail="reserved_topic_publish_forbidden")
         payload = body.payload
         if isinstance(payload, dict):
