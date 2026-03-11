@@ -408,3 +408,4 @@
 2026-03-11 - Task 435: added onboarding approval UI route/page, admin-gated session details API, and docs updates for login-gated approval flow.
 2026-03-11 - Task 436: wired onboarding approval page actions to persisted approve/reject endpoints and added API docs + regression test coverage updates.
 2026-03-11 - Task 437: added AI Node trust activation payload contract doc with required fields, naming constraints, and validation rules.
+2026-03-11 - Task 438: added onboarding trust store/issuance service, app wiring, trust-issuance tests, and state docs update for node trust records.
