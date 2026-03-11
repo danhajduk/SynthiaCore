@@ -803,6 +803,7 @@ def addon_ui_root() -> str:
       if (normalized === "start") return { method: "POST", url: "/api/system/mqtt/runtime/start" };
       if (normalized === "stop") return { method: "POST", url: "/api/system/mqtt/runtime/stop" };
       if (normalized === "bootstrap") return { method: "POST", url: "/api/system/mqtt/bootstrap/publish" };
+      if (normalized === "view-config") return { method: "GET", url: "/api/system/runtime/config" };
       return { method: "POST", url: "/api/system/mqtt/runtime/rebuild" };
     }
 
@@ -948,6 +949,34 @@ def addon_ui_root() -> str:
         setStatus(`Published to ${topic} (qos=${data.qos}, retain=${data.retain ? "true" : "false"}).`, "ok");
       } catch (error) {
         setStatus(`Debug publish failed: ${error && error.message ? error.message : String(error)}`, "error");
+      }
+    }
+
+    async function runRuntimeConfigView() {
+      setStatus("Loading runtime config...", "");
+      try {
+        const res = await fetch("/api/system/runtime/config", { credentials: "include", cache: "no-store" });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload && payload.detail ? payload.detail : "runtime_config_failed");
+        }
+        const files = payload && payload.files && typeof payload.files === "object" ? payload.files : {};
+        const ordered = ["broker.conf", "acl_compiled.conf", "passwords.conf"];
+        const lines = [];
+        ordered.forEach((name) => {
+          if (!Object.prototype.hasOwnProperty.call(files, name)) return;
+          lines.push(`# ${name}`);
+          lines.push(String(files[name] || ""));
+          lines.push("");
+        });
+        if (lines.length === 0) {
+          lines.push("No runtime config files available.");
+        }
+        const node = document.getElementById("runtime-debug-stream");
+        if (node) node.textContent = lines.join("\\n");
+        setStatus("Runtime config loaded.", "ok");
+      } catch (error) {
+        setStatus(`Runtime config failed: ${error && error.message ? error.message : String(error)}`, "error");
       }
     }
 
@@ -1250,6 +1279,7 @@ def addon_ui_root() -> str:
           `<button data-runtime-action='rebuild'>Rebuild</button>` +
           `<button data-runtime-action='bootstrap'>Publish Bootstrap</button>` +
           `<button data-runtime-action='health'>Check Health</button>` +
+          `<button data-runtime-action='view-config'>View Runtime Config</button>` +
           `<button data-runtime-action='debug-subscribe'>Subscribe to Topic</button>` +
           `<button data-runtime-action='debug-unsubscribe' ${state.debugSubscriptionId ? "" : "disabled"}>Stop Subscription</button>` +
           `</div>` +
@@ -1652,6 +1682,10 @@ def addon_ui_root() -> str:
       }
       if (action === "debug-publish") {
         void runDebugPublish();
+        return;
+      }
+      if (action === "view-config") {
+        void runRuntimeConfigView();
         return;
       }
       void runRuntimeAction(action);

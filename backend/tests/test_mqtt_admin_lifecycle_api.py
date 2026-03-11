@@ -335,6 +335,14 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertEqual(allowed.json()["topic"], "external/debug/events")
         self.assertEqual(len(self.manager.published), 1)
 
+    def test_runtime_config_alias_endpoint(self) -> None:
+        config = self.client.get("/api/system/runtime/config", headers={"X-Admin-Token": "test-token"})
+        self.assertEqual(config.status_code, 200, config.text)
+        payload = config.json()
+        self.assertTrue(payload["ok"])
+        self.assertIn("files", payload)
+        self.assertIsInstance(payload["files"], dict)
+
     def test_topic_scope_rejection_writes_violation_audit(self) -> None:
         rejected = self.client.post(
             "/api/system/mqtt/registrations/approve",

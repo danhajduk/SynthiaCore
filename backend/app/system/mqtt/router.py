@@ -1719,9 +1719,7 @@ def build_mqtt_router(
             "acl_text": compiled.acl_text,
         }
 
-    @router.get("/mqtt/debug/config")
-    async def mqtt_debug_config(request: Request, x_admin_token: str | None = Header(default=None)):
-        require_admin_token(x_admin_token, request)
+    async def _runtime_config_payload() -> dict[str, Any]:
         live_dir = None
         if runtime_reconciler is not None and hasattr(runtime_reconciler, "live_dir"):
             live_dir = runtime_reconciler.live_dir()
@@ -1734,6 +1732,17 @@ def build_mqtt_router(
             if path.exists() and path.is_file():
                 files[name] = path.read_text(encoding="utf-8")
         return {"ok": True, "live_dir": str(base), "files": files}
+
+    @router.get("/mqtt/debug/config")
+    async def mqtt_debug_config(request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
+        return await _runtime_config_payload()
+
+    @router.get("/runtime/config")
+    @router.get("/mqtt/runtime/config")
+    async def mqtt_runtime_config(request: Request, x_admin_token: str | None = Header(default=None)):
+        require_admin_token(x_admin_token, request)
+        return await _runtime_config_payload()
 
     @router.get("/mqtt/debug/authority")
     async def mqtt_debug_authority(request: Request, x_admin_token: str | None = Header(default=None)):

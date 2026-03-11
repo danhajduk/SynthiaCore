@@ -382,3 +382,4 @@
 2026-03-10 - Task 371: enriched MQTT audit events with actor/action/target/result/timestamp and added principal/action filtering in API + UI audit tab.
 2026-03-10 - Task 372: added core principal presence reporting in setup summary and UI warning banner when expected core principals are missing.
 2026-03-10 - Task 373: upgraded runtime debug subscribe stream into a live message monitor with source principal inference, payload preview, and timestamp fields.
+2026-03-10 - Task 374: added runtime config viewer aliases and Runtime UI action to display broker.conf/acl_compiled.conf/passwords.conf.
