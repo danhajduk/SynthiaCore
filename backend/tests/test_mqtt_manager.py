@@ -164,6 +164,7 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(runtime["core.runtime"]["connected"])
         sessions = await manager.runtime_sessions()
         self.assertTrue(any(str(item.get("principal_id")) == "core.runtime" for item in sessions["items"]))
+        self.assertIn(("#", 0), client.subscribed)
 
     async def test_on_connect_failure_does_not_publish_core_info(self) -> None:
         manager = MqttManager(
@@ -284,6 +285,22 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(bool(item["retained_seen"]))
         self.assertIn("runtime_messages", item["sources"])
         self.assertIn("retained", item["sources"])
+
+    async def test_topic_activity_limit_prefers_most_recent_topics(self) -> None:
+        manager = MqttManager(
+            settings_store=_FakeSettingsStore(),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        manager._loop = asyncio.get_running_loop()
+        manager._on_message(None, None, _Msg("z/older", {"ok": True}, retain=False))
+        await asyncio.sleep(0.01)
+        manager._on_message(None, None, _Msg("a/newer", {"ok": True}, retain=False))
+        topics = await manager.topic_activity(limit=1)
+        self.assertTrue(topics["ok"])
+        self.assertEqual(len(topics["items"]), 1)
+        self.assertEqual(topics["items"][0]["topic"], "a/newer")
 
     async def test_runtime_stats_history_tracks_message_rate_clients_and_errors(self) -> None:
         manager = MqttManager(

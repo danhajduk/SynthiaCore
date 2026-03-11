@@ -20,6 +20,7 @@ log = logging.getLogger("synthia.mqtt")
 
 
 MQTT_SUBSCRIPTIONS = [
+    ("#", 0),
     ("synthia/core/mqtt/info", 1),
     ("synthia/addons/+/announce", 1),
     ("synthia/addons/+/health", 1),
@@ -230,21 +231,26 @@ class MqttManager:
 
     async def topic_activity(self, *, limit: int = 500) -> dict[str, Any]:
         max_items = max(1, min(int(limit), 2000))
+        items = [
+            {
+                "topic": topic,
+                "message_count": int(item.get("message_count") or 0),
+                "retained_seen": bool(item.get("retained_seen", False)),
+                "sources": sorted(set(item.get("sources") or {"runtime_messages"})),
+                "last_seen": item.get("last_seen"),
+                "_last_seen_epoch": float(item.get("_last_seen_epoch") or 0.0),
+            }
+            for topic, item in self._topic_activity.items()
+        ]
         items = sorted(
-            [
-                {
-                    "topic": topic,
-                    "message_count": int(item.get("message_count") or 0),
-                    "retained_seen": bool(item.get("retained_seen", False)),
-                    "sources": sorted(set(item.get("sources") or {"runtime_messages"})),
-                    "last_seen": item.get("last_seen"),
-                }
-                for topic, item in self._topic_activity.items()
-            ],
-            key=lambda row: str(row.get("topic") or ""),
-        )
-        if len(items) > max_items:
-            items = items[-max_items:]
+            items,
+            key=lambda row: (
+                -float(row.get("_last_seen_epoch") or 0.0),
+                str(row.get("topic") or ""),
+            ),
+        )[:max_items]
+        for row in items:
+            row.pop("_last_seen_epoch", None)
         return {"ok": True, "items": items}
 
     async def runtime_stats_history(self, *, hours: int = 24, limit: int = 1440) -> dict[str, Any]:
@@ -509,6 +515,7 @@ class MqttManager:
         normalized = str(topic or "").strip()
         if not normalized:
             return
+        now = time.time()
         item = dict(self._topic_activity.get(normalized) or {})
         item["message_count"] = int(item.get("message_count") or 0) + 1
         item["retained_seen"] = bool(item.get("retained_seen") or retained)
@@ -517,7 +524,8 @@ class MqttManager:
         if retained:
             sources.add("retained")
         item["sources"] = sources
-        item["last_seen"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        item["_last_seen_epoch"] = now
+        item["last_seen"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
         self._topic_activity[normalized] = item
 
     @staticmethod
