@@ -508,3 +508,4 @@
 2026-03-11 15:38 - Task 481: updated frontend UI docs with Home status tile contract and added screenshot reference note under `docs/screenshots/`.
 2026-03-11 15:47 - Task 482: moved Home status tiles into `.home-status-card` and removed the separate status-row section below the card.
 2026-03-11 15:48 - Task 483: removed deprecated `.home-subsystem` CSS styles after migrating to tile-based status rendering.
+2026-03-11 16:10 - Task 484: fixed Home status-pill severity mapping so `offline/stopped` subsystem states render warning/error tones instead of neutral.
