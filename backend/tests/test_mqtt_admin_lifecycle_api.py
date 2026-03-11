@@ -43,6 +43,17 @@ class _FakeMqttManager:
     def _core_info_payload(self) -> dict:
         return {"source": "synthia-core", "type": "core-mqtt-info"}
 
+    async def debug_connection_config(self):
+        return {
+            "mode": "local",
+            "host": "127.0.0.1",
+            "port": 1883,
+            "username": None,
+            "password": None,
+            "tls_enabled": False,
+            "keepalive_s": 30,
+        }
+
 
 class _FakeRuntimeReconciler:
     def __init__(self) -> None:
@@ -183,6 +194,65 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         )
         self.assertEqual(revoke.status_code, 200, revoke.text)
         self.assertEqual(revoke.json()["principal"]["status"], "revoked")
+
+    def test_debug_subscribe_and_unsubscribe_endpoints(self) -> None:
+        class _FakeDebugClient:
+            def __init__(self, *args, **kwargs) -> None:
+                self.on_message = None
+
+            def username_pw_set(self, username, password=None):
+                return None
+
+            def tls_set(self):
+                return None
+
+            def connect_async(self, host, port, keepalive):
+                return None
+
+            def loop_start(self):
+                return None
+
+            def subscribe(self, topic, qos=0):
+                return (0, 1)
+
+            def disconnect(self):
+                return None
+
+            def loop_stop(self):
+                return None
+
+        with patch("paho.mqtt.client.Client", _FakeDebugClient):
+            created = self.client.post(
+                "/api/system/debug/subscribe",
+                headers={"X-Admin-Token": "test-token"},
+                json={"topic_filter": "synthia/#", "qos": 0, "timeout_s": 60},
+            )
+            self.assertEqual(created.status_code, 200, created.text)
+            payload = created.json()
+            self.assertTrue(payload["ok"])
+            sub_id = payload["subscription_id"]
+
+            messages = self.client.get(
+                f"/api/system/debug/subscribe/{sub_id}/messages",
+                headers={"X-Admin-Token": "test-token"},
+            )
+            self.assertEqual(messages.status_code, 200, messages.text)
+            self.assertTrue(messages.json()["ok"])
+            self.assertIsInstance(messages.json()["items"], list)
+
+            stopped = self.client.post(
+                "/api/system/debug/unsubscribe",
+                headers={"X-Admin-Token": "test-token"},
+                json={"subscription_id": sub_id},
+            )
+            self.assertEqual(stopped.status_code, 200, stopped.text)
+            self.assertTrue(stopped.json()["ok"])
+
+            missing = self.client.get(
+                f"/api/system/debug/subscribe/{sub_id}/messages",
+                headers={"X-Admin-Token": "test-token"},
+            )
+            self.assertEqual(missing.status_code, 404, missing.text)
 
     def test_rotate_credentials_and_effective_access_inspection(self) -> None:
         created = asyncio.run(

@@ -210,6 +210,18 @@ class MqttManager:
             },
         }
 
+    async def debug_connection_config(self) -> dict[str, Any]:
+        cfg = self._config or await self._load_config()
+        return {
+            "mode": cfg.mode,
+            "host": cfg.host,
+            "port": int(cfg.port),
+            "username": cfg.username,
+            "password": cfg.password,
+            "tls_enabled": bool(cfg.tls_enabled),
+            "keepalive_s": int(cfg.keepalive_s),
+        }
+
     def _core_info_payload(self) -> dict[str, Any]:
         cfg = self._config
         return {

@@ -4,6 +4,11 @@ from typing import Any
 from pathlib import Path
 import re
 import socket
+import asyncio
+import threading
+from collections import deque
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -86,6 +91,16 @@ class MqttSetupConnectionTestRequest(BaseModel):
     timeout_s: float = Field(default=2.0, gt=0.0, le=10.0)
 
 
+class MqttDebugSubscribeRequest(BaseModel):
+    topic_filter: str = Field(..., min_length=1)
+    qos: int = Field(default=0, ge=0, le=2)
+    timeout_s: int = Field(default=300, ge=30, le=300)
+
+
+class MqttDebugUnsubscribeRequest(BaseModel):
+    subscription_id: str = Field(..., min_length=1)
+
+
 _MQTT_USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{3,64}$")
 
 
@@ -166,6 +181,7 @@ def build_mqtt_router(
 ) -> APIRouter:
     router = APIRouter()
     approval = approval_service or MqttRegistrationApprovalService(registry=registry, state_store=state_store)
+    debug_subscriptions: dict[str, dict[str, Any]] = {}
 
     def _runtime_status_payload(status: Any) -> dict[str, Any]:
         if isinstance(status, dict):
@@ -221,6 +237,37 @@ def build_mqtt_router(
             return await manager.status()
         except Exception as exc:
             return {"ok": False, "error": f"status_failed:{type(exc).__name__}"}
+
+    async def _debug_stop_subscription(subscription_id: str) -> bool:
+        item = debug_subscriptions.pop(subscription_id, None)
+        if item is None:
+            return False
+        client = item.get("client")
+        if client is not None:
+            try:
+                await asyncio.to_thread(client.disconnect)
+            except Exception:
+                pass
+            try:
+                await asyncio.to_thread(client.loop_stop)
+            except Exception:
+                pass
+        task = item.get("timeout_task")
+        if task is not None and hasattr(task, "cancel"):
+            try:
+                task.cancel()
+            except Exception:
+                pass
+        return True
+
+    async def _debug_timeout_worker(subscription_id: str, timeout_s: int) -> None:
+        try:
+            await asyncio.sleep(max(30, int(timeout_s)))
+            await _debug_stop_subscription(subscription_id)
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            return
 
     def _runtime_required() -> Any:
         if runtime_boundary is None:
@@ -332,6 +379,132 @@ def build_mqtt_router(
         else:
             await manager.restart()
         return await manager.status()
+
+    @router.post("/debug/subscribe")
+    async def mqtt_debug_subscribe(
+        body: MqttDebugSubscribeRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        cfg_fn = getattr(manager, "debug_connection_config", None)
+        if not callable(cfg_fn):
+            raise HTTPException(status_code=503, detail="debug_connection_unavailable")
+        cfg = await cfg_fn()
+        topic_filter = str(body.topic_filter or "").strip()
+        if not topic_filter:
+            raise HTTPException(status_code=400, detail="topic_filter_required")
+        try:
+            import paho.mqtt.client as mqtt
+        except Exception:
+            raise HTTPException(status_code=503, detail="mqtt_client_library_unavailable")
+        subscription_id = str(uuid4())
+        queue: deque[dict[str, Any]] = deque(maxlen=500)
+        lock = threading.Lock()
+        now = datetime.now(timezone.utc)
+        timeout_s = max(30, int(body.timeout_s))
+        expires_at = now + timedelta(seconds=timeout_s)
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"synthia-debug-{subscription_id[:12]}")
+        username = str(cfg.get("username") or "").strip()
+        password = str(cfg.get("password") or "")
+        if username:
+            client.username_pw_set(username, password or None)
+        if bool(cfg.get("tls_enabled")):
+            client.tls_set()
+
+        def _on_message(_client, _userdata, msg) -> None:
+            payload_text = msg.payload.decode("utf-8", errors="replace")
+            with lock:
+                queue.append(
+                    {
+                        "topic": str(msg.topic),
+                        "payload": payload_text,
+                        "qos": int(getattr(msg, "qos", 0)),
+                        "retain": bool(getattr(msg, "retain", False)),
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+
+        client.on_message = _on_message
+        try:
+            client.connect_async(str(cfg.get("host") or "127.0.0.1"), int(cfg.get("port") or 1883), int(cfg.get("keepalive_s") or 30))
+            client.loop_start()
+            client.subscribe(topic_filter, qos=int(body.qos))
+        except Exception as exc:
+            try:
+                client.loop_stop()
+            except Exception:
+                pass
+            raise HTTPException(status_code=400, detail=f"debug_subscribe_failed:{type(exc).__name__}")
+
+        timeout_task = asyncio.create_task(_debug_timeout_worker(subscription_id, timeout_s))
+        debug_subscriptions[subscription_id] = {
+            "client": client,
+            "queue": queue,
+            "lock": lock,
+            "topic_filter": topic_filter,
+            "qos": int(body.qos),
+            "created_at": now.isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "timeout_task": timeout_task,
+        }
+        await _audit_runtime_action(
+            action="debug_subscribe",
+            status="ok",
+            payload={"subscription_id": subscription_id, "topic_filter": topic_filter, "qos": int(body.qos)},
+        )
+        return {
+            "ok": True,
+            "subscription_id": subscription_id,
+            "topic_filter": topic_filter,
+            "qos": int(body.qos),
+            "created_at": now.isoformat(),
+            "expires_at": expires_at.isoformat(),
+        }
+
+    @router.get("/debug/subscribe/{subscription_id}/messages")
+    async def mqtt_debug_subscribe_messages(
+        subscription_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+        limit: int = 100,
+    ):
+        require_admin_token(x_admin_token, request)
+        item = debug_subscriptions.get(subscription_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="debug_subscription_not_found")
+        queue = item.get("queue")
+        lock = item.get("lock")
+        if queue is None or lock is None:
+            raise HTTPException(status_code=404, detail="debug_subscription_not_found")
+        max_items = max(1, min(int(limit), 500))
+        with lock:
+            items = list(queue)[-max_items:]
+        return {
+            "ok": True,
+            "subscription_id": subscription_id,
+            "topic_filter": item.get("topic_filter"),
+            "qos": item.get("qos"),
+            "expires_at": item.get("expires_at"),
+            "items": items,
+        }
+
+    @router.post("/debug/unsubscribe")
+    async def mqtt_debug_unsubscribe(
+        body: MqttDebugUnsubscribeRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        stopped = await _debug_stop_subscription(body.subscription_id)
+        if not stopped:
+            raise HTTPException(status_code=404, detail="debug_subscription_not_found")
+        await _audit_runtime_action(
+            action="debug_unsubscribe",
+            status="ok",
+            payload={"subscription_id": body.subscription_id},
+        )
+        return {"ok": True, "subscription_id": body.subscription_id}
 
     @router.post("/mqtt/setup/test-connection")
     async def mqtt_setup_test_connection(

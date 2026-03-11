@@ -467,6 +467,9 @@ def addon_ui_root() -> str:
       lastExternalTest: null,
       runtimeActionStatus: "",
       runtimeActionKind: "",
+      debugSubscriptionId: null,
+      debugPollHandle: null,
+      debugMessages: [],
       sectionCache: {},
       filters: {
         principals: { q: "", type: "", status: "" },
@@ -771,6 +774,105 @@ def addon_ui_root() -> str:
       return { method: "POST", url: "/api/system/mqtt/runtime/rebuild" };
     }
 
+    function renderRuntimeDebugStream() {
+      const node = document.getElementById("runtime-debug-stream");
+      if (!node) return;
+      if (!Array.isArray(state.debugMessages) || state.debugMessages.length === 0) {
+        node.textContent = "No debug messages yet.";
+        return;
+      }
+      const lines = state.debugMessages.slice(-80).map((item) => {
+        const ts = String(item.ts || "-");
+        const topic = String(item.topic || "-");
+        const payload = String(item.payload || "");
+        return `[${ts}] ${topic} -> ${payload}`;
+      });
+      node.textContent = lines.join("\\n");
+    }
+
+    async function pollDebugMessages() {
+      if (!state.debugSubscriptionId) return;
+      try {
+        const res = await fetch(`/api/system/debug/subscribe/${encodeURIComponent(state.debugSubscriptionId)}/messages?limit=80`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload && payload.detail ? payload.detail : "debug_messages_failed");
+        }
+        state.debugMessages = Array.isArray(payload.items) ? payload.items : [];
+        renderRuntimeDebugStream();
+      } catch (error) {
+        setStatus(`Debug stream stopped: ${error && error.message ? error.message : String(error)}`, "error");
+        if (state.debugPollHandle) {
+          clearInterval(state.debugPollHandle);
+          state.debugPollHandle = null;
+        }
+      }
+    }
+
+    async function runDebugSubscribe() {
+      const topicFilter = String(window.prompt("Topic filter", "synthia/#") || "").trim();
+      if (!topicFilter) return;
+      const qosRaw = String(window.prompt("QoS (0/1/2)", "0") || "0").trim();
+      const qos = Number.parseInt(qosRaw, 10);
+      if (!Number.isFinite(qos) || qos < 0 || qos > 2) {
+        setStatus("Debug subscribe failed: qos_invalid", "error");
+        return;
+      }
+      setStatus(`Starting debug subscribe on ${topicFilter}...`, "");
+      try {
+        const res = await fetch("/api/system/debug/subscribe", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic_filter: topicFilter, qos, timeout_s: 300 }),
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload && payload.detail ? payload.detail : "debug_subscribe_failed");
+        }
+        state.debugSubscriptionId = String(payload.subscription_id || "");
+        state.debugMessages = [];
+        renderRuntimeDebugStream();
+        if (state.debugPollHandle) clearInterval(state.debugPollHandle);
+        await pollDebugMessages();
+        state.debugPollHandle = setInterval(() => { void pollDebugMessages(); }, 2000);
+        setStatus(`Debug subscribe active (${topicFilter}).`, "ok");
+      } catch (error) {
+        setStatus(`Debug subscribe failed: ${error && error.message ? error.message : String(error)}`, "error");
+      }
+    }
+
+    async function runDebugUnsubscribe() {
+      const id = String(state.debugSubscriptionId || "").trim();
+      if (!id) return;
+      setStatus("Stopping debug subscribe...", "");
+      try {
+        const res = await fetch("/api/system/debug/unsubscribe", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription_id: id }),
+        });
+        const payload = await res.json();
+        if (!res.ok || !payload.ok) {
+          throw new Error(payload && payload.detail ? payload.detail : "debug_unsubscribe_failed");
+        }
+        if (state.debugPollHandle) {
+          clearInterval(state.debugPollHandle);
+          state.debugPollHandle = null;
+        }
+        state.debugSubscriptionId = null;
+        state.debugMessages = [];
+        renderRuntimeDebugStream();
+        setStatus("Debug subscribe stopped.", "ok");
+      } catch (error) {
+        setStatus(`Debug unsubscribe failed: ${error && error.message ? error.message : String(error)}`, "error");
+      }
+    }
+
     async function runRuntimeAction(action) {
       const endpoint = runtimeActionEndpoint(action);
       setRuntimeBusy(true);
@@ -1015,6 +1117,8 @@ def addon_ui_root() -> str:
           `<button data-runtime-action='rebuild'>Rebuild</button>` +
           `<button data-runtime-action='bootstrap'>Publish Bootstrap</button>` +
           `<button data-runtime-action='health'>Check Health</button>` +
+          `<button data-runtime-action='debug-subscribe'>Subscribe to Topic</button>` +
+          `<button data-runtime-action='debug-unsubscribe' ${state.debugSubscriptionId ? "" : "disabled"}>Stop Subscription</button>` +
           `</div>` +
           `<div id='runtime-action-status' class='${state.runtimeActionKind ? "status " + state.runtimeActionKind : "status"}'>${escapeHtml(state.runtimeActionStatus || "")}</div>` +
           `<div class='mono'>` +
@@ -1024,7 +1128,10 @@ def addon_ui_root() -> str:
           `bootstrap_published: ${escapeHtml(bootstrap.published ? "true" : "false")}\\n` +
           `bootstrap_attempts: ${escapeHtml(bootstrap.attempts || 0)}\\n` +
           `bootstrap_last_error: ${escapeHtml(bootstrap.last_error || "none")}` +
-          `</div>`;
+          `</div>` +
+          `<h4>Debug Stream</h4>` +
+          `<div id='runtime-debug-stream' class='mono'>No debug messages yet.</div>`;
+        renderRuntimeDebugStream();
         return;
       }
 
@@ -1332,6 +1439,14 @@ def addon_ui_root() -> str:
       if (!btn) return;
       const action = btn.getAttribute("data-runtime-action");
       if (!action) return;
+      if (action === "debug-subscribe") {
+        void runDebugSubscribe();
+        return;
+      }
+      if (action === "debug-unsubscribe") {
+        void runDebugUnsubscribe();
+        return;
+      }
       void runRuntimeAction(action);
     });
     sectionContent.addEventListener("click", (event) => {
