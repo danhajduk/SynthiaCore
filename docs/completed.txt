@@ -463,3 +463,4 @@
 2026-03-11 - Task 436: implemented durable onboarding approve/reject decision APIs with admin-auth enforcement, actor attribution, state-token validation, and terminal-state transition protection.
 2026-03-11 - Task 437: defined canonical trust activation payload schema for approved AI Node onboarding sessions and linked it as onboarding contract authority.
 2026-03-11 - Task 438: implemented backend trust issuance service for approved onboarding sessions with node identity binding, canonical activation payload fields, and idempotent per-session issuance.
+2026-03-11 - Task 439: implemented onboarding finalization/polling endpoint with session_id + node_nonce binding and deterministic pending/approved/rejected/expired/invalid outcomes.

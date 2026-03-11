@@ -27,6 +27,7 @@ Status: Implemented
   - `GET /api/system/nodes/onboarding/sessions/{session_id}` (admin session/token required)
   - `POST /api/system/nodes/onboarding/sessions/{session_id}/approve` (admin session/token required)
   - `POST /api/system/nodes/onboarding/sessions/{session_id}/reject` (admin session/token required)
+  - `GET /api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=...`
   - `POST /api/services/register`
   - `GET /api/services/resolve`
 
@@ -93,7 +94,7 @@ Status: Implemented
 
 Status: Planned
 
-- AI Node onboarding finalization/trust activation endpoints.
+- AI Node one-time trust-consumption hardening for finalization flow.
 - AI Node trust activation payload schema authority: [AI Node Trust Activation Payload Contract](./ai-node-trust-activation-payload-contract.md)
 - Formal OpenAPI-focused endpoint stability tiers.
 - Explicit deprecation lifecycle metadata per endpoint group.

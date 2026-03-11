@@ -1,26 +1,29 @@
 # AI Node Onboarding API Contract
 
-Status: Planned
-Implementation status: Not developed
+Status: Partial
+Implementation status: Session creation and finalize/poll endpoints implemented; one-time trust consumption flow pending
 Last updated: 2026-03-11
 
 ## Purpose
 
-This document defines the canonical API contract for node-initiated onboarding session creation.
-This endpoint creates onboarding intent only and does not issue trust credentials.
+This document defines the canonical API contract for node-initiated onboarding:
+- session creation
+- finalization/polling
 
-## Endpoint
+Session creation creates onboarding intent only and does not issue trust credentials.
 
-Status: Planned
+## Session Creation Endpoint
+
+Status: Implemented
 
 - Method: `POST`
 - Path: `/api/system/nodes/onboarding/sessions`
 - Auth mode: onboarding bootstrap (no trusted node token required yet)
 - Contract version field: request includes `protocol_version`; Core validates support.
 
-## Request Schema
+## Session Creation Request Schema
 
-Status: Planned
+Status: Implemented
 
 ```json
 {
@@ -43,9 +46,9 @@ Required fields:
 Optional fields:
 - `hostname` (string)
 
-## Success Response Schema
+## Session Creation Success Response Schema
 
-Status: Planned
+Status: Implemented
 
 ```json
 {
@@ -71,9 +74,9 @@ Required response fields:
 - `session.finalize.method`
 - `session.finalize.path`
 
-## Error Contract
+## Session Creation Error Contract
 
-Status: Planned
+Status: Implemented
 
 Error shape:
 
@@ -98,15 +101,61 @@ Recommended additional errors:
 - `node_nonce_required` (`400`)
 - `node_name_required` (`400`)
 
+## Finalization / Polling Endpoint
+
+Status: Implemented (baseline), Partial (consumption hardening follow-up)
+
+- Method: `GET`
+- Path: `/api/system/nodes/onboarding/sessions/{session_id}/finalize`
+- Required query param: `node_nonce`
+
+Supported outcomes:
+- `pending`
+- `approved` (includes `activation` payload)
+- `rejected`
+- `expired`
+- `invalid`
+
+## Finalization Response Shape
+
+Status: Implemented
+
+```json
+{
+  "ok": true,
+  "onboarding_status": "approved",
+  "activation": {
+    "node_id": "node-abc123",
+    "paired_core_id": "synthia-core",
+    "node_trust_token": "<opaque_token>",
+    "initial_baseline_policy": {
+      "version": "1",
+      "rules": []
+    },
+    "baseline_policy_version": "1",
+    "operational_mqtt_identity": "node:node-abc123",
+    "operational_mqtt_token": "<opaque_token>",
+    "operational_mqtt_host": "127.0.0.1",
+    "operational_mqtt_port": 1883,
+    "issued_at": "2026-03-11T17:00:00+00:00",
+    "source_session_id": "sx_onb_8Fjlx7..."
+  }
+}
+```
+
 ## Deterministic Behavior Rules
 
-Status: Planned
+Status: Partial
 
 - Endpoint creates onboarding session intent only.
 - Endpoint must not issue trust token or MQTT operational credentials.
 - Duplicate active onboarding sessions for the same node binding must return `duplicate_active_session`.
 - Session expiry must be explicit and returned as `expires_at`.
 - Response fields must be stable for node-side parsing and versioned evolution.
+- Finalization requires matching `node_nonce` for session binding.
+- Invalid session IDs or binding mismatches return `onboarding_status=invalid`.
+- Approved finalization returns trust activation payload from Core trust issuance service.
+- One-time consumption semantics are handled in follow-up task.
 
 ## Versioning Rules
 

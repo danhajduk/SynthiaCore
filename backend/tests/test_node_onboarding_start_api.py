@@ -142,6 +142,38 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         self.assertEqual(reject.json()["session"]["session_state"], "rejected")
         self.assertEqual(reject.json()["session"]["rejection_reason"], "Unrecognized node")
 
+    def test_finalize_outcomes(self) -> None:
+        started = self.client.post("/api/system/nodes/onboarding/sessions", json=self._payload())
+        self.assertEqual(started.status_code, 200, started.text)
+        session_id = started.json()["session"]["session_id"]
+
+        invalid_nonce = self.client.get(
+            f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=wrong"
+        )
+        self.assertEqual(invalid_nonce.status_code, 200, invalid_nonce.text)
+        self.assertEqual(invalid_nonce.json()["onboarding_status"], "invalid")
+
+        pending = self.client.get(
+            f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=nonce-abc"
+        )
+        self.assertEqual(pending.status_code, 200, pending.text)
+        self.assertEqual(pending.json()["onboarding_status"], "pending")
+
+        approval_url = started.json()["session"]["approval_url"]
+        state = approval_url.split("state=", 1)[1]
+        approve = self.client.post(
+            f"/api/system/nodes/onboarding/sessions/{session_id}/approve?state={state}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(approve.status_code, 200, approve.text)
+
+        approved = self.client.get(
+            f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=nonce-abc"
+        )
+        self.assertEqual(approved.status_code, 200, approved.text)
+        self.assertEqual(approved.json()["onboarding_status"], "approved")
+        self.assertIn("activation", approved.json())
+
 
 if __name__ == "__main__":
     unittest.main()

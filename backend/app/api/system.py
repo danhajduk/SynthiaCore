@@ -8,7 +8,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from ..addons.registry import AddonRegistry, list_addons
-from ..system.onboarding import NodeOnboardingSessionsStore
+from ..system.onboarding import NodeOnboardingSessionsStore, NodeTrustIssuanceService
 from ..system.runtime import StandaloneRuntimeService
 from .admin import require_admin_token
 
@@ -68,6 +68,7 @@ def build_system_router(
     runtime_service: StandaloneRuntimeService | None = None,
     mqtt_approval_service=None,
     onboarding_sessions_store: NodeOnboardingSessionsStore | None = None,
+    node_trust_issuance: NodeTrustIssuanceService | None = None,
 ) -> APIRouter:
     router = APIRouter()
     runtime = runtime_service or StandaloneRuntimeService()
@@ -245,6 +246,50 @@ def build_system_router(
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc))
         return {"ok": True, "session": decided.to_dict()}
+
+    @router.get("/system/nodes/onboarding/sessions/{session_id}/finalize")
+    def finalize_node_onboarding_session(
+        session_id: str,
+        node_nonce: str = Query(...),
+    ):
+        if onboarding_sessions_store is None:
+            raise HTTPException(status_code=503, detail="onboarding_sessions_unavailable")
+        nonce = str(node_nonce or "").strip()
+        if not nonce:
+            raise HTTPException(status_code=400, detail="node_nonce_required")
+        try:
+            session = onboarding_sessions_store.get(session_id)
+        except KeyError:
+            return {"ok": True, "onboarding_status": "invalid"}
+
+        if str(session.node_nonce).strip() != nonce:
+            return {"ok": True, "onboarding_status": "invalid"}
+
+        state = str(session.session_state or "invalid").strip().lower()
+        if state == "pending":
+            return {"ok": True, "onboarding_status": "pending"}
+        if state == "rejected":
+            return {
+                "ok": True,
+                "onboarding_status": "rejected",
+                "rejection_reason": session.rejection_reason,
+            }
+        if state == "expired":
+            return {"ok": True, "onboarding_status": "expired"}
+        if state == "cancelled":
+            return {"ok": True, "onboarding_status": "invalid"}
+        if state == "consumed":
+            return {"ok": True, "onboarding_status": "approved", "already_consumed": True}
+        if state == "approved":
+            if node_trust_issuance is None:
+                raise HTTPException(status_code=503, detail="trust_issuance_unavailable")
+            issued = node_trust_issuance.issue_for_approved_session(session)
+            return {
+                "ok": True,
+                "onboarding_status": "approved",
+                "activation": issued.get("activation"),
+            }
+        return {"ok": True, "onboarding_status": "invalid"}
 
     @router.get("/system/addons/runtime")
     def list_standalone_runtimes(
