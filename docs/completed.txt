@@ -524,3 +524,4 @@
 2026-03-11 17:07 - Task 459 (Phase 2): expanded Addons node admin panel with capability profile/task-family/provider/governance/readiness details and added node-type + capability filters for operator visibility.
 2026-03-11 17:07 - Task 460 (Phase 2): added trusted-node telemetry ingestion endpoint (`POST /api/system/nodes/telemetry`) with minimal persistent history and integrated `last_telemetry_timestamp` into node operational status payloads.
 2026-03-11 17:07 - Task 461 (Phase 2): added end-to-end regression test suite covering valid/invalid capability declarations, governance issuance/refresh behavior, profile persistence, and operational readiness transitions.
+2026-03-11 17:07 - Task 462 (Phase 2): updated Core Phase 2 docs with implemented lifecycle flow and exact capability/governance/status API contracts in `docs/node-phase2-lifecycle-contract.md`, and linked it in the documentation index/API reference.

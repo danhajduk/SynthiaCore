@@ -117,4 +117,5 @@ Status: Planned
 - [Runtime and Supervision](./runtime-and-supervision.md)
 - [Node Onboarding API Contract](./node-onboarding-api-contract.md)
 - [Node Trust Activation Payload Contract](./node-trust-activation-payload-contract.md)
+- [Node Phase 2 Lifecycle Contract](./node-phase2-lifecycle-contract.md)
 - [Node Onboarding Migration Guide](./node-onboarding-migration-guide.md)

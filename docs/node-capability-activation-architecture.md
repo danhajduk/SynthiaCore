@@ -1,7 +1,7 @@
 # Node Capability Activation Architecture (Phase 2)
 
-Status: Not developed  
-Last Updated: 2026-03-11 16:36
+Status: Implemented (Phase 2 baseline)  
+Last Updated: 2026-03-11 17:07
 
 ## Purpose
 Defines the Core-side architecture target for Phase 2 node capability activation after trust activation is complete.
@@ -21,13 +21,11 @@ This document does not define prompt/task execution logic.
 ## Current Implementation State
 Implemented:
 - Canonical capability declaration schema module and strict validator (`backend/app/system/onboarding/capability_manifest.py`).
-
-Not developed:
-- node capability declaration API
-- capability profile registry
-- governance bundle generation/distribution
-- governance version tracking
-- operational readiness lifecycle state derived from capability + governance
+- Trusted node capability declaration API and accepted-profile persistence.
+- Immutable capability profile registry and admin lookup APIs.
+- Governance bundle issuance, distribution, and version-aware refresh APIs.
+- Governance version status tracking and operational readiness projection in node registry payloads.
+- Node operational status endpoint and node telemetry ingestion endpoint for lifecycle/governance runtime signals.
 
 ## Phase 2 Core Components
 ### AI Node (trusted)
