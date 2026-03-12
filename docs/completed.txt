@@ -519,3 +519,4 @@
 2026-03-11 17:07 - Task 454 (Phase 2): added trusted-node governance distribution endpoint (`GET /api/system/nodes/governance/current`) with trust auth, capability-declaration gating, cache headers, and refresh interval guidance.
 2026-03-11 17:07 - Task 455 (Phase 2): added governance version status tracking store/service for `node_id`, active version, last-issued timestamp, and last-refresh request, and wired updates into declaration issuance + governance fetch flows.
 2026-03-11 17:07 - Task 456 (Phase 2): extended node registry status view with capability declaration state, governance sync state, active governance version metadata, and operational readiness evaluation; surfaced these statuses in Addons nodes UI.
+2026-03-11 17:07 - Task 457 (Phase 2): added node operational status API (`GET /api/system/nodes/operational-status/{node_id}`) supporting node trust-token or admin auth with lightweight cacheable lifecycle/capability/governance/readiness payload.

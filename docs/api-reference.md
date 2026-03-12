@@ -34,6 +34,7 @@ Status: Implemented
   - `GET /api/system/nodes/registry` (admin session/token required; includes capability/governance/readiness status fields)
   - `POST /api/system/nodes/capabilities/declaration` (trusted node token required via `X-Node-Trust-Token`)
   - `GET /api/system/nodes/governance/current?node_id=...` (trusted node token required via `X-Node-Trust-Token`)
+  - `GET /api/system/nodes/operational-status/{node_id}` (node trust token or admin session/token; lightweight lifecycle/capability/governance status)
   - `GET /api/system/nodes/capabilities/profiles` (admin session/token required)
   - `GET /api/system/nodes/capabilities/profiles/{profile_id}` (admin session/token required)
   - `POST /api/services/register`

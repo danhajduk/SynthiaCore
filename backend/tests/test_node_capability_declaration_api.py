@@ -21,6 +21,7 @@ from app.system.onboarding.capability_acceptance import NodeCapabilityAcceptance
 from app.system.onboarding.capability_profiles import NodeCapabilityProfilesStore
 from app.system.onboarding.governance import NodeGovernanceService, NodeGovernanceStore
 from app.system.onboarding.governance_status import NodeGovernanceStatusService, NodeGovernanceStatusStore
+from app.api import system as system_api
 
 
 class _FakeRegistry:
@@ -44,6 +45,7 @@ class _FakeRegistry:
 @unittest.skipIf(not FASTAPI_STACK_AVAILABLE, "fastapi/testclient not available in this environment")
 class TestNodeCapabilityDeclarationApi(unittest.TestCase):
     def setUp(self) -> None:
+        system_api._RATE_WINDOWS.clear()
         self.tmpdir = tempfile.TemporaryDirectory()
         self.sessions = NodeOnboardingSessionsStore(path=Path(self.tmpdir.name) / "node_onboarding_sessions.json")
         self.registrations = NodeRegistrationsStore(path=Path(self.tmpdir.name) / "node_registrations.json")

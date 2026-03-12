@@ -43,7 +43,7 @@ class _FakeRegistry:
 
 
 @unittest.skipIf(not FASTAPI_STACK_AVAILABLE, "fastapi/testclient not available in this environment")
-class TestNodeGovernanceApi(unittest.TestCase):
+class TestNodeOperationalStatusApi(unittest.TestCase):
     def setUp(self) -> None:
         system_api._RATE_WINDOWS.clear()
         self.tmpdir = tempfile.TemporaryDirectory()
@@ -57,6 +57,7 @@ class TestNodeGovernanceApi(unittest.TestCase):
         self.governance_service = NodeGovernanceService(self.governance_store)
         self.governance_status_store = NodeGovernanceStatusStore(path=Path(self.tmpdir.name) / "node_governance_status.json")
         self.governance_status_service = NodeGovernanceStatusService(self.governance_status_store)
+
         app = FastAPI()
         app.include_router(
             build_system_router(
@@ -78,7 +79,6 @@ class TestNodeGovernanceApi(unittest.TestCase):
                 "SYNTHIA_AI_NODE_ONBOARDING_PROTOCOLS": "1.0",
                 "SYNTHIA_NODE_ONBOARDING_SUPPORTED_TYPES": "ai-node,sensor-node",
                 "SYNTHIA_ADMIN_TOKEN": "test-token",
-                "SYNTHIA_NODE_GOVERNANCE_REFRESH_INTERVAL_S": "180",
             },
             clear=False,
         )
@@ -96,7 +96,7 @@ class TestNodeGovernanceApi(unittest.TestCase):
                 "node_type": "ai-node",
                 "node_software_version": "0.2.0",
                 "protocol_version": "1.0",
-                "node_nonce": "nonce-governance-1",
+                "node_nonce": "nonce-op-status-1",
             },
         )
         self.assertEqual(started.status_code, 200, started.text)
@@ -110,7 +110,7 @@ class TestNodeGovernanceApi(unittest.TestCase):
         node_id = approved.json()["registration"]["node_id"]
 
         finalized = self.client.get(
-            f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=nonce-governance-1"
+            f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=nonce-op-status-1"
         )
         self.assertEqual(finalized.status_code, 200, finalized.text)
         self.assertEqual(finalized.json()["onboarding_status"], "approved")
@@ -120,8 +120,8 @@ class TestNodeGovernanceApi(unittest.TestCase):
         assert trust is not None
         return node_id, trust.node_trust_token
 
-    def _manifest(self, node_id: str) -> dict:
-        return {
+    def _declare_capabilities(self, node_id: str, trust_token: str) -> None:
+        manifest = {
             "manifest_version": "1.0",
             "node": {
                 "node_id": node_id,
@@ -145,58 +145,52 @@ class TestNodeGovernanceApi(unittest.TestCase):
                 "region": "home",
             },
         }
-
-    def test_governance_fetch_requires_capability_declaration(self) -> None:
-        node_id, trust_token = self._trusted_node()
-        res = self.client.get(
-            f"/api/system/nodes/governance/current?node_id={node_id}",
-            headers={"X-Node-Trust-Token": trust_token},
-        )
-        self.assertEqual(res.status_code, 409, res.text)
-        self.assertEqual(res.json()["detail"]["error"], "capability_declaration_required")
-
-    def test_governance_fetch_returns_current_bundle(self) -> None:
-        node_id, trust_token = self._trusted_node()
         declared = self.client.post(
             "/api/system/nodes/capabilities/declaration",
-            json={"manifest": self._manifest(node_id)},
+            json={"manifest": manifest},
             headers={"X-Node-Trust-Token": trust_token},
         )
         self.assertEqual(declared.status_code, 200, declared.text)
-        profile_id = declared.json()["capability_profile_id"]
-        governance_version = declared.json()["governance_version"]
+
+    def test_admin_can_query_operational_status(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        self._declare_capabilities(node_id, trust_token)
 
         res = self.client.get(
-            f"/api/system/nodes/governance/current?node_id={node_id}",
+            f"/api/system/nodes/operational-status/{node_id}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["node_id"], node_id)
+        self.assertEqual(payload["lifecycle_state"], "trusted")
+        self.assertEqual(payload["capability_status"], "accepted")
+        self.assertEqual(payload["governance_status"], "issued")
+        self.assertTrue(bool(payload["operational_ready"]))
+        self.assertTrue(str(payload.get("active_governance_version") or "").startswith("gov-v"))
+        self.assertIn("private, max-age=15", res.headers.get("cache-control", ""))
+
+    def test_node_can_query_operational_status_with_trust_token(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        self._declare_capabilities(node_id, trust_token)
+
+        res = self.client.get(
+            f"/api/system/nodes/operational-status/{node_id}",
             headers={"X-Node-Trust-Token": trust_token},
         )
         self.assertEqual(res.status_code, 200, res.text)
         payload = res.json()
         self.assertEqual(payload["node_id"], node_id)
-        self.assertEqual(payload["capability_profile_id"], profile_id)
-        self.assertEqual(payload["governance_version"], governance_version)
-        self.assertEqual(payload["refresh_interval_s"], 180)
-        self.assertEqual(payload["governance_bundle"]["governance_version"], governance_version)
-        self.assertEqual(payload["governance_bundle"]["capability_profile_id"], profile_id)
-        self.assertIn("private, max-age=", res.headers.get("cache-control", ""))
+        self.assertEqual(payload["governance_status"], "issued")
 
-        status = self.governance_status_store.get(node_id)
-        self.assertIsNotNone(status)
-        assert status is not None
-        self.assertEqual(status.active_governance_version, governance_version)
-        self.assertTrue(str(status.last_issued_timestamp or "").strip())
-        self.assertTrue(str(status.last_refresh_request_timestamp or "").strip())
-
-        registry = self.client.get("/api/system/nodes/registry", headers={"X-Admin-Token": "test-token"})
-        self.assertEqual(registry.status_code, 200, registry.text)
-        items = registry.json()["items"]
-        self.assertEqual(len(items), 1)
-        node = items[0]
-        self.assertEqual(node["node_id"], node_id)
-        self.assertEqual(node["capability_status"], "accepted")
-        self.assertEqual(node["governance_sync_status"], "issued")
-        self.assertTrue(bool(node["operational_ready"]))
-        self.assertEqual(node["active_governance_version"], governance_version)
+    def test_rejects_invalid_node_token(self) -> None:
+        node_id, _trust_token = self._trusted_node()
+        res = self.client.get(
+            f"/api/system/nodes/operational-status/{node_id}",
+            headers={"X-Node-Trust-Token": "wrong-token"},
+        )
+        self.assertEqual(res.status_code, 403, res.text)
+        self.assertEqual(res.json()["detail"]["error"], "untrusted_node")
 
 
 if __name__ == "__main__":

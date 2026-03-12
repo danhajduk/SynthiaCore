@@ -16,6 +16,7 @@ except Exception:  # pragma: no cover
     FASTAPI_STACK_AVAILABLE = False
 
 from app.system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore, NodeTrustIssuanceService, NodeTrustStore
+from app.api import system as system_api
 
 
 class _FakeRegistry:
@@ -39,6 +40,7 @@ class _FakeRegistry:
 @unittest.skipIf(not FASTAPI_STACK_AVAILABLE, "fastapi/testclient not available in this environment")
 class TestNodeRegistrationsApi(unittest.TestCase):
     def setUp(self) -> None:
+        system_api._RATE_WINDOWS.clear()
         self.tmpdir = tempfile.TemporaryDirectory()
         self.sessions = NodeOnboardingSessionsStore(path=Path(self.tmpdir.name) / "node_onboarding_sessions.json")
         self.registrations = NodeRegistrationsStore(path=Path(self.tmpdir.name) / "node_registrations.json")

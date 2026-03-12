@@ -749,6 +749,50 @@ def build_system_router(
             "governance_bundle": bundle.to_dict(),
         }
 
+    @router.get("/system/nodes/operational-status/{node_id}")
+    def get_node_operational_status(
+        node_id: str,
+        request: Request,
+        response: Response,
+        x_node_trust_token: str | None = Header(default=None),
+        x_admin_token: str | None = Header(default=None),
+    ):
+        node_key = str(node_id or "").strip()
+        if not node_key:
+            raise HTTPException(status_code=400, detail={"error": "node_id_required", "message": "node_id is required"})
+        if node_registrations_store is None:
+            raise HTTPException(status_code=503, detail="node_registrations_unavailable")
+        if node_trust_issuance is None:
+            raise HTTPException(status_code=503, detail="trust_issuance_unavailable")
+
+        token = str(x_node_trust_token or "").strip()
+        if token:
+            trust_record = node_trust_issuance.authenticate_node(node_key, token)
+            if trust_record is None:
+                raise HTTPException(status_code=403, detail={"error": "untrusted_node", "message": "node not trusted"})
+        else:
+            require_admin_token(x_admin_token, request)
+
+        registration = node_registrations_store.get(node_key)
+        if registration is None:
+            raise HTTPException(status_code=404, detail="node_registration_not_found")
+        node_payload = _node_registry_payload(registration, node_governance_status_service)
+        response.headers["Cache-Control"] = "private, max-age=15"
+        return {
+            "ok": True,
+            "node_id": node_key,
+            "lifecycle_state": node_payload.get("registry_state"),
+            "trust_status": node_payload.get("trust_status"),
+            "capability_status": node_payload.get("capability_status"),
+            "governance_status": node_payload.get("governance_sync_status"),
+            "operational_ready": bool(node_payload.get("operational_ready")),
+            "active_governance_version": node_payload.get("active_governance_version"),
+            "last_governance_issued_at": node_payload.get("governance_last_issued_at"),
+            "last_governance_refresh_request_at": node_payload.get("governance_last_refresh_request_at"),
+            "last_telemetry_timestamp": None,
+            "updated_at": node_payload.get("updated_at"),
+        }
+
     @router.delete("/system/nodes/registrations/{node_id}")
     def delete_node_registration(
         node_id: str,
