@@ -97,15 +97,16 @@ Node is operational only when all are true:
 
 Any missing criterion keeps node non-operational.
 
-## API Surface (Planned)
-Planned Phase 2 API groups:
+## API Surface (Implemented Baseline)
+Implemented Phase 2 API groups:
 - capability declaration submission
 - capability profile lookup/inspection
 - governance bundle fetch/refresh
 - node operational status query
 - telemetry ingestion for lifecycle/governance signals
 
-Exact request/response schemas are defined in the implementation tasks that follow this architecture baseline.
+Exact request/response schemas are defined in:
+- [Node Phase 2 Lifecycle Contract](./node-phase2-lifecycle-contract.md)
 
 ## Relationship to Existing Phase 1 Docs
 - Phase 1 onboarding + trust activation contract: [node-onboarding-phase1-contract.md](./node-onboarding-phase1-contract.md)

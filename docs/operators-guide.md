@@ -93,6 +93,35 @@ Troubleshooting checklist:
 6. For expired sessions, restart onboarding from session creation.
 7. If legacy clients call `/api/system/ai-nodes/onboarding/sessions*`, treat `Deprecation` and `Sunset` headers as migration urgency signals.
 
+## 9) Node Phase 2 Capability And Governance Runbook
+
+Status: Implemented (baseline)
+
+Operator verification flow:
+1. Confirm node is trusted in registry:
+   - `GET /api/system/nodes/registry`
+2. Verify capability declaration acceptance:
+   - `POST /api/system/nodes/capabilities/declaration` (node-side)
+   - Inspect `capability_profile_id` and `governance_version` in response.
+3. Validate governance distribution:
+   - `GET /api/system/nodes/governance/current?node_id=...`
+   - `POST /api/system/nodes/governance/refresh`
+4. Validate operational readiness:
+   - `GET /api/system/nodes/operational-status/{node_id}`
+   - Confirm `capability_status=accepted`, `governance_status=issued`, `operational_ready=true`.
+5. Validate runtime telemetry ingestion:
+   - `POST /api/system/nodes/telemetry` (node-side)
+   - Re-check operational status `last_telemetry_timestamp`.
+
+Troubleshooting checklist:
+1. If declaration fails with `invalid_schema`, compare payload against strict manifest contract.
+2. If governance fetch/refresh fails with `capability_declaration_required`, ensure accepted profile exists.
+3. If node remains non-operational, inspect registry fields:
+   - `capability_status`
+   - `governance_sync_status`
+   - `active_governance_version`
+4. If telemetry is missing, verify node trust token and allowed `event_type` values.
+
 ## See Also
 
 - [MQTT Platform](./mqtt-platform.md)

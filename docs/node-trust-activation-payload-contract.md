@@ -38,6 +38,16 @@ Returned under `activation`:
 - `activation_profile` provides node-type-aware extension surface.
 - Baseline payload fields remain common across node classes.
 
+## Operational MQTT Host Resolution
+
+`activation.operational_mqtt_host` is resolved as a non-loopback host using this precedence:
+1. `SYNTHIA_NODE_OPERATIONAL_MQTT_HOST` (when non-loopback)
+2. `SYNTHIA_BOOTSTRAP_ADVERTISE_HOST` (when non-loopback)
+3. `SYNTHIA_MQTT_HOST` (when non-loopback)
+4. runtime detected advertise host
+
+Loopback values (for example `127.0.0.1`, `localhost`, `0.0.0.0`, `::1`) are rejected for node-facing payloads.
+
 ## Registration Lifecycle Coupling
 
 After successful finalize+consume:

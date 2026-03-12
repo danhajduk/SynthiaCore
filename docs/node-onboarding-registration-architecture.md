@@ -1,7 +1,7 @@
 # Node Onboarding And Registration Architecture
 
 Status: Partial
-Implementation status: Partial (global registration domain model/store now exists; current onboarding entrypoint still only accepts `ai-node`)
+Implementation status: Partial (global registration domain model/store exists; onboarding accepts configured node types via `SYNTHIA_NODE_ONBOARDING_SUPPORTED_TYPES`)
 Last updated: 2026-03-11
 
 ## Purpose
@@ -12,7 +12,7 @@ It generalizes onboarding from AI-node-only assumptions to a node-type-aware mod
 
 ## Scope
 
-Status: Planned
+Status: Partial
 
 - Global onboarding session lifecycle for all node types.
 - Global node registration model and trust lifecycle.
@@ -20,7 +20,7 @@ Status: Planned
 
 ## Core Principles
 
-Status: Planned
+Status: Implemented (baseline)
 
 - Core remains trust authority.
 - Onboarding is operator-mediated and session-based.
@@ -30,7 +30,7 @@ Status: Planned
 
 ## Global Lifecycle
 
-Status: Planned
+Status: Implemented (baseline)
 
 1. Node starts onboarding session (`node_type` + identity metadata + nonce binding).
 2. Core creates pending onboarding session with expiry.
@@ -42,7 +42,7 @@ Status: Planned
 
 ## Global Node Types
 
-Status: Planned
+Status: Partial
 
 - `ai-node` is the initial implemented profile.
 - Future node types can reuse the same onboarding and registration contract with profile-specific payload extensions.
@@ -84,7 +84,7 @@ Planned extension:
 
 ## AI-Node Compatibility
 
-Status: Planned
+Status: Implemented (with migration path)
 
 - Existing AI-node onboarding APIs/flows remain supported during migration.
 - AI-node-specific docs become profile references under this global architecture.
@@ -92,7 +92,7 @@ Status: Planned
 
 ## Canonical Surfaces
 
-Status: Planned
+Status: Implemented (baseline), Partial (future type-specific extensions)
 
 - Bootstrap onboarding advertisement
 - Onboarding session creation API

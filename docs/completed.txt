@@ -525,3 +525,8 @@
 2026-03-11 17:07 - Task 460 (Phase 2): added trusted-node telemetry ingestion endpoint (`POST /api/system/nodes/telemetry`) with minimal persistent history and integrated `last_telemetry_timestamp` into node operational status payloads.
 2026-03-11 17:07 - Task 461 (Phase 2): added end-to-end regression test suite covering valid/invalid capability declarations, governance issuance/refresh behavior, profile persistence, and operational readiness transitions.
 2026-03-11 17:07 - Task 462 (Phase 2): updated Core Phase 2 docs with implemented lifecycle flow and exact capability/governance/status API contracts in `docs/node-phase2-lifecycle-contract.md`, and linked it in the documentation index/API reference.
+2026-03-11 18:19 - Task 463: fixed README source-of-truth links to canonical documentation (`document-index`, API, core platform, MQTT platform).
+2026-03-11 18:19 - Task 464: normalized node onboarding/capability architecture status labels to match implemented baseline behavior.
+2026-03-11 18:19 - Task 465: updated API reference with node registration delete/revoke lifecycle endpoints and compatibility alias note.
+2026-03-11 18:19 - Task 466: added runtime restart-boundary guidance and Phase 2 operator runbook verification/troubleshooting steps.
+2026-03-11 18:19 - Task 467: documented activation payload operational MQTT host non-loopback resolution precedence.

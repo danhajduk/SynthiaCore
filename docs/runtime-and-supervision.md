@@ -30,6 +30,18 @@ Status: Partial
 - Deployment environment, paths, and service dependencies are defined in code and existing runbooks.
 - Standalone vs embedded boundary behavior is implemented but still evolving.
 
+## Restart Semantics Boundary
+
+Status: Implemented
+
+- Backend process supervision is owned by systemd user service template (`systemd/user/synthia-backend.service.in`) with:
+  - `Restart=always`
+  - `RestartSec=2`
+- Embedded MQTT docker runtime restart policy is owned by runtime boundary config (`backend/app/system/mqtt/runtime_boundary.py`) via:
+  - `SYNTHIA_MQTT_DOCKER_RESTART_POLICY` (default `no`)
+- This means backend process auto-restart and MQTT container auto-restart are separate controls.
+- Operators should not assume backend restart policy implies docker container restart policy.
+
 ## Store and Runtime Interaction
 
 Status: Implemented

@@ -5,10 +5,10 @@ SynthiaCore is a Core + Addons platform with a built-in scheduler, system metric
 ## Documentation Source of Truth
 - This `README.md` is a high-level overview.
 - For implementation-level behavior, use:
-  - `docs/api.md`
-  - `docs/backend.md`
-  - `docs/mqtt-contract.md`
-  - `docs/core.md` (index)
+  - `docs/document-index.md` (docs front door)
+  - `docs/api-reference.md`
+  - `docs/core-platform.md`
+  - `docs/mqtt-platform.md`
 - Policy/spec documents under `docs/Policies/` are design/reference material and may include planned behavior that is not implemented.
 
 ## Highlights
