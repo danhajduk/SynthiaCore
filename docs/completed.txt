@@ -522,3 +522,4 @@
 2026-03-11 17:07 - Task 457 (Phase 2): added node operational status API (`GET /api/system/nodes/operational-status/{node_id}`) supporting node trust-token or admin auth with lightweight cacheable lifecycle/capability/governance/readiness payload.
 2026-03-11 17:07 - Task 458 (Phase 2): implemented governance refresh API (`POST /api/system/nodes/governance/refresh`) with trust auth, capability-profile validity checks, version-aware `updated` responses, and cache guidance.
 2026-03-11 17:07 - Task 459 (Phase 2): expanded Addons node admin panel with capability profile/task-family/provider/governance/readiness details and added node-type + capability filters for operator visibility.
+2026-03-11 17:07 - Task 460 (Phase 2): added trusted-node telemetry ingestion endpoint (`POST /api/system/nodes/telemetry`) with minimal persistent history and integrated `last_telemetry_timestamp` into node operational status payloads.

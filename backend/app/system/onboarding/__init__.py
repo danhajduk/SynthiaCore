@@ -5,6 +5,12 @@ from .capability_profiles import NodeCapabilityProfileRecord, NodeCapabilityProf
 from .capability_acceptance import CapabilityAcceptanceResult, NodeCapabilityAcceptanceService
 from .governance import NodeGovernanceBundleRecord, NodeGovernanceService, NodeGovernanceStore
 from .governance_status import NodeGovernanceStatusRecord, NodeGovernanceStatusService, NodeGovernanceStatusStore
+from .node_telemetry import (
+    ALLOWED_NODE_TELEMETRY_EVENTS,
+    NodeTelemetryRecord,
+    NodeTelemetryService,
+    NodeTelemetryStore,
+)
 from .capability_manifest import (
     CAPABILITY_DECLARATION_SCHEMA_VERSION,
     CapabilityManifestValidationError,
@@ -31,6 +37,10 @@ __all__ = [
     "NodeGovernanceStatusRecord",
     "NodeGovernanceStatusStore",
     "NodeGovernanceStatusService",
+    "NodeTelemetryRecord",
+    "NodeTelemetryStore",
+    "NodeTelemetryService",
+    "ALLOWED_NODE_TELEMETRY_EVENTS",
     "CAPABILITY_DECLARATION_SCHEMA_VERSION",
     "SUPPORTED_CAPABILITY_DECLARATION_VERSIONS",
     "CapabilityManifestValidationError",

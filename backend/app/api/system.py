@@ -15,12 +15,14 @@ from pydantic import BaseModel
 from ..addons.registry import AddonRegistry, list_addons
 from ..system.audit import AuditLogStore
 from ..system.onboarding import (
+    ALLOWED_NODE_TELEMETRY_EVENTS,
     CapabilityManifestValidationError,
     NodeCapabilityAcceptanceService,
     NodeGovernanceService,
     NodeGovernanceStatusService,
     NodeOnboardingSessionsStore,
     NodeRegistrationsStore,
+    NodeTelemetryService,
     NodeTrustIssuanceService,
     validate_capability_declaration,
 )
@@ -53,6 +55,14 @@ class NodeCapabilityDeclarationRequest(BaseModel):
 class NodeGovernanceRefreshRequest(BaseModel):
     node_id: str
     current_governance_version: str | None = None
+
+
+class NodeTelemetryIngestRequest(BaseModel):
+    node_id: str
+    event_type: str
+    event_state: str | None = None
+    message: str | None = None
+    payload: dict | None = None
 
 
 def _onboarding_error(error: str, message: str, *, retryable: bool = False) -> dict[str, object]:
@@ -329,6 +339,7 @@ def build_system_router(
     node_capability_acceptance: NodeCapabilityAcceptanceService | None = None,
     node_governance_service: NodeGovernanceService | None = None,
     node_governance_status_service: NodeGovernanceStatusService | None = None,
+    node_telemetry_service: NodeTelemetryService | None = None,
     audit_store: AuditLogStore | None = None,
 ) -> APIRouter:
     router = APIRouter()
@@ -856,6 +867,9 @@ def build_system_router(
         if registration is None:
             raise HTTPException(status_code=404, detail="node_registration_not_found")
         node_payload = _node_registry_payload(registration, node_governance_status_service)
+        last_telemetry_timestamp = (
+            node_telemetry_service.latest_timestamp(node_key) if node_telemetry_service is not None else None
+        )
         response.headers["Cache-Control"] = "private, max-age=15"
         return {
             "ok": True,
@@ -868,8 +882,77 @@ def build_system_router(
             "active_governance_version": node_payload.get("active_governance_version"),
             "last_governance_issued_at": node_payload.get("governance_last_issued_at"),
             "last_governance_refresh_request_at": node_payload.get("governance_last_refresh_request_at"),
-            "last_telemetry_timestamp": None,
+            "last_telemetry_timestamp": last_telemetry_timestamp,
             "updated_at": node_payload.get("updated_at"),
+        }
+
+    @router.post("/system/nodes/telemetry")
+    def ingest_node_telemetry(
+        body: NodeTelemetryIngestRequest,
+        request: Request,
+        x_node_trust_token: str | None = Header(default=None),
+    ):
+        node_key = str(body.node_id or "").strip()
+        token = str(x_node_trust_token or "").strip()
+        if not node_key:
+            raise HTTPException(status_code=400, detail={"error": "node_id_required", "message": "node_id is required"})
+        if not token:
+            raise HTTPException(status_code=401, detail="node_trust_token_required")
+        if node_registrations_store is None:
+            raise HTTPException(status_code=503, detail="node_registrations_unavailable")
+        if node_trust_issuance is None:
+            raise HTTPException(status_code=503, detail="trust_issuance_unavailable")
+        if node_telemetry_service is None:
+            raise HTTPException(status_code=503, detail="node_telemetry_unavailable")
+
+        trust_record = node_trust_issuance.authenticate_node(node_key, token)
+        if trust_record is None:
+            raise HTTPException(status_code=403, detail={"error": "untrusted_node", "message": "node not trusted"})
+        registration = node_registrations_store.get(node_key)
+        if registration is None:
+            raise HTTPException(status_code=403, detail={"error": "untrusted_node", "message": "node not registered"})
+        if str(registration.trust_status or "").strip().lower() != "trusted":
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "untrusted_node", "message": f"node trust_status is {registration.trust_status}"},
+            )
+        try:
+            event = node_telemetry_service.ingest(
+                node_id=node_key,
+                event_type=body.event_type,
+                event_state=body.event_state,
+                message=body.message,
+                payload=body.payload if isinstance(body.payload, dict) else {},
+            )
+        except ValueError as exc:
+            error = str(exc)
+            if error == "unsupported_event_type":
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": "unsupported_event_type",
+                        "message": f"supported={','.join(sorted(ALLOWED_NODE_TELEMETRY_EVENTS))}",
+                    },
+                )
+            raise HTTPException(status_code=400, detail={"error": error, "message": error})
+
+        _record_audit(
+            audit_store,
+            event_type="node_telemetry_ingested",
+            actor_role="node",
+            actor_id=node_key,
+            details={
+                "node_id": node_key,
+                "event_type": event.event_type,
+                "event_state": event.event_state or "",
+                "source_ip": str(request.client.host if request.client else "unknown"),
+            },
+        )
+        return {
+            "ok": True,
+            "node_id": node_key,
+            "event_type": event.event_type,
+            "received_at": event.received_at,
         }
 
     @router.delete("/system/nodes/registrations/{node_id}")

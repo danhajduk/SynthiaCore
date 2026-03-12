@@ -36,6 +36,7 @@ Status: Implemented
   - `GET /api/system/nodes/governance/current?node_id=...` (trusted node token required via `X-Node-Trust-Token`)
   - `POST /api/system/nodes/governance/refresh` (trusted node token required; version-aware governance refresh)
   - `GET /api/system/nodes/operational-status/{node_id}` (node trust token or admin session/token; lightweight lifecycle/capability/governance status)
+  - `POST /api/system/nodes/telemetry` (trusted node token required; runtime lifecycle/governance signal ingestion)
   - `GET /api/system/nodes/capabilities/profiles` (admin session/token required)
   - `GET /api/system/nodes/capabilities/profiles/{profile_id}` (admin session/token required)
   - `POST /api/services/register`

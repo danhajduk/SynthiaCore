@@ -43,6 +43,8 @@ from app.system.onboarding import (
     NodeGovernanceStatusService,
     NodeGovernanceStatusStore,
     NodeGovernanceStore,
+    NodeTelemetryService,
+    NodeTelemetryStore,
     NodeOnboardingSessionsStore,
     NodeRegistrationsStore,
     NodeTrustIssuanceService,
@@ -435,6 +437,8 @@ def create_app() -> FastAPI:
     node_governance_service = NodeGovernanceService(node_governance_store)
     node_governance_status_store = NodeGovernanceStatusStore()
     node_governance_status_service = NodeGovernanceStatusService(node_governance_status_store)
+    node_telemetry_store = NodeTelemetryStore()
+    node_telemetry_service = NodeTelemetryService(node_telemetry_store)
     app.state.install_sessions_store = install_sessions_store
     app.state.node_onboarding_sessions_store = node_onboarding_sessions_store
     app.state.node_registrations_store = node_registrations_store
@@ -446,6 +450,8 @@ def create_app() -> FastAPI:
     app.state.node_governance_service = node_governance_service
     app.state.node_governance_status_store = node_governance_status_store
     app.state.node_governance_status_service = node_governance_status_service
+    app.state.node_telemetry_store = node_telemetry_store
+    app.state.node_telemetry_service = node_telemetry_service
 
     app.include_router(build_settings_router(settings_store, audit_store), prefix="/api/system", tags=["settings"])
     app.include_router(build_users_router(users_store, audit_store), prefix="/api/admin", tags=["admin-users"])
@@ -553,6 +559,7 @@ def create_app() -> FastAPI:
             node_capability_acceptance=node_capability_acceptance,
             node_governance_service=node_governance_service,
             node_governance_status_service=node_governance_status_service,
+            node_telemetry_service=node_telemetry_service,
             audit_store=audit_store,
         ),
         prefix="/api",
