@@ -114,6 +114,36 @@ class TestNodeTrustIssuanceService(unittest.TestCase):
         issued = service.issue_for_approved_session(approved)["activation"]
         self.assertEqual(issued["operational_mqtt_host"], "10.0.0.100")
 
+    def test_service_startup_migrates_existing_loopback_hosts(self) -> None:
+        session = self.sessions.start_session(
+            node_nonce="nonce-f",
+            requested_node_name="node-f",
+            requested_node_type="ai-node",
+            requested_node_software_version="0.1.0",
+        )
+        approved = self.sessions.approve_session(
+            session.session_id,
+            approved_by_user_id="admin_session",
+            linked_node_id="node-fixed-4",
+        )
+        issued = self.service.issue_for_approved_session(approved)["activation"]
+        self.assertTrue(str(issued["operational_mqtt_host"]).strip())
+
+        existing = self.trust_store.get_by_node("node-fixed-4")
+        assert existing is not None
+        existing.operational_mqtt_host = "127.0.0.1"
+        self.trust_store.upsert(existing)
+
+        with patch.dict("os.environ", {"SYNTHIA_BOOTSTRAP_ADVERTISE_HOST": "10.0.0.123"}, clear=False):
+            upgraded_service = NodeTrustIssuanceService(self.trust_store)
+        upgraded = self.trust_store.get_by_node("node-fixed-4")
+        self.assertIsNotNone(upgraded)
+        assert upgraded is not None
+        self.assertEqual(upgraded.operational_mqtt_host, "10.0.0.123")
+
+        replay = upgraded_service.issue_for_approved_session(approved)["activation"]
+        self.assertEqual(replay["operational_mqtt_host"], "10.0.0.123")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -183,6 +183,19 @@ class NodeTrustStore:
         self._save()
         return record
 
+    def migrate_loopback_hosts(self, replacement_host: str) -> int:
+        target = str(replacement_host or "").strip()
+        if _is_loopback_host(target):
+            return 0
+        changed = 0
+        for item in self._records_by_node.values():
+            if _is_loopback_host(item.operational_mqtt_host):
+                item.operational_mqtt_host = target
+                changed += 1
+        if changed > 0:
+            self._save()
+        return changed
+
     def delete_by_node(self, node_id: str) -> NodeTrustRecord | None:
         node_key = str(node_id or "").strip()
         if not node_key:
@@ -206,6 +219,8 @@ class NodeTrustIssuanceService:
             self._mqtt_port = int(str(os.getenv("SYNTHIA_NODE_OPERATIONAL_MQTT_PORT", "")).strip() or 1883)
         except Exception:
             self._mqtt_port = 1883
+        # Upgrade existing trust records that still advertise loopback hosts.
+        self._store.migrate_loopback_hosts(self._mqtt_host)
 
     def issue_for_approved_session(self, session: NodeOnboardingSession) -> dict[str, Any]:
         if str(session.session_state) != "approved":
