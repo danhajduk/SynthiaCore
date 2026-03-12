@@ -99,6 +99,40 @@ degraded
 
 ```
 
+## `capability_setup_pending` Contract (Golden)
+
+While in `capability_setup_pending`, node/runtime and operators should treat this as a blocked pre-operational state.
+
+Required readiness data:
+- trusted identity context is valid (`trust_status=trusted`)
+- provider selection is configured for declaration
+- capability declaration status is explicit (`missing|declared|accepted`)
+- governance sync status is explicit (`pending_capability|pending|issued`)
+- blocking reasons are visible via status fields and related error context
+
+Transition criteria:
+- `capability_setup_pending -> operational` only when:
+  - `capability_status=accepted`
+  - `governance_status=issued`
+  - `operational_ready=true`
+- Any failure in declaration/governance sync keeps state non-operational and may surface degraded indicators.
+
+## Setup-State Polling Contract
+
+Canonical polling endpoint for setup progression:
+- `GET /api/system/nodes/operational-status/{node_id}`
+
+Required payload fields for setup UI/state machine:
+- `lifecycle_state`
+- `trust_status`
+- `capability_status`
+- `governance_status`
+- `operational_ready`
+- `active_governance_version`
+- `last_governance_issued_at`
+- `last_governance_refresh_request_at`
+- `last_telemetry_timestamp`
+
 ## Node Responsibilities
 
 - Declare supported task families

@@ -1,6 +1,6 @@
 # AI Node Golden Mismatch Report - `capability_setup_pending` Required Data
 
-Status: Open
+Status: Resolved (local golden docs updated)
 Generated: 2026-03-11
 Scope:
 - Golden docs: `docs/ai-node-architecture.md`, `docs/phase1-overview.md`
@@ -9,15 +9,15 @@ Scope:
 ## Summary
 
 - Total findings: 2
-- Highest-risk drift: golden docs define lifecycle state transition but do not define required status payload/readiness contract for `capability_setup_pending`.
-- Next action: add explicit golden contract section for `capability_setup_pending` prerequisites and API shape.
+- Highest-risk drift (resolved): golden docs previously defined lifecycle transition without required setup-state payload/readiness contract for `capability_setup_pending`.
+- Resolution action: added explicit golden contract section for `capability_setup_pending` prerequisites and setup polling API shape.
 
 ## Findings
 
 ### Finding 1: Missing golden contract for required `capability_setup_pending` data
 
 Type:
-- Missing documentation
+- Missing documentation (resolved)
 
 Affected files:
 - `docs/ai-node-architecture.md`
@@ -38,17 +38,20 @@ What golden docs say:
 Why this is a mismatch:
 - Lifecycle state exists in golden docs, but operators/clients are not told what data must be present to safely proceed in this state.
 
-Recommended fix:
-- Add a golden section specifying required `capability_setup_pending` data:
+Resolution:
+- Added `capability_setup_pending` contract section in:
+  - `docs/ai-platform-roadmap.md`
+- Added required setup-state readiness fields:
   - trusted identity context
   - provider selection readiness
-  - capability declaration readiness/status
-  - blocking reasons contract
+  - capability declaration status
+  - governance sync status
+  - blocking/transition contract
 
 ### Finding 2: Missing golden API payload contract for setup-state polling
 
 Type:
-- Missing source-of-truth document
+- Missing source-of-truth document (resolved)
 
 Affected files:
 - `docs/ai-node-architecture.md`
@@ -64,12 +67,14 @@ What golden docs say:
 Why this is a mismatch:
 - Clients can detect the state name, but not a stable contract for readiness flags or blocking conditions.
 
-Recommended fix:
-- Add a golden API contract subsection for `GET /api/node/status` fields relevant to `capability_setup_pending`.
+Resolution:
+- Added setup-state polling contract subsection in:
+  - `docs/ai-platform-roadmap.md`
+- Canonical endpoint documented:
+  - `GET /api/system/nodes/operational-status/{node_id}`
+- Required setup payload fields documented for lifecycle/readiness polling.
 
 ## Evidence Notes
 
-- `docs/ai-node-architecture.md` includes lifecycle state name and transition notes, but not required setup-state data fields.
-- `docs/phase1-overview.md` and split phase docs include canonical path but no required setup-state payload shape.
-- Runtime/API code currently carries setup-related fields not codified in golden docs.
-
+- Local golden reference now codifies setup-state contract in `docs/ai-platform-roadmap.md`.
+- Canonical API field set aligns with implemented operational status contract in `docs/node-phase2-lifecycle-contract.md`.
