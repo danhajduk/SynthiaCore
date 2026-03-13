@@ -59,6 +59,7 @@ Status: Implemented (canonical shared schema), Partial (publishers/consumers sti
 
 - Core exposes a shared notification schema module for MQTT notification envelopes at `backend/app/core/notifications.py`.
 - Core exposes a reusable MQTT notification publisher utility at `backend/app/core/notification_publisher.py` and wires it on app state as `notification_publisher`.
+- Core exposes an internal-to-external notification bridge at `backend/app/core/notification_bridge.py` and wires it on app state as `notification_bridge`.
 - Core exposes a local desktop notification consumer at `backend/app/core/notification_consumer.py` and wires it on app state as `notification_consumer`.
 - Core emits startup smoke-test notifications through `backend/app/core/notification_producer.py` after MQTT startup/reconcile completes.
 - Canonical internal topics are `synthia/notify/internal/event`, `synthia/notify/internal/state`, and `synthia/notify/internal/popup`.
@@ -67,6 +68,7 @@ Status: Implemented (canonical shared schema), Partial (publishers/consumers sti
 - The publisher validates payloads before publish, omits empty optional sections with `exclude_none`, keeps popup/event notifications non-retained, and only allows retained state notifications when explicitly requested.
 - Current startup smoke-test production emits one popup, one event, and one retained ready-state notification with structured emission logs.
 - The desktop consumer listens for internal popup and event topics, validates canonical payloads, drops invalid or expired notifications, matches local user/host/session or broadcast targets, deduplicates by `dedupe_key`, and uses `notify-send` for local desktop display when available.
+- The bridge listens on `synthia/notify/internal/#`, forwards only valid non-expired messages with supported `targets.external` entries, and currently transforms `ha` messages into a simplified downstream payload on `synthia/notify/external/ha`.
 
 ## Principals and Users
 
@@ -135,6 +137,7 @@ Status: Archived Legacy
 ## See Also
 
 - [API Reference](./api-reference.md)
+- [Notifications Bus](./notifications.md)
 - [Operators Guide](./operators-guide.md)
 - [Auth and Identity](./auth-and-identity.md)
 - [Data and State](./data-and-state.md)

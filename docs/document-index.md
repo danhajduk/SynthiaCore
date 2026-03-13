@@ -11,6 +11,7 @@ Synthia is a Core + Addons platform with an embedded MQTT control/data plane, sc
 - [Core Platform](./core-platform.md)
 - [Addon Platform](./addon-platform.md)
 - [MQTT Platform](./mqtt-platform.md)
+- [Notifications Bus](./notifications.md)
 - [Runtime and Supervision](./runtime-and-supervision.md)
 - [Auth and Identity](./auth-and-identity.md)
 - [Data and State](./data-and-state.md)

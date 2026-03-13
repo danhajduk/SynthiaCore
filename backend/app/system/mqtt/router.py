@@ -746,6 +746,29 @@ def build_mqtt_router(
             "rc": int(result.get("rc") or 0),
         }
 
+    @router.post("/mqtt/debug/notifications/test-flow")
+    async def mqtt_debug_notification_test_flow(
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        system_config = getattr(request.app.state, "system_config", None)
+        if not bool(getattr(system_config, "notification_debug_enabled", False)):
+            raise HTTPException(status_code=404, detail="notification_debug_disabled")
+        trigger = getattr(request.app.state, "notification_debug_trigger", None)
+        if trigger is None:
+            raise HTTPException(status_code=503, detail="notification_debug_unavailable")
+        results = await trigger.emit_test_flow()
+        return {
+            "ok": all(bool(item.get("ok")) for item in results),
+            "results": results,
+            "expected": {
+                "desktop_popup": "local popup should appear when targets match local session",
+                "external_topic": "synthia/notify/external/ha should receive transformed event payload",
+                "logs": "publish, bridge, and consumer logs should show the flow",
+            },
+        }
+
     @router.post("/mqtt/setup/test-connection")
     async def mqtt_setup_test_connection(
         body: MqttSetupConnectionTestRequest,

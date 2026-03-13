@@ -78,6 +78,7 @@ Representative routes under `/api/system`:
 - approvals/principals/users: `/mqtt/registrations/*`, `/mqtt/principals*`, `/mqtt/users*`, `/mqtt/generic-users*`
 - observability/audit: `/mqtt/noisy-clients*`, `/mqtt/observability`, `/mqtt/audit`
 - debug: `/mqtt/debug/*`
+- notification dev hook: `POST /mqtt/debug/notifications/test-flow` (admin token required; only active when `NOTIFICATION_DEBUG_ENABLED=true`)
 
 Deprecated/legacy compatibility endpoints:
 - `/api/system/runtime/*` aliases mirror `/api/system/mqtt/runtime/*` for compatibility.
@@ -120,6 +121,7 @@ Status: Planned
 
 - [Core Platform](./core-platform.md)
 - [MQTT Platform](./mqtt-platform.md)
+- [Notifications Bus](./notifications.md)
 - [Auth and Identity](./auth-and-identity.md)
 - [Runtime and Supervision](./runtime-and-supervision.md)
 - [Node Onboarding API Contract](./node-onboarding-api-contract.md)

@@ -8,6 +8,7 @@ Status: Implemented
 - Own control-plane state and admin policy decisions.
 - Coordinate addon registry, runtime status, and platform health aggregation.
 - Coordinate embedded MQTT authority/runtime startup and reconciliation.
+- Coordinate notification publisher, bridge, local consumer, and startup/debug notification flows.
 
 Code anchors:
 - `backend/app/main.py`
@@ -55,5 +56,6 @@ Status: Archived Legacy
 
 - [Platform Architecture](./platform-architecture.md)
 - [Runtime and Supervision](./runtime-and-supervision.md)
+- [Notifications Bus](./notifications.md)
 - [API Reference](./api-reference.md)
 - [Auth and Identity](./auth-and-identity.md)

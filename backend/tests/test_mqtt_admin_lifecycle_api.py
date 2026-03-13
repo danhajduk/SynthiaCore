@@ -87,6 +87,15 @@ class _FakeMqttManager:
         }
 
 
+class _FakeNotificationDebugTrigger:
+    async def emit_test_flow(self):
+        return [
+            {"ok": True, "topic": "synthia/notify/internal/popup", "message_id": "popup-1"},
+            {"ok": True, "topic": "synthia/notify/internal/event", "message_id": "event-1"},
+            {"ok": True, "topic": "synthia/notify/internal/state", "message_id": "state-1"},
+        ]
+
+
 class _FakeRuntimeReconciler:
     def __init__(self) -> None:
         self.calls: list[str] = []
@@ -195,6 +204,8 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         )
         self.manager = _FakeMqttManager()
         app = FastAPI()
+        app.state.system_config = type("Cfg", (), {"notification_debug_enabled": True})()
+        app.state.notification_debug_trigger = _FakeNotificationDebugTrigger()
         app.include_router(
             build_mqtt_router(
                 self.manager,
@@ -818,6 +829,25 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertIn("core_principals", payload)
         self.assertIn("missing", payload["core_principals"])
         self.assertIsInstance(payload["core_principals"]["missing"], list)
+
+    def test_debug_notification_test_flow_endpoint_is_gated_and_returns_results(self) -> None:
+        response = self.client.post(
+            "/api/system/mqtt/debug/notifications/test-flow",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(len(payload["results"]), 3)
+        self.assertEqual(payload["results"][1]["topic"], "synthia/notify/internal/event")
+
+        self.client.app.state.system_config.notification_debug_enabled = False
+        blocked = self.client.post(
+            "/api/system/mqtt/debug/notifications/test-flow",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(blocked.status_code, 404, blocked.text)
+        self.assertEqual(blocked.json()["detail"], "notification_debug_disabled")
 
 
 if __name__ == "__main__":

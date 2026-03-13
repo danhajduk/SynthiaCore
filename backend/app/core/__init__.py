@@ -1,3 +1,5 @@
+from .notification_debug import DevelopmentNotificationTrigger
+from .notification_bridge import NotificationBridgeService
 from .notification_publisher import CoreNotificationPublisher
 from .notification_consumer import LocalDesktopNotificationConsumer
 from .notification_producer import CoreStartupNotificationProducer
@@ -26,6 +28,8 @@ __all__ = [
     "INTERNAL_EVENT_TOPIC",
     "INTERNAL_POPUP_TOPIC",
     "INTERNAL_STATE_TOPIC",
+    "DevelopmentNotificationTrigger",
+    "NotificationBridgeService",
     "CoreNotificationPublisher",
     "LocalDesktopNotificationConsumer",
     "CoreStartupNotificationProducer",

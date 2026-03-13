@@ -67,6 +67,16 @@ class TestNotificationPublisher(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(mqtt.calls[0]["retain"])
         self.assertIn("state", mqtt.calls[0]["payload"]["delivery"]["channels"])
 
+    async def test_publish_excludes_none_sections(self) -> None:
+        mqtt = _FakeMqttPublisher()
+        publisher = CoreNotificationPublisher(mqtt)
+        payload = self._payload()
+        payload["content"]["body"] = None
+
+        await publisher.publish_internal_popup(payload)
+
+        self.assertNotIn("body", mqtt.calls[0]["payload"]["content"])
+
     async def test_invalid_payload_is_blocked_before_publish(self) -> None:
         mqtt = _FakeMqttPublisher()
         publisher = CoreNotificationPublisher(mqtt)

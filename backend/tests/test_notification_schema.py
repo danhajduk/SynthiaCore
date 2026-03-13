@@ -55,6 +55,18 @@ class TestNotificationSchema(unittest.TestCase):
         self.assertEqual(parsed.content.message, "Startup complete")
         self.assertNotIn('"state": null', raw)
 
+    def test_valid_popup_message_is_accepted(self) -> None:
+        message = self._message(event=None, delivery={"channels": ["popup"]}, data=None)
+        self.assertEqual(message.delivery.channels, [NotificationChannel.POPUP])
+
+    def test_valid_event_message_is_accepted(self) -> None:
+        message = self._message(content=None, delivery={"channels": ["event"]}, data=None)
+        self.assertEqual(message.event.event_type, "startup_complete")
+
+    def test_broadcast_target_behavior_is_valid(self) -> None:
+        message = self._message(targets={"broadcast": True}, delivery={"channels": ["event"]}, content=None, data=None)
+        self.assertTrue(message.targets.broadcast)
+
     def test_targets_require_scope_or_broadcast(self) -> None:
         with self.assertRaises(ValidationError):
             NotificationTargets()

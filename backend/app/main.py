@@ -10,7 +10,13 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core import CoreNotificationPublisher, CoreStartupNotificationProducer, LocalDesktopNotificationConsumer
+from .core import (
+    CoreNotificationPublisher,
+    CoreStartupNotificationProducer,
+    DevelopmentNotificationTrigger,
+    LocalDesktopNotificationConsumer,
+    NotificationBridgeService,
+)
 from .core.logging import setup_logging
 from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
@@ -197,6 +203,9 @@ def create_app() -> FastAPI:
         mqtt_manager = getattr(app.state, "mqtt_manager", None)
         if mqtt_manager is not None:
             await mqtt_manager.start()
+        notification_bridge = getattr(app.state, "notification_bridge", None)
+        if notification_bridge is not None:
+            await notification_bridge.start()
         notification_consumer = getattr(app.state, "notification_consumer", None)
         if notification_consumer is not None:
             await notification_consumer.start()
@@ -310,6 +319,9 @@ def create_app() -> FastAPI:
         mqtt_manager = getattr(app.state, "mqtt_manager", None)
         if mqtt_manager is not None:
             await mqtt_manager.stop()
+        notification_bridge = getattr(app.state, "notification_bridge", None)
+        if notification_bridge is not None:
+            await notification_bridge.stop()
         notification_consumer = getattr(app.state, "notification_consumer", None)
         if notification_consumer is not None:
             await notification_consumer.stop()
@@ -509,8 +521,13 @@ def create_app() -> FastAPI:
     )
     app.state.mqtt_manager = mqtt_manager
     app.state.notification_publisher = CoreNotificationPublisher(mqtt_manager)
+    app.state.notification_bridge = NotificationBridgeService(mqtt_manager, mqtt_manager)
     app.state.notification_consumer = LocalDesktopNotificationConsumer(mqtt_manager)
     app.state.notification_producer = CoreStartupNotificationProducer(
+        app.state.notification_publisher,
+        core_version=app.version,
+    )
+    app.state.notification_debug_trigger = DevelopmentNotificationTrigger(
         app.state.notification_publisher,
         core_version=app.version,
     )
