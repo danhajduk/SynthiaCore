@@ -53,6 +53,15 @@ Status: Implemented (canonical reserved families), Partial (future family expans
 - Addon topics are scoped under `synthia/addons/<addon_id>/...`.
 - Node and service visibility topic families are represented in current topic-tree contract.
 
+## Notification Contract
+
+Status: Implemented (canonical shared schema), Partial (publishers/consumers still expanding)
+
+- Core exposes a shared notification schema module for MQTT notification envelopes at `backend/app/core/notifications.py`.
+- Canonical internal topics are `synthia/notify/internal/event`, `synthia/notify/internal/state`, and `synthia/notify/internal/popup`.
+- External bridge targets should derive downstream topics via `synthia/notify/external/<target>` using the shared topic helper.
+- The shared contract validates target scope, payload presence, optional TTL expiry, and reusable JSON serialization/parsing for future Core, addon, and node notification producers/consumers.
+
 ## Principals and Users
 
 Status: Implemented
