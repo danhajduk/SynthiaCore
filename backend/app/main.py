@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .core import CoreNotificationPublisher
 from .core.logging import setup_logging
 from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
@@ -495,6 +496,7 @@ def create_app() -> FastAPI:
         enabled=bool(getattr(cfg_boot, "mqtt_listener_enabled", True)),
     )
     app.state.mqtt_manager = mqtt_manager
+    app.state.notification_publisher = CoreNotificationPublisher(mqtt_manager)
     mqtt_dirs = ensure_runtime_dirs(os.getcwd())
     mqtt_live_dir = mqtt_dirs["live"]
     mqtt_credential_store = MqttCredentialStore(

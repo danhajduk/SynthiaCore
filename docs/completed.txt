@@ -533,3 +533,4 @@
 2026-03-11 20:00 - Task 463: extended node capability registry with provider intelligence (provider/model pricing and latency metadata) across manifest validation, capability profiles, node registration persistence, and capability declaration API responses.
 2026-03-11 20:04 - Task 464: implemented provider model approval policy with persistent per-provider model allowlists, admin management endpoints, and declaration-time enforcement that rejects unapproved models.
 2026-03-12 17:21 - Task 465: added shared Core notification schema models, canonical notify topic helpers, JSON/TTL helpers, focused validation coverage, and MQTT platform documentation.
+2026-03-12 17:31 - Task 466: added reusable Core MQTT notification publisher helpers with validation, retain/QoS rules, app-state wiring, focused publisher tests, and MQTT platform docs.

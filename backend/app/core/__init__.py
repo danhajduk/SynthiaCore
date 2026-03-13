@@ -1,3 +1,4 @@
+from .notification_publisher import CoreNotificationPublisher
 from .notifications import (
     INTERNAL_EVENT_TOPIC,
     INTERNAL_POPUP_TOPIC,
@@ -23,6 +24,7 @@ __all__ = [
     "INTERNAL_EVENT_TOPIC",
     "INTERNAL_POPUP_TOPIC",
     "INTERNAL_STATE_TOPIC",
+    "CoreNotificationPublisher",
     "NotificationChannel",
     "NotificationContent",
     "NotificationDelivery",
