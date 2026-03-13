@@ -155,10 +155,15 @@ class NotificationEvent(BaseModel):
     summary: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
 
-    @model_validator(mode="after")
-    def _ensure_not_empty(self) -> "NotificationEvent":
-        if any(bool(str(value).strip()) for value in (self.event_type, self.action, self.summary)) or self.attributes:
-            return self
+    @model_validator(mode="before")
+    @classmethod
+    def _ensure_not_empty(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        if any(bool(str(value.get(key) or "").strip()) for key in ("event_type", "action", "summary")):
+            return value
+        if value.get("attributes"):
+            return value
         raise ValueError("event payload cannot be empty when present")
 
 
@@ -171,10 +176,15 @@ class NotificationState(BaseModel):
     previous: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
 
-    @model_validator(mode="after")
-    def _ensure_not_empty(self) -> "NotificationState":
-        if any(bool(str(value).strip()) for value in (self.state_type, self.status, self.current, self.previous)) or self.attributes:
-            return self
+    @model_validator(mode="before")
+    @classmethod
+    def _ensure_not_empty(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        if any(bool(str(value.get(key) or "").strip()) for key in ("state_type", "status", "current", "previous")):
+            return value
+        if value.get("attributes"):
+            return value
         raise ValueError("state payload cannot be empty when present")
 
 
