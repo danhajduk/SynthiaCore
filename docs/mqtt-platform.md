@@ -59,10 +59,12 @@ Status: Implemented (canonical shared schema), Partial (publishers/consumers sti
 
 - Core exposes a shared notification schema module for MQTT notification envelopes at `backend/app/core/notifications.py`.
 - Core exposes a reusable MQTT notification publisher utility at `backend/app/core/notification_publisher.py` and wires it on app state as `notification_publisher`.
+- Core emits startup smoke-test notifications through `backend/app/core/notification_producer.py` after MQTT startup/reconcile completes.
 - Canonical internal topics are `synthia/notify/internal/event`, `synthia/notify/internal/state`, and `synthia/notify/internal/popup`.
 - External bridge targets should derive downstream topics via `synthia/notify/external/<target>` using the shared topic helper.
 - The shared contract validates target scope, payload presence, optional TTL expiry, and reusable JSON serialization/parsing for future Core, addon, and node notification producers/consumers.
 - The publisher validates payloads before publish, omits empty optional sections with `exclude_none`, keeps popup/event notifications non-retained, and only allows retained state notifications when explicitly requested.
+- Current startup smoke-test production emits one popup, one event, and one retained ready-state notification with structured emission logs.
 
 ## Principals and Users
 

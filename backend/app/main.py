@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core import CoreNotificationPublisher
+from .core import CoreNotificationPublisher, CoreStartupNotificationProducer
 from .core.logging import setup_logging
 from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
@@ -211,6 +211,12 @@ def create_app() -> FastAPI:
                     await mqtt_approval.reconcile("mqtt")
             except Exception:
                 log.exception("MQTT startup addon principal reconciliation failed for addon:mqtt")
+        notification_producer = getattr(app.state, "notification_producer", None)
+        if notification_producer is not None:
+            try:
+                await notification_producer.emit_startup_notifications()
+            except Exception:
+                log.exception("Core startup notification emission failed")
 
         async def mqtt_runtime_supervision_loop() -> None:
             while True:
@@ -497,6 +503,10 @@ def create_app() -> FastAPI:
     )
     app.state.mqtt_manager = mqtt_manager
     app.state.notification_publisher = CoreNotificationPublisher(mqtt_manager)
+    app.state.notification_producer = CoreStartupNotificationProducer(
+        app.state.notification_publisher,
+        core_version=app.version,
+    )
     mqtt_dirs = ensure_runtime_dirs(os.getcwd())
     mqtt_live_dir = mqtt_dirs["live"]
     mqtt_credential_store = MqttCredentialStore(
