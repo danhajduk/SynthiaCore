@@ -124,6 +124,33 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(runtime["addon:mqtt"]["connected"])
         self.assertGreaterEqual(int(runtime["addon:mqtt"]["session_count"]), 1)
 
+    async def test_message_listener_receives_matching_runtime_notifications(self) -> None:
+        manager = MqttManager(
+            settings_store=_FakeSettingsStore(),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        manager._loop = asyncio.get_running_loop()
+        seen: list[tuple[str, dict, bool]] = []
+
+        async def _listener(topic: str, payload: dict, retained: bool) -> None:
+            seen.append((topic, payload, retained))
+
+        listener_id = manager.register_message_listener(
+            topic_filter="synthia/notify/internal/popup",
+            callback=_listener,
+        )
+
+        manager._on_message(None, None, _Msg("synthia/notify/internal/popup", {"content": {"title": "hi"}}, retain=False))
+        manager._on_message(None, None, _Msg("synthia/notify/internal/event", {"event": {"event_type": "skip"}}, retain=False))
+        await asyncio.sleep(0.02)
+
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(seen[0][0], "synthia/notify/internal/popup")
+        self.assertFalse(seen[0][2])
+        self.assertTrue(manager.unregister_message_listener(listener_id))
+
     async def test_on_connect_publishes_retained_core_info(self) -> None:
         manager = MqttManager(
             settings_store=_FakeSettingsStore(),

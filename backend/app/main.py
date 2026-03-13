@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core import CoreNotificationPublisher, CoreStartupNotificationProducer
+from .core import CoreNotificationPublisher, CoreStartupNotificationProducer, LocalDesktopNotificationConsumer
 from .core.logging import setup_logging
 from .core.health import router as health_router
 from .addons.registry import build_registry, register_addons
@@ -197,6 +197,9 @@ def create_app() -> FastAPI:
         mqtt_manager = getattr(app.state, "mqtt_manager", None)
         if mqtt_manager is not None:
             await mqtt_manager.start()
+        notification_consumer = getattr(app.state, "notification_consumer", None)
+        if notification_consumer is not None:
+            await notification_consumer.start()
         mqtt_startup_reconciler = getattr(app.state, "mqtt_startup_reconciler", None)
         if mqtt_startup_reconciler is not None:
             try:
@@ -307,6 +310,9 @@ def create_app() -> FastAPI:
         mqtt_manager = getattr(app.state, "mqtt_manager", None)
         if mqtt_manager is not None:
             await mqtt_manager.stop()
+        notification_consumer = getattr(app.state, "notification_consumer", None)
+        if notification_consumer is not None:
+            await notification_consumer.stop()
         mqtt_runtime_boundary = getattr(app.state, "mqtt_runtime_boundary", None)
         if mqtt_runtime_boundary is not None:
             stop = getattr(mqtt_runtime_boundary, "stop", None)
@@ -503,6 +509,7 @@ def create_app() -> FastAPI:
     )
     app.state.mqtt_manager = mqtt_manager
     app.state.notification_publisher = CoreNotificationPublisher(mqtt_manager)
+    app.state.notification_consumer = LocalDesktopNotificationConsumer(mqtt_manager)
     app.state.notification_producer = CoreStartupNotificationProducer(
         app.state.notification_publisher,
         core_version=app.version,

@@ -1,4 +1,5 @@
 from .notification_publisher import CoreNotificationPublisher
+from .notification_consumer import LocalDesktopNotificationConsumer
 from .notification_producer import CoreStartupNotificationProducer
 from .notifications import (
     INTERNAL_EVENT_TOPIC,
@@ -26,6 +27,7 @@ __all__ = [
     "INTERNAL_POPUP_TOPIC",
     "INTERNAL_STATE_TOPIC",
     "CoreNotificationPublisher",
+    "LocalDesktopNotificationConsumer",
     "CoreStartupNotificationProducer",
     "NotificationChannel",
     "NotificationContent",

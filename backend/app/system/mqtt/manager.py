@@ -8,7 +8,7 @@ import re
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from app.addons.registry import AddonRegistry
 from app.addons.install_sessions import InstallSessionsStore
@@ -34,6 +34,7 @@ MQTT_SUBSCRIPTIONS = [
 ]
 
 _GENERIC_TOPIC_SEGMENT_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+MessageListener = Callable[[str, dict[str, Any], bool], Awaitable[None] | None]
 
 
 @dataclass
@@ -46,6 +47,13 @@ class MqttConfig:
     keepalive_s: int
     tls_enabled: bool
     client_id: str
+
+
+@dataclass
+class MessageListenerRegistration:
+    listener_id: str
+    topic_filter: str
+    callback: MessageListener
 
 
 class MqttManager:
@@ -103,6 +111,8 @@ class MqttManager:
         self._error_count = 0
         self._stats_history: deque[dict[str, Any]] = deque(maxlen=50000)
         self._stats_retention_s = 24 * 60 * 60
+        self._message_listeners: dict[str, MessageListenerRegistration] = {}
+        self._message_listener_counter = 0
 
     async def start(self) -> None:
         if not self._enabled:
@@ -309,6 +319,22 @@ class MqttManager:
             "dropped_messages": self._broker_metrics.get("dropped_messages"),
             "retained_messages": self._broker_metrics.get("retained_messages"),
         }
+
+    def register_message_listener(self, *, topic_filter: str, callback: MessageListener) -> str:
+        normalized = str(topic_filter or "").strip()
+        if not normalized:
+            raise ValueError("topic_filter is required")
+        self._message_listener_counter += 1
+        listener_id = f"listener-{self._message_listener_counter}"
+        self._message_listeners[listener_id] = MessageListenerRegistration(
+            listener_id=listener_id,
+            topic_filter=normalized,
+            callback=callback,
+        )
+        return listener_id
+
+    def unregister_message_listener(self, listener_id: str) -> bool:
+        return self._message_listeners.pop(str(listener_id or "").strip(), None) is not None
 
     async def principal_traffic_metrics(self) -> dict[str, dict[str, Any]]:
         self._trim_principal_traffic_windows()
@@ -538,6 +564,7 @@ class MqttManager:
         if len(parts) >= 4 and parts[0] == "synthia" and parts[1] == "services" and parts[3] == "catalog":
             service_name = parts[2]
             self._dispatch_service_catalog_update(service_name, payload)
+        self._dispatch_message_listeners(topic=topic, payload=payload, retained=bool(getattr(msg, "retain", False)))
 
     def _update_runtime_message_rate(self) -> None:
         now = time.time()
@@ -944,3 +971,21 @@ class MqttManager:
                 log.exception("Failed to record MQTT observability event")
 
         asyncio.run_coroutine_threadsafe(_run(), loop)
+
+    def _dispatch_message_listeners(self, *, topic: str, payload: dict[str, Any], retained: bool) -> None:
+        loop = self._loop
+        if loop is None:
+            return
+        for registration in list(self._message_listeners.values()):
+            if not self._topic_matches_filter(topic, registration.topic_filter):
+                continue
+
+            async def _run(callback: MessageListener = registration.callback) -> None:
+                try:
+                    result = callback(topic, payload, retained)
+                    if asyncio.iscoroutine(result):
+                        await result
+                except Exception:
+                    log.exception("Failed to apply MQTT message listener for topic=%s", topic)
+
+            asyncio.run_coroutine_threadsafe(_run(), loop)
