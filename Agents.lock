@@ -1,0 +1,18 @@
+SYNTHIA_AGENT_CONFIGURATION_LOCK
+
+This repository uses a locked agent configuration.
+
+Files protected by this lock:
+
+Agents.md
+/home/dan/.codex/skills/synthia-workflow/SKILL.md
+/home/dan/.codex/skills/synthia-documentation/SKILL.md
+/home/dan/.codex/skills/synthia-documentation-audit/SKILL.md
+/home/dan/.codex/skills/synthia-architecture-audit/SKILL.md
+/home/dan/.codex/skills/commit-safety-check/SKILL.md
+
+Rules:
+
+- AI tools must not modify these files automatically.
+- Changes require explicit user instruction.
+- If a task suggests modifying these files, stop and request confirmation.

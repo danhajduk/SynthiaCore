@@ -174,5 +174,5 @@ Status: Planned
 
 - [AI Node Onboarding Approval Architecture](./ai-node-onboarding-approval-architecture.md)
 - [AI Node Onboarding Approval URL Contract](./ai-node-onboarding-approval-url-contract.md)
-- [API Reference](./api-reference.md)
-- [Auth and Identity](./auth-and-identity.md)
+- [API Reference](../fastapi/api-reference.md)
+- [Auth and Identity](../fastapi/auth-and-identity.md)

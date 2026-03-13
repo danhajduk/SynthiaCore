@@ -75,7 +75,7 @@ Status: Implemented
 ## See Also
 
 - [Overview](./overview.md)
-- [Core Platform](./core-platform.md)
-- [Runtime and Supervision](./runtime-and-supervision.md)
-- [Addon Platform](./addon-platform.md)
-- [MQTT Platform](./mqtt-platform.md)
+- [Core Platform](./fastapi/core-platform.md)
+- [Runtime and Supervision](./supervisor/runtime-and-supervision.md)
+- [Addon Platform](./addon-embedded/addon-platform.md)
+- [MQTT Platform](./mqtt/mqtt-platform.md)

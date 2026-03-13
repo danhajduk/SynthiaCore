@@ -111,5 +111,5 @@ Current contract references:
 - [AI Node Onboarding Approval Architecture](./ai-node-onboarding-approval-architecture.md)
 - [Node Onboarding API Contract](./node-onboarding-api-contract.md)
 - [Node Trust Activation Payload Contract](./node-trust-activation-payload-contract.md)
-- [API Reference](./api-reference.md)
-- [Operators Guide](./operators-guide.md)
+- [API Reference](../fastapi/api-reference.md)
+- [Operators Guide](../operators-guide.md)

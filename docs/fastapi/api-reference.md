@@ -120,11 +120,11 @@ Status: Planned
 ## See Also
 
 - [Core Platform](./core-platform.md)
-- [MQTT Platform](./mqtt-platform.md)
-- [Notifications Bus](./notifications.md)
+- [MQTT Platform](../mqtt/mqtt-platform.md)
+- [Notifications Bus](../mqtt/notifications.md)
 - [Auth and Identity](./auth-and-identity.md)
-- [Runtime and Supervision](./runtime-and-supervision.md)
-- [Node Onboarding API Contract](./node-onboarding-api-contract.md)
-- [Node Trust Activation Payload Contract](./node-trust-activation-payload-contract.md)
-- [Node Phase 2 Lifecycle Contract](./node-phase2-lifecycle-contract.md)
-- [Node Onboarding Migration Guide](./node-onboarding-migration-guide.md)
+- [Runtime and Supervision](../supervisor/runtime-and-supervision.md)
+- [Node Onboarding API Contract](../nodes/node-onboarding-api-contract.md)
+- [Node Trust Activation Payload Contract](../nodes/node-trust-activation-payload-contract.md)
+- [Node Phase 2 Lifecycle Contract](../nodes/node-phase2-lifecycle-contract.md)
+- [Node Onboarding Migration Guide](../nodes/node-onboarding-migration-guide.md)

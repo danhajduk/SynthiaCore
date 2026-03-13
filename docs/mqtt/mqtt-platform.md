@@ -136,9 +136,9 @@ Status: Archived Legacy
 
 ## See Also
 
-- [API Reference](./api-reference.md)
+- [API Reference](../fastapi/api-reference.md)
 - [Notifications Bus](./notifications.md)
-- [Operators Guide](./operators-guide.md)
-- [Auth and Identity](./auth-and-identity.md)
-- [Data and State](./data-and-state.md)
-- [Runtime and Supervision](./runtime-and-supervision.md)
+- [Operators Guide](../operators-guide.md)
+- [Auth and Identity](../fastapi/auth-and-identity.md)
+- [Data and State](../fastapi/data-and-state.md)
+- [Runtime and Supervision](../supervisor/runtime-and-supervision.md)

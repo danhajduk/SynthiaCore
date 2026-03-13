@@ -124,9 +124,9 @@ Troubleshooting checklist:
 
 ## See Also
 
-- [MQTT Platform](./mqtt-platform.md)
-- [Runtime and Supervision](./runtime-and-supervision.md)
-- [API Reference](./api-reference.md)
-- [Node Onboarding API Contract](./node-onboarding-api-contract.md)
-- [Node Onboarding Migration Guide](./node-onboarding-migration-guide.md)
+- [MQTT Platform](./mqtt/mqtt-platform.md)
+- [Runtime and Supervision](./supervisor/runtime-and-supervision.md)
+- [API Reference](./fastapi/api-reference.md)
+- [Node Onboarding API Contract](./nodes/node-onboarding-api-contract.md)
+- [Node Onboarding Migration Guide](./nodes/node-onboarding-migration-guide.md)
 - [Document Index](./document-index.md)

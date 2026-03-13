@@ -26,8 +26,8 @@ Status: Planned
 
 ## See Also
 
-- [Document Index](./document-index.md)
-- [Overview](./overview.md)
-- [Platform Architecture](./platform-architecture.md)
-- [MQTT Platform](./mqtt-platform.md)
-- [API Reference](./api-reference.md)
+- [Document Index](../document-index.md)
+- [Overview](../overview.md)
+- [Platform Architecture](../platform-architecture.md)
+- [MQTT Platform](../mqtt/mqtt-platform.md)
+- [API Reference](../fastapi/api-reference.md)

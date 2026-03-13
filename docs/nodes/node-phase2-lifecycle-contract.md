@@ -135,5 +135,5 @@ Derived status fields exposed by node registry and operational-status APIs:
 ## See Also
 
 - [Node Capability Activation Architecture (Phase 2)](./node-capability-activation-architecture.md)
-- [API Reference](./api-reference.md)
+- [API Reference](../fastapi/api-reference.md)
 - [Node Onboarding Phase 1 Contract](./node-onboarding-phase1-contract.md)

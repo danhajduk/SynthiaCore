@@ -124,4 +124,4 @@ Legacy alias responses include deprecation headers and migration warning.
 - [Node Onboarding API Contract](./node-onboarding-api-contract.md)
 - [Node Trust Activation Payload Contract](./node-trust-activation-payload-contract.md)
 - [Node Onboarding Migration Guide](./node-onboarding-migration-guide.md)
-- [MQTT Platform](./mqtt-platform.md)
+- [MQTT Platform](../mqtt/mqtt-platform.md)

@@ -60,8 +60,8 @@ Status: Archived Legacy
 
 ## See Also
 
-- [Core Platform](./core-platform.md)
-- [Platform Architecture](./platform-architecture.md)
-- [API Reference](./api-reference.md)
-- [Frontend and UI](./frontend-and-ui.md)
-- [Data and State](./data-and-state.md)
+- [Core Platform](../fastapi/core-platform.md)
+- [Platform Architecture](../platform-architecture.md)
+- [API Reference](../fastapi/api-reference.md)
+- [Frontend and UI](../frontend/frontend-and-ui.md)
+- [Data and State](../fastapi/data-and-state.md)

@@ -54,7 +54,7 @@ Status: Archived Legacy
 
 ## See Also
 
-- [MQTT Platform](./mqtt-platform.md)
+- [MQTT Platform](../mqtt/mqtt-platform.md)
 - [Core Platform](./core-platform.md)
 - [API Reference](./api-reference.md)
 - [Data and State](./data-and-state.md)
