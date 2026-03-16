@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.system.events import PlatformEventService
+from app.supervisor import SupervisorDomainService
 
 from .engine import SchedulerEngine
 from .queue_store import QueueStore
@@ -32,6 +33,7 @@ def build_scheduler_router(
     engine: SchedulerEngine,
     debug_enabled: bool = False,
     events: PlatformEventService | None = None,
+    supervisor_service: SupervisorDomainService | None = None,
 ) -> APIRouter:
     router = APIRouter()
     expire_task: asyncio.Task | None = None
@@ -56,6 +58,21 @@ def build_scheduler_router(
         reason: str | None,
     ) -> None:
         await queue_persist.record_event(job_id, from_state, to_state, reason)
+
+    def _supervisor_admission():
+        if supervisor_service is None:
+            return None
+        return supervisor_service.admission_summary(
+            total_capacity_units=engine.total_capacity_units,
+            reserve_units=engine.reserve_units,
+            headroom_pct=engine.headroom_pct,
+        )
+
+    def _requires_supervisor_runtime(job: JobIntent) -> bool:
+        constraints = job.constraints if isinstance(job.constraints, dict) else {}
+        target_runtime = str(constraints.get("target_runtime") or "").strip().lower()
+        execution_target = str(constraints.get("execution_target") or "").strip().lower()
+        return target_runtime == "supervisor" or execution_target in {"host_local", "supervisor"}
 
     @router.on_event("startup")
     async def _startup() -> None:
@@ -197,6 +214,9 @@ def build_scheduler_router(
     async def status():
         snap = await engine.snapshot()
         data = snap.model_dump()
+        admission = _supervisor_admission()
+        if admission is not None:
+            data["supervisor_admission"] = admission.model_dump()
         if debug_enabled:
             data["debug_store_id"] = hex(id(engine.store))
             data["debug_jobs_len"] = len(engine.store.jobs)
@@ -327,6 +347,9 @@ def build_scheduler_router(
             usable = engine.usable_capacity_units(busy)
             leased = engine.leased_capacity_units()
             available = max(0, usable - leased - queue_store.reserved_units)
+            admission = _supervisor_admission()
+            if admission is not None:
+                available = min(available, admission.available_capacity_units)
 
             scanned = 0
             max_scan = sum(queue_store.queue_depths().values())
@@ -348,6 +371,25 @@ def build_scheduler_router(
 
                 # Core owns admission/orchestration here; actual execution happens after leasing.
                 # This queue path should stay focused on deciding when work may proceed.
+                if admission is not None and not admission.execution_host_ready:
+                    job.attempts += 1
+                    job.next_earliest_start_at = now + timedelta(seconds=5)
+                    queue_store.enqueue(job)
+                    await _persist_job(job)
+                    continue
+
+                if (
+                    admission is not None
+                    and _requires_supervisor_runtime(job)
+                    and admission.managed_node_count > 0
+                    and admission.healthy_managed_node_count <= 0
+                ):
+                    job.attempts += 1
+                    job.next_earliest_start_at = now + timedelta(seconds=5)
+                    queue_store.enqueue(job)
+                    await _persist_job(job)
+                    continue
+
                 if busy >= 8 and job.priority != JobPriority.high:
                     job.attempts += 1
                     job.next_earliest_start_at = now + timedelta(seconds=5)

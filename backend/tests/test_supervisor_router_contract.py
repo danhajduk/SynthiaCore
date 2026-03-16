@@ -10,6 +10,7 @@ from app.supervisor import (
     HostResourceSummary,
     ManagedNodeSummary,
     ProcessResourceSummary,
+    SupervisorAdmissionContextSummary,
     SupervisorHealthSummary,
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
@@ -84,6 +85,17 @@ class _FakeSupervisorService:
             managed_nodes=[self._node()],
         )
 
+    def admission_summary(self) -> SupervisorAdmissionContextSummary:
+        return SupervisorAdmissionContextSummary(
+            admission_state="ready",
+            execution_host_ready=True,
+            host_busy_rating=1,
+            total_capacity_units=100,
+            available_capacity_units=75,
+            managed_node_count=1,
+            healthy_managed_node_count=1,
+        )
+
     def list_managed_nodes(self) -> list[ManagedNodeSummary]:
         return [self._node()]
 
@@ -106,6 +118,7 @@ class TestSupervisorRouterContract(unittest.TestCase):
         info = client.get("/api/supervisor/info")
         self.assertEqual(info.status_code, 200)
         self.assertEqual(info.json()["boundaries"]["owns"], ["runtime"])
+        self.assertEqual(client.get("/api/supervisor/admission").json()["admission_state"], "ready")
         self.assertEqual(client.get("/api/supervisor/resources").status_code, 200)
         self.assertEqual(client.get("/api/supervisor/runtime").status_code, 200)
         self.assertEqual(client.get("/api/supervisor/nodes").json()["items"][0]["node_id"], "mqtt")

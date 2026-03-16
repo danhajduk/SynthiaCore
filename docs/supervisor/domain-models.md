@@ -111,6 +111,23 @@ Includes:
 - `managed_node_count`
 - `managed_nodes`
 
+### SupervisorAdmissionContextSummary
+
+Returned by:
+
+- `GET /api/supervisor/admission`
+
+Includes:
+
+- `admission_state`
+- `execution_host_ready`
+- `unavailable_reason`
+- `host_busy_rating`
+- `total_capacity_units`
+- `available_capacity_units`
+- `managed_node_count`
+- `healthy_managed_node_count`
+
 ### Supervisor Host API Surface
 
 Status: Implemented
@@ -121,6 +138,7 @@ Current Supervisor routes:
 - `GET /api/supervisor/info`
 - `GET /api/supervisor/resources`
 - `GET /api/supervisor/runtime`
+- `GET /api/supervisor/admission`
 - `GET /api/supervisor/nodes`
 - `POST /api/supervisor/nodes/{node_id}/start`
 - `POST /api/supervisor/nodes/{node_id}/stop`

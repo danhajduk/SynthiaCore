@@ -501,11 +501,16 @@ def create_app() -> FastAPI:
 
     event_service = PlatformEventService()
     app.state.platform_events = event_service
+    runtime_service = StandaloneRuntimeService()
+    app.state.standalone_runtime_service = runtime_service
+    supervisor_service = SupervisorDomainService(runtime_service)
+    app.state.supervisor_service = supervisor_service
 
     scheduler_router = build_scheduler_router(
         engine,
         debug_enabled=bool(getattr(cfg_boot, "scheduler_debug_enabled", False)),
         events=event_service,
+        supervisor_service=supervisor_service,
     )
     app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])
 
@@ -598,11 +603,7 @@ def create_app() -> FastAPI:
     app.state.addon_proxy = addon_proxy
 
     # System API using the registry
-    runtime_service = StandaloneRuntimeService()
-    app.state.standalone_runtime_service = runtime_service
     app.include_router(build_architecture_router(), prefix="/api")
-    supervisor_service = SupervisorDomainService(runtime_service)
-    app.state.supervisor_service = supervisor_service
     app.include_router(
         build_supervisor_router(supervisor_service),
         prefix="/api",

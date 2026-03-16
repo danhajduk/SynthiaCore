@@ -88,6 +88,10 @@ class TestArchitectureFoundationApi(unittest.TestCase):
             self.assertEqual(runtime.status_code, 200, runtime.text)
             self.assertEqual(runtime.json()["managed_nodes"][0]["node_id"], "mqtt")
 
+            admission = client.get("/api/supervisor/admission")
+            self.assertEqual(admission.status_code, 200, admission.text)
+            self.assertIn("execution_host_ready", admission.json())
+
             nodes = client.get("/api/supervisor/nodes")
             self.assertEqual(nodes.status_code, 200, nodes.text)
             self.assertEqual(nodes.json()["items"][0]["node_id"], "mqtt")

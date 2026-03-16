@@ -73,6 +73,7 @@ Nodes
 
 - Core scheduler logic admits and orchestrates work.
 - Execution currently happens through leased worker/runtime clients outside the Core admission loop where implemented.
+- Supervisor now provides host/runtime admission context back into Core scheduling.
 - Supervisor and Nodes are the target runtime boundaries for host-local and external execution.
 
 ## Related Docs

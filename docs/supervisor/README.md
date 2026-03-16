@@ -23,6 +23,7 @@ Supervisor currently spans:
   - `GET /api/supervisor/info`
   - `GET /api/supervisor/resources`
   - `GET /api/supervisor/runtime`
+  - `GET /api/supervisor/admission`
   - `GET /api/supervisor/nodes`
   - `POST /api/supervisor/nodes/{node_id}/start`
   - `POST /api/supervisor/nodes/{node_id}/stop`
@@ -37,6 +38,7 @@ Execution-facing worker/process management is now considered part of the Supervi
 - [runtime-and-supervision.md](./runtime-and-supervision.md)
 - [domain-models.md](./domain-models.md)
 - [lifecycle-control.md](./lifecycle-control.md)
+- [workload-admission.md](./workload-admission.md)
 
 ## See Also
 

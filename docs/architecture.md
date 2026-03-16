@@ -38,6 +38,7 @@ Current top-level routes:
 
 - `GET /api/supervisor/health`
 - `GET /api/supervisor/info`
+- `GET /api/supervisor/admission`
 
 Broader host resource and lifecycle ownership remains Partially implemented.
 
@@ -74,6 +75,7 @@ Status: Implemented
 - The scheduler does not own host-local runtime execution as a platform boundary.
 - Current worker runners are execution clients that consume Core-issued leases.
 - Host-local worker/process execution management now aligns to the Supervisor boundary, even where compatibility code still lives under `backend/app/system/worker/`.
+- Supervisor now provides the admission context Core uses for host readiness and managed execution-target availability.
 - Supervisor is the target host-local runtime authority, and Nodes are the canonical external execution layer.
 
 ## Cross-Domain Flow

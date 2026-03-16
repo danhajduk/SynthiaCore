@@ -76,6 +76,17 @@ class SupervisorRuntimeSummary(BaseModel):
     managed_nodes: list[ManagedNodeSummary] = Field(default_factory=list)
 
 
+class SupervisorAdmissionContextSummary(BaseModel):
+    admission_state: str = "unknown"
+    execution_host_ready: bool = False
+    unavailable_reason: str | None = None
+    host_busy_rating: int = Field(ge=0, le=10)
+    total_capacity_units: int = Field(ge=0)
+    available_capacity_units: int = Field(ge=0)
+    managed_node_count: int = Field(ge=0)
+    healthy_managed_node_count: int = Field(ge=0)
+
+
 class SupervisorNodeActionResult(BaseModel):
     action: str
     node: ManagedNodeSummary

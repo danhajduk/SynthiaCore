@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from .models import (
     HostResourceSummary,
     ManagedNodeSummary,
+    SupervisorAdmissionContextSummary,
     SupervisorHealthSummary,
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
@@ -32,6 +33,10 @@ def build_supervisor_router(service: SupervisorDomainService | None = None) -> A
     @router.get("/supervisor/runtime")
     def get_supervisor_runtime() -> SupervisorRuntimeSummary:
         return supervisor.runtime_summary()
+
+    @router.get("/supervisor/admission")
+    def get_supervisor_admission() -> SupervisorAdmissionContextSummary:
+        return supervisor.admission_summary()
 
     @router.get("/supervisor/nodes")
     def list_supervisor_nodes() -> dict[str, list[ManagedNodeSummary]]:

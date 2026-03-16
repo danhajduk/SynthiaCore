@@ -17,6 +17,7 @@ from .models import (
     HostResourceSummary,
     ManagedNodeSummary,
     ProcessResourceSummary,
+    SupervisorAdmissionContextSummary,
     SupervisorHealthSummary,
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
@@ -120,6 +121,55 @@ class SupervisorDomainService:
 
     def list_managed_nodes(self) -> list[ManagedNodeSummary]:
         return self._managed_nodes()
+
+    def admission_summary(
+        self,
+        *,
+        total_capacity_units: int = 100,
+        reserve_units: int = 5,
+        headroom_pct: float = 0.05,
+    ) -> SupervisorAdmissionContextSummary:
+        resources = self._host_resources()
+        managed_nodes = self._managed_nodes()
+        healthy_count = sum(1 for item in managed_nodes if str(item.health_status or "").strip().lower() == "healthy")
+
+        busy = 0
+        if resources.cpu_percent_total >= 95 or resources.memory_percent >= 95:
+            busy = 10
+        elif resources.cpu_percent_total >= 85 or resources.memory_percent >= 85:
+            busy = 8
+        elif resources.cpu_percent_total >= 70 or resources.memory_percent >= 70:
+            busy = 6
+        elif resources.cpu_percent_total >= 50 or resources.memory_percent >= 50:
+            busy = 3
+
+        busy_to_percent = {
+            0: 1.00,
+            1: 1.00,
+            2: 1.00,
+            3: 0.80,
+            4: 0.65,
+            5: 0.50,
+            6: 0.35,
+            7: 0.25,
+            8: 0.15,
+            9: 0.10,
+            10: 0.00,
+        }
+        usable = int((total_capacity_units * busy_to_percent[busy]) * max(0.0, 1.0 - headroom_pct)) - reserve_units
+        available_capacity = max(0, usable)
+        host_ready = available_capacity > 0 and resources.memory_available_bytes > 0
+
+        return SupervisorAdmissionContextSummary(
+            admission_state="ready" if host_ready else "degraded",
+            execution_host_ready=host_ready,
+            unavailable_reason=None if host_ready else "host_capacity_unavailable",
+            host_busy_rating=busy,
+            total_capacity_units=max(0, int(total_capacity_units)),
+            available_capacity_units=available_capacity,
+            managed_node_count=len(managed_nodes),
+            healthy_managed_node_count=healthy_count,
+        )
 
     def _runtime_snapshot(self, node_id: str):
         return self._runtime_service.get_standalone_addon_runtime_snapshot(node_id)

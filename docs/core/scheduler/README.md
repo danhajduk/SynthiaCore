@@ -17,6 +17,7 @@ This documentation was re-homed from `docs/scheduler/` during the Core -> Superv
 - Scheduler remains a Core subsystem.
 - Its canonical role is workload admission, queue management, and orchestration.
 - Execution should be described separately from scheduler ownership.
+- Admission now reads Supervisor runtime readiness when that service is available.
 
 ## See Also
 

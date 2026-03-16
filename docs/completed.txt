@@ -8,6 +8,7 @@ Task 010: Separate embedded addons from external nodes in docs and code - Comple
 Task 011: Introduce node capability taxonomy - Completed on 03/16/2026 02:58
 Task 012: Reframe scheduler as Core orchestration, not local execution - Completed on 03/16/2026 03:01
 Task 013: Move execution-facing worker/runtime ownership out of Core - Completed on 03/16/2026 03:03
+Task 014: Add Supervisor-aware workload admission context - Completed on 03/16/2026 03:09
 01. Task 23: Implement backend addon registry persistence and registry API endpoints. - Completed on 02/28/2026 17:58
 02. Task 24: Implement backend MQTT listener for announce/health with safe optional startup. - Completed on 02/28/2026 18:00
 03. Task 25: Implement backend install-session state machine and endpoints. - Completed on 02/28/2026 18:13
