@@ -70,9 +70,9 @@ Status: Archived Legacy
 
 ## See Also
 
-- [Core Platform](../fastapi/core-platform.md)
-- [API Reference](../fastapi/api-reference.md)
-- [Frontend and UI](../frontend/frontend-and-ui.md)
-- [Data and State](../fastapi/data-and-state.md)
+- [Core Platform](../core/api/core-platform.md)
+- [API Reference](../core/api/api-reference.md)
+- [Frontend and UI](../core/frontend/frontend-and-ui.md)
+- [Data and State](../core/api/data-and-state.md)
 - [addon-lifecycle.md](./addon-lifecycle.md)
 - [standalone-archive/README.md](./standalone-archive/README.md)

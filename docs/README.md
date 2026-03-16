@@ -102,7 +102,7 @@ Worker helpers located under:
 
 Responsibilities:
 
--   Core-side task execution
+-   Supervisor-owned host-local task execution helpers during migration
 -   runtime worker coordination
 -   scheduled job execution helpers
 
@@ -119,12 +119,13 @@ Responsibilities:
 -   standalone addon runtime supervision
 -   compose-based service orchestration
 -   desired vs runtime state reconciliation
+-   host-local lifecycle and resource authority
 
 ------------------------------------------------------------------------
 
-### Addon Platform
+### Extension Platform
 
-Synthia supports two addon types.
+Synthia currently documents three extension/runtime categories.
 
 **Embedded Addons**
 
@@ -136,6 +137,12 @@ Synthia supports two addon types.
 -   separate runtime units
 -   managed by the Supervisor
 -   lifecycle handled by Core
+
+**External Nodes**
+
+-   trusted external systems
+-   capability and execution surfaces outside Core
+-   the canonical model for new external functionality
 
 Responsibilities include:
 
@@ -287,7 +294,7 @@ Key entry points:
 ### Core Platform
 
 -   docs/architecture.md
--   docs/fastapi/core-platform.md
+-   docs/core/api/core-platform.md
 -   docs/supervisor/runtime-and-supervision.md
 
 ### MQTT Platform
@@ -303,7 +310,7 @@ Key entry points:
 
 ### API and Development
 
--   docs/fastapi/api-reference.md
+-   docs/core/api/api-reference.md
 -   docs/development-guide.md
 
 ### Operations
@@ -318,7 +325,8 @@ Synthia Core is part of the larger Synthia ecosystem which may include:
 
 -   AI Nodes
 -   Vision services
--   standalone addons
+-   standalone addon compatibility runtimes
+-   external nodes
 -   platform integrations
 
 Core acts as the **platform authority and orchestration layer** for

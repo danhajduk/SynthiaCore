@@ -16,19 +16,26 @@ This document records the current documentation normalization state for the repo
 - AI-node-specific docs were moved into `docs/temp-ai-node/`.
 - `Policies/` was renamed to `standards/`.
 
-## Active Subsystem Folders
+## Active Canonical Subsystem Folders
+
+- `docs/core/api/`
+- `docs/core/frontend/`
+- `docs/core/scheduler/`
+- `docs/mqtt/`
+- `docs/addons/`
+- `docs/nodes/`
+- `docs/temp-ai-node/`
+- `docs/workers/`
+- `docs/supervisor/`
+
+## Compatibility Landing Pages
 
 - `docs/fastapi/`
 - `docs/frontend/`
-- `docs/mqtt/`
-- `docs/addons/`
 - `docs/addon-embedded/`
 - `docs/addon-standalone/`
-- `docs/nodes/`
-- `docs/temp-ai-node/`
+- `docs/addon-store/`
 - `docs/scheduler/`
-- `docs/workers/`
-- `docs/supervisor/`
 
 ## Notes
 

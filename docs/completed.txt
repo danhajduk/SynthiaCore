@@ -12,6 +12,7 @@ Task 014: Add Supervisor-aware workload admission context - Completed on 03/16/2
 Task 015: Define node execution contract for scheduled work - Completed on 03/16/2026 03:10
 Task 016: Update standards to the new architecture model - Completed on 03/16/2026 03:21
 Task 017: Archive or relabel legacy standalone addon/store material - Completed on 03/16/2026 03:25
+Task 018: Audit internal links, imports, and naming drift - Completed on 03/16/2026 03:29
 01. Task 23: Implement backend addon registry persistence and registry API endpoints. - Completed on 02/28/2026 17:58
 02. Task 24: Implement backend MQTT listener for announce/health with safe optional startup. - Completed on 02/28/2026 18:00
 03. Task 25: Implement backend install-session state machine and endpoints. - Completed on 02/28/2026 18:13
