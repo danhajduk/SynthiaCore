@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .capability_taxonomy import capability_taxonomy_payload
 from .governance_status import NodeGovernanceStatusService
 
 
@@ -40,6 +41,14 @@ def node_registry_payload(item, node_governance_status_service: NodeGovernanceSt
     if capability_status == "missing":
         governance_status = "pending_capability"
     operational_ready = bool(trust_status == "trusted" and capability_status == "accepted" and governance_status == "issued")
+    capability_taxonomy = capability_taxonomy_payload(
+        declared_task_families=list(getattr(item, "declared_capabilities", []) or []),
+        enabled_providers=list(getattr(item, "enabled_providers", []) or []),
+        provider_intelligence=[dict(v) for v in list(getattr(item, "provider_intelligence", []) or []) if isinstance(v, dict)],
+        capability_status=capability_status,
+        governance_sync_status=governance_status,
+        operational_ready=operational_ready,
+    )
     return {
         "node_id": getattr(item, "node_id", None),
         "node_name": getattr(item, "node_name", None),
@@ -59,6 +68,7 @@ def node_registry_payload(item, node_governance_status_service: NodeGovernanceSt
         "capability_declaration_timestamp": getattr(item, "capability_declaration_timestamp", None),
         "capability_profile_id": getattr(item, "capability_profile_id", None),
         "capability_status": capability_status,
+        "capability_taxonomy": capability_taxonomy,
         "governance_sync_status": governance_status,
         "operational_ready": operational_ready,
         "active_governance_version": active_governance_version,

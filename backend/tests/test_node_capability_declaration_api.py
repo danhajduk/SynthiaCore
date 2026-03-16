@@ -193,6 +193,8 @@ class TestNodeCapabilityDeclarationApi(unittest.TestCase):
         self.assertEqual(payload["provider_intelligence"][0]["available_models"][0]["normalized_model_id"], "gpt-4o-mini")
         self.assertEqual(payload["unified_model_descriptors"][0]["normalized_model_id"], "gpt-4o-mini")
         self.assertTrue(str(payload.get("capability_profile_id") or "").startswith(f"cap-{node_id}-v"))
+        self.assertEqual(payload["capability_taxonomy"]["activation"]["stage"], "operational")
+        self.assertEqual(payload["capability_taxonomy"]["categories"][0]["category_id"], "task_families")
         self.assertTrue(str(payload.get("governance_version") or "").startswith("gov-v"))
         self.assertTrue(str(payload.get("governance_issued_at") or "").strip())
 

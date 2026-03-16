@@ -16,6 +16,7 @@ This document is the source of truth for:
 - capability profile registration
 - baseline governance bundle issuance
 - operational-readiness state progression
+- canonical capability taxonomy publication
 
 This document does not define prompt/task execution logic.
 
@@ -109,6 +110,9 @@ Implemented Phase 2 API groups:
 - governance bundle fetch/refresh
 - node operational status query
 - telemetry ingestion for lifecycle/governance signals
+
+Capability responses and profile records now also publish the canonical taxonomy defined in:
+- [Node Capability Taxonomy](./capability-taxonomy.md)
 
 Exact request/response schemas are defined in:
 - [Node Phase 2 Lifecycle Contract](./node-phase2-lifecycle-contract.md)

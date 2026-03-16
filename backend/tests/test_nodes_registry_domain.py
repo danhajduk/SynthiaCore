@@ -48,6 +48,8 @@ class TestNodesRegistryDomain(unittest.TestCase):
         assert item is not None
         self.assertEqual(item.node_id, "node-1")
         self.assertEqual(item.capabilities.capability_profile_id, "cap-node-1-v1")
+        self.assertEqual(item.capabilities.taxonomy.activation.stage, "operational")
+        self.assertEqual(item.capabilities.taxonomy.categories[0].category_id, "task_families")
         self.assertEqual(item.status.trust_status, "trusted")
         self.assertTrue(item.status.operational_ready)
 

@@ -31,8 +31,14 @@ The new top-level node routes reuse the existing canonical registration payload 
 - Embedded addons remain inside Core and should not be used to describe external platform boundaries.
 - Core remains the MQTT authority, and node connectivity material continues to be issued from Core-owned flows.
 
+## Capability Taxonomy
+
+- Nodes now expose a canonical capability taxonomy with stable categories for task families, provider access, and provider models.
+- Capability activation semantics are standardized through taxonomy stages from `not_declared` through `operational`.
+
 ## Included Docs
 
+- [capability-taxonomy.md](./capability-taxonomy.md)
 - [onboarding-trust-terminology.md](./onboarding-trust-terminology.md)
 - [registry-domain.md](./registry-domain.md)
 - [node-onboarding-registration-architecture.md](./node-onboarding-registration-architecture.md)

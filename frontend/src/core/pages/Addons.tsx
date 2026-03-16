@@ -58,6 +58,22 @@ type NodeRegistration = {
   enabled_providers?: string[];
   capability_profile_id?: string | null;
   capability_status?: string;
+  capability_taxonomy?: {
+    version?: string;
+    categories?: Array<{
+      category_id?: string;
+      label?: string;
+      items?: string[];
+      item_count?: number;
+    }>;
+    activation?: {
+      stage?: string;
+      declaration_received?: boolean;
+      profile_accepted?: boolean;
+      governance_issued?: boolean;
+      operational?: boolean;
+    };
+  };
   governance_sync_status?: string;
   operational_ready?: boolean;
   active_governance_version?: string | null;
@@ -558,8 +574,15 @@ export default function Addons() {
                 <div className="addon-runtime-list">
                   {visibleNodes.map((item) => {
                     const routing = routingByNode[item.node_id];
+                    const taxonomyCategories = Array.isArray(item.capability_taxonomy?.categories)
+                      ? item.capability_taxonomy?.categories ?? []
+                      : [];
+                    const taxonomySummary = taxonomyCategories
+                      .filter((category) => Array.isArray(category.items) && category.items.length > 0)
+                      .map((category) => `${category.label || category.category_id}: ${(category.items || []).join(", ")}`)
+                      .join(" • ");
                     return (
-                    <div key={item.node_id} className="addon-runtime-card">
+                      <div key={item.node_id} className="addon-runtime-card">
                       <div className="addon-card-header">
                         <div className="addon-name">{item.node_name || item.node_id}</div>
                         <div className="addon-status">state: {item.registry_state || item.trust_status || "unknown"}</div>
@@ -578,10 +601,16 @@ export default function Addons() {
                         capability profile: {item.capability_profile_id || "-"}
                       </div>
                       <div className="addon-meta">
+                        taxonomy stage: {item.capability_taxonomy?.activation?.stage || "not_declared"}
+                      </div>
+                      <div className="addon-meta">
                         task families: {Array.isArray(item.declared_capabilities) && item.declared_capabilities.length > 0 ? item.declared_capabilities.join(", ") : "-"}
                       </div>
                       <div className="addon-meta">
                         providers: {Array.isArray(item.enabled_providers) && item.enabled_providers.length > 0 ? item.enabled_providers.join(", ") : "-"}
+                      </div>
+                      <div className="addon-meta">
+                        taxonomy: {taxonomySummary || "-"}
                       </div>
                       {routing && routing.providers.length > 0 && (
                         <div className="addon-routing-visual">
@@ -642,8 +671,9 @@ export default function Addons() {
                           </button>
                         </div>
                       )}
-                    </div>
-                  )})}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

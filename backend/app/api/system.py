@@ -25,6 +25,7 @@ from ..system.onboarding import (
     NodeRegistrationsStore,
     NodeTelemetryService,
     NodeTrustIssuanceService,
+    capability_taxonomy_payload,
     node_registry_payload,
     normalize_provider_capability_report,
     validate_capability_declaration,
@@ -710,6 +711,18 @@ def build_system_router(
                 else []
             ),
             "capability_profile_id": registration.capability_profile_id,
+            "capability_taxonomy": capability_taxonomy_payload(
+                declared_task_families=list(registration.declared_capabilities),
+                enabled_providers=list(registration.enabled_providers),
+                provider_intelligence=[
+                    dict(item) for item in list(registration.provider_intelligence or []) if isinstance(item, dict)
+                ],
+                capability_status="accepted",
+                governance_sync_status="issued" if issued_governance is not None else "pending",
+                operational_ready=bool(
+                    str(registration.trust_status or "").strip().lower() == "trusted" and issued_governance is not None
+                ),
+            ),
         }
         if issued_governance is not None:
             response_payload["governance_version"] = issued_governance.governance_version

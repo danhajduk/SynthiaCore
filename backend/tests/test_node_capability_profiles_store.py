@@ -54,6 +54,7 @@ class TestNodeCapabilityProfilesStore(unittest.TestCase):
         )
         self.assertEqual(profile1.profile_id, profile2.profile_id)
         self.assertEqual(profile1.provider_intelligence[0]["provider"], "openai")
+        self.assertEqual(profile1.to_dict()["capability_taxonomy"]["activation"]["stage"], "profile_accepted")
         self.assertEqual(len(self.store.list(node_id="node-abc123")), 1)
 
     def test_create_or_get_versions_profiles_on_manifest_change(self) -> None:

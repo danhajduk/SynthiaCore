@@ -2,10 +2,20 @@ from __future__ import annotations
 
 from app.system.onboarding import NodeGovernanceStatusService, NodeRegistrationsStore, node_registry_payload
 
-from .models import NodeCapabilitySummary, NodeRecord, NodeStatusSummary
+from .models import (
+    NodeCapabilityActivationSummary,
+    NodeCapabilityCategorySummary,
+    NodeCapabilitySummary,
+    NodeCapabilityTaxonomySummary,
+    NodeRecord,
+    NodeStatusSummary,
+)
 
 
 def _node_record_from_payload(payload: dict[str, object]) -> NodeRecord:
+    taxonomy_payload = payload.get("capability_taxonomy") if isinstance(payload.get("capability_taxonomy"), dict) else {}
+    taxonomy_categories = taxonomy_payload.get("categories") if isinstance(taxonomy_payload.get("categories"), list) else []
+    activation_payload = taxonomy_payload.get("activation") if isinstance(taxonomy_payload.get("activation"), dict) else {}
     return NodeRecord(
         node_id=str(payload.get("node_id") or ""),
         node_name=str(payload.get("node_name") or ""),
@@ -27,6 +37,26 @@ def _node_record_from_payload(payload: dict[str, object]) -> NodeRecord:
             capability_status=str(payload.get("capability_status") or "missing"),
             capability_declaration_version=str(payload.get("capability_declaration_version") or "").strip() or None,
             capability_declaration_timestamp=str(payload.get("capability_declaration_timestamp") or "").strip() or None,
+            taxonomy=NodeCapabilityTaxonomySummary(
+                version=str(taxonomy_payload.get("version") or "1"),
+                categories=[
+                    NodeCapabilityCategorySummary(
+                        category_id=str(item.get("category_id") or ""),
+                        label=str(item.get("label") or ""),
+                        items=[str(v) for v in list(item.get("items") or []) if str(v).strip()],
+                        item_count=int(item.get("item_count") or 0),
+                    )
+                    for item in taxonomy_categories
+                    if isinstance(item, dict)
+                ],
+                activation=NodeCapabilityActivationSummary(
+                    stage=str(activation_payload.get("stage") or "not_declared"),
+                    declaration_received=bool(activation_payload.get("declaration_received")),
+                    profile_accepted=bool(activation_payload.get("profile_accepted")),
+                    governance_issued=bool(activation_payload.get("governance_issued")),
+                    operational=bool(activation_payload.get("operational")),
+                ),
+            ),
         ),
         status=NodeStatusSummary(
             trust_status=str(payload.get("trust_status") or "pending"),

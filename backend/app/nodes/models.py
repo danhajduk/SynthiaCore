@@ -3,6 +3,27 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class NodeCapabilityCategorySummary(BaseModel):
+    category_id: str
+    label: str
+    items: list[str] = Field(default_factory=list)
+    item_count: int = 0
+
+
+class NodeCapabilityActivationSummary(BaseModel):
+    stage: str = "not_declared"
+    declaration_received: bool = False
+    profile_accepted: bool = False
+    governance_issued: bool = False
+    operational: bool = False
+
+
+class NodeCapabilityTaxonomySummary(BaseModel):
+    version: str = "1"
+    categories: list[NodeCapabilityCategorySummary] = Field(default_factory=list)
+    activation: NodeCapabilityActivationSummary = Field(default_factory=NodeCapabilityActivationSummary)
+
+
 class NodeCapabilitySummary(BaseModel):
     declared_capabilities: list[str] = Field(default_factory=list)
     enabled_providers: list[str] = Field(default_factory=list)
@@ -10,6 +31,7 @@ class NodeCapabilitySummary(BaseModel):
     capability_status: str = "missing"
     capability_declaration_version: str | None = None
     capability_declaration_timestamp: str | None = None
+    taxonomy: NodeCapabilityTaxonomySummary = Field(default_factory=NodeCapabilityTaxonomySummary)
 
 
 class NodeStatusSummary(BaseModel):

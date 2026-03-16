@@ -36,6 +36,27 @@ This document defines the canonical node registry domain introduced for the Node
 - `capability_status`
 - `capability_declaration_version`
 - `capability_declaration_timestamp`
+- `taxonomy`
+
+### NodeCapabilityTaxonomySummary
+
+- `version`
+- `categories`
+- `activation`
+
+Stable category identifiers:
+
+- `task_families`
+- `provider_access`
+- `provider_models`
+
+Stable activation stages:
+
+- `not_declared`
+- `declaration_received`
+- `profile_accepted`
+- `governance_issued`
+- `operational`
 
 ### NodeStatusSummary
 

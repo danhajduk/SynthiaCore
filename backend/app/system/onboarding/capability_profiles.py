@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .capability_taxonomy import capability_taxonomy_payload
+
 CAPABILITY_PROFILE_SCHEMA_VERSION = "1"
 
 
@@ -54,6 +56,14 @@ class NodeCapabilityProfileRecord:
             "manifest_version": self.manifest_version,
             "declaration_digest": self.declaration_digest,
             "declaration_raw": copy.deepcopy(self.declaration_raw or {}),
+            "capability_taxonomy": capability_taxonomy_payload(
+                declared_task_families=list(self.declared_task_families or []),
+                enabled_providers=list(self.enabled_providers or []),
+                provider_intelligence=[copy.deepcopy(v) for v in list(self.provider_intelligence or []) if isinstance(v, dict)],
+                capability_status="accepted",
+                governance_sync_status="pending",
+                operational_ready=False,
+            ),
         }
 
 

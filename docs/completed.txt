@@ -5,6 +5,7 @@ Task 007: Introduce Supervisor-managed node lifecycle control - Completed on 03/
 Task 008: Create canonical node registry domain - Completed on 03/16/2026 02:45
 Task 009: Normalize node onboarding and trust contracts - Completed on 03/16/2026 02:47
 Task 010: Separate embedded addons from external nodes in docs and code - Completed on 03/16/2026 02:50
+Task 011: Introduce node capability taxonomy - Completed on 03/16/2026 02:58
 01. Task 23: Implement backend addon registry persistence and registry API endpoints. - Completed on 02/28/2026 17:58
 02. Task 24: Implement backend MQTT listener for announce/health with safe optional startup. - Completed on 02/28/2026 18:00
 03. Task 25: Implement backend install-session state machine and endpoints. - Completed on 02/28/2026 18:13

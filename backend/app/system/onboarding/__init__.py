@@ -22,6 +22,7 @@ from .capability_manifest import (
     SUPPORTED_CAPABILITY_DECLARATION_VERSIONS,
     validate_capability_declaration,
 )
+from .capability_taxonomy import CAPABILITY_TAXONOMY_VERSION, capability_activation_summary, capability_taxonomy_payload
 from .provider_capability_normalization import normalize_provider_capability_report
 from .model_routing_registry import ModelRoutingRecord, ModelRoutingRegistryService, ModelRoutingRegistryStore
 from .registry_view import node_registry_payload, node_capability_status, registry_state_from_trust_status
@@ -56,6 +57,9 @@ __all__ = [
     "SUPPORTED_CAPABILITY_DECLARATION_VERSIONS",
     "CapabilityManifestValidationError",
     "validate_capability_declaration",
+    "CAPABILITY_TAXONOMY_VERSION",
+    "capability_activation_summary",
+    "capability_taxonomy_payload",
     "normalize_provider_capability_report",
     "ModelRoutingRecord",
     "ModelRoutingRegistryStore",

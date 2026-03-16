@@ -119,6 +119,10 @@ class TestArchitectureFoundationApi(unittest.TestCase):
             self.assertEqual(len(listed.json()["items"]), 1)
             self.assertEqual(listed.json()["items"][0]["requested_node_type"], "ai-node")
             self.assertEqual(listed.json()["items"][0]["capabilities"]["capability_status"], "missing")
+            self.assertEqual(
+                listed.json()["items"][0]["capabilities"]["taxonomy"]["activation"]["stage"],
+                "not_declared",
+            )
             self.assertEqual(listed.json()["items"][0]["status"]["trust_status"], "trusted")
 
             detail = client.get("/api/nodes/node-abc12345")
