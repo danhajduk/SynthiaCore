@@ -97,6 +97,35 @@ Includes:
 - `managed_node_count`
 - `managed_nodes`
 
+### SupervisorRuntimeSummary
+
+Returned by:
+
+- `GET /api/supervisor/runtime`
+
+Includes:
+
+- `host`
+- `resources`
+- `process`
+- `managed_node_count`
+- `managed_nodes`
+
+### Supervisor Host API Surface
+
+Status: Implemented
+
+Current Supervisor routes:
+
+- `GET /api/supervisor/health`
+- `GET /api/supervisor/info`
+- `GET /api/supervisor/resources`
+- `GET /api/supervisor/runtime`
+- `GET /api/supervisor/nodes`
+- `POST /api/supervisor/nodes/{node_id}/start`
+- `POST /api/supervisor/nodes/{node_id}/stop`
+- `POST /api/supervisor/nodes/{node_id}/restart`
+
 ## Ownership Boundary
 
 Current Supervisor ownership:

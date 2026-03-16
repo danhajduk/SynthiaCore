@@ -35,6 +35,13 @@ class ManagedNodeSummary(BaseModel):
     running: bool | None = None
 
 
+class ProcessResourceSummary(BaseModel):
+    rss_bytes: int | None = Field(default=None, ge=0)
+    cpu_percent: float | None = Field(default=None)
+    open_fds: int | None = Field(default=None, ge=0)
+    threads: int | None = Field(default=None, ge=0)
+
+
 class SupervisorOwnershipBoundary(BaseModel):
     owns: list[str] = Field(default_factory=list)
     depends_on_core_for: list[str] = Field(default_factory=list)
@@ -56,3 +63,16 @@ class SupervisorInfoSummary(BaseModel):
     boundaries: SupervisorOwnershipBoundary
     managed_node_count: int = Field(ge=0)
     managed_nodes: list[ManagedNodeSummary] = Field(default_factory=list)
+
+
+class SupervisorRuntimeSummary(BaseModel):
+    host: HostIdentitySummary
+    resources: HostResourceSummary
+    process: ProcessResourceSummary
+    managed_node_count: int = Field(ge=0)
+    managed_nodes: list[ManagedNodeSummary] = Field(default_factory=list)
+
+
+class SupervisorNodeActionResult(BaseModel):
+    action: str
+    node: ManagedNodeSummary

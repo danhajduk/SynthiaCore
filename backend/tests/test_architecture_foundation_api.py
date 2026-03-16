@@ -75,6 +75,18 @@ class TestArchitectureFoundationApi(unittest.TestCase):
             self.assertEqual(info.json()["managed_nodes"][0]["node_id"], "mqtt")
             self.assertIn("boundaries", info.json())
 
+            resources = client.get("/api/supervisor/resources")
+            self.assertEqual(resources.status_code, 200, resources.text)
+            self.assertIn("memory_total_bytes", resources.json())
+
+            runtime = client.get("/api/supervisor/runtime")
+            self.assertEqual(runtime.status_code, 200, runtime.text)
+            self.assertEqual(runtime.json()["managed_nodes"][0]["node_id"], "mqtt")
+
+            nodes = client.get("/api/supervisor/nodes")
+            self.assertEqual(nodes.status_code, 200, nodes.text)
+            self.assertEqual(nodes.json()["items"][0]["node_id"], "mqtt")
+
     def test_nodes_endpoints_reuse_registration_view(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             registrations = NodeRegistrationsStore(path=Path(tmpdir) / "node_registrations.json")

@@ -20,6 +20,12 @@ Supervisor currently spans:
 - migration-foundation route exposure through:
   - `GET /api/supervisor/health`
   - `GET /api/supervisor/info`
+  - `GET /api/supervisor/resources`
+  - `GET /api/supervisor/runtime`
+  - `GET /api/supervisor/nodes`
+  - `POST /api/supervisor/nodes/{node_id}/start`
+  - `POST /api/supervisor/nodes/{node_id}/stop`
+  - `POST /api/supervisor/nodes/{node_id}/restart`
 
 Broader host-local resource and lifecycle ownership is Partially implemented.
 

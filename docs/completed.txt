@@ -1,5 +1,6 @@
 Task 004: Define Supervisor domain models and service boundaries - Completed on 03/16/2026 02:33
 Task 005: Move host-local health/resource logic behind Supervisor APIs - Completed on 03/16/2026 02:35
+Task 006: Add Supervisor host API surface - Completed on 03/16/2026 02:37
 01. Task 23: Implement backend addon registry persistence and registry API endpoints. - Completed on 02/28/2026 17:58
 02. Task 24: Implement backend MQTT listener for announce/health with safe optional startup. - Completed on 02/28/2026 18:00
 03. Task 25: Implement backend install-session state machine and endpoints. - Completed on 02/28/2026 18:13
