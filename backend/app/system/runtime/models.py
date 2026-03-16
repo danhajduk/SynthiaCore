@@ -9,6 +9,7 @@ class StandaloneAddonRuntime(BaseModel):
     addon_id: str
     desired_state: str = "unknown"
     runtime_state: str = "unknown"
+    lifecycle_state: str = "unknown"
     active_version: str | None = None
     target_version: str | None = None
     container_name: str | None = None
@@ -21,6 +22,8 @@ class StandaloneAddonRuntime(BaseModel):
     published_ports: list[str] = Field(default_factory=list)
     network: str | None = None
     last_error: str | None = None
+    last_action: str | None = None
+    last_action_at: str | None = None
 
 
 class StandaloneAddonRuntimeSnapshot(BaseModel):

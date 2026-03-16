@@ -86,6 +86,7 @@ class TestArchitectureFoundationApi(unittest.TestCase):
             nodes = client.get("/api/supervisor/nodes")
             self.assertEqual(nodes.status_code, 200, nodes.text)
             self.assertEqual(nodes.json()["items"][0]["node_id"], "mqtt")
+            self.assertEqual(nodes.json()["items"][0]["lifecycle_state"], "running")
 
     def test_nodes_endpoints_reuse_registration_view(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

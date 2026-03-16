@@ -50,10 +50,13 @@ class RuntimeState(BaseModel):
     addon_id: str
     active_version: Optional[str] = None
     state: str
+    lifecycle_state: str = "unknown"
     error: Optional[str] = None
     previous_version: Optional[str] = None
     rollback_available: bool = False
     last_error: Optional[str] = None
+    last_action: Optional[str] = None
+    last_action_at: Optional[str] = None
     last_applied_desired_revision: Optional[str] = None
     last_applied_compose_digest: Optional[str] = None
     last_force_rebuild_revision: Optional[str] = None

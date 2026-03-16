@@ -142,6 +142,22 @@ def _normalize_health(value: Any) -> tuple[str, str | None]:
     return "unknown", detail
 
 
+def _normalize_lifecycle_state(value: Any, *, desired_state: str, runtime_state: str) -> str:
+    raw = str(value or "").strip().lower()
+    allowed = {"unknown", "starting", "running", "stopping", "stopped", "restarting", "error"}
+    if raw in allowed:
+        return raw
+    if runtime_state == "running":
+        return "running"
+    if runtime_state == "stopped":
+        return "stopped"
+    if runtime_state == "error":
+        return "error"
+    if desired_state == "stopped":
+        return "stopped"
+    return "unknown"
+
+
 def _ports_from_desired(payload: Any) -> list[str]:
     if not isinstance(payload, list):
         return []
@@ -300,6 +316,9 @@ class StandaloneRuntimeService:
         health_status = "unknown"
         health_detail: str | None = None
         last_error: str | None = None
+        lifecycle_state = "unknown"
+        last_action: str | None = None
+        last_action_at: str | None = None
         if isinstance(runtime_payload, dict):
             runtime_state = str(runtime_payload.get("state") or "unknown").strip() or "unknown"
             active_raw = runtime_payload.get("active_version")
@@ -307,6 +326,15 @@ class StandaloneRuntimeService:
             last_error_raw = runtime_payload.get("last_error") or runtime_payload.get("error")
             last_error = str(last_error_raw).strip() if last_error_raw is not None else None
             health_status, health_detail = _normalize_health(runtime_payload.get("health"))
+            lifecycle_state = _normalize_lifecycle_state(
+                runtime_payload.get("lifecycle_state"),
+                desired_state=desired_state,
+                runtime_state=runtime_state,
+            )
+            last_action_raw = runtime_payload.get("last_action")
+            last_action = str(last_action_raw).strip() if last_action_raw is not None else None
+            last_action_at_raw = runtime_payload.get("last_action_at")
+            last_action_at = str(last_action_at_raw).strip() if last_action_at_raw is not None else None
 
         docker_meta, docker_error = self._inspect_compose_container(project_name)
 
@@ -344,6 +372,7 @@ class StandaloneRuntimeService:
             addon_id=addon_id,
             desired_state=desired_state,
             runtime_state=runtime_state,
+            lifecycle_state=lifecycle_state,
             active_version=active_version,
             target_version=target_version,
             container_name=container_name,
@@ -356,6 +385,8 @@ class StandaloneRuntimeService:
             published_ports=published_ports,
             network=network,
             last_error=last_error,
+            last_action=last_action,
+            last_action_at=last_action_at,
         )
 
         return StandaloneAddonRuntimeSnapshot(

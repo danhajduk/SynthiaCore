@@ -33,6 +33,7 @@ Broader host-local resource and lifecycle ownership is Partially implemented.
 
 - [runtime-and-supervision.md](./runtime-and-supervision.md)
 - [domain-models.md](./domain-models.md)
+- [lifecycle-control.md](./lifecycle-control.md)
 
 ## See Also
 

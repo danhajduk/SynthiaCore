@@ -309,6 +309,9 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
             if compose_files_in_use:
                 compose_down(compose_files_in_use, desired.runtime.project_name)
             rt.state = "stopped"
+            rt.lifecycle_state = "stopped"
+            rt.last_action = "reconcile_stop"
+            rt.last_action_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             rt.last_applied_desired_revision = desired.desired_revision
             rt.requested_docker_groups = requested_groups
             rt.active_docker_groups = []
@@ -494,10 +497,13 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
         activate_current_symlink(addon_dir, version_dir)
 
         rt.state = "running"
+        rt.lifecycle_state = "running"
         rt.active_version = version
         rt.previous_version = previous_version
         rt.rollback_available = bool(previous_version and previous_version != version)
         rt.last_error = None
+        rt.last_action = "reconcile_start"
+        rt.last_action_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         rt.last_applied_desired_revision = desired_revision
         rt.last_applied_compose_digest = compose_digest
         rt.requested_docker_groups = requested_groups
@@ -515,9 +521,12 @@ def reconcile_one(addon_dir: Path) -> ReconcileResult | None:
 
     except Exception as e:
         rt.state = "error"
+        rt.lifecycle_state = "error"
         message = str(e)
         rt.error = message
         rt.last_error = message
+        rt.last_action = "reconcile_error"
+        rt.last_action_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         rt.previous_version = previous_version
         rt.rollback_available = bool(previous_version)
         log.exception("reconcile_error addon_id=%s error=%s", rt.addon_id, message)

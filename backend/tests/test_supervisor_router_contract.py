@@ -23,11 +23,14 @@ class _FakeSupervisorService:
     def _node(self) -> ManagedNodeSummary:
         return ManagedNodeSummary(
             node_id="mqtt",
+            lifecycle_state="running",
             desired_state="running",
             runtime_state="running",
             health_status="healthy",
             active_version="1.0.0",
             running=True,
+            last_action="start",
+            last_action_at="2026-03-16T00:00:00Z",
         )
 
     def _host(self) -> HostIdentitySummary:

@@ -28,11 +28,14 @@ class HostResourceSummary(BaseModel):
 class ManagedNodeSummary(BaseModel):
     node_id: str
     runtime_kind: str = "standalone_addon"
+    lifecycle_state: str = "unknown"
     desired_state: str
     runtime_state: str
     health_status: str
     active_version: str | None = None
     running: bool | None = None
+    last_action: str | None = None
+    last_action_at: str | None = None
 
 
 class ProcessResourceSummary(BaseModel):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import socket
 import json
+from datetime import datetime, timezone
 from typing import Any
 from pathlib import Path
 
@@ -62,11 +63,14 @@ class SupervisorDomainService:
         return [
             ManagedNodeSummary(
                 node_id=item.addon_id,
+                lifecycle_state=item.lifecycle_state,
                 desired_state=item.desired_state,
                 runtime_state=item.runtime_state,
                 health_status=item.health_status,
                 active_version=item.active_version,
                 running=item.running,
+                last_action=item.last_action,
+                last_action_at=item.last_action_at,
             )
             for item in runtimes
         ]
@@ -147,6 +151,9 @@ class SupervisorDomainService:
     def _write_json(self, path: Path, payload: dict[str, Any]) -> None:
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
+    def _now_iso(self) -> str:
+        return datetime.now(timezone.utc).isoformat()
+
     def _set_desired_state(self, snapshot, desired_state: str) -> None:
         if not isinstance(snapshot.raw_desired, dict):
             return
@@ -154,11 +161,26 @@ class SupervisorDomainService:
         payload["desired_state"] = desired_state
         self._write_json(Path(snapshot.desired_path), payload)
 
-    def _set_runtime_state(self, snapshot, runtime_state: str) -> None:
+    def _set_runtime_state(
+        self,
+        snapshot,
+        runtime_state: str,
+        *,
+        lifecycle_state: str,
+        last_action: str,
+        error: str | None = None,
+    ) -> None:
         payload = dict(snapshot.raw_runtime) if isinstance(snapshot.raw_runtime, dict) else {}
         payload["state"] = runtime_state
-        payload.pop("error", None)
-        payload.pop("last_error", None)
+        payload["lifecycle_state"] = lifecycle_state
+        payload["last_action"] = last_action
+        payload["last_action_at"] = self._now_iso()
+        if error:
+            payload["error"] = error
+            payload["last_error"] = error
+        else:
+            payload.pop("error", None)
+            payload.pop("last_error", None)
         self._write_json(Path(snapshot.runtime_path), payload)
 
     def _action_result(self, action: str, node_id: str) -> SupervisorNodeActionResult:
@@ -180,8 +202,13 @@ class SupervisorDomainService:
         compose_files = self._compose_files_for_snapshot(snapshot)
         project_name = self._project_name_for_snapshot(snapshot)
         self._set_desired_state(snapshot, "running")
-        compose_up(compose_files, project_name)
-        self._set_runtime_state(snapshot, "running")
+        self._set_runtime_state(snapshot, "running", lifecycle_state="starting", last_action="start")
+        try:
+            compose_up(compose_files, project_name)
+        except Exception as exc:
+            self._set_runtime_state(snapshot, "error", lifecycle_state="error", last_action="start", error=str(exc))
+            raise
+        self._set_runtime_state(snapshot, "running", lifecycle_state="running", last_action="start")
         return self._action_result("start", node_id)
 
     def stop_managed_node(self, node_id: str) -> SupervisorNodeActionResult:
@@ -189,8 +216,13 @@ class SupervisorDomainService:
         compose_files = self._compose_files_for_snapshot(snapshot)
         project_name = self._project_name_for_snapshot(snapshot)
         self._set_desired_state(snapshot, "stopped")
-        compose_down(compose_files, project_name)
-        self._set_runtime_state(snapshot, "stopped")
+        self._set_runtime_state(snapshot, "running", lifecycle_state="stopping", last_action="stop")
+        try:
+            compose_down(compose_files, project_name)
+        except Exception as exc:
+            self._set_runtime_state(snapshot, "error", lifecycle_state="error", last_action="stop", error=str(exc))
+            raise
+        self._set_runtime_state(snapshot, "stopped", lifecycle_state="stopped", last_action="stop")
         return self._action_result("stop", node_id)
 
     def restart_managed_node(self, node_id: str) -> SupervisorNodeActionResult:
@@ -198,9 +230,14 @@ class SupervisorDomainService:
         compose_files = self._compose_files_for_snapshot(snapshot)
         project_name = self._project_name_for_snapshot(snapshot)
         self._set_desired_state(snapshot, "running")
-        compose_down(compose_files, project_name)
-        compose_up(compose_files, project_name)
-        self._set_runtime_state(snapshot, "running")
+        self._set_runtime_state(snapshot, "running", lifecycle_state="restarting", last_action="restart")
+        try:
+            compose_down(compose_files, project_name)
+            compose_up(compose_files, project_name)
+        except Exception as exc:
+            self._set_runtime_state(snapshot, "error", lifecycle_state="error", last_action="restart", error=str(exc))
+            raise
+        self._set_runtime_state(snapshot, "running", lifecycle_state="running", last_action="restart")
         return self._action_result("restart", node_id)
 
     def health_summary(self) -> SupervisorHealthSummary:
