@@ -28,4 +28,5 @@ This is the canonical documentation index for the repository. The top-level navi
 - [operators-guide.md](./operators-guide.md)
 - [development-guide.md](./development-guide.md)
 - [migration/documentation-migration-map.md](./migration/documentation-migration-map.md)
+- [migration/final-architecture-verification-2026-03-16.md](./migration/final-architecture-verification-2026-03-16.md)
 - [standards/README.md](./standards/README.md)
