@@ -16,6 +16,109 @@ def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _topic_starts_with_scope(topic: str, scope: str) -> bool:
+    normalized_topic = str(topic or "").strip().strip("/")
+    normalized_scope = str(scope or "").strip().strip("/")
+    if not normalized_topic or not normalized_scope:
+        return False
+    return normalized_topic == normalized_scope or normalized_topic.startswith(f"{normalized_scope}/")
+
+
+def _infer_device_id_from_topic(*, topic: str, topic_prefix: str | None) -> str:
+    normalized_topic = str(topic or "").strip().strip("/")
+    normalized_prefix = str(topic_prefix or "").strip().strip("/")
+    if not normalized_topic:
+        return "root"
+    if normalized_prefix and _topic_starts_with_scope(normalized_topic, normalized_prefix):
+        remainder = normalized_topic[len(normalized_prefix):].strip("/")
+        if remainder:
+            return remainder.split("/", 1)[0].strip() or "root"
+        return "root"
+    levels = normalized_topic.split("/")
+    if len(levels) >= 2:
+        return levels[1].strip() or "root"
+    return "root"
+
+
+def _build_user_items(*, principals: list[dict[str, Any]], topics: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    topic_items = [item for item in topics if isinstance(item, dict)]
+    out: list[dict[str, Any]] = []
+    for principal in principals:
+        principal_type = str(principal.get("principal_type") or principal.get("type") or "").strip().lower()
+        logical_identity = str(principal.get("logical_identity") or "").strip().lower()
+        if principal_type != "generic_user" and not logical_identity.startswith("generic:"):
+            continue
+        item = dict(principal)
+        topic_prefix = str(item.get("topic_prefix") or "").strip().strip("/")
+        devices: dict[str, dict[str, Any]] = {}
+        user_topics = 0
+        user_messages = 0
+        latest_seen = None
+        matched_topics: list[dict[str, Any]] = []
+        for topic_item in topic_items:
+            topic = str(topic_item.get("topic") or "").strip()
+            if not topic:
+                continue
+            if topic_prefix and not _topic_starts_with_scope(topic, topic_prefix):
+                continue
+            if not topic_prefix:
+                username = str(item.get("username") or "").strip()
+                if not username:
+                    continue
+                if not topic.startswith(f"{username}/"):
+                    continue
+            matched_topics.append(topic_item)
+            user_topics += 1
+            user_messages += int(topic_item.get("message_count") or 0)
+            seen = str(topic_item.get("last_seen") or "").strip() or None
+            if seen and (latest_seen is None or seen > latest_seen):
+                latest_seen = seen
+            device_id = _infer_device_id_from_topic(topic=topic, topic_prefix=topic_prefix)
+            device = devices.setdefault(
+                device_id,
+                {
+                    "device_id": device_id,
+                    "message_count": 0,
+                    "topic_count": 0,
+                    "last_seen": None,
+                    "topics": [],
+                },
+            )
+            device["message_count"] = int(device.get("message_count") or 0) + int(topic_item.get("message_count") or 0)
+            device["topic_count"] = int(device.get("topic_count") or 0) + 1
+            device["topics"].append(topic)
+            device_seen = seen
+            if device_seen and (
+                not device.get("last_seen") or str(device_seen) > str(device.get("last_seen"))
+            ):
+                device["last_seen"] = device_seen
+        runtime_traffic = dict(item.get("runtime_traffic") or {})
+        runtime_mps = float(runtime_traffic.get("avg_messages_per_second") or runtime_traffic.get("messages_per_second") or 0.0)
+        device_list = []
+        for device_id, device in sorted(devices.items()):
+            message_count = int(device.get("message_count") or 0)
+            share = (float(message_count) / float(user_messages)) if user_messages > 0 else 0.0
+            device_list.append(
+                {
+                    "device_id": device_id,
+                    "message_count": message_count,
+                    "topic_count": int(device.get("topic_count") or 0),
+                    "last_seen": device.get("last_seen"),
+                    "topics": sorted(set(str(topic) for topic in (device.get("topics") or []) if str(topic).strip())),
+                    "messages_per_second": round(runtime_mps * share, 3),
+                    "inferred_from": "topic_prefix",
+                }
+            )
+        item["device_count"] = len(device_list)
+        item["observed_topic_count"] = user_topics
+        item["observed_message_count"] = user_messages
+        item["last_observed_at"] = latest_seen
+        item["devices"] = device_list
+        item["device_breakdown_source"] = "topic_activity"
+        out.append(item)
+    return out
+
+
 @router.get("", response_class=HTMLResponse)
 def addon_ui_root() -> str:
     return """
@@ -1382,15 +1485,12 @@ def addon_ui_root() -> str:
 
     async function loadSectionPayload(section) {
       if (section === "principals" || section === "users") {
+        if (section === "users") {
+          const users = await fetchJson("/api/addons/mqtt/users?format=json");
+          return Array.isArray(users.items) ? users.items : [];
+        }
         const principals = await fetchJson("/api/system/mqtt/principals");
         const items = Array.isArray(principals.items) ? principals.items : [];
-        if (section === "users") {
-          return items.filter((item) => {
-            const kind = String(item.principal_type || item.type || "").toLowerCase();
-            const identity = String(item.logical_identity || "").toLowerCase();
-            return kind.includes("generic") || identity.startsWith("generic:");
-          });
-        }
         return items;
       }
       if (section === "noisy-clients") {
@@ -1718,17 +1818,25 @@ def addon_ui_root() -> str:
               const status = escapeHtml(String(item.status || "-"));
               const runtimeTraffic = item && item.runtime_traffic ? item.runtime_traffic : {};
               const avgMsgRate = escapeHtml(formatMsgRate(runtimeTraffic.avg_messages_per_second));
+              const deviceCount = escapeHtml(String(item.device_count ?? 0));
+              const devices = Array.isArray(item.devices) ? item.devices : [];
+              const deviceSummary = escapeHtml(
+                devices
+                  .slice(0, 3)
+                  .map((device) => `${String(device.device_id || "root")} (${formatMsgRate(device.messages_per_second)})`)
+                  .join(" | ") || "-"
+              );
               const updated = escapeHtml(formatLocalTimestamp(item.updated_at || item.ts || item.reason || "-"));
               const actions =
                 `<button class='mini' data-generic-action='revoke' data-principal-id='${principalId}'>Revoke</button>` +
                 `<button class='mini' data-generic-action='disable' data-principal-id='${principalId}'>Disable</button>` +
                 `<button class='mini' data-generic-action='rotate' data-principal-id='${principalId}'>Rotate Password</button>`;
-              return `<tr><td>${principalId}</td><td>${username}</td><td>${status}</td><td>${avgMsgRate}</td><td>${updated}</td><td><div class='row-actions'>${actions}</div></td></tr>`;
+              return `<tr><td>${principalId}</td><td>${username}</td><td>${status}</td><td>${avgMsgRate}</td><td>${deviceCount}</td><td>${deviceSummary}</td><td>${updated}</td><td><div class='row-actions'>${actions}</div></td></tr>`;
             })
             .join("");
           sectionContent.innerHTML =
             toolbar +
-            `<table class='table'><thead><tr><th>Principal</th><th>Username</th><th>Status</th><th>Avg Rate</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>` +
+            `<table class='table'><thead><tr><th>Principal</th><th>Username</th><th>Status</th><th>Avg Rate</th><th>Devices</th><th>Top Device Activity</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>` +
             createUserModalMarkup();
           return;
         }
@@ -2222,6 +2330,73 @@ async def addon_topics(request: Request, limit: int = 500, format: str | None = 
     if not isinstance(payload, dict):
         return {"ok": True, "items": []}
     return {"ok": bool(payload.get("ok", True)), "items": list(payload.get("items") or [])}
+
+
+@router.get("/users")
+async def addon_users(request: Request, limit: int = 5000, format: str | None = None) -> Any:
+    wants_json = str(format or "").strip().lower() == "json" or (
+        "application/json" in str(request.headers.get("accept") or "").lower()
+    )
+    if not wants_json:
+        return HTMLResponse(addon_ui_root())
+    state_store = getattr(request.app.state, "mqtt_integration_state_store", None)
+    manager = getattr(request.app.state, "mqtt_manager", None)
+    principals: list[dict[str, Any]] = []
+    if state_store is not None:
+        try:
+            state = await state_store.get_state()
+            principals = [
+                principal.model_dump(mode="json")
+                for principal in sorted(state.principals.values(), key=lambda item: item.principal_id)
+            ]
+        except Exception:
+            principals = []
+    runtime_fn = getattr(manager, "principal_connection_states", None) if manager is not None else None
+    traffic_fn = getattr(manager, "principal_traffic_metrics", None) if manager is not None else None
+    topic_fn = getattr(manager, "topic_activity", None) if manager is not None else None
+    runtime_map: dict[str, dict[str, Any]] = {}
+    traffic_map: dict[str, dict[str, Any]] = {}
+    topics: list[dict[str, Any]] = []
+    if callable(runtime_fn):
+        try:
+            payload = await runtime_fn()
+            if isinstance(payload, dict):
+                runtime_map = payload
+        except Exception:
+            runtime_map = {}
+    if callable(traffic_fn):
+        try:
+            payload = await traffic_fn()
+            if isinstance(payload, dict):
+                traffic_map = payload
+        except Exception:
+            traffic_map = {}
+    if callable(topic_fn):
+        try:
+            payload = await topic_fn(limit=max(1, int(limit)))
+            if isinstance(payload, dict):
+                topics = list(payload.get("items") or [])
+        except Exception:
+            topics = []
+    for principal in principals:
+        principal_id = str(principal.get("principal_id") or "")
+        state = runtime_map.get(principal_id) or {}
+        traffic = traffic_map.get(principal_id) or {}
+        principal["runtime_connection"] = {
+            "connected": bool(state.get("connected", False)),
+            "connected_since": state.get("connected_since"),
+            "last_seen": state.get("last_seen"),
+            "session_count": int(state.get("session_count") or 0),
+        }
+        messages_per_second = float(traffic.get("messages_per_second") or 0.0)
+        principal["runtime_traffic"] = {
+            "messages_per_second": round(messages_per_second, 3),
+            "avg_messages_per_second": round(messages_per_second, 3),
+            "payload_size": int(traffic.get("payload_size") or 0),
+            "topic_count": int(traffic.get("topic_count") or 0),
+        }
+    items = _build_user_items(principals=principals, topics=topics)
+    return {"ok": True, "items": items}
 
 
 @router.get("/{path:path}", response_class=HTMLResponse)

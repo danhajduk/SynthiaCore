@@ -1,8 +1,96 @@
 import unittest
+from pathlib import Path
+import sys
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from app.main import create_app
+from addons.mqtt.backend.addon import router as mqtt_addon_router
+
+
+class _FakePrincipal:
+    def __init__(self, **values) -> None:
+        self._values = values
+        for key, value in values.items():
+            setattr(self, key, value)
+
+    def model_dump(self, mode: str = "json") -> dict:
+        return dict(self._values)
+
+
+class _FakeIntegrationState:
+    def __init__(self, principals) -> None:
+        self.principals = principals
+
+
+class _FakeStateStore:
+    async def get_state(self):
+        return _FakeIntegrationState(
+            {
+                "user:homeassistant": _FakePrincipal(
+                    principal_id="user:homeassistant",
+                    principal_type="generic_user",
+                    username="homeassistant",
+                    logical_identity="generic:homeassistant",
+                    status="active",
+                    topic_prefix="external/homeassistant",
+                    updated_at="2026-03-18T00:00:00Z",
+                ),
+                "addon:mqtt": _FakePrincipal(
+                    principal_id="addon:mqtt",
+                    principal_type="synthia_addon",
+                    logical_identity="mqtt",
+                    status="active",
+                    updated_at="2026-03-18T00:00:00Z",
+                ),
+            }
+        )
+
+
+class _FakeMqttManager:
+    async def principal_connection_states(self):
+        return {
+            "user:homeassistant": {
+                "connected": True,
+                "connected_since": "2026-03-18T00:00:00Z",
+                "last_seen": "2026-03-18T00:05:00Z",
+                "session_count": 1,
+            }
+        }
+
+    async def principal_traffic_metrics(self):
+        return {
+            "user:homeassistant": {
+                "messages_per_second": 6.0,
+                "payload_size": 1024,
+                "topic_count": 3,
+            }
+        }
+
+    async def topic_activity(self, *, limit: int = 500):
+        return {
+            "ok": True,
+            "items": [
+                {
+                    "topic": "external/homeassistant/living-room/state",
+                    "message_count": 8,
+                    "last_seen": "2026-03-18T00:03:00Z",
+                },
+                {
+                    "topic": "external/homeassistant/kitchen/state",
+                    "message_count": 4,
+                    "last_seen": "2026-03-18T00:05:00Z",
+                },
+                {
+                    "topic": "external/homeassistant/living-room/config",
+                    "message_count": 2,
+                    "last_seen": "2026-03-18T00:04:00Z",
+                },
+            ],
+        }
 
 
 class TestMqttEmbeddedUiRoutes(unittest.TestCase):
@@ -84,6 +172,27 @@ class TestMqttEmbeddedUiRoutes(unittest.TestCase):
         payload = res.json()
         self.assertTrue(payload["ok"])
         self.assertIsInstance(payload["items"], list)
+
+    def test_users_subroute_returns_user_and_device_breakdown_json(self) -> None:
+        app = FastAPI()
+        app.state.mqtt_integration_state_store = _FakeStateStore()
+        app.state.mqtt_manager = _FakeMqttManager()
+        app.include_router(mqtt_addon_router, prefix="/api/addons/mqtt")
+        client = TestClient(app)
+
+        res = client.get("/api/addons/mqtt/users?format=json")
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(len(payload["items"]), 1)
+        item = payload["items"][0]
+        self.assertEqual(item["principal_id"], "user:homeassistant")
+        self.assertEqual(item["device_count"], 2)
+        self.assertEqual(item["observed_message_count"], 14)
+        by_device = {entry["device_id"]: entry for entry in item["devices"]}
+        self.assertEqual(by_device["living-room"]["message_count"], 10)
+        self.assertEqual(by_device["kitchen"]["message_count"], 4)
+        self.assertGreater(by_device["living-room"]["messages_per_second"], by_device["kitchen"]["messages_per_second"])
 
 
 if __name__ == "__main__":
