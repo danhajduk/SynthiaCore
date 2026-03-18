@@ -22,13 +22,6 @@
 .onboard-header {
   display: grid;
   gap: 10px;
-  max-width: 760px;
-}
-
-.onboard-header h1 {
-  margin: 0;
-  font-size: clamp(2rem, 4vw, 3.3rem);
-  line-height: 1.06;
 }
 
 .onboard-eyebrow {
@@ -230,7 +223,6 @@
   display: grid;
   align-content: space-between;
   gap: 18px;
-  min-height: 100%;
   padding: 24px;
   border-radius: 28px;
   border: 1px solid hsl(var(--sx-text) / 0.08);
@@ -270,8 +262,9 @@
   position: relative;
   min-height: 420px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 8px;
 }
 
 .onboard-presenter-frame::before {
@@ -290,7 +283,8 @@
   width: min(100%, 560px);
   max-height: 580px;
   object-fit: contain;
-  object-position: center bottom;
+  object-position: center top;
+  transform: scale(1.4) translateY(-60px) translateX(-35px);
 }
 
 @media (max-width: 1080px) {
@@ -352,5 +346,9 @@
 
   .onboard-presenter-frame {
     min-height: 280px;
+  }
+
+  .onboard-presenter-image {
+    transform: translateY(-12px);
   }
 }

@@ -2,6 +2,8 @@ import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import deniedImage from "../../assets/error.png";
+import expiredImage from "../../assets/oops.png";
 import presentingImage from "../../assets/presenting.png";
 import successImage from "../../assets/success.png";
 import workingImage from "../../assets/working.png";
@@ -29,7 +31,7 @@ type ApprovalSession = {
   final_payload_consumed_at?: string | null;
 };
 
-type PresenterState = "presenting" | "working" | "success";
+type PresenterState = "presenting" | "working" | "success" | "expired" | "denied";
 
 function fmt(ts?: string | null): string {
   if (!ts) return "-";
@@ -41,6 +43,12 @@ function fmt(ts?: string | null): string {
 function sessionStateLabel(value?: string | null): string {
   const state = String(value || "").trim();
   return state ? state.replace(/[_-]+/g, " ") : "unknown";
+}
+
+function maskSessionId(value?: string | null): string {
+  const sessionId = String(value || "").trim();
+  const tail = sessionId.slice(-4) || "----";
+  return `************${tail}`;
 }
 
 export default function OnboardingNodeApproval() {
@@ -60,6 +68,7 @@ export default function OnboardingNodeApproval() {
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginErr, setLoginErr] = useState<string | null>(null);
   const [presenterState, setPresenterState] = useState<PresenterState>("presenting");
+  const currentState = String(session?.session_state || "").trim().toLowerCase();
 
   const query = useMemo(() => {
     const q = new URLSearchParams();
@@ -68,7 +77,32 @@ export default function OnboardingNodeApproval() {
   }, [state]);
 
   const presenter = useMemo(() => {
-    if (presenterState === "working") {
+    const effectiveState: PresenterState = (() => {
+      if (["rejected", "denied", "error"].includes(currentState)) return "denied";
+      if (currentState === "expired") return "expired";
+      if (["approved", "consumed"].includes(currentState)) return "success";
+      return presenterState;
+    })();
+
+    if (effectiveState === "denied") {
+      return {
+        image: deniedImage,
+        alt: "Synthia reporting an onboarding error or rejection",
+        eyebrow: "Approval denied",
+        title: "Review required",
+        copy: "This onboarding session was rejected or failed validation.",
+      };
+    }
+    if (effectiveState === "expired") {
+      return {
+        image: expiredImage,
+        alt: "Synthia reporting an expired onboarding session",
+        eyebrow: "Session expired",
+        title: "Approval window closed",
+        copy: "This onboarding session expired before trust could be granted.",
+      };
+    }
+    if (effectiveState === "working") {
       return {
         image: workingImage,
         alt: "Synthia processing node approval",
@@ -77,7 +111,7 @@ export default function OnboardingNodeApproval() {
         copy: "Core is validating approval state and waiting for node finalization.",
       };
     }
-    if (presenterState === "success") {
+    if (effectiveState === "success") {
       return {
         image: successImage,
         alt: "Synthia approval completed successfully",
@@ -93,7 +127,7 @@ export default function OnboardingNodeApproval() {
       title: "Review before granting access",
       copy: "Approved nodes receive trust material and operational MQTT credentials.",
     };
-  }, [presenterState]);
+  }, [currentState, presenterState]);
 
   function notifyParent(action: "approve" | "reject", sessionId: string) {
     try {
@@ -253,7 +287,6 @@ export default function OnboardingNodeApproval() {
         <div className="onboard-shell">
           <div className="onboard-header">
             <div className="onboard-eyebrow">Node Registration Approval</div>
-            <h1>Review this node before granting trust and platform access.</h1>
             <p className="onboard-lead">Approved nodes receive trust material and operational MQTT credentials.</p>
           </div>
           <div className="onboard-error">Missing required `sid` or `state` in URL.</div>
@@ -262,7 +295,6 @@ export default function OnboardingNodeApproval() {
     );
   }
 
-  const currentState = String(session?.session_state || "").trim().toLowerCase();
   const canDecide = currentState === "pending" && actionBusy === null;
 
   return (
@@ -270,7 +302,6 @@ export default function OnboardingNodeApproval() {
       <div className="onboard-shell">
         <div className="onboard-header">
           <div className="onboard-eyebrow">Node Registration Approval</div>
-          <h1>Review this node before granting trust and platform access.</h1>
           <p className="onboard-lead">Approved nodes receive trust material and operational MQTT credentials.</p>
         </div>
 
@@ -332,7 +363,7 @@ export default function OnboardingNodeApproval() {
             <article className="onboard-card">
               <div className="onboard-card-top">
                 <div>
-                  <div className="onboard-card-kicker">Approval card</div>
+                  <div className="onboard-card-kicker">Node Approval</div>
                   <h2 className="onboard-card-title">{session.node_name || session.requested_node_name}</h2>
                   <div className="onboard-meta">Review identity, session details, and connection source before granting trust.</div>
                 </div>
@@ -369,7 +400,7 @@ export default function OnboardingNodeApproval() {
                   <div className="onboard-field-grid">
                     <div className="onboard-field">
                       <strong>Session ID</strong>
-                      <span>{session.session_id}</span>
+                      <span>{maskSessionId(session.session_id)}</span>
                     </div>
                     <div className="onboard-field">
                       <strong>Status</strong>
