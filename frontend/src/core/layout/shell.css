@@ -4,6 +4,12 @@
   height: 100vh;
 }
 
+.shell-chromeless {
+  grid-template-columns: 1fr;
+  min-height: 100vh;
+  height: auto;
+}
+
 .shell-main {
   display: grid;
   grid-template-rows: 1fr;
@@ -12,4 +18,9 @@
 .shell-content {
   padding: var(--sx-space-4);
   overflow: auto;
+}
+
+.shell-content-chromeless {
+  min-height: 100vh;
+  padding: 0;
 }

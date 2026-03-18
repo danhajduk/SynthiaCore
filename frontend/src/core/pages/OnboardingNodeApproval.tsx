@@ -2,6 +2,9 @@ import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import presentingImage from "../../assets/presenting.png";
+import successImage from "../../assets/success.png";
+import workingImage from "../../assets/working.png";
 import { useAdminSession } from "../auth/AdminSessionContext";
 import "./onboarding-node-approval.css";
 
@@ -26,11 +29,18 @@ type ApprovalSession = {
   final_payload_consumed_at?: string | null;
 };
 
+type PresenterState = "presenting" | "working" | "success";
+
 function fmt(ts?: string | null): string {
   if (!ts) return "-";
   const n = Date.parse(ts);
   if (!Number.isFinite(n)) return ts;
   return new Date(n).toLocaleString();
+}
+
+function sessionStateLabel(value?: string | null): string {
+  const state = String(value || "").trim();
+  return state ? state.replace(/[_-]+/g, " ") : "unknown";
 }
 
 export default function OnboardingNodeApproval() {
@@ -49,12 +59,41 @@ export default function OnboardingNodeApproval() {
   const [password, setPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginErr, setLoginErr] = useState<string | null>(null);
+  const [presenterState, setPresenterState] = useState<PresenterState>("presenting");
 
   const query = useMemo(() => {
     const q = new URLSearchParams();
     if (state) q.set("state", state);
     return q.toString();
   }, [state]);
+
+  const presenter = useMemo(() => {
+    if (presenterState === "working") {
+      return {
+        image: workingImage,
+        alt: "Synthia processing node approval",
+        eyebrow: "Approval in progress",
+        title: "Establishing trust material",
+        copy: "Core is validating approval state and waiting for node finalization.",
+      };
+    }
+    if (presenterState === "success") {
+      return {
+        image: successImage,
+        alt: "Synthia approval completed successfully",
+        eyebrow: "Approval complete",
+        title: "Trust granted",
+        copy: "The node has been approved and the flow is wrapping up.",
+      };
+    }
+    return {
+      image: presentingImage,
+      alt: "Synthia presenting the node approval card",
+      eyebrow: "Trust checkpoint",
+      title: "Review before granting access",
+      copy: "Approved nodes receive trust material and operational MQTT credentials.",
+    };
+  }, [presenterState]);
 
   function notifyParent(action: "approve" | "reject", sessionId: string) {
     try {
@@ -75,7 +114,6 @@ export default function OnboardingNodeApproval() {
 
   function closeApprovalWindow() {
     window.close();
-    // If browser blocks self-close, navigate to a lightweight terminal route.
     window.location.replace("/");
   }
 
@@ -104,6 +142,7 @@ export default function OnboardingNodeApproval() {
   }
 
   useEffect(() => {
+    setPresenterState("presenting");
     void loadSession();
   }, [authenticated, query, ready, sid]);
 
@@ -121,42 +160,6 @@ export default function OnboardingNodeApproval() {
       setPassword("");
     } finally {
       setLoginBusy(false);
-    }
-  }
-
-  async function decide(action: "approve" | "reject") {
-    if (!session || actionBusy) return;
-    setActionBusy(action);
-    setActionError(null);
-    setApprovalWaitMsg(null);
-    try {
-      const suffix = query ? `?${query}` : "";
-      const payload = action === "reject" ? { rejection_reason: "operator_rejected" } : undefined;
-      const res = await fetch(
-        `/api/system/nodes/onboarding/sessions/${encodeURIComponent(session.session_id)}/${action}${suffix}`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: payload ? { "Content-Type": "application/json" } : undefined,
-          body: payload ? JSON.stringify(payload) : undefined,
-        },
-      );
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const detail = typeof body?.detail === "string" ? body.detail : body?.detail?.error || `HTTP ${res.status}`;
-        throw new Error(detail);
-      }
-      if (action === "approve") {
-        setApprovalWaitMsg("Approval recorded. Waiting for node finalization...");
-        await waitForApprovalFinalization(session.session_id);
-      }
-      notifyParent(action, session.session_id);
-      closeApprovalWindow();
-    } catch (e: unknown) {
-      setActionError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setActionBusy(null);
-      setApprovalWaitMsg(null);
     }
   }
 
@@ -183,7 +186,7 @@ export default function OnboardingNodeApproval() {
 
       const linkedNodeId = String(latest?.linked_node_id || "").trim();
       if (linkedNodeId) {
-        const nodeRes = await fetch(`/api/system/nodes/registry`, {
+        const nodeRes = await fetch("/api/system/nodes/registry", {
           credentials: "include",
           cache: "no-store",
         });
@@ -202,115 +205,237 @@ export default function OnboardingNodeApproval() {
     throw new Error("approval_finalize_timeout");
   }
 
+  async function decide(action: "approve" | "reject") {
+    if (!session || actionBusy) return;
+    setActionBusy(action);
+    setActionError(null);
+    setApprovalWaitMsg(null);
+    if (action === "approve") {
+      setPresenterState("working");
+    }
+    try {
+      const suffix = query ? `?${query}` : "";
+      const payload = action === "reject" ? { rejection_reason: "operator_rejected" } : undefined;
+      const res = await fetch(
+        `/api/system/nodes/onboarding/sessions/${encodeURIComponent(session.session_id)}/${action}${suffix}`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: payload ? { "Content-Type": "application/json" } : undefined,
+          body: payload ? JSON.stringify(payload) : undefined,
+        },
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = typeof body?.detail === "string" ? body.detail : body?.detail?.error || `HTTP ${res.status}`;
+        throw new Error(detail);
+      }
+      if (action === "approve") {
+        setApprovalWaitMsg("Approval recorded. Waiting for node finalization...");
+        await waitForApprovalFinalization(session.session_id);
+        setPresenterState("success");
+        await new Promise((resolve) => setTimeout(resolve, 650));
+      }
+      notifyParent(action, session.session_id);
+      closeApprovalWindow();
+    } catch (e: unknown) {
+      setPresenterState("presenting");
+      setActionError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActionBusy(null);
+      setApprovalWaitMsg(null);
+    }
+  }
+
   if (!sid || !state) {
     return (
       <section className="onboard-page">
-        <h1>Node Registration Approval</h1>
-        <div className="onboard-error">Missing required `sid` or `state` in URL.</div>
+        <div className="onboard-shell">
+          <div className="onboard-header">
+            <div className="onboard-eyebrow">Node Registration Approval</div>
+            <h1>Review this node before granting trust and platform access.</h1>
+            <p className="onboard-lead">Approved nodes receive trust material and operational MQTT credentials.</p>
+          </div>
+          <div className="onboard-error">Missing required `sid` or `state` in URL.</div>
+        </div>
       </section>
     );
   }
 
+  const currentState = String(session?.session_state || "").trim().toLowerCase();
+  const canDecide = currentState === "pending" && actionBusy === null;
+
   return (
     <section className="onboard-page">
-      <h1>Node Registration Approval</h1>
-      {!ready ? (
-        <div className="onboard-meta">Checking admin session...</div>
-      ) : !authenticated ? (
-        <form className="onboard-login" onSubmit={submitLogin}>
-          <div className="onboard-help">Sign in as Core admin to review and decide this onboarding request.</div>
-          <label>
-            <span>Username</span>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
-          </label>
-          <label>
-            <span>Password</span>
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              autoComplete="current-password"
-            />
-          </label>
-          <button className="addon-btn" type="submit" disabled={loginBusy}>
-            {loginBusy ? "Signing in..." : "Sign In"}
-          </button>
-          {loginErr && <div className="onboard-error">{loginErr}</div>}
-        </form>
-      ) : loading ? (
-        <div className="onboard-meta">Loading onboarding session...</div>
-      ) : error ? (
-        <div className="onboard-error">{error}</div>
-      ) : !session ? (
-        <div className="onboard-error">Session not found.</div>
-      ) : (
-        <div className="onboard-card">
-          <div className="onboard-row onboard-row-session">
-            <div className="onboard-field">
-              <strong>Session</strong>
-              <span>{session.session_id}</span>
-            </div>
-          </div>
-          <div className="onboard-row">
-            <div className="onboard-field">
-              <strong>State</strong>
-              <span>{session.session_state}</span>
-            </div>
-            <div className="onboard-field">
-              <strong>Node Name</strong>
-              <span>{session.node_name || session.requested_node_name}</span>
-            </div>
-            <div className="onboard-field">
-              <strong>Node Type</strong>
-              <span>{session.node_type || session.requested_node_type}</span>
-            </div>
-            <div className="onboard-field">
-              <strong>Version</strong>
-              <span>{session.node_software_version || session.requested_node_software_version}</span>
-            </div>
-            <div className="onboard-field">
-              <strong>Hostname</strong>
-              <span>{session.requested_hostname || "-"}</span>
-            </div>
-          </div>
-          <div className="onboard-row">
-            <div className="onboard-field">
-              <strong>IP</strong>
-              <span>{session.requested_from_ip || "-"}</span>
-            </div>
-            <div className="onboard-field">
-              <strong>Created</strong>
-              <span>{fmt(session.created_at)}</span>
-            </div>
-            <div className="onboard-field">
-              <strong>Expires</strong>
-              <span>{fmt(session.expires_at)}</span>
-            </div>
-          </div>
-          <div className="onboard-actions">
-            <button
-              className="addon-btn"
-              type="button"
-              disabled={session.session_state !== "pending" || actionBusy !== null}
-              onClick={() => void decide("approve")}
-            >
-              {actionBusy === "approve"
-                ? approvalWaitMsg || "Approving..."
-                : "Approve"}
-            </button>
-            <button
-              className="addon-btn"
-              type="button"
-              disabled={session.session_state !== "pending" || actionBusy !== null}
-              onClick={() => void decide("reject")}
-            >
-              {actionBusy === "reject" ? "Rejecting..." : "Reject"}
-            </button>
-          </div>
-          {approvalWaitMsg && actionBusy === "approve" && <div className="onboard-meta">{approvalWaitMsg}</div>}
-          {actionError && <div className="onboard-error">{actionError}</div>}
+      <div className="onboard-shell">
+        <div className="onboard-header">
+          <div className="onboard-eyebrow">Node Registration Approval</div>
+          <h1>Review this node before granting trust and platform access.</h1>
+          <p className="onboard-lead">Approved nodes receive trust material and operational MQTT credentials.</p>
         </div>
-      )}
+
+        {!ready ? (
+          <div className="onboard-status-card">
+            <div className="onboard-meta">Checking admin session...</div>
+          </div>
+        ) : !authenticated ? (
+          <div className="onboard-approval-layout onboard-approval-layout-login">
+            <form className="onboard-login" onSubmit={submitLogin}>
+              <div className="onboard-card-top">
+                <div>
+                  <div className="onboard-card-kicker">Admin sign-in required</div>
+                  <h2 className="onboard-card-title">Core approval access</h2>
+                </div>
+                <div className="onboard-state-pill">Pending</div>
+              </div>
+              <div className="onboard-help">Sign in as Core admin to review and decide this onboarding request.</div>
+              <label>
+                <span>Username</span>
+                <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
+              </label>
+              <label>
+                <span>Password</span>
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  autoComplete="current-password"
+                />
+              </label>
+              <button className="addon-btn addon-btn-primary onboard-action-primary" type="submit" disabled={loginBusy}>
+                {loginBusy ? "Signing in..." : "Sign In"}
+              </button>
+              {loginErr && <div className="onboard-error">{loginErr}</div>}
+            </form>
+
+            <aside className="onboard-presenter-panel">
+              <div className="onboard-presenter-copy">
+                <div className="onboard-card-kicker">{presenter.eyebrow}</div>
+                <h2 className="onboard-presenter-title">{presenter.title}</h2>
+                <p className="onboard-lead onboard-presenter-lead">{presenter.copy}</p>
+              </div>
+              <div className="onboard-presenter-frame">
+                <img className="onboard-presenter-image" src={presenter.image} alt={presenter.alt} />
+              </div>
+            </aside>
+          </div>
+        ) : loading ? (
+          <div className="onboard-status-card">
+            <div className="onboard-meta">Loading onboarding session...</div>
+          </div>
+        ) : error ? (
+          <div className="onboard-error">{error}</div>
+        ) : !session ? (
+          <div className="onboard-error">Session not found.</div>
+        ) : (
+          <div className="onboard-approval-layout">
+            <article className="onboard-card">
+              <div className="onboard-card-top">
+                <div>
+                  <div className="onboard-card-kicker">Approval card</div>
+                  <h2 className="onboard-card-title">{session.node_name || session.requested_node_name}</h2>
+                  <div className="onboard-meta">Review identity, session details, and connection source before granting trust.</div>
+                </div>
+                <div className={`onboard-state-pill onboard-state-pill-${currentState || "unknown"}`}>
+                  {sessionStateLabel(session.session_state)}
+                </div>
+              </div>
+
+              <div className="onboard-card-sections">
+                <section className="onboard-section">
+                  <div className="onboard-section-title">Identity</div>
+                  <div className="onboard-field-grid">
+                    <div className="onboard-field">
+                      <strong>Node Name</strong>
+                      <span>{session.node_name || session.requested_node_name}</span>
+                    </div>
+                    <div className="onboard-field">
+                      <strong>Node Type</strong>
+                      <span>{session.node_type || session.requested_node_type}</span>
+                    </div>
+                    <div className="onboard-field">
+                      <strong>Version</strong>
+                      <span>{session.node_software_version || session.requested_node_software_version}</span>
+                    </div>
+                    <div className="onboard-field">
+                      <strong>Hostname</strong>
+                      <span>{session.requested_hostname || "-"}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="onboard-section">
+                  <div className="onboard-section-title">Session</div>
+                  <div className="onboard-field-grid">
+                    <div className="onboard-field">
+                      <strong>Session ID</strong>
+                      <span>{session.session_id}</span>
+                    </div>
+                    <div className="onboard-field">
+                      <strong>Status</strong>
+                      <span>{sessionStateLabel(session.session_state)}</span>
+                    </div>
+                    <div className="onboard-field">
+                      <strong>Created At</strong>
+                      <span>{fmt(session.created_at)}</span>
+                    </div>
+                    <div className="onboard-field">
+                      <strong>Expires At</strong>
+                      <span>{fmt(session.expires_at)}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="onboard-section">
+                  <div className="onboard-section-title">Connection</div>
+                  <div className="onboard-field-grid onboard-field-grid-connection">
+                    <div className="onboard-field">
+                      <strong>IP Address</strong>
+                      <span>{session.requested_from_ip || "-"}</span>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div className="onboard-actions">
+                <button
+                  className="addon-btn addon-btn-primary onboard-action-primary"
+                  type="button"
+                  disabled={!canDecide}
+                  onClick={() => void decide("approve")}
+                >
+                  {actionBusy === "approve" ? approvalWaitMsg || "Approving..." : "Approve"}
+                </button>
+                <button
+                  className="addon-btn addon-btn-danger onboard-action-secondary"
+                  type="button"
+                  disabled={!canDecide}
+                  onClick={() => void decide("reject")}
+                >
+                  {actionBusy === "reject" ? "Rejecting..." : "Reject"}
+                </button>
+              </div>
+
+              {approvalWaitMsg && actionBusy === "approve" && <div className="onboard-meta">{approvalWaitMsg}</div>}
+              {actionError && <div className="onboard-error">{actionError}</div>}
+            </article>
+
+            <aside className="onboard-presenter-panel">
+              <div className="onboard-presenter-copy">
+                <div className="onboard-card-kicker">{presenter.eyebrow}</div>
+                <h2 className="onboard-presenter-title">{presenter.title}</h2>
+                <p className="onboard-lead onboard-presenter-lead">{presenter.copy}</p>
+                {presenterState === "success" && (
+                  <div className="onboard-success-note">Approval complete. Closing this checkpoint now.</div>
+                )}
+              </div>
+              <div className="onboard-presenter-frame">
+                <img className="onboard-presenter-image" src={presenter.image} alt={presenter.alt} />
+              </div>
+            </aside>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

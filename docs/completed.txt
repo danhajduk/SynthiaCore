@@ -568,3 +568,13 @@ Task 477: Rebuild Nodes section as node inventory panel - Completed on 03/18/202
 Task 478: Implement node lifecycle status indicators - Completed on 03/18/2026 05:28
 Task 479: Replace raw provider intelligence dump with structured UI - Completed on 03/18/2026 05:28
 Task 480: Remove standalone runtime section from Addons / Nodes page - Completed on 03/18/2026 05:28
+Task 481: Create dedicated onboarding approval page shell without sidebar - Completed on 03/18/2026 05:50
+Task 482: Redesign onboarding approval layout into two-column presentation view - Completed on 03/18/2026 05:50
+Task 483: Integrate Synthia presenting image on right side of onboarding page - Completed on 03/18/2026 05:50
+Task 484: Rebuild node approval card with clearer grouped metadata - Completed on 03/18/2026 05:50
+Task 485: Improve onboarding approval page header and guidance text - Completed on 03/18/2026 05:50
+Task 486: Normalize approval action area styling - Completed on 03/18/2026 05:50
+Task 487: Add responsive behavior for onboarding approval presentation layout - Completed on 03/18/2026 05:50
+Task 488: Implement presenter image state system - Completed on 03/18/2026 05:50
+Task 489: Add working presenter state during approval request - Completed on 03/18/2026 05:50
+Task 490: Add success presenter state after approval completes - Completed on 03/18/2026 05:50
