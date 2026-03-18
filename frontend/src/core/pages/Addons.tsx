@@ -104,6 +104,8 @@ type RoutingNodeGroup = {
 
 async function readError(res: Response): Promise<string> {
   const text = await res.text();
+  if (res.status === 401) return "Admin login required";
+  if (res.status === 403) return "Admin access required";
   return text || `HTTP ${res.status}`;
 }
 
@@ -164,6 +166,12 @@ export default function Addons() {
   }
 
   async function refreshNodes() {
+    if (!isAdmin) {
+      setNodes([]);
+      setNodesErr(null);
+      setNodesBusy(false);
+      return;
+    }
     setNodesBusy(true);
     setNodesErr(null);
     try {
@@ -184,6 +192,11 @@ export default function Addons() {
   }
 
   async function refreshRoutingMetadata() {
+    if (!isAdmin) {
+      setRoutingByNode({});
+      setRoutingBusy(false);
+      return;
+    }
     setRoutingBusy(true);
     try {
       const res = await fetch("/api/system/nodes/providers/routing-metadata", {
@@ -272,7 +285,7 @@ export default function Addons() {
     void refreshRuntime();
     void refreshNodes();
     void refreshRoutingMetadata();
-  }, []);
+  }, [isAdmin]);
 
   const trustedNodes = useMemo(
     () => nodes.filter((item) => String(item.registry_state || item.trust_status || "").toLowerCase() === "trusted"),
