@@ -793,7 +793,7 @@ export default function Addons() {
                   </div>
 
                   <div className="addon-actions">
-                    <a href={`/api/nodes/${encodeURIComponent(item.node_id)}`} target="_blank" rel="noreferrer" className="addon-btn">
+                    <a href={`/nodes/${encodeURIComponent(item.node_id)}`} className="addon-btn">
                       Open
                     </a>
                     <button

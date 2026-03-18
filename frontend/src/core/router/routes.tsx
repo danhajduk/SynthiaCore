@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import Home from "../pages/Home";
 import Addons from "../pages/Addons";
 import AddonFrame from "../pages/AddonFrame";
+import NodeDetails from "../pages/NodeDetails";
 import Settings from "../pages/Settings";
 import SettingsJobs from "../pages/SettingsJobs";
 import SettingsMetrics from "../pages/SettingsMetrics";
@@ -25,6 +26,7 @@ export function buildRoutes(isAdmin: boolean, ready: boolean): RouteObject[] {
     { path: "/", element: <Home /> },
     { path: "/store", element: protectedRoute(<AddonStorePage />) },
     { path: "/addons", element: protectedRoute(<Addons />) },
+    { path: "/nodes/:nodeId", element: protectedRoute(<NodeDetails />) },
     { path: "/addons/:addonId/:section", element: protectedRoute(<AddonFrame />) },
     { path: "/addons/:addonId", element: protectedRoute(<AddonFrame />) },
     { path: "/onboarding/registrations/approve", element: <OnboardingNodeApproval /> },
