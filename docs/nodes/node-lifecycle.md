@@ -5,7 +5,7 @@ Last updated: 2026-03-20 10:16
 
 This document defines the canonical node lifecycle model for node-related documentation and maps it to the currently verified Core behavior.
 
-Public-facing naming note: Hexe Nodes is the display label used for this subsystem, while current runtime identifiers and MQTT topic literals continue using the existing `synthia` compatibility namespace.
+Public-facing naming note: Hexe Nodes is the display label used for this subsystem, and active MQTT topic literals now use the `hexe` namespace. Some stable technical identifiers still retain legacy forms where compatibility matters.
 
 Primary code:
 - `backend/app/system/onboarding/sessions.py`

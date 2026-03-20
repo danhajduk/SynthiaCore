@@ -101,7 +101,7 @@ else
 fi
 if [[ "$RESOLVED_ADDONS_DIR" == "$INSTALL_DIR"* ]]; then
   echo "[bootstrap] WARN: SYNTHIA_ADDONS_DIR resolves inside repo ($RESOLVED_ADDONS_DIR)."
-  echo "[bootstrap] WARN: use an external path (for example ~/.local/share/synthia/SynthiaAddons) to keep SSAP state isolated from updater resets."
+  echo "[bootstrap] WARN: use an external path (for example ~/.local/share/hexe/HexeAddons) to keep SSAP state isolated from updater resets."
 fi
 
 echo "[bootstrap] Updating code"
@@ -203,6 +203,6 @@ fi
 echo "[bootstrap] $PLATFORM_NAME bootstrap complete."
 echo "Backend:  http://$(hostname -I | awk '{print $1}'):9001/api/health"
 echo "Frontend: http://$(hostname -I | awk '{print $1}')"
-echo "Updater unit installed: synthia-updater.service (trigger via: systemctl --user start synthia-updater.service)"
-echo "Supervisor unit installed: synthia-supervisor.service (trigger via: systemctl --user start synthia-supervisor.service)"
+echo "Updater unit installed: synthia-updater.service (Hexe updater trigger: systemctl --user start synthia-updater.service)"
+echo "Supervisor unit installed: synthia-supervisor.service (Hexe supervisor trigger: systemctl --user start synthia-supervisor.service)"
 echo "Display name: $CORE_NAME"

@@ -25,7 +25,7 @@ class _FakeMqttManager:
 class TestNotificationConsumer(unittest.IsolatedAsyncioTestCase):
     def _payload(self, **overrides) -> dict[str, Any]:
         payload = {
-            "source": {"kind": "core", "id": "synthia-core", "component": "startup", "host": "test-host", "user": "dan"},
+            "source": {"kind": "core", "id": "hexe-core", "component": "startup", "host": "test-host", "user": "dan"},
             "targets": {"hosts": ["test-host"]},
             "delivery": {"severity": "info", "priority": "normal", "channels": ["popup"], "dedupe_key": "startup"},
             "content": {"title": "Ready", "message": "Started"},

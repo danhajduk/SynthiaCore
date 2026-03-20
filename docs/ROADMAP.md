@@ -1,4 +1,4 @@
-# Synthia Roadmap
+# Hexe Roadmap
 
 Last Updated: 2026-03-07 14:51 US/Pacific
 

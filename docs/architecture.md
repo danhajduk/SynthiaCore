@@ -2,7 +2,7 @@
 
 This document describes the current repository architecture as implemented in code. The migration foundation now treats `Core`, `Supervisor`, and `Nodes` as first-class domains without removing the existing subsystem layouts.
 
-Phase 0 compatibility note: the public display names now use Hexe AI / Hexe Core, while internal route paths, MQTT topic roots, and package/module identifiers remain on the existing `synthia` naming.
+Compatibility note: public display names and active MQTT topic roots now use Hexe naming. Some route paths, package/module identifiers, env vars, and service unit filenames still retain legacy forms where compatibility or operational stability matters.
 
 ## Domain Boundaries
 

@@ -34,6 +34,24 @@ Task 655: Remove or isolate obsolete dual-namespace planning/config - Completed 
 Task 656: Verify node/addon/runtime clients are aligned to Hexe namespace - Completed on 03/20/2026 10:37
 Task 657: Add Phase 2 verification pass - Completed on 03/20/2026 10:37
 Task 658: Create Phase 2 completion report - Completed on 03/20/2026 10:37
+Task 660: Create Phase 3 internal rename migration document - Completed on 03/20/2026 13:35
+Task 661: Perform full repository audit for remaining active `Synthia` / `synthia` references - Completed on 03/20/2026 13:35
+Task 662: Rename backend internal naming helpers and constants to Hexe - Completed on 03/20/2026 13:35
+Task 663: Rename service labels and component display identifiers - Completed on 03/20/2026 13:35
+Task 664: Rename backend startup/runtime/log branding that still uses legacy identifiers - Completed on 03/20/2026 13:35
+Task 665: Rename frontend app/package branding assets and metadata - Completed on 03/20/2026 13:35
+Task 666: Rename installer/bootstrap/dev-helper identity from Synthia to Hexe - Completed on 03/20/2026 13:35
+Task 667: Rename environment/config sample identifiers where appropriate - Completed on 03/20/2026 13:35
+Task 668: Review API routes and payload fields for product-facing rename opportunities - Completed on 03/20/2026 13:35
+Task 669: Add Hexe-branded aliases for clearly product-facing routes if needed - Completed on 03/20/2026 13:35
+Task 670: Rename file/folder/module paths where safe and high-value - Completed on 03/20/2026 13:35
+Task 671: Rename systemd/service template descriptions and unit-facing names where safe - Completed on 03/20/2026 13:35
+Task 672: Rename docs references still describing the platform as Synthia in active architecture files - Completed on 03/20/2026 13:35
+Task 673: Isolate or archive historical/legacy references that must remain - Completed on 03/20/2026 13:35
+Task 674: Update tests and fixtures that still depend on legacy branding - Completed on 03/20/2026 13:35
+Task 675: Add repository-wide validation to prevent reintroducing old branding in active code - Completed on 03/20/2026 13:35
+Task 676: Perform Phase 3 verification pass - Completed on 03/20/2026 13:35
+Task 677: Create Phase 3 completion report - Completed on 03/20/2026 13:35
 01. Task 23: Implement backend addon registry persistence and registry API endpoints. - Completed on 02/28/2026 17:58
 02. Task 24: Implement backend MQTT listener for announce/health with safe optional startup. - Completed on 02/28/2026 18:00
 03. Task 25: Implement backend install-session state machine and endpoints. - Completed on 02/28/2026 18:13

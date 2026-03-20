@@ -51,7 +51,7 @@ This lifecycle model is documented in [node-lifecycle.md](./node-lifecycle.md). 
 - Embedded addons remain inside Core and should not be used to describe external platform boundaries.
 - Core remains the MQTT authority, and node connectivity material continues to be issued from Core-owned flows.
 
-Compatibility note: Hexe Nodes is the public-facing display label in docs and UI, while internal contracts continue using the existing `synthia` MQTT namespace and current API path structure.
+Compatibility note: Hexe Nodes is the current display label, and active MQTT namespace examples now use `hexe/...`. Stable technical contracts such as API paths and some internal identifiers still retain legacy forms where compatibility matters.
 
 ## Capability Taxonomy
 

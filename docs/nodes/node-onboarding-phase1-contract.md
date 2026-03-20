@@ -91,7 +91,7 @@ Operator decision:
 UI behavior:
 
 - approval popup closes after approve/reject
-- popup posts `synthia.node_onboarding.decided` message to opener
+- popup posts `hexe.node_onboarding.decided` message to opener
 - parent settings view refreshes onboarding session state on that message
 
 ## Identity And Registration Contract

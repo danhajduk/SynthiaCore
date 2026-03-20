@@ -37,9 +37,9 @@ const TOKEN_NAMES = [
   "--font-sans",
 ];
 
-const STYLE_ID = "synthia-core-theme-inject";
-const STYLE_MARKER_ATTR = "data-synthia-core-theme";
-const ROOT_MARKER_ATTR = "data-synthia-core-theme-injected";
+const STYLE_ID = "hexe-core-theme-inject";
+const STYLE_MARKER_ATTR = "data-hexe-core-theme";
+const ROOT_MARKER_ATTR = "data-hexe-core-theme-injected";
 
 const COMPONENT_RULES = `
 body{font-family:var(--sx-font-sans,var(--font-sans));background:hsl(var(--sx-bg,var(--color-bg)));color:hsl(var(--sx-text,var(--color-text)));}

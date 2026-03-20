@@ -137,7 +137,7 @@ export default function OnboardingNodeApproval() {
       if (window.opener && window.opener !== window) {
         window.opener.postMessage(
           {
-            type: "synthia.node_onboarding.decided",
+            type: "hexe.node_onboarding.decided",
             action,
             session_id: sessionId,
           },

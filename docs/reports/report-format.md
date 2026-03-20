@@ -1,7 +1,7 @@
-# Synthia Repository Audit Report
+# Hexe Repository Audit Report
 
 Generated: YYYY-MM-DD HH:MM  
-Repository: Synthia-Core  
+Repository: Hexe Core  
 Audit Mode: Documentation Audit
 
 Canonical Core Documentation:

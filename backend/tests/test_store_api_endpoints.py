@@ -2259,7 +2259,7 @@ class TestStoreApiEndpoints(unittest.TestCase):
                     "source_id": "official",
                     "addon_id": "hello_world",
                     "install_mode": "standalone_service",
-                    "runtime_overrides": {"project_name": "Synthia Addon MQTT"},
+                    "runtime_overrides": {"project_name": "Hexe Addon MQTT"},
                     "enable": True,
                 },
             )

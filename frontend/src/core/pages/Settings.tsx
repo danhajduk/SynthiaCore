@@ -6,7 +6,7 @@ import ControlPlaneCard from "./settings/ControlPlaneCard";
 import UserManagementCard from "./settings/UserManagementCard";
 import MqttAdminFoundationCard from "./settings/MqttAdminFoundationCard";
 import { getTheme, setTheme as applyTheme } from "../../theme/theme";
-import { DEFAULT_PLATFORM_CONTROL_PLANE_NAME, usePlatformBranding } from "../branding";
+import { DEFAULT_PLATFORM_CORE_NAME, usePlatformBranding } from "../branding";
 
 type SettingsResponse = {
   ok: boolean;
@@ -120,7 +120,7 @@ function relative(ts?: string | null): string {
 
 export default function Settings() {
   const { coreName } = usePlatformBranding();
-  const [appName, setAppName] = useState(DEFAULT_PLATFORM_CONTROL_PLANE_NAME);
+  const [appName, setAppName] = useState(DEFAULT_PLATFORM_CORE_NAME);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [theme, setTheme] = useState("dark");
   const [err, setErr] = useState<string | null>(null);
@@ -226,7 +226,7 @@ export default function Settings() {
   }, []);
 
   useEffect(() => {
-    setAppName((current) => (current === DEFAULT_PLATFORM_CONTROL_PLANE_NAME ? coreName : current));
+    setAppName((current) => (current === DEFAULT_PLATFORM_CORE_NAME ? coreName : current));
   }, [coreName]);
 
   useEffect(() => {
@@ -234,7 +234,7 @@ export default function Settings() {
       const payload = event.data;
       if (!payload || typeof payload !== "object") return;
       const eventType = String((payload as { type?: string }).type || "").trim();
-      if (eventType !== "synthia.node_onboarding.decided") return;
+      if (eventType !== "hexe.node_onboarding.decided") return;
       void loadOnboardingSessions(onboardingStateFilter);
     };
     window.addEventListener("message", onMessage);

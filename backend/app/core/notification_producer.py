@@ -25,7 +25,7 @@ class CoreStartupNotificationProducer:
 
         source = {
             "kind": "core",
-            "id": "synthia-core",
+            "id": "hexe-core",
             "component": "startup",
             "label": naming.core(),
             "host": hostname,

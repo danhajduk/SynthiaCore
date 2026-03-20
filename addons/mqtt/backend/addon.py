@@ -127,7 +127,7 @@ def addon_ui_root() -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Synthia MQTT Setup</title>
+  <title>Hexe MQTT Setup</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -480,7 +480,7 @@ def addon_ui_root() -> str:
 </head>
 <body>
   <main class="page">
-    <h1 class="title">Synthia MQTT Setup</h1>
+    <h1 class="title">Hexe MQTT Setup</h1>
     <p class="sub">Configure broker mode and connection settings for the embedded MQTT runtime.</p>
     <div id="setup-banner" class="status-banner"></div>
 
@@ -516,11 +516,11 @@ def addon_ui_root() -> str:
         </label>
         <label class="mode-local-only">
           Runtime note
-          <input value="Synthia will supervise local broker runtime." readonly />
+          <input value="Hexe will supervise local broker runtime." readonly />
         </label>
         <label class="mode-external-only">
           External note
-          <input value="Synthia will connect to an existing broker." readonly />
+          <input value="Hexe will connect to an existing broker." readonly />
         </label>
         <label>
           Port
@@ -557,7 +557,7 @@ def addon_ui_root() -> str:
       <div class="card" style="margin-top:12px;">
         <div class="settings-card-title">Reserved Topics and Bootstrap</div>
         <ul class="list">
-          <li><code>synthia/#</code> is reserved for Synthia-managed traffic.</li>
+          <li><code>hexe/#</code> is reserved for Hexe-managed traffic.</li>
           <li>Anonymous access is limited to bootstrap discovery flows only.</li>
           <li>Users, policies, and grants are configured after initial setup.</li>
         </ul>
@@ -752,7 +752,7 @@ def addon_ui_root() -> str:
           checks.push({ label: "Connection test", status: "failed", detail: state.lastExternalTest.detail });
         }
       } else {
-        checks.push({ label: "Local runtime", status: "ready", detail: "Broker managed by Synthia runtime." });
+        checks.push({ label: "Local runtime", status: "ready", detail: "Broker managed by Hexe runtime." });
       }
       return checks;
     }
@@ -2266,7 +2266,7 @@ def addon_ui_root() -> str:
 def addon_meta() -> dict[str, Any]:
     return {
         "id": "mqtt",
-        "name": "Synthia MQTT",
+        "name": "Hexe MQTT",
         "version": "0.1.0",
         "description": "Platform-managed embedded MQTT infrastructure addon",
     }
@@ -2407,7 +2407,7 @@ def addon_ui_subroute(path: str) -> str:
 addon = BackendAddon(
     meta=AddonMeta(
         id="mqtt",
-        name="Synthia MQTT",
+        name="Hexe MQTT",
         version="0.1.0",
         description="Platform-managed embedded MQTT infrastructure addon.",
         show_sidebar=False,

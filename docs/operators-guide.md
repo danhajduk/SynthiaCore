@@ -1,6 +1,6 @@
 # Operators Guide
 
-This document is the canonical operator runbook for current Synthia behavior.
+This document is the canonical operator runbook for current Hexe behavior.
 
 ## 1) Setup
 

@@ -123,7 +123,7 @@ class WorkerRunner:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Synthia worker runner (scheduler client)")
+    p = argparse.ArgumentParser(description="Hexe worker runner (scheduler client)")
     p.add_argument("--base-url", default="http://localhost:9001")
     p.add_argument("--worker-id", default="worker-1")
     p.add_argument("--heartbeat-interval", type=float, default=15.0)

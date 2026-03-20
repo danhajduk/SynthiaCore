@@ -22,7 +22,7 @@ class DevelopmentNotificationTrigger:
 
         popup_result = await self._publisher.publish_internal_popup(
             {
-                "source": {"kind": "core", "id": "synthia-core", "component": "debug", "host": hostname, "user": username},
+                "source": {"kind": "core", "id": "hexe-core", "component": "debug", "host": hostname, "user": username},
                 "targets": {"hosts": [hostname], "users": [username] if username else []},
                 "delivery": {"severity": "info", "priority": "normal", "ttl_seconds": 300, "dedupe_key": "dev-popup"},
                 "content": {"title": f"{naming.platform_short()} Debug Popup", "message": "Developer-triggered popup notification."},
@@ -34,7 +34,7 @@ class DevelopmentNotificationTrigger:
 
         event_result = await self._publisher.publish_internal_event(
             {
-                "source": {"kind": "core", "id": "synthia-core", "component": "debug", "host": hostname, "user": username},
+                "source": {"kind": "core", "id": "hexe-core", "component": "debug", "host": hostname, "user": username},
                 "targets": {"broadcast": True, "external": ["ha"]},
                 "delivery": {"severity": "warning", "priority": "high", "dedupe_key": "dev-event-ha"},
                 "content": {"title": f"{naming.platform_short()} Debug Alert", "message": "Developer-triggered alert for HA/mobile relay."},
@@ -46,7 +46,7 @@ class DevelopmentNotificationTrigger:
 
         state_result = await self._publisher.publish_internal_state(
             {
-                "source": {"kind": "core", "id": "synthia-core", "component": "debug", "host": hostname, "user": username},
+                "source": {"kind": "core", "id": "hexe-core", "component": "debug", "host": hostname, "user": username},
                 "targets": {"broadcast": True},
                 "delivery": {"severity": "success", "priority": "normal", "dedupe_key": "dev-state"},
                 "content": {"title": f"{naming.platform_short()} Debug State", "message": "Developer-triggered state notification."},

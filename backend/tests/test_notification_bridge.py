@@ -34,7 +34,7 @@ class _FakePublisher:
 class TestNotificationBridge(unittest.IsolatedAsyncioTestCase):
     def _payload(self, **overrides) -> dict[str, Any]:
         payload = {
-            "source": {"kind": "core", "id": "synthia-core", "component": "startup"},
+            "source": {"kind": "core", "id": "hexe-core", "component": "startup"},
             "targets": {"broadcast": True, "external": ["ha"]},
             "delivery": {"severity": "warning", "priority": "high", "dedupe_key": "alert-tag", "channels": ["event"]},
             "content": {"title": "Alert", "message": "Attention"},

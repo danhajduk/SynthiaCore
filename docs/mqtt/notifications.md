@@ -163,7 +163,7 @@ Example popup-originated external payload:
   "created_at": "2026-03-12T17:32:00+00:00",
   "source": {
     "kind": "core",
-    "id": "synthia-core",
+    "id": "hexe-core",
     "component": "startup"
   }
 }
@@ -181,7 +181,7 @@ Example event-originated external payload:
   "created_at": "2026-03-12T17:40:00+00:00",
   "source": {
     "kind": "core",
-    "id": "synthia-core",
+    "id": "hexe-core",
     "component": "debug"
   }
 }
@@ -199,7 +199,7 @@ Example state-originated external payload:
   "created_at": "2026-03-12T17:32:00+00:00",
   "source": {
     "kind": "core",
-    "id": "synthia-core",
+    "id": "hexe-core",
     "component": "startup"
   }
 }

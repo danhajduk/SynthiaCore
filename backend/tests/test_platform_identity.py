@@ -90,7 +90,7 @@ class TestPlatformIdentity(unittest.TestCase):
                     "platform.nodes_name": "Hexe Nodes",
                     "platform.addons_name": "Hexe Addons",
                     "platform.docs_name": "Hexe Docs",
-                    "platform.legacy_compatibility_note": "Internal legacy identifiers may still use `synthia` during migration.",
+                    "platform.legacy_compatibility_note": "Some stable technical identifiers still use `synthia` where changing them would break compatibility.",
                 }
             )
         self.assertEqual(identity.platform_name, "Hexe AI")

@@ -47,7 +47,7 @@ else
 fi
 if [[ "$RESOLVED_ADDONS_DIR" == "$REPO_DIR"* ]]; then
   echo "[update] WARN: SYNTHIA_ADDONS_DIR resolves inside repo ($RESOLVED_ADDONS_DIR)."
-  echo "[update] WARN: use an external path (for example ~/.local/share/synthia/SynthiaAddons) to keep SSAP state isolated from code updates."
+  echo "[update] WARN: use an external path (for example ~/.local/share/hexe/HexeAddons) to keep SSAP state isolated from code updates."
 fi
 
 echo "[update] git fetch/reset"

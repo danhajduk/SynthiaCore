@@ -100,7 +100,7 @@ class TestMqttEmbeddedUiRoutes(unittest.TestCase):
     def test_root_ui_page_contains_setup_shell(self) -> None:
         res = self.client.get("/api/addons/mqtt")
         self.assertEqual(res.status_code, 200, res.text)
-        self.assertIn("Synthia MQTT Setup", res.text)
+        self.assertIn("Hexe MQTT Setup", res.text)
         self.assertIn("Save and Initialize", res.text)
         self.assertIn("Local broker", res.text)
         self.assertIn("External broker", res.text)
@@ -157,13 +157,13 @@ class TestMqttEmbeddedUiRoutes(unittest.TestCase):
     def test_subroute_ui_page_serves_same_shell(self) -> None:
         res = self.client.get("/api/addons/mqtt/principals")
         self.assertEqual(res.status_code, 200, res.text)
-        self.assertIn("Synthia MQTT Setup", res.text)
+        self.assertIn("Hexe MQTT Setup", res.text)
         self.assertIn("data-section=\"principals\"", res.text)
 
     def test_topics_subroute_defaults_to_ui_shell(self) -> None:
         res = self.client.get("/api/addons/mqtt/topics")
         self.assertEqual(res.status_code, 200, res.text)
-        self.assertIn("Synthia MQTT Setup", res.text)
+        self.assertIn("Hexe MQTT Setup", res.text)
         self.assertIn("data-section=\"topics\"", res.text)
 
     def test_topics_subroute_returns_json_when_requested(self) -> None:

@@ -4,13 +4,14 @@ import { API_BASE } from "./api/client";
 export const DEFAULT_PLATFORM_NAME = "Hexe AI";
 export const DEFAULT_PLATFORM_SHORT = "Hexe";
 export const DEFAULT_PLATFORM_DOMAIN = "hexe-ai.com";
-export const DEFAULT_PLATFORM_CONTROL_PLANE_NAME = "Hexe Core";
+export const DEFAULT_PLATFORM_CORE_NAME = "Hexe Core";
 export const DEFAULT_PLATFORM_SUPERVISOR_NAME = "Hexe Supervisor";
 export const DEFAULT_PLATFORM_NODES_NAME = "Hexe Nodes";
 export const DEFAULT_PLATFORM_ADDONS_NAME = "Hexe Addons";
 export const DEFAULT_PLATFORM_DOCS_NAME = "Hexe Docs";
 export const DEFAULT_LEGACY_INTERNAL_NAMESPACE = "synthia";
-export const DEFAULT_LEGACY_COMPATIBILITY_NOTE = "Internal legacy identifiers may still use `synthia` during migration.";
+export const DEFAULT_LEGACY_COMPATIBILITY_NOTE =
+  "Some stable technical identifiers still use `synthia` where changing them would break compatibility.";
 
 export type PlatformBranding = {
   platformName: string;
@@ -29,7 +30,7 @@ export const DEFAULT_BRANDING: PlatformBranding = {
   platformName: DEFAULT_PLATFORM_NAME,
   platformShort: DEFAULT_PLATFORM_SHORT,
   platformDomain: DEFAULT_PLATFORM_DOMAIN,
-  coreName: DEFAULT_PLATFORM_CONTROL_PLANE_NAME,
+  coreName: DEFAULT_PLATFORM_CORE_NAME,
   supervisorName: DEFAULT_PLATFORM_SUPERVISOR_NAME,
   nodesName: DEFAULT_PLATFORM_NODES_NAME,
   addonsName: DEFAULT_PLATFORM_ADDONS_NAME,
