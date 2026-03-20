@@ -16,6 +16,7 @@ SUPPORTED_PERIODS = {"monthly", "daily", "manual_reset"}
 SUPPORTED_RESET_POLICIES = {"calendar", "rolling", "manual"}
 SUPPORTED_ENFORCEMENT_MODES = {"hard_stop", "warn"}
 SUPPORTED_COMPUTE_UNITS = {"cost_units", "tokens", "requests", "gpu_seconds", "cpu_seconds"}
+DEFAULT_BUDGET_ALERT_THRESHOLDS = (0.8, 0.9, 1.0)
 
 
 def _utcnow_iso() -> str:
@@ -774,9 +775,11 @@ class NodeBudgetService:
                 money_limit=config.node_money_limit,
                 compute_limit=config.node_compute_limit,
                 reservations=reservations,
+                scope_kind="node",
             ),
             "customers": [],
             "providers": [],
+            "alerts": [],
         }
 
         for item in customer_allocations:
@@ -785,8 +788,9 @@ class NodeBudgetService:
                 money_limit=item.money_limit,
                 compute_limit=item.compute_limit,
                 reservations=scoped_reservations,
+                scope_kind="customer",
+                subject_id=item.subject_id,
             )
-            scope_summary["subject_id"] = item.subject_id
             summary["customers"].append(scope_summary)
 
         for item in provider_allocations:
@@ -795,10 +799,15 @@ class NodeBudgetService:
                 money_limit=item.money_limit,
                 compute_limit=item.compute_limit,
                 reservations=scoped_reservations,
+                scope_kind="provider",
+                subject_id=item.subject_id,
             )
-            scope_summary["subject_id"] = item.subject_id
             summary["providers"].append(scope_summary)
 
+        summary["alerts"] = list(summary["node"].get("alerts") or [])
+        for group in ("customers", "providers"):
+            for item in summary[group]:
+                summary["alerts"].extend(list(item.get("alerts") or []))
         return summary
 
     def usage_inspection(self, node_id: str) -> dict[str, Any]:
@@ -838,6 +847,8 @@ class NodeBudgetService:
         money_limit: float | None,
         compute_limit: float | None,
         reservations: list[NodeBudgetReservationRecord],
+        scope_kind: str,
+        subject_id: str | None = None,
     ) -> dict[str, Any]:
         reserved_money = round(sum(float(item.money_reserved or 0.0) for item in reservations if item.state == "reserved"), 6)
         reserved_compute = round(sum(float(item.compute_reserved or 0.0) for item in reservations if item.state == "reserved"), 6)
@@ -861,7 +872,9 @@ class NodeBudgetService:
         released_compute = round(sum(float(item.compute_reserved or 0.0) for item in reservations if item.state == "released"), 6)
         remaining_money = None if money_limit is None else round(float(money_limit) - reserved_money - actual_money, 6)
         remaining_compute = None if compute_limit is None else round(float(compute_limit) - reserved_compute - actual_compute, 6)
-        return {
+        summary = {
+            "scope_kind": scope_kind,
+            "subject_id": subject_id,
             "money_limit": money_limit,
             "compute_limit": compute_limit,
             "reserved_money": reserved_money,
@@ -872,7 +885,59 @@ class NodeBudgetService:
             "released_compute": released_compute,
             "remaining_money": remaining_money,
             "remaining_compute": remaining_compute,
+            "alerts": [],
         }
+        money_used = reserved_money + actual_money
+        compute_used = reserved_compute + actual_compute
+        summary["money_utilization"] = None if money_limit in {None, 0} else round(money_used / float(money_limit), 6)
+        summary["compute_utilization"] = None if compute_limit in {None, 0} else round(compute_used / float(compute_limit), 6)
+        summary["alerts"] = self._threshold_alerts(
+            scope_kind=scope_kind,
+            subject_id=subject_id,
+            money_limit=money_limit,
+            money_used=money_used,
+            compute_limit=compute_limit,
+            compute_used=compute_used,
+        )
+        return summary
+
+    def _threshold_alerts(
+        self,
+        *,
+        scope_kind: str,
+        subject_id: str | None,
+        money_limit: float | None,
+        money_used: float,
+        compute_limit: float | None,
+        compute_used: float,
+    ) -> list[dict[str, Any]]:
+        alerts: list[dict[str, Any]] = []
+
+        def _severity(pct: float) -> str:
+            return "critical" if pct >= 1.0 else "warn"
+
+        def _append(metric: str, used: float, limit: float | None) -> None:
+            if limit in {None, 0}:
+                return
+            utilization = round(float(used) / float(limit), 6)
+            for threshold in DEFAULT_BUDGET_ALERT_THRESHOLDS:
+                if utilization >= threshold:
+                    alerts.append(
+                        {
+                            "scope_kind": scope_kind,
+                            "subject_id": subject_id,
+                            "metric": metric,
+                            "threshold": threshold,
+                            "severity": _severity(threshold),
+                            "utilization": utilization,
+                            "used": round(float(used), 6),
+                            "limit": float(limit),
+                        }
+                    )
+
+        _append("money", money_used, money_limit)
+        _append("compute", compute_used, compute_limit)
+        return alerts
 
     def _estimate_money_reservation(
         self,

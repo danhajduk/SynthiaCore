@@ -20,6 +20,7 @@ This foundation covers:
 - cost and compute estimation hooks used when the caller does not provide explicit reservation values
 - trusted-node actual usage reporting and persisted usage summaries with remaining-budget calculations
 - audit logging across declaration, setup, allocation changes, reservation lifecycle, denials, and usage reporting
+- computed threshold alerts for node, customer, and provider budget usage
 
 This document does not yet define:
 
@@ -374,6 +375,9 @@ Each scope summary currently includes:
 - `released_compute`
 - `remaining_money`
 - `remaining_compute`
+- `money_utilization`
+- `compute_utilization`
+- `alerts[]`
 
 Dedicated usage inspection reads through `GET /api/system/nodes/budgets/{node_id}/usage` also include:
 
@@ -388,6 +392,36 @@ Current `next_reset_at` behavior:
 - `daily` + `calendar`: next UTC midnight
 - `monthly` + `calendar`: first day of next UTC month
 - `rolling`: current time plus one period window
+
+### Threshold Alerts
+
+Current usage summaries generate computed alert entries for:
+
+- node scope
+- explicit customer allocation scopes
+- explicit provider allocation scopes
+
+Current default thresholds:
+
+- `0.8`
+- `0.9`
+- `1.0`
+
+Current alert fields:
+
+- `scope_kind`
+- `subject_id`
+- `metric`
+- `threshold`
+- `severity`
+- `utilization`
+- `used`
+- `limit`
+
+Current severity mapping:
+
+- `warn` for threshold alerts below `1.0`
+- `critical` for `1.0` and above
 
 ### Current Limitations
 

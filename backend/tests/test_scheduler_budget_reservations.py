@@ -295,6 +295,16 @@ class TestSchedulerBudgetReservations(unittest.TestCase):
         self.assertIn("node_budget_reservation_created", event_types)
         self.assertIn("node_budget_reservation_finalized", event_types)
 
+    def test_usage_summary_emits_threshold_alerts(self) -> None:
+        created = self._submit_budgeted_job(money_estimate=8.5, compute_units=85.0, customer_id=None, provider=None)
+        self.assertEqual(created.status_code, 200, created.text)
+
+        usage = self.budget_service.usage_inspection("node-budget-1")
+        node_alerts = usage["usage_summary"]["node"]["alerts"]
+        self.assertTrue(any(alert["metric"] == "money" and alert["threshold"] == 0.8 for alert in node_alerts))
+        self.assertTrue(any(alert["metric"] == "compute" and alert["threshold"] == 0.8 for alert in node_alerts))
+        self.assertGreaterEqual(len(usage["usage_summary"]["alerts"]), 2)
+
     def test_estimates_compute_from_tokens_when_budget_uses_token_units(self) -> None:
         self._configure_budget(
             compute_unit="tokens",
