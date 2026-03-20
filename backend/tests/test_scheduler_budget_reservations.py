@@ -1,11 +1,13 @@
 import tempfile
 import unittest
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.system.audit import AuditLogStore
 from app.system.onboarding import ModelRoutingRegistryService, ModelRoutingRegistryStore, NodeBudgetService, NodeBudgetStore
 from app.system.scheduler.engine import SchedulerEngine
 from app.system.scheduler.router import build_scheduler_router
@@ -20,6 +22,8 @@ class TestSchedulerBudgetReservations(unittest.TestCase):
         self.routing_store = ModelRoutingRegistryStore(path=base / "model_routing_registry.json")
         self.routing_service = ModelRoutingRegistryService(self.routing_store)
         self.budget_service = NodeBudgetService(self.budget_store, self.routing_service)
+        self.audit_path = base / "audit.log"
+        self.audit_store = AuditLogStore(str(self.audit_path))
         self.budget_service.declare_budget_capabilities(
             node_id="node-budget-1",
             payload={
@@ -41,6 +45,7 @@ class TestSchedulerBudgetReservations(unittest.TestCase):
             build_scheduler_router(
                 SchedulerEngine(SchedulerStore(), total_capacity_units=100, reserve_units=0),
                 node_budget_service=self.budget_service,
+                audit_store=self.audit_store,
             ),
             prefix="/api/system/scheduler",
         )
@@ -93,6 +98,11 @@ class TestSchedulerBudgetReservations(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.tmpdir.cleanup()
+
+    def _audit_events(self) -> list[dict]:
+        if not self.audit_path.exists():
+            return []
+        return [json.loads(line) for line in self.audit_path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
     def _submit_budgeted_job(
         self,
@@ -281,6 +291,9 @@ class TestSchedulerBudgetReservations(unittest.TestCase):
         self.assertEqual(summary["reserved_money"], 0.0)
         self.assertEqual(summary["actual_money"], 1.25)
         self.assertEqual(summary["remaining_money"], 8.75)
+        event_types = [item["event_type"] for item in self._audit_events()]
+        self.assertIn("node_budget_reservation_created", event_types)
+        self.assertIn("node_budget_reservation_finalized", event_types)
 
     def test_estimates_compute_from_tokens_when_budget_uses_token_units(self) -> None:
         self._configure_budget(

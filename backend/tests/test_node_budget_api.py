@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -27,6 +28,7 @@ from app.system.onboarding import (
     NodeTrustStore,
 )
 from app.api import system as system_api
+from app.system.audit import AuditLogStore
 
 
 class _FakeRegistry:
@@ -61,6 +63,8 @@ class TestNodeBudgetApi(unittest.TestCase):
         self.routing_store = ModelRoutingRegistryStore(path=base / "model_routing_registry.json")
         self.routing_service = ModelRoutingRegistryService(self.routing_store)
         self.budget_service = NodeBudgetService(self.budget_store, self.routing_service)
+        self.audit_store = AuditLogStore(str(base / "audit.log"))
+        self.audit_path = base / "audit.log"
 
         app = FastAPI()
         app.include_router(
@@ -70,6 +74,7 @@ class TestNodeBudgetApi(unittest.TestCase):
                 node_registrations_store=self.registrations,
                 node_trust_issuance=self.trust_issuance,
                 node_budget_service=self.budget_service,
+                audit_store=self.audit_store,
             ),
             prefix="/api",
         )
@@ -119,6 +124,11 @@ class TestNodeBudgetApi(unittest.TestCase):
         self.assertIsNotNone(trust)
         assert trust is not None
         return node_id, trust.node_trust_token
+
+    def _audit_events(self) -> list[dict]:
+        if not self.audit_path.exists():
+            return []
+        return [json.loads(line) for line in self.audit_path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
     def test_trusted_node_can_declare_budget_capabilities(self) -> None:
         node_id, trust_token = self._trusted_node()
@@ -358,6 +368,11 @@ class TestNodeBudgetApi(unittest.TestCase):
         )
         self.assertEqual(deleted_budget.status_code, 200, deleted_budget.text)
         self.assertEqual(deleted_budget.json()["budget"]["setup_status"], "needs_configuration")
+
+        event_types = [item["event_type"] for item in self._audit_events()]
+        self.assertIn("node_budget_customer_allocation_upserted", event_types)
+        self.assertIn("node_budget_provider_allocation_upserted", event_types)
+        self.assertIn("node_budget_deleted", event_types)
 
 
 if __name__ == "__main__":

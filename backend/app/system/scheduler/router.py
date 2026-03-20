@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from app.system.audit import AuditLogStore
 from app.system.events import PlatformEventService
 from app.system.onboarding import NodeBudgetService
 from app.supervisor import SupervisorDomainService
@@ -36,6 +37,7 @@ def build_scheduler_router(
     events: PlatformEventService | None = None,
     supervisor_service: SupervisorDomainService | None = None,
     node_budget_service: NodeBudgetService | None = None,
+    audit_store: AuditLogStore | None = None,
 ) -> APIRouter:
     router = APIRouter()
     expire_task: asyncio.Task | None = None
@@ -60,6 +62,20 @@ def build_scheduler_router(
         reason: str | None,
     ) -> None:
         await queue_persist.record_event(job_id, from_state, to_state, reason)
+
+    async def _record_audit(
+        *,
+        event_type: str,
+        actor_role: str,
+        actor_id: str,
+        details: dict[str, object],
+    ) -> None:
+        if audit_store is None:
+            return
+        try:
+            await audit_store.record(event_type=event_type, actor_role=actor_role, actor_id=actor_id, details=details)
+        except Exception:
+            return
 
     def _supervisor_admission():
         if supervisor_service is None:
@@ -442,15 +458,35 @@ def build_scheduler_router(
 
         if node_budget_service is not None:
             try:
-                node_budget_service.reserve_scheduler_budget(
+                reservation = node_budget_service.reserve_scheduler_budget(
                     job_id=job.job_id,
                     addon_id=job.addon_id,
                     cost_units=job.cost_units,
                     payload=job.payload,
                     constraints=job.constraints,
                 )
+                if reservation is not None:
+                    await _record_audit(
+                        event_type="node_budget_reservation_created",
+                        actor_role="system",
+                        actor_id="scheduler_queue",
+                        details={
+                            "job_id": job.job_id,
+                            "node_id": str(reservation.get("node_id") or ""),
+                            "customer_id": str(reservation.get("customer_id") or ""),
+                            "provider_id": str(reservation.get("provider_id") or ""),
+                            "money_reserved": reservation.get("money_reserved"),
+                            "compute_reserved": reservation.get("compute_reserved"),
+                        },
+                    )
             except ValueError as exc:
                 error = str(exc)
+                await _record_audit(
+                    event_type="node_budget_reservation_denied",
+                    actor_role="system",
+                    actor_id="scheduler_queue",
+                    details={"job_id": job.job_id, "error": error, "addon_id": job.addon_id},
+                )
                 status_code = 409 if error.endswith("_budget_exceeded") else 400
                 raise HTTPException(status_code=status_code, detail={"error": error, "message": error})
 
@@ -512,7 +548,14 @@ def build_scheduler_router(
             await _persist_job(job)
             await _persist_event(job.job_id, prev, QueueJobState.CANCELED, "canceled")
             if node_budget_service is not None:
-                node_budget_service.release_scheduler_budget(job_id=job.job_id, reason="canceled")
+                reservation = node_budget_service.release_scheduler_budget(job_id=job.job_id, reason="canceled")
+                if reservation is not None:
+                    await _record_audit(
+                        event_type="node_budget_reservation_released",
+                        actor_role="system",
+                        actor_id="scheduler_queue",
+                        details={"job_id": job.job_id, "node_id": str(reservation.get("node_id") or ""), "reason": "canceled"},
+                    )
             return CancelJobIntentResponse(ok=True)
 
     @router.post("/queue/jobs/{job_id}/ack", response_model=AckJobIntentResponse)
@@ -532,7 +575,14 @@ def build_scheduler_router(
             await _persist_job(job)
             await _persist_event(job.job_id, prev, QueueJobState.RUNNING, "ack")
             if node_budget_service is not None:
-                node_budget_service.attach_scheduler_lease(job_id=job.job_id, lease_id=req.lease_id)
+                reservation = node_budget_service.attach_scheduler_lease(job_id=job.job_id, lease_id=req.lease_id)
+                if reservation is not None:
+                    await _record_audit(
+                        event_type="node_budget_reservation_leased",
+                        actor_role="system",
+                        actor_id="scheduler_queue",
+                        details={"job_id": job.job_id, "lease_id": str(req.lease_id or ""), "node_id": str(reservation.get("node_id") or "")},
+                    )
             return AckJobIntentResponse(ok=True)
 
     @router.post("/queue/jobs/{job_id}/complete", response_model=CompleteJobIntentResponse)
@@ -552,13 +602,32 @@ def build_scheduler_router(
             await _persist_event(job.job_id, prev, job.state, "complete")
             if node_budget_service is not None:
                 if req.status == "DONE":
-                    node_budget_service.finalize_scheduler_budget(
+                    reservation = node_budget_service.finalize_scheduler_budget(
                         job_id=job.job_id,
                         actual_money_spend=req.actual_money_spend,
                         actual_compute_spend=req.actual_compute_spend,
                     )
+                    if reservation is not None:
+                        await _record_audit(
+                            event_type="node_budget_reservation_finalized",
+                            actor_role="system",
+                            actor_id="scheduler_queue",
+                            details={
+                                "job_id": job.job_id,
+                                "node_id": str(reservation.get("node_id") or ""),
+                                "actual_money_spend": reservation.get("money_actual"),
+                                "actual_compute_spend": reservation.get("compute_actual"),
+                            },
+                        )
                 else:
-                    node_budget_service.release_scheduler_budget(job_id=job.job_id, reason="job_failed")
+                    reservation = node_budget_service.release_scheduler_budget(job_id=job.job_id, reason="job_failed")
+                    if reservation is not None:
+                        await _record_audit(
+                            event_type="node_budget_reservation_released",
+                            actor_role="system",
+                            actor_id="scheduler_queue",
+                            details={"job_id": job.job_id, "node_id": str(reservation.get("node_id") or ""), "reason": "job_failed"},
+                        )
             if events is not None:
                 await events.emit(
                     event_type="job_completed",

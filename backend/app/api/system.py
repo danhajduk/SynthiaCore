@@ -317,13 +317,11 @@ def _record_audit(
     if audit_store is None:
         return
     try:
-        asyncio.run(
-            audit_store.record(
-                event_type=event_type,
-                actor_role=actor_role,
-                actor_id=actor_id,
-                details=details,
-            )
+        audit_store.record_sync(
+            event_type=event_type,
+            actor_role=actor_role,
+            actor_id=actor_id,
+            details=details,
         )
     except Exception:
         return
@@ -934,6 +932,13 @@ def build_system_router(
             budget = node_budget_service.delete_node_budget(node_id)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_deleted",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id},
+        )
         return {"ok": True, "budget": budget}
 
     @router.get("/system/nodes/budgets/{node_id}/customers")
@@ -964,6 +969,13 @@ def build_system_router(
             item = node_budget_service.upsert_allocation(node_id=node_id, kind="customer", payload=payload)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_customer_allocation_upserted",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id, "customer_id": customer_id},
+        )
         return {"ok": True, "allocation": item}
 
     @router.delete("/system/nodes/budgets/{node_id}/customers/{customer_id}")
@@ -980,6 +992,13 @@ def build_system_router(
             item = node_budget_service.delete_allocation(node_id=node_id, kind="customer", subject_id=customer_id)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_customer_allocation_deleted",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id, "customer_id": customer_id},
+        )
         return {"ok": True, "allocation": item}
 
     @router.get("/system/nodes/budgets/{node_id}/providers")
@@ -1010,6 +1029,13 @@ def build_system_router(
             item = node_budget_service.upsert_allocation(node_id=node_id, kind="provider", payload=payload)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_provider_allocation_upserted",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id, "provider_id": provider_id},
+        )
         return {"ok": True, "allocation": item}
 
     @router.delete("/system/nodes/budgets/{node_id}/providers/{provider_id}")
@@ -1026,6 +1052,13 @@ def build_system_router(
             item = node_budget_service.delete_allocation(node_id=node_id, kind="provider", subject_id=provider_id)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_provider_allocation_deleted",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id, "provider_id": provider_id},
+        )
         return {"ok": True, "allocation": item}
 
     @router.get("/system/nodes/budgets/{node_id}/usage")

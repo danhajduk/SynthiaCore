@@ -19,6 +19,7 @@ This foundation covers:
 - hard-stop scheduler admission checks for node totals and configured customer/provider slices
 - cost and compute estimation hooks used when the caller does not provide explicit reservation values
 - trusted-node actual usage reporting and persisted usage summaries with remaining-budget calculations
+- audit logging across declaration, setup, allocation changes, reservation lifecycle, denials, and usage reporting
 
 This document does not yet define:
 
@@ -393,6 +394,26 @@ Current `next_reset_at` behavior:
 - reservation creation requires a configured node budget when `budget_scope.node_id` is supplied
 - current finalized records store reservation versus actual values, but aggregate usage rollups remain a later task
 - subject-assignment defaults are currently enforced only for queue-based scheduler admission
+
+## Audit Events
+
+Current implementation emits audit events for:
+
+- `node_budget_capabilities_declared`
+- `node_budget_configured`
+- `node_budget_deleted`
+- `node_budget_customer_allocation_upserted`
+- `node_budget_customer_allocation_deleted`
+- `node_budget_provider_allocation_upserted`
+- `node_budget_provider_allocation_deleted`
+- `node_budget_usage_reported`
+- `node_budget_reservation_created`
+- `node_budget_reservation_denied`
+- `node_budget_reservation_leased`
+- `node_budget_reservation_finalized`
+- `node_budget_reservation_released`
+
+Reset and override audit events are not developed yet because reset and override actions are still future tasks.
 
 ## Code Anchors
 

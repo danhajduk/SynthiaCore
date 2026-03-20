@@ -518,6 +518,7 @@ def create_app() -> FastAPI:
         events=event_service,
         supervisor_service=supervisor_service,
         node_budget_service=node_budget_service,
+        audit_store=audit_store,
     )
     app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])
 
