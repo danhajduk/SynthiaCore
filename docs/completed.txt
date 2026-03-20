@@ -609,3 +609,4 @@ Task 517: Add admin APIs to create, read, update, and delete per-provider budget
 Task 518: Add admin APIs to inspect current reservations, actual spend, remaining budget, and next reset window - Completed on 03/19/2026 21:29
 Task 519: Add audit logging for budget creation, edits, node declarations, setup actions, reservations, releases, consumption, denials, resets, and overrides - Completed on 03/19/2026 21:31
 Task 520: Add threshold alerts for node, customer, and provider budget usage - Completed on 03/19/2026 21:33
+Task 521: Add manual admin actions for top-up, reset, temporary override, and forced reservation release - Completed on 03/19/2026 21:35

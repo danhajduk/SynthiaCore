@@ -58,9 +58,28 @@ Budget read responses now include `usage_summary` when a configured node budget 
 - `DELETE /api/system/nodes/budgets/{node_id}/customers/{customer_id}`
 - `PUT /api/system/nodes/budgets/{node_id}/providers/{provider_id}`
 - `DELETE /api/system/nodes/budgets/{node_id}/providers/{provider_id}`
+- `POST /api/system/nodes/budgets/{node_id}/top-up`
+- `POST /api/system/nodes/budgets/{node_id}/reset`
+- `POST /api/system/nodes/budgets/{node_id}/override`
+- `POST /api/system/nodes/budgets/{node_id}/force-release`
 - Auth: admin session/token
 
 Used by operators to configure node totals and optional customer/provider allocations.
+
+### Manual Admin Actions
+
+Current manual actions:
+
+- top-up: increases node-level `node_money_limit` and/or `node_compute_limit`
+- reset: clears persisted reservation/usage state for the node budget
+- override: temporarily changes `enforcement_mode` and/or `overcommit_enabled`
+- force release: releases a non-finalized reservation by `job_id` or `reservation_id`
+
+Current force-release behavior:
+
+- reservation must belong to the target node
+- finalized reservations cannot be force released
+- released reservations remain visible in usage history as released usage
 
 ### Trusted Node Usage Report
 

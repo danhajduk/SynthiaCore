@@ -45,8 +45,7 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-[WIP] Task 521: Add manual admin actions for top-up, reset, temporary override, and forced reservation release
-[TODO] Task 522: Add admin UI to configure service-node money and compute budgets from node-declared budget capabilities
+[WIP] Task 522: Add admin UI to configure service-node money and compute budgets from node-declared budget capabilities
 [TODO] Task 523: Add admin UI to configure per-customer budget allocations on a service node
 [TODO] Task 524: Add admin UI to configure per-provider budget allocations on a multi-provider service node
 [TODO] Task 525: Add admin UI to monitor current node, customer, and provider budget usage and blocked work

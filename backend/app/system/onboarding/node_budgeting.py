@@ -354,6 +354,15 @@ class NodeBudgetStore:
             self._save()
         return removed
 
+    def clear_reservations(self, node_id: str) -> int:
+        node_key = _clean_text(node_id)
+        before = len(self._reservations)
+        self._reservations = {key: value for key, value in self._reservations.items() if value.node_id != node_key}
+        removed = before - len(self._reservations)
+        if removed:
+            self._save()
+        return removed
+
     def replace_allocations(self, node_id: str, kind: str, allocations: list[NodeBudgetAllocationRecord]) -> list[NodeBudgetAllocationRecord]:
         node_key = _clean_text(node_id)
         kind_key = _clean_text(kind, lower=True)
@@ -415,6 +424,9 @@ class NodeBudgetStore:
             if item.job_id == job_key:
                 return item
         return None
+
+    def get_reservation(self, reservation_id: str) -> NodeBudgetReservationRecord | None:
+        return self._reservations.get(_clean_text(reservation_id))
 
     def upsert_reservation(self, record: NodeBudgetReservationRecord) -> NodeBudgetReservationRecord:
         existing = self._reservations.get(record.reservation_id)
@@ -823,6 +835,91 @@ class NodeBudgetService:
             "period": config.period,
             "reset_policy": config.reset_policy,
         }
+
+    def top_up_budget(
+        self,
+        *,
+        node_id: str,
+        money_delta: float | None = None,
+        compute_delta: float | None = None,
+    ) -> dict[str, Any]:
+        node_key = _clean_text(node_id)
+        config = self._store.get_config(node_key)
+        if config is None:
+            raise ValueError("node_budget_not_found")
+        money_bump = _coerce_optional_float(money_delta)
+        compute_bump = _coerce_optional_float(compute_delta)
+        if money_bump is None and compute_bump is None:
+            raise ValueError("budget_top_up_required")
+        if money_bump is not None:
+            config.node_money_limit = round(float(config.node_money_limit or 0.0) + money_bump, 6)
+        if compute_bump is not None:
+            config.node_compute_limit = round(float(config.node_compute_limit or 0.0) + compute_bump, 6)
+        self._store.upsert_config(config)
+        return self.get_bundle(node_key)
+
+    def reset_budget_usage(self, *, node_id: str) -> dict[str, Any]:
+        node_key = _clean_text(node_id)
+        config = self._store.get_config(node_key)
+        if config is None:
+            raise ValueError("node_budget_not_found")
+        self._store.clear_reservations(node_key)
+        config.updated_at = _utcnow_iso()
+        self._store.upsert_config(config)
+        return self.get_bundle(node_key)
+
+    def set_temporary_override(
+        self,
+        *,
+        node_id: str,
+        enforcement_mode: str | None = None,
+        overcommit_enabled: bool | None = None,
+    ) -> dict[str, Any]:
+        node_key = _clean_text(node_id)
+        config = self._store.get_config(node_key)
+        if config is None:
+            raise ValueError("node_budget_not_found")
+        updated = False
+        if enforcement_mode is not None:
+            mode = _clean_text(enforcement_mode, lower=True)
+            if mode not in SUPPORTED_ENFORCEMENT_MODES:
+                raise ValueError("unsupported_enforcement_mode")
+            config.enforcement_mode = mode
+            updated = True
+        if overcommit_enabled is not None:
+            config.overcommit_enabled = bool(overcommit_enabled)
+            updated = True
+        if not updated:
+            raise ValueError("budget_override_required")
+        self._store.upsert_config(config)
+        return self.get_bundle(node_key)
+
+    def force_release_reservation(
+        self,
+        *,
+        node_id: str,
+        job_id: str | None = None,
+        reservation_id: str | None = None,
+        reason: str,
+    ) -> dict[str, Any]:
+        node_key = _clean_text(node_id)
+        config = self._store.get_config(node_key)
+        if config is None:
+            raise ValueError("node_budget_not_found")
+        record = None
+        if reservation_id:
+            record = self._store.get_reservation(reservation_id)
+        elif job_id:
+            record = self._store.get_reservation_by_job(job_id)
+        if record is None or record.node_id != node_key:
+            raise ValueError("budget_reservation_not_found")
+        if record.state == "finalized":
+            raise ValueError("budget_reservation_already_finalized")
+        record.state = "released"
+        record.release_reason = _clean_text(reason) or "forced_release"
+        record.released_at = _utcnow_iso()
+        self._store.upsert_reservation(record)
+        return record.to_dict()
 
     def _committed_scope_amount(self, *, node_id: str, money: bool, customer_id: str | None = None, provider_id: str | None = None) -> float:
         total = 0.0

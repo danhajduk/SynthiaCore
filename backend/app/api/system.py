@@ -129,6 +129,22 @@ class NodeBudgetUsageReportRequest(BaseModel):
     actual_compute_spend: float | None = None
 
 
+class NodeBudgetTopUpRequest(BaseModel):
+    money_delta: float | None = None
+    compute_delta: float | None = None
+
+
+class NodeBudgetOverrideRequest(BaseModel):
+    enforcement_mode: str | None = None
+    overcommit_enabled: bool | None = None
+
+
+class NodeBudgetForceReleaseRequest(BaseModel):
+    job_id: str | None = None
+    reservation_id: str | None = None
+    reason: str | None = None
+
+
 def _onboarding_error(error: str, message: str, *, retryable: bool = False) -> dict[str, object]:
     return {
         "error": error,
@@ -1074,6 +1090,112 @@ def build_system_router(
             return {"ok": True, "usage": node_budget_service.usage_inspection(node_id)}
         except ValueError as exc:
             raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+
+    @router.post("/system/nodes/budgets/{node_id}/top-up")
+    def top_up_node_budget(
+        node_id: str,
+        body: NodeBudgetTopUpRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            budget = node_budget_service.top_up_budget(
+                node_id=node_id,
+                money_delta=body.money_delta,
+                compute_delta=body.compute_delta,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_topped_up",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id, "money_delta": body.money_delta, "compute_delta": body.compute_delta},
+        )
+        return {"ok": True, "budget": budget}
+
+    @router.post("/system/nodes/budgets/{node_id}/reset")
+    def reset_node_budget_usage(
+        node_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            budget = node_budget_service.reset_budget_usage(node_id=node_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_reset",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id},
+        )
+        return {"ok": True, "budget": budget}
+
+    @router.post("/system/nodes/budgets/{node_id}/override")
+    def override_node_budget(
+        node_id: str,
+        body: NodeBudgetOverrideRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            budget = node_budget_service.set_temporary_override(
+                node_id=node_id,
+                enforcement_mode=body.enforcement_mode,
+                overcommit_enabled=body.overcommit_enabled,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_override_set",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id, "enforcement_mode": body.enforcement_mode, "overcommit_enabled": body.overcommit_enabled},
+        )
+        return {"ok": True, "budget": budget}
+
+    @router.post("/system/nodes/budgets/{node_id}/force-release")
+    def force_release_node_budget_reservation(
+        node_id: str,
+        body: NodeBudgetForceReleaseRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            reservation = node_budget_service.force_release_reservation(
+                node_id=node_id,
+                job_id=body.job_id,
+                reservation_id=body.reservation_id,
+                reason=str(body.reason or "").strip() or "forced_release",
+            )
+        except ValueError as exc:
+            error = str(exc)
+            status_code = 404 if error == "budget_reservation_not_found" else 400
+            raise HTTPException(status_code=status_code, detail={"error": error, "message": error})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_reservation_force_released",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={"node_id": node_id, "job_id": body.job_id, "reservation_id": body.reservation_id},
+        )
+        return {"ok": True, "reservation": reservation, "budget": node_budget_service.get_bundle(node_id)}
 
     @router.post("/system/nodes/budgets/usage-report")
     def report_node_budget_usage(
