@@ -692,7 +692,9 @@ class NodeBudgetService:
         provider_allocations = {item.subject_id: item for item in self._store.list_allocations(node_id, kind="provider")}
 
         customer_record = customer_allocations.get(customer_id or "")
-        if customer_record is not None:
+        if customer_id and customer_record is None and customer_allocations and not config.shared_customer_pool:
+            raise ValueError("customer_budget_allocation_required")
+        if customer_record is not None and not config.shared_customer_pool:
             if customer_record.money_limit is not None:
                 committed = self._committed_scope_amount(node_id=node_id, money=True, customer_id=customer_record.subject_id)
                 if committed + requested_money_value > float(customer_record.money_limit) + 1e-9:
@@ -703,7 +705,9 @@ class NodeBudgetService:
                     raise ValueError("customer_compute_budget_exceeded")
 
         provider_record = provider_allocations.get(provider_id or "")
-        if provider_record is not None:
+        if provider_id and provider_record is None and provider_allocations and not config.shared_provider_pool:
+            raise ValueError("provider_budget_allocation_required")
+        if provider_record is not None and not config.shared_provider_pool:
             if provider_record.money_limit is not None:
                 committed = self._committed_scope_amount(node_id=node_id, money=True, provider_id=provider_record.subject_id)
                 if committed + requested_money_value > float(provider_record.money_limit) + 1e-9:

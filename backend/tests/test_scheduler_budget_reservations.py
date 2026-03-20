@@ -32,20 +32,7 @@ class TestSchedulerBudgetReservations(unittest.TestCase):
                 "supported_providers": ["openai"],
             },
         )
-        self.budget_service.configure_node_budget(
-            node_id="node-budget-1",
-            node_budget={
-                "currency": "USD",
-                "compute_unit": "cost_units",
-                "period": "monthly",
-                "reset_policy": "calendar",
-                "enforcement_mode": "hard_stop",
-                "node_money_limit": 10.0,
-                "node_compute_limit": 100.0,
-            },
-            customer_allocations=[{"subject_id": "cust-a", "money_limit": 3.3, "compute_limit": 30.0}],
-            provider_allocations=[{"subject_id": "openai", "money_limit": 8.0, "compute_limit": 80.0}],
-        )
+        self._configure_budget()
 
         app = FastAPI()
         app.include_router(
@@ -56,6 +43,29 @@ class TestSchedulerBudgetReservations(unittest.TestCase):
             prefix="/api/system/scheduler",
         )
         self.client = TestClient(app)
+
+    def _configure_budget(
+        self,
+        *,
+        shared_customer_pool: bool = False,
+        shared_provider_pool: bool = False,
+    ) -> None:
+        self.budget_service.configure_node_budget(
+            node_id="node-budget-1",
+            node_budget={
+                "currency": "USD",
+                "compute_unit": "cost_units",
+                "period": "monthly",
+                "reset_policy": "calendar",
+                "enforcement_mode": "hard_stop",
+                "shared_customer_pool": shared_customer_pool,
+                "shared_provider_pool": shared_provider_pool,
+                "node_money_limit": 10.0,
+                "node_compute_limit": 100.0,
+            },
+            customer_allocations=[{"subject_id": "cust-a", "money_limit": 3.3, "compute_limit": 30.0}],
+            provider_allocations=[{"subject_id": "openai", "money_limit": 8.0, "compute_limit": 80.0}],
+        )
 
     def tearDown(self) -> None:
         self.tmpdir.cleanup()
@@ -162,6 +172,46 @@ class TestSchedulerBudgetReservations(unittest.TestCase):
         second = self._submit_budgeted_job(money_estimate=3.5, compute_units=35.0, customer_id=None)
         self.assertEqual(second.status_code, 409, second.text)
         self.assertEqual(second.json()["detail"]["error"], "provider_money_budget_exceeded")
+
+    def test_shared_customer_pool_allows_borrowing_above_customer_slice(self) -> None:
+        self._configure_budget(shared_customer_pool=True)
+
+        first = self._submit_budgeted_job(money_estimate=2.5, compute_units=20.0)
+        self.assertEqual(first.status_code, 200, first.text)
+
+        second = self._submit_budgeted_job(money_estimate=2.5, compute_units=20.0)
+        self.assertEqual(second.status_code, 200, second.text)
+
+    def test_shared_provider_pool_allows_borrowing_above_provider_slice(self) -> None:
+        self._configure_budget(shared_provider_pool=True)
+
+        first = self._submit_budgeted_job(money_estimate=5.0, compute_units=40.0, customer_id=None)
+        self.assertEqual(first.status_code, 200, first.text)
+
+        second = self._submit_budgeted_job(money_estimate=3.5, compute_units=35.0, customer_id=None)
+        self.assertEqual(second.status_code, 200, second.text)
+
+    def test_hard_slice_customer_requires_explicit_allocation_when_customer_slices_exist(self) -> None:
+        created = self._submit_budgeted_job(customer_id="cust-missing")
+        self.assertEqual(created.status_code, 400, created.text)
+        self.assertEqual(created.json()["detail"]["error"], "customer_budget_allocation_required")
+
+    def test_hard_slice_provider_requires_explicit_allocation_when_provider_slices_exist(self) -> None:
+        created = self._submit_budgeted_job(customer_id=None, provider="anthropic")
+        self.assertEqual(created.status_code, 400, created.text)
+        self.assertEqual(created.json()["detail"]["error"], "provider_budget_allocation_required")
+
+    def test_shared_customer_pool_allows_unassigned_customer(self) -> None:
+        self._configure_budget(shared_customer_pool=True)
+
+        created = self._submit_budgeted_job(customer_id="cust-missing")
+        self.assertEqual(created.status_code, 200, created.text)
+
+    def test_shared_provider_pool_allows_unassigned_provider(self) -> None:
+        self._configure_budget(shared_provider_pool=True)
+
+        created = self._submit_budgeted_job(customer_id=None, provider="anthropic")
+        self.assertEqual(created.status_code, 200, created.text)
 
 
 if __name__ == "__main__":

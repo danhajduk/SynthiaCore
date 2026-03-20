@@ -21,8 +21,6 @@ This foundation covers:
 This document does not yet define:
 
 - runtime usage ingestion
-- shared-pool borrowing behavior
-- default handling for customers or providers that do not have explicit slice assignments
 
 Those later phases remain queued in the task list.
 
@@ -238,6 +236,25 @@ Current rejection errors:
 - `customer_compute_budget_exceeded`
 - `provider_money_budget_exceeded`
 - `provider_compute_budget_exceeded`
+- `customer_budget_allocation_required`
+- `provider_budget_allocation_required`
+
+### Shared Pool Versus Hard Slice
+
+Current implementation distinguishes these modes for explicit customer/provider allocations:
+
+- `shared_customer_pool=false`: customer allocations are hard caps during scheduler admission
+- `shared_customer_pool=true`: customer allocations remain configured metadata, but queue admission allows explicit customers to borrow from the node-level pool as long as node totals still permit the work
+- `shared_provider_pool=false`: provider allocations are hard caps during scheduler admission
+- `shared_provider_pool=true`: provider allocations remain configured metadata, but queue admission allows explicit providers to borrow from the node-level pool as long as node totals still permit the work
+
+Default behavior for subjects without explicit configured allocations:
+
+- when customer allocations exist and `shared_customer_pool=false`, queue submit rejects unassigned `customer_id` values with `customer_budget_allocation_required`
+- when customer allocations exist and `shared_customer_pool=true`, unassigned `customer_id` values are allowed and use the node-level pool
+- when provider allocations exist and `shared_provider_pool=false`, queue submit rejects unassigned `provider` values with `provider_budget_allocation_required`
+- when provider allocations exist and `shared_provider_pool=true`, unassigned `provider` values are allowed and use the node-level pool
+- when no allocations exist for that scope family, queue admission falls back to node-level enforcement
 
 ### Completion Payload Extensions
 
@@ -252,8 +269,7 @@ If omitted on successful completion, Core finalizes the reservation using the or
 
 - reservation creation requires a configured node budget when `budget_scope.node_id` is supplied
 - current finalized records store reservation versus actual values, but aggregate usage rollups remain a later task
-- customer and provider assignment defaults are not yet enforced beyond the declared/configured setup contract
-- customer/provider slice enforcement applies only when a matching explicit allocation exists today
+- subject-assignment defaults are currently enforced only for queue-based scheduler admission
 
 ## Code Anchors
 

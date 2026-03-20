@@ -45,10 +45,7 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-[WIP] Task 508: Add shared-pool versus hard-slice policy for customer and provider budgets
-[TODO] Task 509: Add default behavior for customers without explicit budget assignments
-[TODO] Task 510: Add default behavior for providers without explicit budget assignments on multi-provider service nodes
-[TODO] Task 511: Add cost-estimation hooks used to reserve money budget before dispatch
+[WIP] Task 511: Add cost-estimation hooks used to reserve money budget before dispatch
 [TODO] Task 512: Add compute-estimation hooks used to reserve compute budget before dispatch
 [TODO] Task 513: Add actual usage ingestion contract for service nodes to report final money and compute consumption
 [TODO] Task 514: Persist node, customer, and provider budget usage totals with remaining-budget calculations

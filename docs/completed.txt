@@ -596,3 +596,6 @@ Task 504: Add rollback/release handling for failed, cancelled, or partially used
 Task 505: Add scheduler admission checks for node-level budget exhaustion - Completed on 03/19/2026 21:18
 Task 506: Add scheduler admission checks for customer-level budget exhaustion - Completed on 03/19/2026 21:18
 Task 507: Add scheduler admission checks for provider-level budget exhaustion when multiple providers exist on the same service node - Completed on 03/19/2026 21:18
+Task 508: Add shared-pool versus hard-slice policy for customer and provider budgets - Completed on 03/19/2026 21:21
+Task 509: Add default behavior for customers without explicit budget assignments - Completed on 03/19/2026 21:21
+Task 510: Add default behavior for providers without explicit budget assignments on multi-provider service nodes - Completed on 03/19/2026 21:21
