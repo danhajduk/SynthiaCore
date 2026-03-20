@@ -35,6 +35,10 @@ Status: Implemented
   - `POST /api/system/nodes/registrations/{node_id}/revoke` (admin session/token required; `/untrust` alias preserved for compatibility)
   - `GET /api/system/nodes/trust-status/{node_id}` (node trust token or admin session/token; explicit trust/revocation/removal status)
   - `GET /api/system/nodes/registry` (admin session/token required; includes capability/governance/readiness status fields)
+  - `POST /api/system/nodes/budgets/declaration` (trusted node token required via `X-Node-Trust-Token`; node-declared budget capability contract)
+  - `GET /api/system/nodes/budgets` (admin session/token required; budget declaration + setup overview)
+  - `GET /api/system/nodes/budgets/{node_id}` (trusted node token or admin session/token; node budget bundle)
+  - `PUT /api/system/nodes/budgets/{node_id}` (admin session/token required; operator budget setup)
   - `POST /api/system/nodes/capabilities/declaration` (trusted node token required via `X-Node-Trust-Token`)
   - `POST /api/system/nodes/providers/capabilities/report` (trusted node token required via `X-Node-Trust-Token`; provider/model capability report ingestion)
   - `GET /api/system/nodes/providers/routing-metadata` (admin session/token required; model cost/latency + node availability view)
@@ -115,6 +119,7 @@ Service token issuance modes:
 Status: Implemented
 
 - Scheduler queue/lease/history routes under `/api/system/scheduler/*`.
+- Queue job submissions may include `payload.budget_scope` to create persisted node/customer/provider budget reservations when node budgeting is configured.
 - Stack/system health and metrics endpoints under `/api/system/*` and `/api/system-stats/*`.
 - Store lifecycle and status routes under `/api/store/*`.
 
@@ -156,5 +161,6 @@ Status: Planned
 - [Node Onboarding API Contract](../nodes/node-onboarding-api-contract.md)
 - [Node Trust Activation Payload Contract](../nodes/node-trust-activation-payload-contract.md)
 - [Node Trust Status Contract](../nodes/node-trust-status-contract.md)
+- [Node Budget Management Contract](../nodes/node-budget-management-contract.md)
 - [Node Phase 2 Lifecycle Contract](../nodes/node-phase2-lifecycle-contract.md)
 - [Node Onboarding Migration Guide](../nodes/node-onboarding-migration-guide.md)

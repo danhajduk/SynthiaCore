@@ -26,6 +26,14 @@ from .capability_taxonomy import CAPABILITY_TAXONOMY_VERSION, capability_activat
 from .provider_capability_normalization import normalize_provider_capability_report
 from .model_routing_registry import ModelRoutingRecord, ModelRoutingRegistryService, ModelRoutingRegistryStore
 from .registry_view import node_registry_payload, node_capability_status, registry_state_from_trust_status
+from .node_budgeting import (
+    NodeBudgetAllocationRecord,
+    NodeBudgetCapabilityRecord,
+    NodeBudgetConfigRecord,
+    NodeBudgetReservationRecord,
+    NodeBudgetService,
+    NodeBudgetStore,
+)
 
 __all__ = [
     "NodeOnboardingSession",
@@ -67,4 +75,10 @@ __all__ = [
     "node_registry_payload",
     "node_capability_status",
     "registry_state_from_trust_status",
+    "NodeBudgetAllocationRecord",
+    "NodeBudgetCapabilityRecord",
+    "NodeBudgetConfigRecord",
+    "NodeBudgetReservationRecord",
+    "NodeBudgetStore",
+    "NodeBudgetService",
 ]

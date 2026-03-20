@@ -1,0 +1,70 @@
+Workflow skill: $synthia-workflow 
+(/home/dan/.codex/skills/synthia-workflow/SKILL.md)
+
+## Codex Execution Directive
+
+You are acting as the Synthia development agent.
+
+Your job is to implement tasks listed in this file sequentially.
+
+Rules:
+
+1. Work through tasks in numerical order.
+2. Continue executing tasks until ALL tasks are completed.
+3. Do not stop after partial implementation.
+4. Do not return summaries unless every task is finished.
+5. If a task cannot be completed:
+   - document the blocker
+   - implement everything else that is possible
+   - continue to the next task.
+
+Execution behavior:
+
+- Read the repository before modifying code.
+- Follow existing architecture and coding conventions.
+- Update or create files as required.
+- Run tests or validation where possible.
+- Commit after each completed task.
+
+Completion criteria:
+
+A task is considered complete only when:
+- implementation exists in the codebase
+- it compiles or runs without breaking existing features
+- any required documentation is updated
+
+Persistence rule:
+
+Continue working autonomously until all tasks in this document are completed.
+Do not stop early.
+
+if there is missing data for the task check in the @Core-Documents folder.for core documentation
+if it is not present and should be core-owned create a ticket for the req. data in the core dodc
+if it is not present and should be node-owned create a file with the new data in the core docs
+
+Do not edit above this line:
+#######################################################################
+
+[WIP] Task 508: Add shared-pool versus hard-slice policy for customer and provider budgets
+[TODO] Task 509: Add default behavior for customers without explicit budget assignments
+[TODO] Task 510: Add default behavior for providers without explicit budget assignments on multi-provider service nodes
+[TODO] Task 511: Add cost-estimation hooks used to reserve money budget before dispatch
+[TODO] Task 512: Add compute-estimation hooks used to reserve compute budget before dispatch
+[TODO] Task 513: Add actual usage ingestion contract for service nodes to report final money and compute consumption
+[TODO] Task 514: Persist node, customer, and provider budget usage totals with remaining-budget calculations
+[TODO] Task 515: Add admin APIs to create, read, update, and delete service-node budgets
+[TODO] Task 516: Add admin APIs to create, read, update, and delete per-customer budget allocations
+[TODO] Task 517: Add admin APIs to create, read, update, and delete per-provider budget allocations
+[TODO] Task 518: Add admin APIs to inspect current reservations, actual spend, remaining budget, and next reset window
+[TODO] Task 519: Add audit logging for budget creation, edits, node declarations, setup actions, reservations, releases, consumption, denials, resets, and overrides
+[TODO] Task 520: Add threshold alerts for node, customer, and provider budget usage
+[TODO] Task 521: Add manual admin actions for top-up, reset, temporary override, and forced reservation release
+[TODO] Task 522: Add admin UI to configure service-node money and compute budgets from node-declared budget capabilities
+[TODO] Task 523: Add admin UI to configure per-customer budget allocations on a service node
+[TODO] Task 524: Add admin UI to configure per-provider budget allocations on a multi-provider service node
+[TODO] Task 525: Add admin UI to monitor current node, customer, and provider budget usage and blocked work
+[TODO] Task 526: Add reporting and export for budget usage by service node, provider, customer, and period
+[TODO] Task 527: Add tests for budget allocation math including node total 10-dollar split across three 3.3-dollar customers
+[TODO] Task 528: Add tests for provider-sliced budgets on multi-provider service nodes
+[TODO] Task 529: Add tests for reservation race conditions and double-spend prevention
+[TODO] Task 530: Add tests for node, customer, and provider budget enforcement behavior

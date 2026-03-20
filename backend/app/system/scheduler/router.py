@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.system.events import PlatformEventService
+from app.system.onboarding import NodeBudgetService
 from app.supervisor import SupervisorDomainService
 
 from .engine import SchedulerEngine
@@ -34,6 +35,7 @@ def build_scheduler_router(
     debug_enabled: bool = False,
     events: PlatformEventService | None = None,
     supervisor_service: SupervisorDomainService | None = None,
+    node_budget_service: NodeBudgetService | None = None,
 ) -> APIRouter:
     router = APIRouter()
     expire_task: asyncio.Task | None = None
@@ -438,6 +440,20 @@ def build_scheduler_router(
             updated_at=now,
         )
 
+        if node_budget_service is not None:
+            try:
+                node_budget_service.reserve_scheduler_budget(
+                    job_id=job.job_id,
+                    addon_id=job.addon_id,
+                    cost_units=job.cost_units,
+                    payload=job.payload,
+                    constraints=job.constraints,
+                )
+            except ValueError as exc:
+                error = str(exc)
+                status_code = 409 if error.endswith("_budget_exceeded") else 400
+                raise HTTPException(status_code=status_code, detail={"error": error, "message": error})
+
         async with queue_store.lock:
             queue_store.jobs[job.job_id] = job
             queue_store.enqueue(job)
@@ -495,6 +511,8 @@ def build_scheduler_router(
             queue_store.record_event(job.job_id, prev, QueueJobState.CANCELED, "canceled")
             await _persist_job(job)
             await _persist_event(job.job_id, prev, QueueJobState.CANCELED, "canceled")
+            if node_budget_service is not None:
+                node_budget_service.release_scheduler_budget(job_id=job.job_id, reason="canceled")
             return CancelJobIntentResponse(ok=True)
 
     @router.post("/queue/jobs/{job_id}/ack", response_model=AckJobIntentResponse)
@@ -513,6 +531,8 @@ def build_scheduler_router(
             queue_store.record_event(job.job_id, prev, QueueJobState.RUNNING, "ack")
             await _persist_job(job)
             await _persist_event(job.job_id, prev, QueueJobState.RUNNING, "ack")
+            if node_budget_service is not None:
+                node_budget_service.attach_scheduler_lease(job_id=job.job_id, lease_id=req.lease_id)
             return AckJobIntentResponse(ok=True)
 
     @router.post("/queue/jobs/{job_id}/complete", response_model=CompleteJobIntentResponse)
@@ -530,6 +550,15 @@ def build_scheduler_router(
             queue_store.record_event(job.job_id, prev, job.state, "complete")
             await _persist_job(job)
             await _persist_event(job.job_id, prev, job.state, "complete")
+            if node_budget_service is not None:
+                if req.status == "DONE":
+                    node_budget_service.finalize_scheduler_budget(
+                        job_id=job.job_id,
+                        actual_money_spend=req.actual_money_spend,
+                        actual_compute_spend=req.actual_compute_spend,
+                    )
+                else:
+                    node_budget_service.release_scheduler_budget(job_id=job.job_id, reason="job_failed")
             if events is not None:
                 await events.emit(
                     event_type="job_completed",

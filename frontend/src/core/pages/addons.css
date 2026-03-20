@@ -301,6 +301,58 @@
   gap: var(--sx-space-2);
 }
 
+.budget-card {
+  display: grid;
+  gap: var(--sx-space-2);
+  padding: 12px;
+  border-radius: calc(var(--sx-radius-sm) + 4px);
+  border: 1px solid hsl(var(--sx-text) / 0.08);
+  background: hsl(var(--sx-text) / 0.03);
+}
+
+.budget-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sx-space-2);
+  flex-wrap: wrap;
+}
+
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sx-space-2);
+}
+
+.budget-field {
+  display: grid;
+  gap: 6px;
+}
+
+.budget-field-wide {
+  display: grid;
+  gap: 6px;
+}
+
+.budget-field input,
+.budget-field textarea,
+.budget-field-wide textarea {
+  width: 100%;
+  border-radius: calc(var(--sx-radius-sm) + 2px);
+  border: 1px solid hsl(var(--sx-text) / 0.16);
+  background: hsl(var(--sx-text) / 0.04);
+  color: white;
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.budget-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+}
+
 .node-provider-summary-head {
   display: flex;
   align-items: flex-start;
@@ -351,6 +403,10 @@
   }
 
   .node-lifecycle {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-grid {
     grid-template-columns: 1fr;
   }
 

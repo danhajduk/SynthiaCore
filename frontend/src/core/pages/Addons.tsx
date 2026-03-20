@@ -82,6 +82,64 @@ type NodeRegistration = {
   updated_at?: string | null;
 };
 
+type NodeBudgetDeclaration = {
+  node_id?: string;
+  currency?: string;
+  compute_unit?: string;
+  default_period?: string;
+  supports_money_budget?: boolean;
+  supports_compute_budget?: boolean;
+  supports_customer_allocations?: boolean;
+  supports_provider_allocations?: boolean;
+  supported_providers?: string[];
+  setup_requirements?: string[];
+  suggested_money_limit?: number | null;
+  suggested_compute_limit?: number | null;
+};
+
+type NodeBudgetConfig = {
+  currency?: string;
+  compute_unit?: string;
+  period?: string;
+  reset_policy?: string;
+  enforcement_mode?: string;
+  overcommit_enabled?: boolean;
+  shared_customer_pool?: boolean;
+  shared_provider_pool?: boolean;
+  node_money_limit?: number | null;
+  node_compute_limit?: number | null;
+};
+
+type NodeBudgetAllocation = {
+  subject_id: string;
+  money_limit?: number | null;
+  compute_limit?: number | null;
+};
+
+type NodeBudgetBundle = {
+  node_id: string;
+  setup_status: string;
+  declaration?: NodeBudgetDeclaration | null;
+  node_budget?: NodeBudgetConfig | null;
+  customer_allocations?: NodeBudgetAllocation[];
+  provider_allocations?: NodeBudgetAllocation[];
+};
+
+type NodeBudgetDraft = {
+  currency: string;
+  computeUnit: string;
+  period: string;
+  resetPolicy: string;
+  enforcementMode: string;
+  overcommitEnabled: boolean;
+  sharedCustomerPool: boolean;
+  sharedProviderPool: boolean;
+  nodeMoneyLimit: string;
+  nodeComputeLimit: string;
+  customerAllocationsJson: string;
+  providerAllocationsJson: string;
+};
+
 type RoutingModelMetadata = {
   model_id: string;
   normalized_model_id: string;
@@ -171,6 +229,53 @@ function providerCapabilities(item: NodeRegistration): string[] {
   return Array.from(new Set(declared));
 }
 
+function prettyJson(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function buildBudgetDraft(bundle?: NodeBudgetBundle | null): NodeBudgetDraft {
+  const declaration: NodeBudgetDeclaration = bundle?.declaration || {};
+  const config: NodeBudgetConfig = bundle?.node_budget || {};
+  return {
+    currency: String(config.currency || declaration.currency || "USD"),
+    computeUnit: String(config.compute_unit || declaration.compute_unit || "cost_units"),
+    period: String(config.period || declaration.default_period || "monthly"),
+    resetPolicy: String(config.reset_policy || "calendar"),
+    enforcementMode: String(config.enforcement_mode || "hard_stop"),
+    overcommitEnabled: Boolean(config.overcommit_enabled),
+    sharedCustomerPool: Boolean(config.shared_customer_pool),
+    sharedProviderPool: Boolean(config.shared_provider_pool),
+    nodeMoneyLimit:
+      config.node_money_limit != null
+        ? String(config.node_money_limit)
+        : declaration.suggested_money_limit != null
+          ? String(declaration.suggested_money_limit)
+          : "",
+    nodeComputeLimit:
+      config.node_compute_limit != null
+        ? String(config.node_compute_limit)
+        : declaration.suggested_compute_limit != null
+          ? String(declaration.suggested_compute_limit)
+          : "",
+    customerAllocationsJson: prettyJson(bundle?.customer_allocations || []),
+    providerAllocationsJson: prettyJson(bundle?.provider_allocations || []),
+  };
+}
+
+function parseAllocationsJson(raw: string): NodeBudgetAllocation[] {
+  const text = String(raw || "").trim();
+  if (!text) return [];
+  const parsed = JSON.parse(text);
+  if (!Array.isArray(parsed)) {
+    throw new Error("Allocations JSON must be an array");
+  }
+  return parsed.map((item) => ({
+    subject_id: String(item?.subject_id || "").trim(),
+    money_limit: item?.money_limit === "" || item?.money_limit == null ? null : Number(item.money_limit),
+    compute_limit: item?.compute_limit === "" || item?.compute_limit == null ? null : Number(item.compute_limit),
+  }));
+}
+
 export default function Addons() {
   const { authenticated: isAdmin } = useAdminSession();
   const [addons, setAddons] = useState<AddonInfo[]>([]);
@@ -185,6 +290,10 @@ export default function Addons() {
   const [nodeRevokeBusy, setNodeRevokeBusy] = useState<string | null>(null);
   const [routingByNode, setRoutingByNode] = useState<Record<string, RoutingNodeGroup>>({});
   const [routingBusy, setRoutingBusy] = useState(false);
+  const [budgetsByNode, setBudgetsByNode] = useState<Record<string, NodeBudgetBundle>>({});
+  const [budgetDraftByNode, setBudgetDraftByNode] = useState<Record<string, NodeBudgetDraft>>({});
+  const [budgetBusyNode, setBudgetBusyNode] = useState<string | null>(null);
+  const [budgetMessageByNode, setBudgetMessageByNode] = useState<Record<string, string | null>>({});
   const [nodesTab, setNodesTab] = useState<"installed" | "pending">("installed");
   const [nodeTypeFilter, setNodeTypeFilter] = useState<string>("all");
   const [nodeCapabilityFilter, setNodeCapabilityFilter] = useState<string>("all");
@@ -283,6 +392,36 @@ export default function Addons() {
     }
   }
 
+  async function refreshBudgets() {
+    if (!isAdmin) {
+      setBudgetsByNode({});
+      setBudgetDraftByNode({});
+      return;
+    }
+    try {
+      const res = await fetch("/api/system/nodes/budgets", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error(await readError(res));
+      const payload = (await res.json()) as { items?: NodeBudgetBundle[] };
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      const mapped: Record<string, NodeBudgetBundle> = {};
+      const drafts: Record<string, NodeBudgetDraft> = {};
+      for (const item of items) {
+        const key = String(item?.node_id || "").trim();
+        if (!key) continue;
+        mapped[key] = item;
+        drafts[key] = buildBudgetDraft(item);
+      }
+      setBudgetsByNode(mapped);
+      setBudgetDraftByNode((prev) => ({ ...drafts, ...Object.fromEntries(Object.entries(prev).filter(([key]) => !(key in drafts))) }));
+    } catch (e: any) {
+      setNodesErr(e?.message ?? String(e));
+      setBudgetsByNode({});
+    }
+  }
+
   async function refreshAll() {
     setErr(null);
     await Promise.all([
@@ -290,6 +429,7 @@ export default function Addons() {
       refreshRuntime(),
       refreshNodes(),
       refreshRoutingMetadata(),
+      refreshBudgets(),
     ]);
   }
 
@@ -324,6 +464,7 @@ export default function Addons() {
       if (!res.ok) throw new Error(await readError(res));
       await refreshNodes();
       await refreshRoutingMetadata();
+      await refreshBudgets();
     } catch (e: any) {
       setNodesErr(e?.message ?? String(e));
     } finally {
@@ -344,10 +485,62 @@ export default function Addons() {
       if (!res.ok) throw new Error(await readError(res));
       await refreshNodes();
       await refreshRoutingMetadata();
+      await refreshBudgets();
     } catch (e: any) {
       setNodesErr(e?.message ?? String(e));
     } finally {
       setNodeRevokeBusy(null);
+    }
+  }
+
+  function updateBudgetDraft(nodeId: string, patch: Partial<NodeBudgetDraft>) {
+    setBudgetDraftByNode((prev) => ({
+      ...prev,
+      [nodeId]: { ...(prev[nodeId] || buildBudgetDraft(budgetsByNode[nodeId])), ...patch },
+    }));
+  }
+
+  async function saveNodeBudget(nodeId: string) {
+    const target = String(nodeId || "").trim();
+    if (!target) return;
+    const draft = budgetDraftByNode[target] || buildBudgetDraft(budgetsByNode[target]);
+    setBudgetBusyNode(target);
+    setBudgetMessageByNode((prev) => ({ ...prev, [target]: null }));
+    try {
+      const customer_allocations = parseAllocationsJson(draft.customerAllocationsJson).filter((item) => item.subject_id);
+      const provider_allocations = parseAllocationsJson(draft.providerAllocationsJson).filter((item) => item.subject_id);
+      const res = await fetch(`/api/system/nodes/budgets/${encodeURIComponent(target)}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          node_budget: {
+            currency: draft.currency,
+            compute_unit: draft.computeUnit,
+            period: draft.period,
+            reset_policy: draft.resetPolicy,
+            enforcement_mode: draft.enforcementMode,
+            overcommit_enabled: draft.overcommitEnabled,
+            shared_customer_pool: draft.sharedCustomerPool,
+            shared_provider_pool: draft.sharedProviderPool,
+            node_money_limit: draft.nodeMoneyLimit === "" ? null : Number(draft.nodeMoneyLimit),
+            node_compute_limit: draft.nodeComputeLimit === "" ? null : Number(draft.nodeComputeLimit),
+          },
+          customer_allocations,
+          provider_allocations,
+        }),
+      });
+      if (!res.ok) throw new Error(await readError(res));
+      const payload = (await res.json()) as { budget?: NodeBudgetBundle };
+      if (payload.budget?.node_id) {
+        setBudgetsByNode((prev) => ({ ...prev, [payload.budget!.node_id]: payload.budget! }));
+        setBudgetDraftByNode((prev) => ({ ...prev, [payload.budget!.node_id]: buildBudgetDraft(payload.budget) }));
+      }
+      setBudgetMessageByNode((prev) => ({ ...prev, [target]: "Budget configuration saved." }));
+    } catch (e: any) {
+      setBudgetMessageByNode((prev) => ({ ...prev, [target]: e?.message ?? String(e) }));
+    } finally {
+      setBudgetBusyNode(null);
     }
   }
 
@@ -630,6 +823,7 @@ export default function Addons() {
               onClick={() => {
                 void refreshNodes();
                 void refreshRoutingMetadata();
+                void refreshBudgets();
               }}
               disabled={nodesBusy || routingBusy}
             >
@@ -673,6 +867,10 @@ export default function Addons() {
           <div className="addons-grid">
             {visibleNodes.map((item) => {
               const routing = routingByNode[item.node_id];
+              const budgetBundle = budgetsByNode[item.node_id];
+              const budgetDraft = budgetDraftByNode[item.node_id] || buildBudgetDraft(budgetBundle);
+              const budgetDeclaration = budgetBundle?.declaration;
+              const budgetMessage = budgetMessageByNode[item.node_id];
               const stages = nodeLifecycle(item);
               const capabilityTags = providerCapabilities(item);
               const providers = routing?.providers ?? [];
@@ -792,6 +990,102 @@ export default function Addons() {
                     Onboarding session: {displayText(item.source_onboarding_session_id, "-")} • Updated: {formatTimestamp(item.updated_at)}
                   </div>
 
+                  <div className="budget-card">
+                    <div className="budget-card-head">
+                      <div className="inventory-label">Budget Setup</div>
+                      <div className="addon-meta">Status: {sentenceCase(budgetBundle?.setup_status || "not_declared")}</div>
+                    </div>
+                    <div className="addon-meta">
+                      Declared: {budgetDeclaration ? "Yes" : "No"} • Currency: {displayText(budgetDeclaration?.currency, "USD")} • Compute unit: {displayText(budgetDeclaration?.compute_unit, "cost_units")}
+                    </div>
+                    {budgetDeclaration && (
+                      <div className="addon-meta">
+                        Customer allocations: {budgetDeclaration.supports_customer_allocations ? "Supported" : "Not supported"} • Provider allocations: {budgetDeclaration.supports_provider_allocations ? "Supported" : "Not supported"}
+                      </div>
+                    )}
+                    {budgetDeclaration?.supported_providers?.length ? (
+                      <div className="addon-meta">Declared providers: {budgetDeclaration.supported_providers.join(", ")}</div>
+                    ) : null}
+                    {budgetDeclaration?.setup_requirements?.length ? (
+                      <div className="addon-meta">Setup requirements: {budgetDeclaration.setup_requirements.join(", ")}</div>
+                    ) : null}
+                    {budgetDeclaration ? (
+                      <>
+                        <div className="budget-grid">
+                          <label className="budget-field">
+                            <span className="inventory-label">Currency</span>
+                            <input value={budgetDraft.currency} onChange={(e) => updateBudgetDraft(item.node_id, { currency: e.target.value })} />
+                          </label>
+                          <label className="budget-field">
+                            <span className="inventory-label">Compute Unit</span>
+                            <input value={budgetDraft.computeUnit} onChange={(e) => updateBudgetDraft(item.node_id, { computeUnit: e.target.value })} />
+                          </label>
+                          <label className="budget-field">
+                            <span className="inventory-label">Period</span>
+                            <input value={budgetDraft.period} onChange={(e) => updateBudgetDraft(item.node_id, { period: e.target.value })} />
+                          </label>
+                          <label className="budget-field">
+                            <span className="inventory-label">Reset Policy</span>
+                            <input value={budgetDraft.resetPolicy} onChange={(e) => updateBudgetDraft(item.node_id, { resetPolicy: e.target.value })} />
+                          </label>
+                          <label className="budget-field">
+                            <span className="inventory-label">Money Limit</span>
+                            <input value={budgetDraft.nodeMoneyLimit} onChange={(e) => updateBudgetDraft(item.node_id, { nodeMoneyLimit: e.target.value })} placeholder="10.0" />
+                          </label>
+                          <label className="budget-field">
+                            <span className="inventory-label">Compute Limit</span>
+                            <input value={budgetDraft.nodeComputeLimit} onChange={(e) => updateBudgetDraft(item.node_id, { nodeComputeLimit: e.target.value })} placeholder="100" />
+                          </label>
+                          <label className="budget-toggle">
+                            <input type="checkbox" checked={budgetDraft.overcommitEnabled} onChange={(e) => updateBudgetDraft(item.node_id, { overcommitEnabled: e.target.checked })} />
+                            <span>Allow overcommit</span>
+                          </label>
+                          <label className="budget-toggle">
+                            <input type="checkbox" checked={budgetDraft.sharedCustomerPool} onChange={(e) => updateBudgetDraft(item.node_id, { sharedCustomerPool: e.target.checked })} />
+                            <span>Shared customer pool</span>
+                          </label>
+                          <label className="budget-toggle">
+                            <input type="checkbox" checked={budgetDraft.sharedProviderPool} onChange={(e) => updateBudgetDraft(item.node_id, { sharedProviderPool: e.target.checked })} />
+                            <span>Shared provider pool</span>
+                          </label>
+                        </div>
+                        {budgetDeclaration.supports_customer_allocations ? (
+                          <label className="budget-field budget-field-wide">
+                            <span className="inventory-label">Customer Allocations JSON</span>
+                            <textarea
+                              value={budgetDraft.customerAllocationsJson}
+                              onChange={(e) => updateBudgetDraft(item.node_id, { customerAllocationsJson: e.target.value })}
+                              rows={6}
+                            />
+                          </label>
+                        ) : null}
+                        {budgetDeclaration.supports_provider_allocations ? (
+                          <label className="budget-field budget-field-wide">
+                            <span className="inventory-label">Provider Allocations JSON</span>
+                            <textarea
+                              value={budgetDraft.providerAllocationsJson}
+                              onChange={(e) => updateBudgetDraft(item.node_id, { providerAllocationsJson: e.target.value })}
+                              rows={6}
+                            />
+                          </label>
+                        ) : null}
+                        {budgetMessage ? <div className="addon-meta">{budgetMessage}</div> : null}
+                        <div className="addon-actions">
+                          <button
+                            className="addon-btn addon-btn-primary"
+                            type="button"
+                            onClick={() => void saveNodeBudget(item.node_id)}
+                            disabled={budgetBusyNode === item.node_id}
+                          >
+                            {budgetBusyNode === item.node_id ? "Saving Budget..." : "Save Budget"}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="addon-meta">This node has not declared budget capabilities yet, so Core cannot present a setup form.</div>
+                    )}
+                  </div>
+
                   <div className="addon-actions">
                     <a href={`/nodes/${encodeURIComponent(item.node_id)}`} className="addon-btn">
                       Open
@@ -802,6 +1096,7 @@ export default function Addons() {
                       onClick={() => {
                         void refreshNodes();
                         void refreshRoutingMetadata();
+                        void refreshBudgets();
                       }}
                       disabled={nodesBusy || routingBusy}
                     >

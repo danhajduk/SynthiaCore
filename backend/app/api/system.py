@@ -23,6 +23,7 @@ from ..system.onboarding import (
     ModelRoutingRegistryService,
     NodeOnboardingSessionsStore,
     NodeRegistrationsStore,
+    NodeBudgetService,
     NodeTelemetryService,
     NodeTrustIssuanceService,
     capability_taxonomy_payload,
@@ -78,6 +79,46 @@ class ProviderCapabilityReportRequest(BaseModel):
     provider_intelligence: list[dict]
     node_available: bool = True
     observed_at: str | None = None
+
+
+class NodeBudgetDeclarationRequest(BaseModel):
+    node_id: str
+    currency: str = "USD"
+    compute_unit: str = "cost_units"
+    default_period: str = "monthly"
+    supports_money_budget: bool = True
+    supports_compute_budget: bool = True
+    supports_customer_allocations: bool = True
+    supports_provider_allocations: bool = False
+    supported_providers: list[str] = []
+    setup_requirements: list[str] = []
+    suggested_money_limit: float | None = None
+    suggested_compute_limit: float | None = None
+
+
+class BudgetAllocationUpsertRequest(BaseModel):
+    subject_id: str
+    money_limit: float | None = None
+    compute_limit: float | None = None
+
+
+class NodeBudgetConfigUpsertRequest(BaseModel):
+    currency: str = "USD"
+    compute_unit: str = "cost_units"
+    period: str = "monthly"
+    reset_policy: str = "calendar"
+    enforcement_mode: str = "hard_stop"
+    overcommit_enabled: bool = False
+    shared_customer_pool: bool = False
+    shared_provider_pool: bool = False
+    node_money_limit: float | None = None
+    node_compute_limit: float | None = None
+
+
+class NodeBudgetBundleUpsertRequest(BaseModel):
+    node_budget: NodeBudgetConfigUpsertRequest
+    customer_allocations: list[BudgetAllocationUpsertRequest] = []
+    provider_allocations: list[BudgetAllocationUpsertRequest] = []
 
 
 def _onboarding_error(error: str, message: str, *, retryable: bool = False) -> dict[str, object]:
@@ -334,6 +375,7 @@ def build_system_router(
     node_governance_service: NodeGovernanceService | None = None,
     node_governance_status_service: NodeGovernanceStatusService | None = None,
     node_telemetry_service: NodeTelemetryService | None = None,
+    node_budget_service: NodeBudgetService | None = None,
     provider_model_policy_service=None,
     model_routing_registry_service: ModelRoutingRegistryService | None = None,
     audit_store: AuditLogStore | None = None,
@@ -765,6 +807,111 @@ def build_system_router(
             response_payload["governance_version"] = issued_governance.governance_version
             response_payload["governance_issued_at"] = issued_governance.issued_timestamp
         return response_payload
+
+    @router.post("/system/nodes/budgets/declaration")
+    def declare_node_budget_capabilities(
+        body: NodeBudgetDeclarationRequest,
+        request: Request,
+        x_node_trust_token: str | None = Header(default=None),
+    ):
+        node_token = str(x_node_trust_token or "").strip()
+        if not node_token:
+            raise HTTPException(status_code=401, detail="node_trust_token_required")
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        if node_registrations_store is None:
+            raise HTTPException(status_code=503, detail="node_registrations_unavailable")
+        if node_trust_issuance is None:
+            raise HTTPException(status_code=503, detail="trust_issuance_unavailable")
+
+        node_id = str(body.node_id or "").strip()
+        trust_record = node_trust_issuance.authenticate_node(node_id, node_token)
+        if trust_record is None:
+            raise HTTPException(status_code=403, detail={"error": "untrusted_node", "message": "node not trusted"})
+        registration = node_registrations_store.get(node_id)
+        if registration is None or str(registration.trust_status or "").strip().lower() != "trusted":
+            raise HTTPException(status_code=403, detail={"error": "untrusted_node", "message": "node not registered"})
+        try:
+            declaration = node_budget_service.declare_budget_capabilities(node_id=node_id, payload=body.model_dump(mode="json"))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_capabilities_declared",
+            actor_role="node",
+            actor_id=node_id,
+            details={
+                "node_id": node_id,
+                "supports_provider_allocations": bool(declaration.get("supports_provider_allocations")),
+                "supports_customer_allocations": bool(declaration.get("supports_customer_allocations")),
+                "source_ip": str(request.client.host if request.client else "unknown"),
+            },
+        )
+        return {"ok": True, "node_id": node_id, "declaration": declaration}
+
+    @router.get("/system/nodes/budgets")
+    def list_node_budgets(
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        return {"ok": True, "items": node_budget_service.list_bundles()}
+
+    @router.get("/system/nodes/budgets/{node_id}")
+    def get_node_budget_bundle(
+        node_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+        x_node_trust_token: str | None = Header(default=None),
+    ):
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        token = str(x_node_trust_token or "").strip()
+        if token:
+            if node_trust_issuance is None:
+                raise HTTPException(status_code=503, detail="trust_issuance_unavailable")
+            if node_trust_issuance.authenticate_node(node_id, token) is None:
+                raise HTTPException(status_code=403, detail={"error": "untrusted_node", "message": "node not trusted"})
+        else:
+            require_admin_token(x_admin_token, request)
+        try:
+            return {"ok": True, "budget": node_budget_service.get_bundle(node_id)}
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+
+    @router.put("/system/nodes/budgets/{node_id}")
+    def upsert_node_budget_bundle(
+        node_id: str,
+        body: NodeBudgetBundleUpsertRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            bundle = node_budget_service.configure_node_budget(
+                node_id=node_id,
+                node_budget=body.node_budget.model_dump(mode="json"),
+                customer_allocations=[item.model_dump(mode="json") for item in body.customer_allocations],
+                provider_allocations=[item.model_dump(mode="json") for item in body.provider_allocations],
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc), "message": str(exc)})
+        _record_audit(
+            audit_store,
+            event_type="node_budget_configured",
+            actor_role="admin",
+            actor_id=_admin_actor(x_admin_token),
+            details={
+                "node_id": node_id,
+                "customer_allocation_count": len(bundle.get("customer_allocations") or []),
+                "provider_allocation_count": len(bundle.get("provider_allocations") or []),
+            },
+        )
+        return {"ok": True, "budget": bundle}
 
     @router.post("/system/nodes/providers/capabilities/report")
     def report_provider_capabilities(

@@ -224,6 +224,8 @@ class AckJobIntentResponse(BaseModel):
 
 class CompleteJobIntentRequest(BaseModel):
     status: str = Field(pattern="^(DONE|FAILED)$")
+    actual_money_spend: float | None = Field(default=None, ge=0)
+    actual_compute_spend: float | None = Field(default=None, ge=0)
 
 
 class CompleteJobIntentResponse(BaseModel):

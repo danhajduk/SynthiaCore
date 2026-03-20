@@ -581,3 +581,18 @@ Task 490: Add success presenter state after approval completes - Completed on 03
 Task 491: Add explicit node trust-status contract for revoke/remove signaling - Completed on 03/19/2026 17:40
 Task 492: Preserve revoked trust records for formal node-side trust-loss reads - Completed on 03/19/2026 17:40
 Task 493: Add trusted-node revoke/remove status API coverage and docs - Completed on 03/19/2026 17:40
+Task 494: Define canonical service-node budget domain model for money and compute resources including node-declared budget capabilities - Completed on 03/19/2026 20:35
+Task 495: Add node-to-Core budget declaration contract so a service node can declare supported budget controls, limits, provider budget support, and setup requirements - Completed on 03/19/2026 20:35
+Task 496: Add user setup flow allowing operators to configure node-declared budgets during or after service-node setup - Completed on 03/19/2026 20:35
+Task 497: Add persistent storage for service-node budgets with period/reset policy and enforcement mode - Completed on 03/19/2026 20:35
+Task 498: Add persistent storage for per-customer budget allocations under each service node - Completed on 03/19/2026 20:35
+Task 499: Add persistent storage for optional per-provider budget allocations under each service node - Completed on 03/19/2026 20:35
+Task 500: Enforce allocation validation so customer and provider budget slices cannot exceed node totals unless overcommit is explicitly enabled - Completed on 03/19/2026 20:35
+Task 501: Define canonical compute-unit accounting model for budget enforcement - Completed on 03/19/2026 20:35
+Task 531: Document the canonical budget-management contract for money and compute resources across service nodes, providers, and customers including node-declared setup behavior - Completed on 03/19/2026 20:35
+Task 502: Add budget reservation ledger for scheduled work across node, customer, and provider scopes - Completed on 03/19/2026 21:15
+Task 503: Add reservation finalization flow to convert estimated reservations into actual money and compute spend - Completed on 03/19/2026 21:15
+Task 504: Add rollback/release handling for failed, cancelled, or partially used reservations - Completed on 03/19/2026 21:15
+Task 505: Add scheduler admission checks for node-level budget exhaustion - Completed on 03/19/2026 21:18
+Task 506: Add scheduler admission checks for customer-level budget exhaustion - Completed on 03/19/2026 21:18
+Task 507: Add scheduler admission checks for provider-level budget exhaustion when multiple providers exist on the same service node - Completed on 03/19/2026 21:18
