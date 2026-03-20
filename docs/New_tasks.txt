@@ -45,11 +45,7 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-[WIP] Task 515: Add admin APIs to create, read, update, and delete service-node budgets
-[TODO] Task 516: Add admin APIs to create, read, update, and delete per-customer budget allocations
-[TODO] Task 517: Add admin APIs to create, read, update, and delete per-provider budget allocations
-[TODO] Task 518: Add admin APIs to inspect current reservations, actual spend, remaining budget, and next reset window
-[TODO] Task 519: Add audit logging for budget creation, edits, node declarations, setup actions, reservations, releases, consumption, denials, resets, and overrides
+[WIP] Task 519: Add audit logging for budget creation, edits, node declarations, setup actions, reservations, releases, consumption, denials, resets, and overrides
 [TODO] Task 520: Add threshold alerts for node, customer, and provider budget usage
 [TODO] Task 521: Add manual admin actions for top-up, reset, temporary override, and forced reservation release
 [TODO] Task 522: Add admin UI to configure service-node money and compute budgets from node-declared budget capabilities

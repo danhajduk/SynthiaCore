@@ -39,6 +39,9 @@ Used by a trusted node to declare the budget controls it supports and the setup 
 
 - `GET /api/system/nodes/budgets`
 - `GET /api/system/nodes/budgets/{node_id}`
+- `GET /api/system/nodes/budgets/{node_id}/customers`
+- `GET /api/system/nodes/budgets/{node_id}/providers`
+- `GET /api/system/nodes/budgets/{node_id}/usage`
 - Auth: admin session/token
 
 Node trust-token reads are also allowed for `GET /api/system/nodes/budgets/{node_id}` while the node remains trusted.
@@ -48,6 +51,11 @@ Budget read responses now include `usage_summary` when a configured node budget 
 ### Admin Setup
 
 - `PUT /api/system/nodes/budgets/{node_id}`
+- `DELETE /api/system/nodes/budgets/{node_id}`
+- `PUT /api/system/nodes/budgets/{node_id}/customers/{customer_id}`
+- `DELETE /api/system/nodes/budgets/{node_id}/customers/{customer_id}`
+- `PUT /api/system/nodes/budgets/{node_id}/providers/{provider_id}`
+- `DELETE /api/system/nodes/budgets/{node_id}/providers/{provider_id}`
 - Auth: admin session/token
 
 Used by operators to configure node totals and optional customer/provider allocations.
@@ -125,6 +133,13 @@ Customer allocation items:
 - `compute_limit`
 
 Provider allocation items use the same shape.
+
+Dedicated admin allocation endpoints use the path subject id as canonical:
+
+- `PUT .../customers/{customer_id}`
+- `PUT .../providers/{provider_id}`
+
+The request body still uses the allocation shape, but the path subject id is the applied identifier.
 
 Provider allocation validation rules:
 
@@ -358,6 +373,20 @@ Each scope summary currently includes:
 - `released_compute`
 - `remaining_money`
 - `remaining_compute`
+
+Dedicated usage inspection reads through `GET /api/system/nodes/budgets/{node_id}/usage` also include:
+
+- `reservations[]`
+- `next_reset_at`
+- `period`
+- `reset_policy`
+
+Current `next_reset_at` behavior:
+
+- `manual_reset` or `manual` reset policy: `null`
+- `daily` + `calendar`: next UTC midnight
+- `monthly` + `calendar`: first day of next UTC month
+- `rolling`: current time plus one period window
 
 ### Current Limitations
 

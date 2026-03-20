@@ -286,6 +286,79 @@ class TestNodeBudgetApi(unittest.TestCase):
         self.assertEqual(payload["reservation"]["money_actual"], 1.5)
         self.assertEqual(payload["budget"]["usage_summary"]["node"]["actual_money"], 1.5)
 
+    def test_admin_can_manage_customer_and_provider_allocations_and_usage_view(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        declared = self.client.post(
+            "/api/system/nodes/budgets/declaration",
+            headers={"X-Node-Trust-Token": trust_token},
+            json={
+                "node_id": node_id,
+                "supports_provider_allocations": True,
+                "supported_providers": ["openai"],
+            },
+        )
+        self.assertEqual(declared.status_code, 200, declared.text)
+        configured = self.client.put(
+            f"/api/system/nodes/budgets/{node_id}",
+            headers={"X-Admin-Token": "test-token"},
+            json={"node_budget": {"node_money_limit": 10.0, "node_compute_limit": 100.0}},
+        )
+        self.assertEqual(configured.status_code, 200, configured.text)
+
+        customer = self.client.put(
+            f"/api/system/nodes/budgets/{node_id}/customers/cust-x",
+            headers={"X-Admin-Token": "test-token"},
+            json={"subject_id": "ignored", "money_limit": 4.0, "compute_limit": 40.0},
+        )
+        self.assertEqual(customer.status_code, 200, customer.text)
+        self.assertEqual(customer.json()["allocation"]["subject_id"], "cust-x")
+
+        provider = self.client.put(
+            f"/api/system/nodes/budgets/{node_id}/providers/openai",
+            headers={"X-Admin-Token": "test-token"},
+            json={"subject_id": "ignored", "money_limit": 7.0, "compute_limit": 70.0},
+        )
+        self.assertEqual(provider.status_code, 200, provider.text)
+        self.assertEqual(provider.json()["allocation"]["subject_id"], "openai")
+
+        reservation = self.budget_service.reserve_scheduler_budget(
+            job_id="job-usage-2",
+            addon_id="vision",
+            cost_units=5,
+            payload={"budget_scope": {"node_id": node_id, "customer_id": "cust-x", "provider": "openai", "money_estimate": 2.0}},
+            constraints={},
+        )
+        self.assertIsNotNone(reservation)
+
+        usage = self.client.get(
+            f"/api/system/nodes/budgets/{node_id}/usage",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(usage.status_code, 200, usage.text)
+        usage_payload = usage.json()["usage"]
+        self.assertEqual(usage_payload["usage_summary"]["node"]["reserved_money"], 2.0)
+        self.assertIsNotNone(usage_payload["next_reset_at"])
+        self.assertEqual(len(usage_payload["reservations"]), 1)
+
+        deleted_customer = self.client.delete(
+            f"/api/system/nodes/budgets/{node_id}/customers/cust-x",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(deleted_customer.status_code, 200, deleted_customer.text)
+
+        deleted_provider = self.client.delete(
+            f"/api/system/nodes/budgets/{node_id}/providers/openai",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(deleted_provider.status_code, 200, deleted_provider.text)
+
+        deleted_budget = self.client.delete(
+            f"/api/system/nodes/budgets/{node_id}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(deleted_budget.status_code, 200, deleted_budget.text)
+        self.assertEqual(deleted_budget.json()["budget"]["setup_status"], "needs_configuration")
+
 
 if __name__ == "__main__":
     unittest.main()

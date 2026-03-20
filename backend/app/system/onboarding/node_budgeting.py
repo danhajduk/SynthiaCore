@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -347,6 +347,12 @@ class NodeBudgetStore:
         self._save()
         return record
 
+    def delete_config(self, node_id: str) -> NodeBudgetConfigRecord | None:
+        removed = self._configs.pop(_clean_text(node_id), None)
+        if removed is not None:
+            self._save()
+        return removed
+
     def replace_allocations(self, node_id: str, kind: str, allocations: list[NodeBudgetAllocationRecord]) -> list[NodeBudgetAllocationRecord]:
         node_key = _clean_text(node_id)
         kind_key = _clean_text(kind, lower=True)
@@ -369,6 +375,36 @@ class NodeBudgetStore:
                 continue
             items.append(item)
         return items
+
+    def remove_all_allocations(self, node_id: str, *, kind: str | None = None) -> int:
+        node_key = _clean_text(node_id)
+        kind_key = _clean_text(kind, lower=True)
+        before = len(self._allocations)
+        self._allocations = {
+            key: value
+            for key, value in self._allocations.items()
+            if not (value.node_id == node_key and (not kind_key or value.kind == kind_key))
+        }
+        removed = before - len(self._allocations)
+        if removed:
+            self._save()
+        return removed
+
+    def upsert_allocation(self, record: NodeBudgetAllocationRecord) -> NodeBudgetAllocationRecord:
+        existing = self._allocations.get(record.key)
+        if existing is not None:
+            record.created_at = existing.created_at
+        record.updated_at = _utcnow_iso()
+        self._allocations[record.key] = record
+        self._save()
+        return record
+
+    def delete_allocation(self, node_id: str, kind: str, subject_id: str) -> NodeBudgetAllocationRecord | None:
+        key = f"{_clean_text(node_id)}:{_clean_text(kind, lower=True)}:{_clean_text(subject_id, lower=True)}"
+        removed = self._allocations.pop(key, None)
+        if removed is not None:
+            self._save()
+        return removed
 
     def get_reservation_by_job(self, job_id: str) -> NodeBudgetReservationRecord | None:
         job_key = _clean_text(job_id)
@@ -550,6 +586,45 @@ class NodeBudgetService:
             bundle["usage_summary"] = self.usage_summary(node_id)
         return bundle
 
+    def delete_node_budget(self, node_id: str) -> dict[str, Any]:
+        node_key = _clean_text(node_id)
+        config = self._store.delete_config(node_key)
+        self._store.remove_all_allocations(node_key)
+        if config is None:
+            raise ValueError("node_budget_not_found")
+        return self.get_bundle(node_key)
+
+    def list_allocations(self, *, node_id: str, kind: str) -> list[dict[str, Any]]:
+        return [item.to_dict() for item in self._store.list_allocations(node_id, kind=kind)]
+
+    def upsert_allocation(self, *, node_id: str, kind: str, payload: dict[str, Any]) -> dict[str, Any]:
+        node_key = _clean_text(node_id)
+        kind_key = _clean_text(kind, lower=True)
+        declaration = self._store.get_declaration(node_key)
+        config = self._store.get_config(node_key)
+        if declaration is None or config is None:
+            raise ValueError("node_budget_not_found")
+
+        subject_id = _clean_text(payload.get("subject_id"), lower=True)
+        if not subject_id:
+            raise ValueError("subject_id_required")
+        normalized = self._normalize_allocations(node_id=node_key, kind=kind_key, allocations=[payload], declaration=declaration)
+        if not normalized:
+            raise ValueError("subject_id_required")
+        record = normalized[0]
+        existing = [item for item in self._store.list_allocations(node_key, kind=kind_key) if item.subject_id != subject_id]
+        merged = existing + [record]
+        customer_records = merged if kind_key == "customer" else self._store.list_allocations(node_key, kind="customer")
+        provider_records = merged if kind_key == "provider" else self._store.list_allocations(node_key, kind="provider")
+        self._validate_allocation_totals(config=config, customer_records=customer_records, provider_records=provider_records)
+        return self._store.upsert_allocation(record).to_dict()
+
+    def delete_allocation(self, *, node_id: str, kind: str, subject_id: str) -> dict[str, Any]:
+        removed = self._store.delete_allocation(node_id, kind, subject_id)
+        if removed is None:
+            raise ValueError("budget_allocation_not_found")
+        return removed.to_dict()
+
     def reserve_scheduler_budget(
         self,
         *,
@@ -726,6 +801,20 @@ class NodeBudgetService:
 
         return summary
 
+    def usage_inspection(self, node_id: str) -> dict[str, Any]:
+        node_key = _clean_text(node_id)
+        config = self._store.get_config(node_key)
+        if config is None:
+            raise ValueError("node_budget_not_found")
+        return {
+            "node_id": node_key,
+            "usage_summary": self.usage_summary(node_key),
+            "reservations": [item.to_dict() for item in self._store.list_reservations(node_id=node_key)],
+            "next_reset_at": self._next_reset_at(config),
+            "period": config.period,
+            "reset_policy": config.reset_policy,
+        }
+
     def _committed_scope_amount(self, *, node_id: str, money: bool, customer_id: str | None = None, provider_id: str | None = None) -> float:
         total = 0.0
         for item in self._store.list_reservations(node_id=node_id):
@@ -900,6 +989,26 @@ class NodeBudgetService:
     def _estimate_request_count(self, *, payload: dict[str, Any], constraints: dict[str, Any]) -> float:
         count = self._estimate_token_value(payload=payload, constraints=constraints, keys=["request_count", "estimated_requests"])
         return float(count if count is not None else 1.0)
+
+    def _next_reset_at(self, config: NodeBudgetConfigRecord) -> str | None:
+        if config.period == "manual_reset" or config.reset_policy == "manual":
+            return None
+        try:
+            created_at = datetime.fromisoformat(config.created_at)
+        except Exception:
+            created_at = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        if config.reset_policy == "rolling":
+            delta = timedelta(days=1 if config.period == "daily" else 30)
+            return (now + delta).isoformat()
+        if config.period == "daily":
+            next_day = (now + timedelta(days=1)).date().isoformat()
+            return f"{next_day}T00:00:00+00:00"
+        if config.period == "monthly":
+            year = now.year + (1 if now.month == 12 else 0)
+            month = 1 if now.month == 12 else now.month + 1
+            return datetime(year, month, 1, tzinfo=timezone.utc).isoformat()
+        return (created_at + timedelta(days=30)).isoformat()
 
     def _enforce_scheduler_scope_limits(
         self,

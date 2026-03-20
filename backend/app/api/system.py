@@ -921,6 +921,127 @@ def build_system_router(
         )
         return {"ok": True, "budget": bundle}
 
+    @router.delete("/system/nodes/budgets/{node_id}")
+    def delete_node_budget_bundle(
+        node_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            budget = node_budget_service.delete_node_budget(node_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+        return {"ok": True, "budget": budget}
+
+    @router.get("/system/nodes/budgets/{node_id}/customers")
+    def list_customer_budget_allocations(
+        node_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        return {"ok": True, "items": node_budget_service.list_allocations(node_id=node_id, kind="customer")}
+
+    @router.put("/system/nodes/budgets/{node_id}/customers/{customer_id}")
+    def upsert_customer_budget_allocation(
+        node_id: str,
+        customer_id: str,
+        body: BudgetAllocationUpsertRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        payload = body.model_dump(mode="json")
+        payload["subject_id"] = str(customer_id or "").strip()
+        try:
+            item = node_budget_service.upsert_allocation(node_id=node_id, kind="customer", payload=payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc), "message": str(exc)})
+        return {"ok": True, "allocation": item}
+
+    @router.delete("/system/nodes/budgets/{node_id}/customers/{customer_id}")
+    def delete_customer_budget_allocation(
+        node_id: str,
+        customer_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            item = node_budget_service.delete_allocation(node_id=node_id, kind="customer", subject_id=customer_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+        return {"ok": True, "allocation": item}
+
+    @router.get("/system/nodes/budgets/{node_id}/providers")
+    def list_provider_budget_allocations(
+        node_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        return {"ok": True, "items": node_budget_service.list_allocations(node_id=node_id, kind="provider")}
+
+    @router.put("/system/nodes/budgets/{node_id}/providers/{provider_id}")
+    def upsert_provider_budget_allocation(
+        node_id: str,
+        provider_id: str,
+        body: BudgetAllocationUpsertRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        payload = body.model_dump(mode="json")
+        payload["subject_id"] = str(provider_id or "").strip()
+        try:
+            item = node_budget_service.upsert_allocation(node_id=node_id, kind="provider", payload=payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc), "message": str(exc)})
+        return {"ok": True, "allocation": item}
+
+    @router.delete("/system/nodes/budgets/{node_id}/providers/{provider_id}")
+    def delete_provider_budget_allocation(
+        node_id: str,
+        provider_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            item = node_budget_service.delete_allocation(node_id=node_id, kind="provider", subject_id=provider_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+        return {"ok": True, "allocation": item}
+
+    @router.get("/system/nodes/budgets/{node_id}/usage")
+    def inspect_node_budget_usage(
+        node_id: str,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        try:
+            return {"ok": True, "usage": node_budget_service.usage_inspection(node_id)}
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail={"error": str(exc), "message": str(exc)})
+
     @router.post("/system/nodes/budgets/usage-report")
     def report_node_budget_usage(
         body: NodeBudgetUsageReportRequest,

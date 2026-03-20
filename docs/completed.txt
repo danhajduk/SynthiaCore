@@ -603,3 +603,7 @@ Task 511: Add cost-estimation hooks used to reserve money budget before dispatch
 Task 512: Add compute-estimation hooks used to reserve compute budget before dispatch - Completed on 03/19/2026 21:26
 Task 513: Add actual usage ingestion contract for service nodes to report final money and compute consumption - Completed on 03/19/2026 21:26
 Task 514: Persist node, customer, and provider budget usage totals with remaining-budget calculations - Completed on 03/19/2026 21:26
+Task 515: Add admin APIs to create, read, update, and delete service-node budgets - Completed on 03/19/2026 21:29
+Task 516: Add admin APIs to create, read, update, and delete per-customer budget allocations - Completed on 03/19/2026 21:29
+Task 517: Add admin APIs to create, read, update, and delete per-provider budget allocations - Completed on 03/19/2026 21:29
+Task 518: Add admin APIs to inspect current reservations, actual spend, remaining budget, and next reset window - Completed on 03/19/2026 21:29
