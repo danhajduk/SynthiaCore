@@ -444,6 +444,43 @@ class TestNodeBudgetApi(unittest.TestCase):
         self.assertIn("node_budget_reservation_force_released", event_types)
         self.assertIn("node_budget_reset", event_types)
 
+    def test_admin_can_export_budget_usage_as_json_and_csv(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        declared = self.client.post(
+            "/api/system/nodes/budgets/declaration",
+            headers={"X-Node-Trust-Token": trust_token},
+            json={"node_id": node_id},
+        )
+        self.assertEqual(declared.status_code, 200, declared.text)
+        configured = self.client.put(
+            f"/api/system/nodes/budgets/{node_id}",
+            headers={"X-Admin-Token": "test-token"},
+            json={"node_budget": {"node_money_limit": 10.0, "node_compute_limit": 100.0}},
+        )
+        self.assertEqual(configured.status_code, 200, configured.text)
+        self.budget_service.reserve_scheduler_budget(
+            job_id="job-export-1",
+            addon_id="vision",
+            cost_units=6,
+            payload={"budget_scope": {"node_id": node_id, "money_estimate": 2.0}},
+            constraints={},
+        )
+
+        json_export = self.client.get(
+            f"/api/system/nodes/budgets/export?node_id={node_id}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(json_export.status_code, 200, json_export.text)
+        self.assertEqual(json_export.json()["items"][0]["node_id"], node_id)
+
+        csv_export = self.client.get(
+            f"/api/system/nodes/budgets/export?node_id={node_id}&format=csv",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(csv_export.status_code, 200, csv_export.text)
+        self.assertEqual(csv_export.headers["content-type"].split(";")[0], "text/csv")
+        self.assertIn("node_id,scope_kind", csv_export.text)
+
 
 if __name__ == "__main__":
     unittest.main()

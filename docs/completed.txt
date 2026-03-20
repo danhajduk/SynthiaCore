@@ -614,3 +614,4 @@ Task 522: Add admin UI to configure service-node money and compute budgets from 
 Task 523: Add admin UI to configure per-customer budget allocations on a service node - Completed on 03/19/2026 21:38
 Task 524: Add admin UI to configure per-provider budget allocations on a multi-provider service node - Completed on 03/19/2026 21:38
 Task 525: Add admin UI to monitor current node, customer, and provider budget usage and blocked work - Completed on 03/19/2026 21:38
+Task 526: Add reporting and export for budget usage by service node, provider, customer, and period - Completed on 03/19/2026 21:41

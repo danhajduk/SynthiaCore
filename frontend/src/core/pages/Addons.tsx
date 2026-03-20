@@ -1312,6 +1312,22 @@ export default function Addons() {
                               </label>
                             </div>
                             <div className="addon-actions">
+                              <a
+                                className="addon-btn"
+                                href={`/api/system/nodes/budgets/export?node_id=${encodeURIComponent(item.node_id)}&format=json`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Export JSON
+                              </a>
+                              <a
+                                className="addon-btn"
+                                href={`/api/system/nodes/budgets/export?node_id=${encodeURIComponent(item.node_id)}&format=csv`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Export CSV
+                              </a>
                               <button
                                 className="addon-btn"
                                 type="button"

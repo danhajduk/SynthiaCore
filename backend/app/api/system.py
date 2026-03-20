@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import csv
 import hashlib
+import io
 import os
 import secrets
 import time
@@ -880,6 +882,46 @@ def build_system_router(
         if node_budget_service is None:
             raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
         return {"ok": True, "items": node_budget_service.list_bundles()}
+
+    @router.get("/system/nodes/budgets/export")
+    def export_node_budget_usage(
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+        node_id: str | None = Query(default=None),
+        format: str = Query(default="json"),
+    ):
+        require_admin_token(x_admin_token, request)
+        if node_budget_service is None:
+            raise HTTPException(status_code=503, detail="node_budgeting_unavailable")
+        rows = node_budget_service.export_usage_rows(node_id=node_id)
+        fmt = str(format or "json").strip().lower()
+        if fmt == "csv":
+            output = io.StringIO()
+            fieldnames = [
+                "node_id",
+                "scope_kind",
+                "subject_id",
+                "period",
+                "reset_policy",
+                "next_reset_at",
+                "money_limit",
+                "compute_limit",
+                "reserved_money",
+                "reserved_compute",
+                "actual_money",
+                "actual_compute",
+                "remaining_money",
+                "remaining_compute",
+                "money_utilization",
+                "compute_utilization",
+                "alert_count",
+            ]
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({key: row.get(key) for key in fieldnames})
+            return Response(content=output.getvalue(), media_type="text/csv")
+        return {"ok": True, "items": rows}
 
     @router.get("/system/nodes/budgets/{node_id}")
     def get_node_budget_bundle(

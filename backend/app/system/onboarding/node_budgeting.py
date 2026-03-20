@@ -836,6 +836,52 @@ class NodeBudgetService:
             "reset_policy": config.reset_policy,
         }
 
+    def export_usage_rows(self, *, node_id: str | None = None) -> list[dict[str, Any]]:
+        target_nodes = [node_id] if _clean_text(node_id) else [item["node_id"] for item in self._store.list_bundles()]
+        rows: list[dict[str, Any]] = []
+        for raw_node_id in target_nodes:
+            node_key = _clean_text(raw_node_id)
+            if not node_key:
+                continue
+            try:
+                inspection = self.usage_inspection(node_key)
+            except ValueError:
+                continue
+            rows.extend(self._usage_rows_for_scope(node_key, inspection["usage_summary"].get("node"), inspection))
+            for scope in inspection["usage_summary"].get("customers") or []:
+                rows.extend(self._usage_rows_for_scope(node_key, scope, inspection))
+            for scope in inspection["usage_summary"].get("providers") or []:
+                rows.extend(self._usage_rows_for_scope(node_key, scope, inspection))
+        return rows
+
+    def _usage_rows_for_scope(self, node_id: str, scope: dict[str, Any] | None, inspection: dict[str, Any]) -> list[dict[str, Any]]:
+        if not isinstance(scope, dict):
+            return []
+        alerts = scope.get("alerts") or []
+        rows = [
+            {
+                "node_id": node_id,
+                "scope_kind": scope.get("scope_kind"),
+                "subject_id": scope.get("subject_id"),
+                "period": inspection.get("period"),
+                "reset_policy": inspection.get("reset_policy"),
+                "next_reset_at": inspection.get("next_reset_at"),
+                "money_limit": scope.get("money_limit"),
+                "compute_limit": scope.get("compute_limit"),
+                "reserved_money": scope.get("reserved_money"),
+                "reserved_compute": scope.get("reserved_compute"),
+                "actual_money": scope.get("actual_money"),
+                "actual_compute": scope.get("actual_compute"),
+                "remaining_money": scope.get("remaining_money"),
+                "remaining_compute": scope.get("remaining_compute"),
+                "money_utilization": scope.get("money_utilization"),
+                "compute_utilization": scope.get("compute_utilization"),
+                "alert_count": len(alerts),
+                "alerts": alerts,
+            }
+        ]
+        return rows
+
     def top_up_budget(
         self,
         *,

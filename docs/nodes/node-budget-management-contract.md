@@ -21,6 +21,7 @@ This foundation covers:
 - trusted-node actual usage reporting and persisted usage summaries with remaining-budget calculations
 - audit logging across declaration, setup, allocation changes, reservation lifecycle, denials, and usage reporting
 - computed threshold alerts for node, customer, and provider budget usage
+- admin reporting/export for budget usage by node, customer, and provider scopes
 
 This document does not yet define:
 
@@ -44,6 +45,7 @@ Used by a trusted node to declare the budget controls it supports and the setup 
 - `GET /api/system/nodes/budgets/{node_id}/customers`
 - `GET /api/system/nodes/budgets/{node_id}/providers`
 - `GET /api/system/nodes/budgets/{node_id}/usage`
+- `GET /api/system/nodes/budgets/export`
 - Auth: admin session/token
 
 Node trust-token reads are also allowed for `GET /api/system/nodes/budgets/{node_id}` while the node remains trusted.
@@ -206,6 +208,7 @@ Operators can:
 - inspect node-level usage totals and threshold alerts
 - inspect explicit customer/provider scope summaries
 - run top-up, reset, override, and force-release actions from the same budget card
+- export per-node budget usage in JSON or CSV
 
 ## Example
 
@@ -444,6 +447,37 @@ Current severity mapping:
 
 - `warn` for threshold alerts below `1.0`
 - `critical` for `1.0` and above
+
+## Reporting And Export
+
+Current export route:
+
+- `GET /api/system/nodes/budgets/export`
+
+Query parameters:
+
+- `node_id` (optional)
+- `format=json|csv` where default is `json`
+
+Current export rows include:
+
+- `node_id`
+- `scope_kind`
+- `subject_id`
+- `period`
+- `reset_policy`
+- `next_reset_at`
+- `money_limit`
+- `compute_limit`
+- `reserved_money`
+- `reserved_compute`
+- `actual_money`
+- `actual_compute`
+- `remaining_money`
+- `remaining_compute`
+- `money_utilization`
+- `compute_utilization`
+- `alert_count`
 
 ### Current Limitations
 

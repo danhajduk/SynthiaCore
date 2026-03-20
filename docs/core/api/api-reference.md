@@ -47,6 +47,7 @@ Status: Implemented
   - `PUT /api/system/nodes/budgets/{node_id}/providers/{provider_id}` (admin session/token required)
   - `DELETE /api/system/nodes/budgets/{node_id}/providers/{provider_id}` (admin session/token required)
   - `GET /api/system/nodes/budgets/{node_id}/usage` (admin session/token required; reservations, usage summary, remaining budget, next reset)
+  - `GET /api/system/nodes/budgets/export` (admin session/token required; budget usage export in JSON or CSV)
   - `POST /api/system/nodes/budgets/{node_id}/top-up` (admin session/token required)
   - `POST /api/system/nodes/budgets/{node_id}/reset` (admin session/token required)
   - `POST /api/system/nodes/budgets/{node_id}/override` (admin session/token required)

@@ -45,8 +45,7 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-[WIP] Task 526: Add reporting and export for budget usage by service node, provider, customer, and period
-[TODO] Task 527: Add tests for budget allocation math including node total 10-dollar split across three 3.3-dollar customers
+[WIP] Task 527: Add tests for budget allocation math including node total 10-dollar split across three 3.3-dollar customers
 [TODO] Task 528: Add tests for provider-sliced budgets on multi-provider service nodes
 [TODO] Task 529: Add tests for reservation race conditions and double-spend prevention
 [TODO] Task 530: Add tests for node, customer, and provider budget enforcement behavior
