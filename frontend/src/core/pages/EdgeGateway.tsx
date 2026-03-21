@@ -14,7 +14,6 @@ type CloudflareSettings = {
   enabled: boolean;
   account_id?: string | null;
   zone_id?: string | null;
-  api_token_ref?: string | null;
   api_token_configured?: boolean;
   tunnel_id?: string | null;
   tunnel_name?: string | null;
@@ -78,9 +77,6 @@ type EdgeStatus = {
 
 const EMPTY_SETTINGS: CloudflareSettings = {
   enabled: false,
-  account_id: "",
-  zone_id: "",
-  api_token_ref: "",
   tunnel_id: "",
   tunnel_name: "",
   tunnel_token_ref: "",
@@ -133,7 +129,7 @@ export default function EdgeGateway() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
-      if (!res.ok) throw new Error(`save HTTP ${res.status}`);
+      if (!res.ok) throw new Error(await describeResponseError("save", res));
       await load();
       setMessage("Cloudflare settings saved.");
     } catch (e: any) {
@@ -149,7 +145,7 @@ export default function EdgeGateway() {
     setMessage(null);
     try {
       const res = await fetch(path, { method: "POST", credentials: "include" });
-      if (!res.ok) throw new Error(`action HTTP ${res.status}`);
+      if (!res.ok) throw new Error(await describeResponseError("action", res));
       const payload = await res.json().catch(() => null);
       await load();
       const detail =
@@ -186,7 +182,7 @@ export default function EdgeGateway() {
           },
         }),
       });
-      if (!res.ok) throw new Error(`create HTTP ${res.status}`);
+      if (!res.ok) throw new Error(await describeResponseError("create", res));
       setPublicationForm({
         hostname: "",
         path_prefix: "/",
@@ -214,7 +210,7 @@ export default function EdgeGateway() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: !item.enabled }),
       });
-      if (!res.ok) throw new Error(`patch HTTP ${res.status}`);
+      if (!res.ok) throw new Error(await describeResponseError("patch", res));
       await load();
       setMessage(`Publication ${!item.enabled ? "enabled" : "disabled"}.`);
     } catch (e: any) {
@@ -233,7 +229,7 @@ export default function EdgeGateway() {
         method: "DELETE",
         credentials: "include",
       });
-      if (!res.ok) throw new Error(`delete HTTP ${res.status}`);
+      if (!res.ok) throw new Error(await describeResponseError("delete", res));
       await load();
       setMessage("Publication deleted.");
     } catch (e: any) {
@@ -246,6 +242,19 @@ export default function EdgeGateway() {
   useEffect(() => {
     void load();
   }, []);
+
+  async function describeResponseError(action: string, res: Response) {
+    let detail = "";
+    try {
+      const payload = await res.json();
+      if (typeof payload?.detail === "string" && payload.detail) {
+        detail = payload.detail;
+      }
+    } catch {
+      // Ignore parse errors and fall back to status-only message.
+    }
+    return detail ? `${action} HTTP ${res.status}: ${detail}` : `${action} HTTP ${res.status}`;
+  }
 
   return (
     <div className="settings-page">
@@ -298,7 +307,7 @@ export default function EdgeGateway() {
               />
               <span>Enable Cloudflare publication</span>
             </label>
-            {["account_id", "zone_id", "api_token_ref", "credentials_reference"].map((field) => (
+            {["credentials_reference"].map((field) => (
               <label key={field} className="settings-label">
                 <div className="settings-label-text">{field.replace(/_/g, " ")}</div>
                 <input
@@ -312,6 +321,18 @@ export default function EdgeGateway() {
               <div className="settings-kv-item">
                 <div className="settings-label-text">Token state</div>
                 <span className="settings-pill">{settings.api_token_configured ? "Configured" : "Missing"}</span>
+              </div>
+              <div className="settings-kv-item">
+                <div className="settings-label-text">Token source</div>
+                <div className="settings-mono">env:CLOUDFLARE_API_TOKEN</div>
+              </div>
+              <div className="settings-kv-item">
+                <div className="settings-label-text">Account source</div>
+                <div className="settings-mono">env:CLOUDFLARE_ACCOUNT_ID</div>
+              </div>
+              <div className="settings-kv-item">
+                <div className="settings-label-text">Zone source</div>
+                <div className="settings-mono">env:CLOUDFLARE_ZONE_ID</div>
               </div>
               <div className="settings-kv-item">
                 <div className="settings-label-text">Managed tunnel name</div>
@@ -341,7 +362,7 @@ export default function EdgeGateway() {
               </button>
             </div>
             <p className="settings-muted">
-              V1 uses a single platform-managed Cloudflare owner and accepts only a token reference, not a raw token value.
+              V1 uses a single platform-managed Cloudflare owner and reads token, account, and zone from fixed backend env vars.
             </p>
           </div>
         </div>

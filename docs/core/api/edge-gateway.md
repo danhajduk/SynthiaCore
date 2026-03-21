@@ -103,7 +103,10 @@ Live provisioning flow:
 
 Settings notes:
 
-- `api_token_ref` is stored, not the raw token
+- the account source is fixed to `env:CLOUDFLARE_ACCOUNT_ID`
+- the zone source is fixed to `env:CLOUDFLARE_ZONE_ID`
+- the token source is fixed to `env:CLOUDFLARE_API_TOKEN`
+- Core stores the fixed env-backed token reference, not the raw token
 - only `hexe-ai.com` is allowed as the managed base in V1
 - changing the Cloudflare owner context clears stale persisted remote ids so reprovisioning is clean
 

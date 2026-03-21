@@ -55,10 +55,10 @@ Out of scope:
    - `<core-id>.hexe-ai.com`
    - `api.<core-id>.hexe-ai.com`
 3. Operator saves Cloudflare settings with:
-   - `account_id`
-   - `zone_id`
-   - `api_token_ref`
+   - fixed account source: `env:CLOUDFLARE_ACCOUNT_ID`
+   - fixed zone source: `env:CLOUDFLARE_ZONE_ID`
    - `managed_domain_base`
+   - fixed token source: `env:CLOUDFLARE_API_TOKEN`
 4. Dry-run validation confirms the config is structurally usable.
 5. Live provisioning:
    - resolves the token reference from the environment
@@ -98,9 +98,10 @@ Implemented behavior:
 ## Security Notes
 
 - the UI never returns a raw Cloudflare API token
-- Core stores only `api_token_ref`, not the secret value itself
+- Core uses the fixed env-backed account source `env:CLOUDFLARE_ACCOUNT_ID`
+- Core uses the fixed env-backed zone source `env:CLOUDFLARE_ZONE_ID`
+- Core uses the fixed env-backed token source `env:CLOUDFLARE_API_TOKEN`
 - live token resolution uses environment-backed references
-- invalid token references are rejected
 - provisioning and settings mutation remain admin-only actions
 - logs and audit events record metadata and outcomes, not the raw token
 

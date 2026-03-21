@@ -36,6 +36,9 @@ from .models import (
 from .store import EdgeGatewayStore
 
 HOSTNAME_PATTERN = re.compile(r"^[a-z0-9.-]+$")
+DEFAULT_CLOUDFLARE_API_TOKEN_REF = "env:CLOUDFLARE_API_TOKEN"
+DEFAULT_CLOUDFLARE_ACCOUNT_ID_ENV = "CLOUDFLARE_ACCOUNT_ID"
+DEFAULT_CLOUDFLARE_ZONE_ID_ENV = "CLOUDFLARE_ZONE_ID"
 
 
 class EdgeGatewayService:
@@ -76,9 +79,9 @@ class EdgeGatewayService:
         current = await self._store.get_cloudflare_settings()
         normalized = settings.model_copy(
             update={
-                "account_id": str(settings.account_id or "").strip() or None,
-                "zone_id": str(settings.zone_id or "").strip() or None,
-                "api_token_ref": str(settings.api_token_ref or "").strip() or None,
+                "account_id": self._resolve_fixed_env(DEFAULT_CLOUDFLARE_ACCOUNT_ID_ENV) if settings.enabled else None,
+                "zone_id": self._resolve_fixed_env(DEFAULT_CLOUDFLARE_ZONE_ID_ENV) if settings.enabled else None,
+                "api_token_ref": DEFAULT_CLOUDFLARE_API_TOKEN_REF if settings.enabled else None,
                 "managed_domain_base": str(settings.managed_domain_base or "").strip().lower() or "hexe-ai.com",
                 "credentials_reference": str(settings.credentials_reference or "").strip() or None,
             }
@@ -345,7 +348,11 @@ class EdgeGatewayService:
             raise HTTPException(status_code=400, detail="cloudflare_settings_incomplete")
         if str(settings.managed_domain_base or "").strip().lower() != "hexe-ai.com":
             raise HTTPException(status_code=400, detail="cloudflare_domain_base_invalid")
-        if settings.api_token_ref and not self._is_valid_token_ref(settings.api_token_ref):
+        if settings.enabled and settings.account_id != self._resolve_fixed_env(DEFAULT_CLOUDFLARE_ACCOUNT_ID_ENV):
+            raise HTTPException(status_code=400, detail="cloudflare_account_id_unresolved")
+        if settings.enabled and settings.zone_id != self._resolve_fixed_env(DEFAULT_CLOUDFLARE_ZONE_ID_ENV):
+            raise HTTPException(status_code=400, detail="cloudflare_zone_id_unresolved")
+        if settings.enabled and settings.api_token_ref != DEFAULT_CLOUDFLARE_API_TOKEN_REF:
             raise HTTPException(status_code=400, detail="cloudflare_api_token_ref_invalid")
         if settings.enabled and self._resolve_api_token(settings) is None:
             raise HTTPException(status_code=400, detail="cloudflare_api_token_unresolved")
@@ -570,16 +577,15 @@ class EdgeGatewayService:
         token = str(os.getenv(env_name, "")).strip()
         return token or None
 
-    def _is_valid_token_ref(self, ref: str) -> bool:
-        env_name = ref[4:] if ref.startswith("env:") else ref
-        return bool(re.fullmatch(r"[A-Z][A-Z0-9_]*", env_name))
+    def _resolve_fixed_env(self, env_name: str) -> str | None:
+        value = str(os.getenv(env_name, "")).strip()
+        return value or None
 
     def _cloudflare_context_changed(self, current: CloudflareSettings, updated: CloudflareSettings) -> bool:
         tracked_fields = (
             "enabled",
             "account_id",
             "zone_id",
-            "api_token_ref",
             "managed_domain_base",
         )
         return any(getattr(current, field) != getattr(updated, field) for field in tracked_fields)

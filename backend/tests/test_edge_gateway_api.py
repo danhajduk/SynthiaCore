@@ -114,6 +114,8 @@ class TestEdgeGatewayApi(unittest.TestCase):
                 "SYNTHIA_ADMIN_TOKEN": "test-token",
                 "SYNTHIA_EDGE_RUNTIME_DIR": str(base / "edge-runtime"),
                 "CLOUDFLARE_API_TOKEN": "test-cloudflare-token",
+                "CLOUDFLARE_ACCOUNT_ID": "acct-env",
+                "CLOUDFLARE_ZONE_ID": "zone-env",
             },
             clear=False,
         )
@@ -158,9 +160,6 @@ class TestEdgeGatewayApi(unittest.TestCase):
             headers={"X-Admin-Token": "test-token"},
             json={
                 "enabled": True,
-                "account_id": "acct-1",
-                "zone_id": "zone-1",
-                "api_token_ref": "env:CLOUDFLARE_API_TOKEN",
                 "credentials_reference": "/tmp/cloudflare.json",
                 "managed_domain_base": "hexe-ai.com",
                 "hostname_publication_mode": "core_id_managed",
@@ -195,6 +194,8 @@ class TestEdgeGatewayApi(unittest.TestCase):
         self.assertTrue(payload["tunnel"]["configured"])
         self.assertEqual(payload["provisioning"]["overall_state"], "provisioned")
         self.assertTrue(payload["cloudflare"]["api_token_configured"])
+        self.assertEqual(payload["cloudflare"]["account_id"], "acct-env")
+        self.assertEqual(payload["cloudflare"]["zone_id"], "zone-env")
         self.assertEqual(payload["cloudflare"]["tunnel_id"], first_tunnel_id)
         self.assertTrue(payload["cloudflare"]["ui_dns_record_id"])
         self.assertTrue(payload["cloudflare"]["api_dns_record_id"])
@@ -206,9 +207,6 @@ class TestEdgeGatewayApi(unittest.TestCase):
             headers={"X-Admin-Token": "test-token"},
             json={
                 "enabled": True,
-                "account_id": "acct-1",
-                "zone_id": "zone-1",
-                "api_token_ref": "env:CLOUDFLARE_API_TOKEN",
                 "managed_domain_base": "hexe-ai.com",
                 "hostname_publication_mode": "core_id_managed",
             },
@@ -217,36 +215,46 @@ class TestEdgeGatewayApi(unittest.TestCase):
         provisioned = self.client.post("/api/edge/cloudflare/provision", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(provisioned.status_code, 200, provisioned.text)
 
-        updated = self.client.put(
-            "/api/edge/cloudflare/settings",
-            headers={"X-Admin-Token": "test-token"},
-            json={
-                "enabled": True,
-                "account_id": "acct-1",
-                "zone_id": "zone-2",
-                "api_token_ref": "env:CLOUDFLARE_API_TOKEN",
-                "managed_domain_base": "hexe-ai.com",
-                "hostname_publication_mode": "core_id_managed",
-            },
-        )
+        with patch.dict(os.environ, {"CLOUDFLARE_ZONE_ID": "zone-changed"}, clear=False):
+            updated = self.client.put(
+                "/api/edge/cloudflare/settings",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "enabled": True,
+                    "managed_domain_base": "hexe-ai.com",
+                    "hostname_publication_mode": "core_id_managed",
+                },
+            )
         self.assertEqual(updated.status_code, 200, updated.text)
         payload = updated.json()
         self.assertIsNone(payload["tunnel_id"])
         self.assertIsNone(payload["ui_dns_record_id"])
         self.assertEqual(payload["provisioning_state"], "not_configured")
 
-    def test_invalid_api_token_ref_is_rejected(self) -> None:
+    def test_disabled_settings_ignore_custom_api_token_ref(self) -> None:
         response = self.client.put(
             "/api/edge/cloudflare/settings",
             headers={"X-Admin-Token": "test-token"},
             json={
                 "enabled": False,
-                "account_id": "acct-1",
-                "zone_id": "zone-1",
                 "api_token_ref": "bad-ref",
                 "managed_domain_base": "hexe-ai.com",
                 "hostname_publication_mode": "core_id_managed",
             },
         )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIsNone(response.json()["api_token_ref"])
+
+    def test_enabled_settings_require_env_account_and_zone(self) -> None:
+        with patch.dict(os.environ, {"CLOUDFLARE_ACCOUNT_ID": "", "CLOUDFLARE_ZONE_ID": ""}, clear=False):
+            response = self.client.put(
+                "/api/edge/cloudflare/settings",
+                headers={"X-Admin-Token": "test-token"},
+                json={
+                    "enabled": True,
+                    "managed_domain_base": "hexe-ai.com",
+                    "hostname_publication_mode": "core_id_managed",
+                },
+            )
         self.assertEqual(response.status_code, 400, response.text)
-        self.assertEqual(response.json()["detail"], "cloudflare_api_token_ref_invalid")
+        self.assertEqual(response.json()["detail"], "cloudflare_settings_incomplete")
