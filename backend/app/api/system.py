@@ -7,6 +7,7 @@ import io
 import os
 import secrets
 import time
+import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 from urllib.parse import urlencode
@@ -326,14 +327,20 @@ def _validate_node_id(value: str | None) -> str:
     node_id = str(value or "").strip()
     if len(node_id) < 8 or len(node_id) > 128:
         raise ValueError("node_id_invalid")
-    if not node_id.startswith("node-"):
-        raise ValueError("node_id_invalid")
-    tail = node_id[len("node-") :]
-    if not tail:
-        raise ValueError("node_id_invalid")
-    if not all(ch.isalnum() or ch in {"_", "-"} for ch in tail):
-        raise ValueError("node_id_invalid")
-    return node_id
+    try:
+        parsed = uuid.UUID(node_id)
+    except ValueError:
+        parsed = None
+    if parsed is not None and parsed.version == 4 and str(parsed) == node_id.lower():
+        return node_id
+    if node_id.startswith("node-"):
+        tail = node_id[len("node-") :]
+        if not tail:
+            raise ValueError("node_id_invalid")
+        if not all(ch.isalnum() or ch in {"_", "-"} for ch in tail):
+            raise ValueError("node_id_invalid")
+        return node_id
+    raise ValueError("node_id_invalid")
 
 
 def _enforce_csrf_for_cookie_session(request: Request, x_admin_token: str | None) -> None:

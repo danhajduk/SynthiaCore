@@ -96,9 +96,14 @@ UI behavior:
 
 ## Identity And Registration Contract
 
-Node identity is derived from `node_nonce`:
+Node identity rules:
 
-- `node_id = node-<sha256(node_nonce)[:16]>`
+- nodes may request a stable `node_id` during onboarding
+- current accepted requested formats are:
+  - UUIDv4 canonical text form
+  - legacy `node-...` identifiers
+- if a requested `node_id` is not provided, Core derives one from `node_nonce`:
+  - `node_id = node-<sha256(node_nonce)[:16]>`
 
 Phase 1 uniqueness rule:
 
