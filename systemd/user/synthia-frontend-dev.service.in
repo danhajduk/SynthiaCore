@@ -1,5 +1,5 @@
 [Unit]
-Description=Hexe Frontend Dev Service (Vite on 80)
+Description=Hexe Frontend Dev Service (Vite on 5173)
 After=network.target
 
 [Service]
@@ -8,7 +8,7 @@ WorkingDirectory=@INSTALL_DIR@/frontend
 # Optional override: set VITE_API_TARGET in @INSTALL_DIR@/.config/hexe/frontend.env
 EnvironmentFile=-@INSTALL_DIR@/.config/hexe/frontend.env
 EnvironmentFile=-@INSTALL_DIR@/.config/hexe/admin.env
-ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 80
+ExecStart=/usr/bin/npm run dev -- --host 0.0.0.0 --port 5173
 Restart=always
 RestartSec=2
 

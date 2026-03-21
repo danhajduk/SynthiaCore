@@ -122,7 +122,7 @@ In a second terminal:
 ```bash
 cd frontend
 npm install
-npm run dev -- --port 80
+npm run dev -- --port 5173
 ```
 
 ## Current Architecture Note
