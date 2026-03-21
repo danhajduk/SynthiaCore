@@ -5,7 +5,7 @@ Repository: SynthiaAiNode
 Audit Mode: Core Documentation Gap Audit (Tasks 125-130)
 
 Canonical Core Documentation:
-/home/dan/Projects/Synthia/docs
+/home/dan/Projects/Hexe/docs
 
 ---
 
@@ -34,8 +34,8 @@ Severity: High
 
 Affected files:
 
-/home/dan/Projects/Synthia/docs/api-reference.md  
-/home/dan/Projects/Synthia/docs/ai-node-golden-mismatch-provider-intelligence.md  
+/home/dan/Projects/Hexe/docs/api-reference.md  
+/home/dan/Projects/Hexe/docs/ai-node-golden-mismatch-provider-intelligence.md  
 docs/New_tasks.txt  
 src/ai_node/core_api/capability_client.py  
 
@@ -56,8 +56,8 @@ Severity: Medium
 
 Affected files:
 
-/home/dan/Projects/Synthia/docs/api-reference.md  
-/home/dan/Projects/Synthia/docs/core-platform.md  
+/home/dan/Projects/Hexe/docs/api-reference.md  
+/home/dan/Projects/Hexe/docs/core-platform.md  
 docs/New_tasks.txt  
 
 Explanation:
@@ -87,9 +87,9 @@ Remaining gaps:
 
 Re-check update (2026-03-12):
 - Canonical ingestion contract published:
-  - `/home/dan/Projects/Synthia/docs/node-provider-intelligence-report-contract.md`
+  - `/home/dan/Projects/Hexe/docs/node-provider-intelligence-report-contract.md`
 - Canonical refresh/publication lifecycle contract published:
-  - `/home/dan/Projects/Synthia/docs/node-provider-intelligence-refresh-lifecycle-contract.md`
+  - `/home/dan/Projects/Hexe/docs/node-provider-intelligence-refresh-lifecycle-contract.md`
 - `api-reference.md` now cross-links both contracts from the ingestion endpoint entry.
 
 ---
@@ -100,7 +100,7 @@ Re-check update (2026-03-12):
 - Define canonical payload schema sections: `providers`, `models`, `metrics_snapshot` (required/optional fields and types).
 - Define canonical response envelope: accepted/rejected/retryable states with error structure.
 - Define refresh cadence and retry/backoff policy for Node provider intelligence publication.
-- Cross-link the new contract from `/home/dan/Projects/Synthia/docs/api-reference.md` and relevant lifecycle docs.
+- Cross-link the new contract from `/home/dan/Projects/Hexe/docs/api-reference.md` and relevant lifecycle docs.
 
 ---
 

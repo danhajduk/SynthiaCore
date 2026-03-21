@@ -1,6 +1,6 @@
 // vite.config.ts
-import { defineConfig, loadEnv } from "file:///home/dan/Projects/Synthia/frontend/node_modules/vite/dist/node/index.js";
-import react from "file:///home/dan/Projects/Synthia/frontend/node_modules/@vitejs/plugin-react/dist/index.js";
+import { defineConfig, loadEnv } from "file:///home/dan/Projects/Hexe/frontend/node_modules/vite/dist/node/index.js";
+import react from "file:///home/dan/Projects/Hexe/frontend/node_modules/@vitejs/plugin-react/dist/index.js";
 var vite_config_default = defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const apiTarget = env.VITE_API_TARGET || "http://127.0.0.1:9001";

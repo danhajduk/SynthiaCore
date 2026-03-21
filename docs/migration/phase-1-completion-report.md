@@ -20,16 +20,16 @@ Implemented pieces:
 
 Backend product-facing naming now flows through:
 
-- [backend/app/system/platform_identity.py](/home/dan/Projects/Synthia/backend/app/system/platform_identity.py)
-- [backend/app/system/settings/router.py](/home/dan/Projects/Synthia/backend/app/system/settings/router.py)
-- [backend/app/main.py](/home/dan/Projects/Synthia/backend/app/main.py)
+- [backend/app/system/platform_identity.py](/home/dan/Projects/Hexe/backend/app/system/platform_identity.py)
+- [backend/app/system/settings/router.py](/home/dan/Projects/Hexe/backend/app/system/settings/router.py)
+- [backend/app/main.py](/home/dan/Projects/Hexe/backend/app/main.py)
 - notification and MQTT bootstrap display surfaces
 
 ## Frontend Adoption
 
 Frontend naming now flows through:
 
-- [frontend/src/core/branding.tsx](/home/dan/Projects/Synthia/frontend/src/core/branding.tsx)
+- [frontend/src/core/branding.tsx](/home/dan/Projects/Hexe/frontend/src/core/branding.tsx)
 
 Major consumers updated in this phase include:
 

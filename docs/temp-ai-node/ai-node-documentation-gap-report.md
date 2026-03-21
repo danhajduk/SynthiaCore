@@ -3,8 +3,8 @@
 Status: Planned
 Last updated: 2026-03-11
 Source comparison:
-- Main AI Node repo: `/home/dan/Projects/SynthiaAiNode/docs`
-- Golden docs: `/home/dan/Projects/Synthia/docs`
+- Main AI Node repo: `/home/dan/Projects/HexeAiNode/docs`
+- Golden docs: `/home/dan/Projects/Hexe/docs`
 
 ## Purpose
 

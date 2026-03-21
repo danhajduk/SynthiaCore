@@ -5,7 +5,7 @@ Repository: Hexe Core
 Audit Mode: Documentation Audit
 
 Canonical Core Documentation:
-/home/dan/Projects/Synthia/docs
+/home/dan/Projects/Hexe/docs
 
 ---
 

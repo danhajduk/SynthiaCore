@@ -2,8 +2,8 @@
 
 Date: 2026-03-12
 Task: 125 - Expose provider intelligence to Core
-Repository: /home/dan/Projects/SynthiaAiNode
-Canonical docs source: /home/dan/Projects/Synthia/docs
+Repository: /home/dan/Projects/HexeAiNode
+Canonical docs source: /home/dan/Projects/Hexe/docs
 
 ## Summary
 
@@ -39,8 +39,8 @@ Per task directive Rule 2 (missing Core-owned specification), implementation mus
 
 ## Where Discovered
 
-- `/home/dan/Projects/Synthia/docs/api-reference.md`
-- `/home/dan/Projects/Synthia/docs/ai-node-golden-mismatch-provider-intelligence.md`
+- `/home/dan/Projects/Hexe/docs/api-reference.md`
+- `/home/dan/Projects/Hexe/docs/ai-node-golden-mismatch-provider-intelligence.md`
 
 ## Implementation Dependency
 
@@ -58,14 +58,14 @@ After this is published, AI-Node Task 125 implementation can resume.
 
 ## Re-check Update (2026-03-12)
 
-Re-validated canonical docs after new Core updates. `api-reference.md` now lists related endpoints (`POST /api/system/nodes/providers/capabilities/report`, `GET /api/system/nodes/providers/intelligence`), but no normative request/response schema contract document was found under `/home/dan/Projects/Synthia/docs` for provider intelligence ingestion payload structure.
+Re-validated canonical docs after new Core updates. `api-reference.md` now lists related endpoints (`POST /api/system/nodes/providers/capabilities/report`, `GET /api/system/nodes/providers/intelligence`), but no normative request/response schema contract document was found under `/home/dan/Projects/Hexe/docs` for provider intelligence ingestion payload structure.
 
 Task 125 remains blocked pending canonical Core contract publication.
 
 ## Re-check Update (2026-03-12, Resolution)
 
 Canonical contract is now published:
-- `/home/dan/Projects/Synthia/docs/node-provider-intelligence-report-contract.md`
+- `/home/dan/Projects/Hexe/docs/node-provider-intelligence-report-contract.md`
 
 This document defines the Core-owned request/response contract, validation/error behavior, compatibility modes, and current implementation boundaries for provider intelligence ingestion.
 

@@ -5,7 +5,7 @@ Scope: Synthia AI Node provider discovery, latency metrics, capability report, C
 
 ## Summary
 
-Tasks 091-095 in `/home/dan/Projects/SynthiaAiNode/docs/New_tasks.txt` require provider-intelligence behaviors that are not currently specified in golden docs with a stable backend contract.
+Tasks 091-095 in `/home/dan/Projects/HexeAiNode/docs/New_tasks.txt` require provider-intelligence behaviors that are not currently specified in golden docs with a stable backend contract.
 
 Per task directive, implementation is paused until golden contract details are defined.
 

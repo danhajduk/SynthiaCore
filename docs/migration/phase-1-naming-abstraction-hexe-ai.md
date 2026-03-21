@@ -65,7 +65,7 @@ Backend product-facing code should use:
 
 Current canonical source:
 
-- [backend/app/system/platform_identity.py](/home/dan/Projects/Synthia/backend/app/system/platform_identity.py)
+- [backend/app/system/platform_identity.py](/home/dan/Projects/Hexe/backend/app/system/platform_identity.py)
 
 Canonical API exposure:
 
@@ -82,7 +82,7 @@ Frontend product-facing code should use:
 
 Current canonical source:
 
-- [frontend/src/core/branding.tsx](/home/dan/Projects/Synthia/frontend/src/core/branding.tsx)
+- [frontend/src/core/branding.tsx](/home/dan/Projects/Hexe/frontend/src/core/branding.tsx)
 
 ## Current Identity Model
 

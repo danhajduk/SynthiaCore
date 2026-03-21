@@ -70,12 +70,12 @@ Core does not proxy execution requests in the hot path.
 
 ## Existing Building Blocks Reused
 
-- generic service catalog storage: [backend/app/system/services/store.py](/home/dan/Projects/Synthia/backend/app/system/services/store.py)
-- generic service registration and resolution: [backend/app/system/services/router.py](/home/dan/Projects/Synthia/backend/app/system/services/router.py)
-- service-token issuance primitives: [backend/app/system/auth/router.py](/home/dan/Projects/Synthia/backend/app/system/auth/router.py)
-- node governance and routing-policy constraints: [backend/app/system/onboarding/governance.py](/home/dan/Projects/Synthia/backend/app/system/onboarding/governance.py)
-- node budget policy and derived grants: [backend/app/system/onboarding/node_budgeting.py](/home/dan/Projects/Synthia/backend/app/system/onboarding/node_budgeting.py)
-- node-facing budget policy fetch/refresh: [backend/app/api/system.py](/home/dan/Projects/Synthia/backend/app/api/system.py)
+- generic service catalog storage: [backend/app/system/services/store.py](/home/dan/Projects/Hexe/backend/app/system/services/store.py)
+- generic service registration and resolution: [backend/app/system/services/router.py](/home/dan/Projects/Hexe/backend/app/system/services/router.py)
+- service-token issuance primitives: [backend/app/system/auth/router.py](/home/dan/Projects/Hexe/backend/app/system/auth/router.py)
+- node governance and routing-policy constraints: [backend/app/system/onboarding/governance.py](/home/dan/Projects/Hexe/backend/app/system/onboarding/governance.py)
+- node budget policy and derived grants: [backend/app/system/onboarding/node_budgeting.py](/home/dan/Projects/Hexe/backend/app/system/onboarding/node_budgeting.py)
+- node-facing budget policy fetch/refresh: [backend/app/api/system.py](/home/dan/Projects/Hexe/backend/app/api/system.py)
 
 ## Service Catalog Contract
 
@@ -295,10 +295,10 @@ If Core is temporarily unavailable:
 
 ## Code Anchors
 
-- [backend/app/system/services/node_resolution.py](/home/dan/Projects/Synthia/backend/app/system/services/node_resolution.py)
-- [backend/app/system/services/store.py](/home/dan/Projects/Synthia/backend/app/system/services/store.py)
-- [backend/app/api/system.py](/home/dan/Projects/Synthia/backend/app/api/system.py)
-- [backend/app/system/onboarding/node_budgeting.py](/home/dan/Projects/Synthia/backend/app/system/onboarding/node_budgeting.py)
+- [backend/app/system/services/node_resolution.py](/home/dan/Projects/Hexe/backend/app/system/services/node_resolution.py)
+- [backend/app/system/services/store.py](/home/dan/Projects/Hexe/backend/app/system/services/store.py)
+- [backend/app/api/system.py](/home/dan/Projects/Hexe/backend/app/api/system.py)
+- [backend/app/system/onboarding/node_budgeting.py](/home/dan/Projects/Hexe/backend/app/system/onboarding/node_budgeting.py)
 
 ## See Also
 

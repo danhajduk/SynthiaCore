@@ -10,7 +10,7 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-REPO_URL_DEFAULT="https://github.com/danhajduk/SynthiaCore.git"
+REPO_URL_DEFAULT="https://github.com/danhajduk/HexeCore.git"
 REPO_URL="${REPO_URL:-$REPO_URL_DEFAULT}"
 PLATFORM_NAME="${PLATFORM_NAME:-Hexe AI}"
 CORE_NAME="${PLATFORM_CORE_NAME:-${PLATFORM_SHORT:-Hexe} Core}"
