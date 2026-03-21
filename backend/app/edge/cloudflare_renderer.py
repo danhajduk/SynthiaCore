@@ -12,7 +12,7 @@ class CloudflareConfigRenderer:
         publications: list[EdgePublication],
     ) -> dict[str, object]:
         ingress: list[dict[str, object]] = [
-            {"hostname": identity.public_ui_hostname, "service": "http://127.0.0.1:8080"},
+            {"hostname": identity.public_ui_hostname, "service": "http://127.0.0.1:80"},
             {"hostname": identity.public_api_hostname, "service": "http://127.0.0.1:9001"},
         ]
         for publication in sorted(publications, key=lambda item: (item.hostname, item.path_prefix, item.publication_id)):

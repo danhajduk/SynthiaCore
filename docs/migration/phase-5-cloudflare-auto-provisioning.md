@@ -124,7 +124,7 @@ Implemented V1 runtime behavior:
 
 - Supervisor defaults to `SYNTHIA_CLOUDFLARED_PROVIDER=auto`
 - `auto` prefers a Docker-managed `cloudflare/cloudflared:latest` connector
-- Docker launches with host networking so remote ingress rules can target `127.0.0.1:8080` and `127.0.0.1:9001`
+- Docker launches with host networking so remote ingress rules can target `127.0.0.1:80` and `127.0.0.1:9001`
 - a native `cloudflared` binary is used only if Docker is unavailable
 - the persisted on-disk config redacts the live tunnel token
 

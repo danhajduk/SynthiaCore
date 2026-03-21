@@ -62,7 +62,7 @@ Nodes:
 
 Built-in Core-owned publications always exist logically:
 
-- `core-ui` -> `http://127.0.0.1:8080`
+- `core-ui` -> `http://127.0.0.1:80`
 - `core-api` -> `http://127.0.0.1:9001`
 
 Additional publications are operator-defined and constrained to the platform-owned base domain.

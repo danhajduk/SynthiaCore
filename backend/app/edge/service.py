@@ -302,7 +302,7 @@ class EdgeGatewayService:
                 target={
                     "target_type": "core_ui",
                     "target_id": "core-ui",
-                    "upstream_base_url": "http://127.0.0.1:8080",
+                    "upstream_base_url": "http://127.0.0.1:80",
                     "allowed_path_prefixes": ["/"],
                 },
             ),
