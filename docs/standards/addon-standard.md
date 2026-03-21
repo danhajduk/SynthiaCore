@@ -123,7 +123,7 @@ Synthia-Addon-Catalog/
 
   // identity
   "id": "mqtt",
-  "name": "Synthia MQTT",
+  "name": "Hexe MQTT",
   "description": "MQTT integration layer for Synthia Core",
   "version": "0.1.0",
 
@@ -238,7 +238,7 @@ The catalog index lists addons and their releases. Each release is a concrete in
   "addons": [
     {
       "addon_id": "mqtt",
-      "name": "Synthia MQTT",
+      "name": "Hexe MQTT",
       "description": "MQTT integration layer for Synthia Core",
       "repo": "https://github.com/danhajduk/Synthia-MQTT",
       "publisher_id": "publisher.danhajduk",

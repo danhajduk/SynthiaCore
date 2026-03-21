@@ -1,6 +1,6 @@
 export const meta = {
   id: "mqtt",
-  name: "Synthia MQTT",
+  name: "Hexe MQTT",
   version: "0.1.0",
   platformManaged: true,
 };

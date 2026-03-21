@@ -14,7 +14,7 @@ class _FakeRegistry:
         self.registered: dict[str, RegisteredAddon] = {
             "mqtt": RegisteredAddon(
                 id="mqtt",
-                name="Synthia MQTT",
+                name="Hexe MQTT",
                 version="0.1.0",
                 base_url="http://127.0.0.1:9100",
             )

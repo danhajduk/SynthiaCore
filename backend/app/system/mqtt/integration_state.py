@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 
 from .integration_models import MqttAddonGrant, MqttIntegrationState, MqttPrincipal, MqttSetupStateUpdate
+from .topic_families import normalize_legacy_topic_namespace
 
 
 def _utcnow_iso() -> str:
@@ -84,10 +85,53 @@ class MqttIntegrationStateStore:
                 raw = json.load(f)
             if not isinstance(raw, dict):
                 return MqttIntegrationState()
-            return MqttIntegrationState.model_validate(raw)
+            state = MqttIntegrationState.model_validate(raw)
+            normalized = self._normalize_state_topics(state)
+            if normalized != state:
+                self._write_sync(normalized)
+            return normalized
         except Exception:
             return MqttIntegrationState()
 
     def _write_sync(self, state: MqttIntegrationState) -> None:
+        normalized = self._normalize_state_topics(state)
         with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(state.model_dump(mode="json"), f, indent=2, sort_keys=True)
+            json.dump(normalized.model_dump(mode="json"), f, indent=2, sort_keys=True)
+
+    @staticmethod
+    def _normalize_topics(items: list[str]) -> list[str]:
+        out: list[str] = []
+        seen: set[str] = set()
+        for item in items:
+            normalized = normalize_legacy_topic_namespace(str(item or "").strip())
+            if normalized and normalized not in seen:
+                out.append(normalized)
+                seen.add(normalized)
+        return out
+
+    @classmethod
+    def _normalize_state_topics(cls, state: MqttIntegrationState) -> MqttIntegrationState:
+        grants = {
+            addon_id: grant.model_copy(
+                update={
+                    "publish_topics": cls._normalize_topics(list(grant.publish_topics or [])),
+                    "subscribe_topics": cls._normalize_topics(list(grant.subscribe_topics or [])),
+                }
+            )
+            for addon_id, grant in state.active_grants.items()
+        }
+        principals = {
+            principal_id: principal.model_copy(
+                update={
+                    "publish_topics": cls._normalize_topics(list(principal.publish_topics or [])),
+                    "subscribe_topics": cls._normalize_topics(list(principal.subscribe_topics or [])),
+                    "allowed_topics": cls._normalize_topics(list(principal.allowed_topics or [])),
+                    "allowed_publish_topics": cls._normalize_topics(list(principal.allowed_publish_topics or [])),
+                    "allowed_subscribe_topics": cls._normalize_topics(list(principal.allowed_subscribe_topics or [])),
+                    "approved_reserved_topics": cls._normalize_topics(list(principal.approved_reserved_topics or [])),
+                    "topic_prefix": normalize_legacy_topic_namespace(str(principal.topic_prefix or "").strip()) or None,
+                }
+            )
+            for principal_id, principal in state.principals.items()
+        }
+        return state.model_copy(update={"active_grants": grants, "principals": principals})

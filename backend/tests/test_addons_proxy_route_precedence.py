@@ -58,7 +58,7 @@ class TestAddonsProxyRoutePrecedence(unittest.TestCase):
         resp = self.client.post(
             "/api/addons/registry/mqtt/register",
             headers={"X-Admin-Token": "test-token"},
-            json={"base_url": "http://127.0.0.1:9100", "name": "Synthia MQTT", "version": "0.1.0"},
+            json={"base_url": "http://127.0.0.1:9100", "name": "Hexe MQTT", "version": "0.1.0"},
         )
         self.assertEqual(resp.status_code, 200, resp.text)
         payload = resp.json()

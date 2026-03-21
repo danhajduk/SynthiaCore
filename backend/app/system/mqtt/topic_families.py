@@ -25,6 +25,7 @@ TopicFamily = Literal[
 ]
 
 MQTT_TOPIC_ROOT = "hexe"
+LEGACY_MQTT_TOPIC_ROOT = "synthia"
 BOOTSTRAP_TOPIC = f"{MQTT_TOPIC_ROOT}/bootstrap/core"
 PLATFORM_RESERVED_PREFIXES: tuple[str, ...] = (
     f"{MQTT_TOPIC_ROOT}/bootstrap/",
@@ -81,6 +82,14 @@ TOP_LEVEL_RESERVED_FAMILIES: tuple[str, ...] = (
 
 def normalize_topic(raw: str) -> str:
     return str(raw or "").strip()
+
+
+def normalize_legacy_topic_namespace(topic: str) -> str:
+    clean = normalize_topic(topic)
+    legacy_prefix = f"{LEGACY_MQTT_TOPIC_ROOT}/"
+    if clean.startswith(legacy_prefix):
+        return f"{MQTT_TOPIC_ROOT}/{clean[len(legacy_prefix):]}"
+    return clean
 
 
 def topic_parts(topic: str) -> list[str]:
