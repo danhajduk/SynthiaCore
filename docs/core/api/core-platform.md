@@ -22,6 +22,8 @@ Status: Implemented
 - Core tracks runtime setup/readiness for MQTT integration via integration state store.
 - Setup summary and health/degraded API surfaces are exposed under `/api/system/mqtt/*`.
 - Background supervision loop updates degraded/ready state and publishes audit/observability events.
+- Core now allows the HTTP API to finish startup before the heavier MQTT authority warm-up sequence completes; MQTT reconcile and bootstrap publication continue in background startup warm-up tasks.
+- Scheduler queue rehydration is also backgrounded so persisted jobs repopulate after the API becomes reachable instead of blocking startup readiness.
 
 ## Authority Boundaries
 

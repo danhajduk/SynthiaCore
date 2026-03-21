@@ -131,6 +131,7 @@ def create_app() -> FastAPI:
         app.state.latest_stats = None
         app.state.latest_api_metrics = None
         app.state.latest_system_snapshot = None
+        app.state.startup_warmup_tasks = []
 
         asyncio.create_task(stats_fast_sampler_loop(app, interval_s=cfg.stats_fast_interval_s))
         asyncio.create_task(
@@ -212,35 +213,55 @@ def create_app() -> FastAPI:
         users_store = getattr(app.state, "users_store", None)
         if users_store is not None:
             await users_store.ensure_admin_user(seeded_admin_username, seeded_admin_password)
-        mqtt_manager = getattr(app.state, "mqtt_manager", None)
-        if mqtt_manager is not None:
-            await mqtt_manager.start()
-        notification_bridge = getattr(app.state, "notification_bridge", None)
-        if notification_bridge is not None:
-            await notification_bridge.start()
-        notification_consumer = getattr(app.state, "notification_consumer", None)
-        if notification_consumer is not None:
-            await notification_consumer.start()
-        mqtt_startup_reconciler = getattr(app.state, "mqtt_startup_reconciler", None)
-        if mqtt_startup_reconciler is not None:
-            try:
-                await mqtt_startup_reconciler.reconcile_startup()
-            except Exception:
-                log.exception("Embedded MQTT startup reconciliation failed")
-        mqtt_approval = getattr(app.state, "mqtt_registration_approval", None)
-        addon_registry = getattr(app.state, "addon_registry", None)
-        if mqtt_approval is not None and addon_registry is not None:
-            try:
-                if addon_registry.has_addon("mqtt") and addon_registry.is_enabled("mqtt"):
-                    await mqtt_approval.reconcile("mqtt")
-            except Exception:
-                log.exception("MQTT startup addon principal reconciliation failed for addon:mqtt")
-        notification_producer = getattr(app.state, "notification_producer", None)
-        if notification_producer is not None:
-            try:
-                await notification_producer.emit_startup_notifications()
-            except Exception:
-                log.exception("Core startup notification emission failed")
+        async def mqtt_warmup_sequence() -> None:
+            mqtt_manager = getattr(app.state, "mqtt_manager", None)
+            if mqtt_manager is not None:
+                await mqtt_manager.start()
+            notification_bridge = getattr(app.state, "notification_bridge", None)
+            if notification_bridge is not None:
+                await notification_bridge.start()
+            notification_consumer = getattr(app.state, "notification_consumer", None)
+            if notification_consumer is not None:
+                await notification_consumer.start()
+            mqtt_startup_reconciler = getattr(app.state, "mqtt_startup_reconciler", None)
+            if mqtt_startup_reconciler is not None:
+                try:
+                    await mqtt_startup_reconciler.reconcile_startup()
+                except Exception:
+                    log.exception("Embedded MQTT startup reconciliation failed")
+            mqtt_approval = getattr(app.state, "mqtt_registration_approval", None)
+            addon_registry = getattr(app.state, "addon_registry", None)
+            if mqtt_approval is not None and addon_registry is not None:
+                try:
+                    if addon_registry.has_addon("mqtt") and addon_registry.is_enabled("mqtt"):
+                        await mqtt_approval.reconcile("mqtt")
+                except Exception:
+                    log.exception("MQTT startup addon principal reconciliation failed for addon:mqtt")
+            notification_producer = getattr(app.state, "notification_producer", None)
+            if notification_producer is not None:
+                try:
+                    await notification_producer.emit_startup_notifications()
+                except Exception:
+                    log.exception("Core startup notification emission failed")
+
+        def _track_startup_task(task: asyncio.Task) -> None:
+            tasks = getattr(app.state, "startup_warmup_tasks", None)
+            if isinstance(tasks, list):
+                tasks.append(task)
+
+            def _finalize(done: asyncio.Task) -> None:
+                running = getattr(app.state, "startup_warmup_tasks", None)
+                if isinstance(running, list) and done in running:
+                    running.remove(done)
+                if done.cancelled():
+                    return
+                exc = done.exception()
+                if exc is not None:
+                    log.exception("Startup warmup task failed", exc_info=exc)
+
+            task.add_done_callback(_finalize)
+
+        _track_startup_task(asyncio.create_task(mqtt_warmup_sequence()))
 
         async def mqtt_runtime_supervision_loop() -> None:
             while True:
@@ -325,6 +346,8 @@ def create_app() -> FastAPI:
 
     @app.on_event("shutdown")
     async def shutdown_background_tasks():
+        for task in list(getattr(app.state, "startup_warmup_tasks", []) or []):
+            task.cancel()
         proxy = getattr(app.state, "addon_proxy", None)
         if proxy is not None:
             await proxy.aclose()

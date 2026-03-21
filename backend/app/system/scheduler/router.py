@@ -42,6 +42,7 @@ def build_scheduler_router(
     router = APIRouter()
     expire_task: asyncio.Task | None = None
     dispatch_task: asyncio.Task | None = None
+    rehydrate_task: asyncio.Task | None = None
     queue_store = QueueStore()
     queue_db = os.getenv(
         "SCHEDULER_QUEUE_DB",
@@ -96,6 +97,7 @@ def build_scheduler_router(
     async def _startup() -> None:
         nonlocal expire_task
         nonlocal dispatch_task
+        nonlocal rehydrate_task
 
         async def loop() -> None:
             while True:
@@ -126,7 +128,13 @@ def build_scheduler_router(
                         queue_store.enqueue(job)
                     await queue_persist.upsert_job(job)
 
-        await load_queue()
+        async def load_queue_with_logging() -> None:
+            try:
+                await load_queue()
+            except Exception:
+                pass
+
+        rehydrate_task = asyncio.create_task(load_queue_with_logging())
 
         async def dispatch_loop() -> None:
             while True:
@@ -142,12 +150,16 @@ def build_scheduler_router(
     async def _shutdown() -> None:
         nonlocal expire_task
         nonlocal dispatch_task
+        nonlocal rehydrate_task
         if expire_task:
             expire_task.cancel()
             expire_task = None
         if dispatch_task:
             dispatch_task.cancel()
             dispatch_task = None
+        if rehydrate_task:
+            rehydrate_task.cancel()
+            rehydrate_task = None
 
     @router.post("/jobs", response_model=SubmitJobResponse)
     async def submit_job(req: SubmitJobRequest) -> SubmitJobResponse:
