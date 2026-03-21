@@ -5,8 +5,6 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=@INSTALL_DIR@/backend
-EnvironmentFile=-@INSTALL_DIR@/scripts/synthia.env
-
 # Where standalone services live (sibling folder to the Core repo)
 Environment=SYNTHIA_ADDONS_DIR=%h/Projects/SynthiaAddons
 Environment=SYNTHIA_CATALOG_PUBLISHERS=@INSTALL_DIR@/runtime/store/cache/official/publishers.json
@@ -17,7 +15,7 @@ ExecStart=@INSTALL_DIR@/backend/.venv/bin/python -m synthia_supervisor.main
 
 Restart=always
 RestartSec=2
-EnvironmentFile=%h/.config/synthia/admin.env
+EnvironmentFile=%h/.config/hexe/admin.env
 
 [Install]
 WantedBy=default.target

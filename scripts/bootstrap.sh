@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-ENV_FILE="$REPO_DIR/scripts/synthia.env"
+ENV_FILE="$REPO_DIR/.config/hexe/admin.env"
 if [[ -f "$ENV_FILE" ]]; then
   set -a
   # shellcheck source=/dev/null
@@ -136,8 +136,8 @@ fi
 chmod +x "$INSTALL_DIR/scripts/update.sh"
 
 echo "[bootstrap] Admin token env"
-mkdir -p "$HOME/.config/synthia"
-ENVFILE="$HOME/.config/synthia/admin.env"
+mkdir -p "$HOME/.config/hexe"
+ENVFILE="$HOME/.config/hexe/admin.env"
 if [[ ! -f "$ENVFILE" ]]; then
   TOKEN="$(python3 -c 'import secrets; print("SYNTHIA_ADMIN_TOKEN="+secrets.token_urlsafe(48))')"
   echo "$TOKEN" > "$ENVFILE"

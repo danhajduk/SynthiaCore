@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-ENV_FILE="$REPO_DIR/scripts/synthia.env"
+ENV_FILE="$REPO_DIR/.config/hexe/admin.env"
 
 if [[ -f "$ENV_FILE" ]]; then
   set -a

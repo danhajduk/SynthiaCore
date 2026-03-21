@@ -228,9 +228,9 @@ Optional helper script:
     scripts/dev.sh
 
 This script prints the expected development commands and loads
-environment variables from:
+development helper environment variables from:
 
-    scripts/synthia.env
+    .config/hexe/admin.env
 
 ------------------------------------------------------------------------
 
