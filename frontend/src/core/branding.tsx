@@ -12,8 +12,10 @@ export const DEFAULT_PLATFORM_DOCS_NAME = "Hexe Docs";
 export const DEFAULT_LEGACY_INTERNAL_NAMESPACE = "synthia";
 export const DEFAULT_LEGACY_COMPATIBILITY_NOTE =
   "Some stable technical identifiers still use `synthia` where changing them would break compatibility.";
+export const DEFAULT_CORE_ID = "unknown";
 
 export type PlatformBranding = {
+  coreId: string;
   platformName: string;
   platformShort: string;
   platformDomain: string;
@@ -27,6 +29,7 @@ export type PlatformBranding = {
 };
 
 export const DEFAULT_BRANDING: PlatformBranding = {
+  coreId: DEFAULT_CORE_ID,
   platformName: DEFAULT_PLATFORM_NAME,
   platformShort: DEFAULT_PLATFORM_SHORT,
   platformDomain: DEFAULT_PLATFORM_DOMAIN,
@@ -51,6 +54,7 @@ function readText(value: unknown, fallback: string): string {
 export function resolvePlatformBranding(payload?: PlatformPayload | null, fallback: PlatformBranding = DEFAULT_BRANDING): PlatformBranding {
   const data = payload && typeof payload === "object" ? payload : {};
   return {
+    coreId: readText(data.core_id, fallback.coreId),
     platformName: readText(data.platform_name, fallback.platformName),
     platformShort: readText(data.platform_short, fallback.platformShort),
     platformDomain: readText(data.platform_domain, fallback.platformDomain),

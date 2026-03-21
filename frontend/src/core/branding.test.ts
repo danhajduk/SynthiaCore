@@ -16,6 +16,7 @@ describe("platform branding resolution", () => {
 
   it("resolves expanded component labels from the platform endpoint payload", () => {
     const branding = resolvePlatformBranding({
+      core_id: "0123456789abcdef",
       platform_name: "Acme AI",
       platform_short: "Acme",
       platform_domain: "acme.example",
@@ -28,6 +29,7 @@ describe("platform branding resolution", () => {
       legacy_compatibility_note: "Legacy namespace remains active internally.",
     });
 
+    expect(branding.coreId).toBe("0123456789abcdef");
     expect(branding.platformName).toBe("Acme AI");
     expect(branding.coreName).toBe("Acme Core");
     expect(branding.supervisorName).toBe("Acme Supervisor");

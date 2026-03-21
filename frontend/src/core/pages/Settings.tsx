@@ -119,7 +119,7 @@ function relative(ts?: string | null): string {
 }
 
 export default function Settings() {
-  const { coreName } = usePlatformBranding();
+  const { coreId, coreName } = usePlatformBranding();
   const [appName, setAppName] = useState(DEFAULT_PLATFORM_CORE_NAME);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [theme, setTheme] = useState("dark");
@@ -266,6 +266,11 @@ export default function Settings() {
               <div className="settings-label-text">Application name</div>
               <div className="settings-help">Displayed in system identity and operator-facing UI context.</div>
               <input value={appName} onChange={(e) => setAppName(e.target.value)} className="settings-input" />
+            </label>
+            <label className="settings-label">
+              <div className="settings-label-text">Core UUID</div>
+              <div className="settings-help">Stable persisted Core identity used for pairing and public hostname derivation.</div>
+              <div className="settings-mono">{coreId}</div>
             </label>
             <label className="settings-label">
               <div className="settings-label-text">Theme</div>
