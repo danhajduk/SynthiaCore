@@ -11,8 +11,9 @@ class _FakeProxy:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, str, str]] = []
         self.websocket_calls: list[tuple[str, str, str]] = []
+        self.api_calls: list[tuple[str, str, str]] = []
 
-    async def forward(self, request: Request, addon_id: str, path: str = "", *, public_prefix: str = "") -> JSONResponse:
+    async def forward_ui(self, request: Request, addon_id: str, path: str = "", *, public_prefix: str = "") -> JSONResponse:
         self.calls.append((request.method, addon_id, path, public_prefix))
         return JSONResponse(
             {
@@ -22,6 +23,10 @@ class _FakeProxy:
                 "public_prefix": public_prefix,
             }
         )
+
+    async def forward_api(self, request: Request, addon_id: str, path: str = "") -> JSONResponse:
+        self.api_calls.append((request.method, addon_id, path))
+        return JSONResponse({"method": request.method, "addon_id": addon_id, "path": path})
 
     async def forward_websocket(self, websocket, addon_id: str, path: str = "", *, public_prefix: str = "") -> None:
         self.websocket_calls.append((addon_id, path, public_prefix))
@@ -84,6 +89,28 @@ class TestAddonsProxyRouter(unittest.TestCase):
             [
                 ("mqtt", "ws", "/addons/mqtt"),
                 ("mqtt", "live", "/ui/addons/mqtt"),
+            ],
+        )
+
+    def test_api_proxy_routes_forward(self) -> None:
+        checks = [
+            ("GET", "/api/addons/mqtt/status", "status"),
+            ("POST", "/api/addons/mqtt/v1/run", "v1/run"),
+            ("GET", "/api/addons/mqtt", ""),
+        ]
+        for method, url, expected_path in checks:
+            resp = self.client.request(method, url)
+            self.assertEqual(resp.status_code, 200, resp.text)
+            payload = resp.json()
+            self.assertEqual(payload["addon_id"], "mqtt")
+            self.assertEqual(payload["path"], expected_path)
+
+        self.assertEqual(
+            self.proxy.api_calls,
+            [
+                ("GET", "mqtt", "status"),
+                ("POST", "mqtt", "v1/run"),
+                ("GET", "mqtt", ""),
             ],
         )
 

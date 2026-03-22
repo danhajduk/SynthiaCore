@@ -43,6 +43,11 @@ Registry UI metadata rules:
 - `ui_mode` defaults to `server`
 - missing UI metadata remains explicit through `ui_enabled = false`
 
+Current addon proxy behavior:
+- `/addons/{addon_id}/...` uses canonical addon UI metadata (`ui_enabled`, `ui_base_url`)
+- `/api/addons/{addon_id}/...` uses the registered addon `base_url`
+- embedded/local addons continue using the Core-hosted addon API/UI surface directly
+
 ## Addon Lifecycle
 
 Status: Implemented

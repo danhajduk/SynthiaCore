@@ -1,3 +1,5 @@
+Task 744: Add Addon API proxy routes - Completed on 03/22/2026 15:01
+Task 743: Add Addon UI proxy routes - Completed on 03/22/2026 15:01
 Task 742: Add Node API proxy routes - Completed on 03/22/2026 15:01
 Task 741: Add Node UI proxy routes - Completed on 03/22/2026 15:01
 Task 740: Implement WebSocket proxy support - Completed on 03/22/2026 15:01

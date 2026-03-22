@@ -179,7 +179,7 @@ Enable websocket passthrough for node/addon UIs.
 
 ---
 
-[TODO] Task 743 — Add Addon UI proxy routes
+[DONE] Task 743 — Add Addon UI proxy routes
 
 ### Routes
 - /addons/{addon_id}/
@@ -199,7 +199,7 @@ Enable websocket passthrough for node/addon UIs.
 
 ---
 
-[TODO] Task 744 — Add Addon API proxy routes
+[DONE] Task 744 — Add Addon API proxy routes
 
 ### Routes
 - /api/addons/{addon_id}/{path:path}
