@@ -94,6 +94,7 @@ Use this checklist when authoring or reviewing a node/addon UI:
 ## See Also
 
 - [Frontend and UI](./frontend-and-ui.md)
+- [Proxied UI Metadata](../api/proxied-ui-metadata.md)
 - [API Reference](../api/api-reference.md)
 - [Addon Platform](../../addons/addon-platform.md)
 - [Node Onboarding API Contract](../../nodes/node-onboarding-api-contract.md)

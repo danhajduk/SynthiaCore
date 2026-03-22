@@ -442,3 +442,4 @@
 2026-03-22 - Task 749: added structured addon/node proxy lifecycle logging with identifiers, status, and latency.
 2026-03-22 - Task 750: expanded proxy validation coverage across UI, API, websocket, and failure scenarios.
 2026-03-22 - Task 751: documented the canonical proxied UI contract, frontend/runtime rules, and author checklist for node and addon UIs.
+2026-03-22 - Task 752: defined proxied UI metadata fields, fail-safe defaults, and reserved extension fields for nodes and addons.

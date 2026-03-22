@@ -118,6 +118,7 @@ Status: Implemented
 Registry payloads include canonical UI proxy metadata for Core-managed embedding:
 - addons: `ui_enabled`, `ui_base_url`, `ui_mode`
 - nodes: `ui_enabled`, `ui_base_url`, `ui_mode`, `ui_health_endpoint`
+- the broader proxied-UI metadata contract, fail-safe defaults, and reserved extension fields are documented in [Proxied UI Metadata](./proxied-ui-metadata.md)
 - Install sessions:
   - `POST /api/addons/install/start`
   - `GET /api/addons/install/{session_id}`

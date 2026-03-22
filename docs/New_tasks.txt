@@ -286,38 +286,6 @@ Ensure only authorized users can access node/addon UIs.
 
 # Core Tasks — Proxied UI Contract for Nodes and Addons
 
-[TODO] Task 752 — Define required UI metadata for nodes and addons
-
-### Goal
-Standardize the metadata Core uses to determine whether and how a UI may be proxied.
-
-### Required metadata fields
-- ui_enabled: bool
-- ui_mode: spa | server
-- ui_base_url: internal URL reachable by Core
-- ui_health_url: optional internal health endpoint
-- ui_supports_prefix: bool
-- ui_entry_path: optional, default /
-- ui_websocket_enabled: optional bool
-
-### Rules
-- ui_enabled must default to false
-- ui_base_url must be internal-only and must never be exposed in public API responses intended for browsers
-- ui_supports_prefix should be true for all new UIs
-- ui_entry_path must resolve relative to ui_base_url
-
-### Deliverables
-- metadata field definitions
-- validation rules
-- defaults for missing optional fields
-
-### Acceptance Criteria
-- metadata is sufficient for Core to proxy UI safely
-- missing metadata fails safe
-- unsupported configurations are rejected or clearly marked unavailable
-
----
-
 [TODO] Task 753 — Define frontend path-prefix behavior requirements
 
 ### Goal

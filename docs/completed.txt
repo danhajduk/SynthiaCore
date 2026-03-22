@@ -818,3 +818,4 @@ Task 737: Define canonical public proxy route contract - Completed on 03/22/2026
 Task 749: Logging and observability - Completed on 03/22/2026 15:34
 Task 750: Integration and validation tests - Completed on 03/22/2026 15:34
 Task 751: Define proxied UI contract for all externally mounted UIs - Completed on 03/22/2026 15:36
+Task 752: Define required UI metadata for nodes and addons - Completed on 03/22/2026 15:37
