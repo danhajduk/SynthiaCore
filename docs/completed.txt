@@ -829,3 +829,4 @@ Task 758: Define redirect and link-generation behavior for proxied targets - Com
 Task 759: Define compatibility requirements for SPA-based UIs - Completed on 03/22/2026 16:20
 Task 760: Define compatibility requirements for server-rendered UIs - Completed on 03/22/2026 16:22
 Task 761: Add compatibility validation checks in Core for proxied UI targets - Completed on 03/22/2026 16:25
+Task 762: Add proxied UI author documentation and examples - Completed on 03/22/2026 16:28

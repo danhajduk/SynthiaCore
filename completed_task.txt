@@ -453,3 +453,4 @@
 2026-03-22 - Task 759: documented the SPA compatibility requirements for proxied node and addon UIs.
 2026-03-22 - Task 760: documented the server-rendered UI compatibility requirements for proxied node and addon UIs.
 2026-03-22 - Task 761: added shared compatibility validation for proxied node and addon UI targets with explicit failure reasons.
+2026-03-22 - Task 762: added the proxied UI author guide with examples, checklist, and common failure cases.

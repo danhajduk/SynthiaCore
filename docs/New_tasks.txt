@@ -45,6 +45,5 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 762: Add proxied UI author documentation and examples
 [TODO] Task 765: Add target resolver service for nodes and addons
 [TODO] Task 767: Update or create JSON schemas in docs/json_schema/

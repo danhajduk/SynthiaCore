@@ -93,6 +93,7 @@ Use this checklist when authoring or reviewing a node/addon UI:
 
 ## See Also
 
+- [Proxied UI Author Guide](./proxied-ui-author-guide.md)
 - [Frontend and UI](./frontend-and-ui.md)
 - [Proxied UI Path-Prefix Requirements](./proxied-ui-path-prefix.md)
 - [Proxied UI API Base-Path Requirements](./proxied-ui-api-base-path.md)
