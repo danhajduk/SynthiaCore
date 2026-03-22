@@ -96,6 +96,7 @@ Use this checklist when authoring or reviewing a node/addon UI:
 - [Frontend and UI](./frontend-and-ui.md)
 - [Proxied UI Path-Prefix Requirements](./proxied-ui-path-prefix.md)
 - [Proxied UI API Base-Path Requirements](./proxied-ui-api-base-path.md)
+- [Proxied UI Websocket Compatibility Requirements](./proxied-ui-websocket-compatibility.md)
 - [Proxied UI Metadata](../api/proxied-ui-metadata.md)
 - [API Reference](../api/api-reference.md)
 - [Addon Platform](../../addons/addon-platform.md)
