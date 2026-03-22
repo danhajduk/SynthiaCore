@@ -445,3 +445,4 @@
 2026-03-22 - Task 752: defined proxied UI metadata fields, fail-safe defaults, and reserved extension fields for nodes and addons.
 2026-03-22 - Task 752.1: reworked Edge Gateway to use a single public hostname with reserved Core path routing for UI, API, nodes, and addons.
 2026-03-22 - Task 753: documented the dedicated frontend path-prefix requirements for proxied node and addon UIs.
+2026-03-22 - Task 754: documented the dedicated browser API base-path requirements for proxied node and addon UIs.

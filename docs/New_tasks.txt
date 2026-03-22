@@ -45,7 +45,6 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 754: Define frontend API base-path requirements
 [TODO] Task 755: Define websocket proxy compatibility requirements
 [TODO] Task 756: Define forwarded-header contract from Core to proxied targets
 [TODO] Task 757: Define runtime config injection contract for proxied UIs
