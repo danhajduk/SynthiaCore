@@ -40,14 +40,12 @@ def derive_public_ui_hostname(core_id: str, platform_domain: str) -> str:
     return f"{normalized}.{domain}"
 
 
+def derive_public_hostname(core_id: str, platform_domain: str) -> str:
+    return derive_public_ui_hostname(core_id, platform_domain)
+
+
 def derive_public_api_hostname(core_id: str, platform_domain: str) -> str:
-    normalized = str(core_id or "").strip().lower()
-    domain = str(platform_domain or "").strip().lower()
-    if not is_valid_core_id(normalized):
-        raise ValueError("core_id_invalid")
-    if not domain:
-        raise ValueError("platform_domain_invalid")
-    return f"api.{normalized}.{domain}"
+    return derive_public_hostname(core_id, platform_domain)
 
 
 @dataclass(frozen=True)
@@ -63,6 +61,7 @@ class PlatformIdentity:
     docs_name: str
     legacy_internal_namespace: str
     legacy_compatibility_note: str
+    public_hostname: str
     public_ui_hostname: str
     public_api_hostname: str
 
@@ -79,6 +78,7 @@ class PlatformIdentity:
             "docs_name": self.docs_name,
             "legacy_internal_namespace": self.legacy_internal_namespace,
             "legacy_compatibility_note": self.legacy_compatibility_note,
+            "public_hostname": self.public_hostname,
             "public_ui_hostname": self.public_ui_hostname,
             "public_api_hostname": self.public_api_hostname,
         }
@@ -124,6 +124,9 @@ class PlatformNamingService:
 
     def core_id(self) -> str:
         return self._identity.core_id
+
+    def public_hostname(self) -> str:
+        return self._identity.public_hostname
 
     def public_ui_hostname(self) -> str:
         return self._identity.public_ui_hostname
@@ -206,8 +209,9 @@ def platform_identity_from_values(values: dict[str, Any] | None = None) -> Platf
         data.get("core.id"),
         os.getenv("SYNTHIA_CORE_ID"),
     )
-    public_ui_hostname = derive_public_ui_hostname(core_id, platform_domain)
-    public_api_hostname = derive_public_api_hostname(core_id, platform_domain)
+    public_hostname = derive_public_hostname(core_id, platform_domain)
+    public_ui_hostname = public_hostname
+    public_api_hostname = public_hostname
     return PlatformIdentity(
         core_id=core_id,
         platform_name=platform_name,
@@ -220,6 +224,7 @@ def platform_identity_from_values(values: dict[str, Any] | None = None) -> Platf
         docs_name=docs_name,
         legacy_internal_namespace=legacy_internal_namespace,
         legacy_compatibility_note=legacy_compatibility_note,
+        public_hostname=public_hostname,
         public_ui_hostname=public_ui_hostname,
         public_api_hostname=public_api_hostname,
     )

@@ -133,8 +133,10 @@ class TestEdgeGatewayApi(unittest.TestCase):
         platform_payload = self.client.get("/api/system/platform").json()
         edge_payload = self.client.get("/api/edge/public-identity").json()
         self.assertEqual(platform_payload["core_id"], edge_payload["core_id"])
+        self.assertEqual(platform_payload["public_hostname"], edge_payload["public_hostname"])
         self.assertEqual(platform_payload["public_ui_hostname"], edge_payload["public_ui_hostname"])
         self.assertEqual(platform_payload["public_api_hostname"], edge_payload["public_api_hostname"])
+        self.assertEqual(edge_payload["public_hostname"], edge_payload["public_api_hostname"])
 
     def test_create_publication_and_provision(self) -> None:
         identity = self.client.get("/api/edge/public-identity").json()
@@ -157,7 +159,7 @@ class TestEdgeGatewayApi(unittest.TestCase):
         self.assertEqual(created.status_code, 200, created.text)
         listed = self.client.get("/api/edge/publications")
         self.assertEqual(listed.status_code, 200, listed.text)
-        self.assertEqual(len(listed.json()["items"]), 3)
+        self.assertEqual(len(listed.json()["items"]), 5)
 
         settings_res = self.client.put(
             "/api/edge/cloudflare/settings",
@@ -201,8 +203,10 @@ class TestEdgeGatewayApi(unittest.TestCase):
         self.assertEqual(payload["cloudflare"]["account_id"], "acct-env")
         self.assertEqual(payload["cloudflare"]["zone_id"], "zone-env")
         self.assertEqual(payload["cloudflare"]["tunnel_id"], first_tunnel_id)
+        self.assertTrue(payload["cloudflare"]["public_dns_record_id"])
         self.assertTrue(payload["cloudflare"]["ui_dns_record_id"])
         self.assertTrue(payload["cloudflare"]["api_dns_record_id"])
+        self.assertEqual(payload["cloudflare"]["public_dns_record_id"], payload["cloudflare"]["api_dns_record_id"])
         self.assertEqual(payload["tunnel"]["runtime_state"], "configured")
         self.assertFalse(payload["tunnel"]["healthy"])
         self.assertIn("last_reconcile_at", payload["reconcile_state"])
@@ -234,8 +238,30 @@ class TestEdgeGatewayApi(unittest.TestCase):
         self.assertEqual(updated.status_code, 200, updated.text)
         payload = updated.json()
         self.assertIsNone(payload["tunnel_id"])
+        self.assertIsNone(payload["public_dns_record_id"])
         self.assertIsNone(payload["ui_dns_record_id"])
         self.assertEqual(payload["provisioning_state"], "not_configured")
+
+    def test_rejects_operator_publication_on_reserved_core_paths(self) -> None:
+        identity = self.client.get("/api/edge/public-identity").json()
+        created = self.client.post(
+            "/api/edge/publications",
+            headers={"X-Admin-Token": "test-token"},
+            json={
+                "hostname": identity["public_hostname"],
+                "path_prefix": "/api/frigate",
+                "enabled": True,
+                "source": "operator_defined",
+                "target": {
+                    "target_type": "frigate",
+                    "target_id": "frigate",
+                    "upstream_base_url": "http://127.0.0.1:5000",
+                    "allowed_path_prefixes": ["/api/frigate"],
+                },
+            },
+        )
+        self.assertEqual(created.status_code, 400, created.text)
+        self.assertEqual(created.json()["detail"], "edge_publication_reserved_core_path")
 
     def test_disabled_settings_ignore_custom_api_token_ref(self) -> None:
         response = self.client.put(

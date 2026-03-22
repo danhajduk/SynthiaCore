@@ -53,8 +53,9 @@ class TestPlatformIdentity(unittest.TestCase):
         self.assertEqual(identity.docs_name, DEFAULT_PLATFORM_DOCS_NAME)
         self.assertEqual(identity.legacy_internal_namespace, DEFAULT_LEGACY_INTERNAL_NAMESPACE)
         self.assertIn(DEFAULT_LEGACY_INTERNAL_NAMESPACE, identity.legacy_compatibility_note)
+        self.assertEqual(identity.public_hostname, f"{identity.core_id}.{DEFAULT_PLATFORM_DOMAIN}")
         self.assertEqual(identity.public_ui_hostname, f"{identity.core_id}.{DEFAULT_PLATFORM_DOMAIN}")
-        self.assertEqual(identity.public_api_hostname, f"api.{identity.core_id}.{DEFAULT_PLATFORM_DOMAIN}")
+        self.assertEqual(identity.public_api_hostname, f"{identity.core_id}.{DEFAULT_PLATFORM_DOMAIN}")
 
     def test_platform_identity_uses_env_overrides(self) -> None:
         with patch.dict(
@@ -86,8 +87,9 @@ class TestPlatformIdentity(unittest.TestCase):
         self.assertEqual(identity.docs_name, "Acme Docs")
         self.assertEqual(identity.legacy_internal_namespace, "legacy")
         self.assertEqual(identity.legacy_compatibility_note, "Legacy namespace remains active internally.")
+        self.assertEqual(identity.public_hostname, "0123456789abcdef.acme.example")
         self.assertEqual(identity.public_ui_hostname, "0123456789abcdef.acme.example")
-        self.assertEqual(identity.public_api_hostname, "api.0123456789abcdef.acme.example")
+        self.assertEqual(identity.public_api_hostname, "0123456789abcdef.acme.example")
 
     def test_platform_identity_prefers_settings_values(self) -> None:
         with patch.dict(os.environ, {"PLATFORM_NAME": "Env AI"}, clear=True):
@@ -113,8 +115,9 @@ class TestPlatformIdentity(unittest.TestCase):
         self.assertEqual(identity.nodes_name, "Hexe Nodes")
         self.assertEqual(identity.addons_name, "Hexe Addons")
         self.assertEqual(identity.docs_name, "Hexe Docs")
+        self.assertEqual(identity.public_hostname, f"{identity.core_id}.hexe-ai.com")
         self.assertEqual(identity.public_ui_hostname, f"{identity.core_id}.hexe-ai.com")
-        self.assertEqual(identity.public_api_hostname, f"api.{identity.core_id}.hexe-ai.com")
+        self.assertEqual(identity.public_api_hostname, f"{identity.core_id}.hexe-ai.com")
 
     def test_hostname_derivation_rejects_invalid_core_id(self) -> None:
         self.assertFalse(is_valid_core_id("not-valid"))
@@ -166,8 +169,9 @@ class TestPlatformIdentityApi(unittest.TestCase):
         self.assertEqual(payload["addons_name"], DEFAULT_PLATFORM_ADDONS_NAME)
         self.assertEqual(payload["docs_name"], DEFAULT_PLATFORM_DOCS_NAME)
         self.assertEqual(payload["legacy_internal_namespace"], DEFAULT_LEGACY_INTERNAL_NAMESPACE)
+        self.assertEqual(payload["public_hostname"], f"{payload['core_id']}.{DEFAULT_PLATFORM_DOMAIN}")
         self.assertEqual(payload["public_ui_hostname"], f"{payload['core_id']}.{DEFAULT_PLATFORM_DOMAIN}")
-        self.assertEqual(payload["public_api_hostname"], f"api.{payload['core_id']}.{DEFAULT_PLATFORM_DOMAIN}")
+        self.assertEqual(payload["public_api_hostname"], f"{payload['core_id']}.{DEFAULT_PLATFORM_DOMAIN}")
 
     def test_platform_endpoint_returns_settings_overrides(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
@@ -189,8 +193,9 @@ class TestPlatformIdentityApi(unittest.TestCase):
         self.assertEqual(payload["nodes_name"], "Hexe Nodes")
         self.assertEqual(payload["addons_name"], "Hexe Addons")
         self.assertEqual(payload["docs_name"], "Hexe Docs")
+        self.assertEqual(payload["public_hostname"], "feedfacecafebeef.hexe-ai.com")
         self.assertEqual(payload["public_ui_hostname"], "feedfacecafebeef.hexe-ai.com")
-        self.assertEqual(payload["public_api_hostname"], "api.feedfacecafebeef.hexe-ai.com")
+        self.assertEqual(payload["public_api_hostname"], "feedfacecafebeef.hexe-ai.com")
 
 
 class TestLoadPlatformIdentity(unittest.IsolatedAsyncioTestCase):

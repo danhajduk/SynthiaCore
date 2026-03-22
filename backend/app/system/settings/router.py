@@ -29,6 +29,7 @@ class PlatformIdentityResponse(BaseModel):
     docs_name: str
     legacy_internal_namespace: str
     legacy_compatibility_note: str
+    public_hostname: str
     public_ui_hostname: str
     public_api_hostname: str
 

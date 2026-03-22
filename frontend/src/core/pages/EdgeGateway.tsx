@@ -6,6 +6,7 @@ type EdgeIdentity = {
   core_id: string;
   core_name: string;
   platform_domain: string;
+  public_hostname: string;
   public_ui_hostname: string;
   public_api_hostname: string;
 };
@@ -19,6 +20,7 @@ type CloudflareSettings = {
   tunnel_name?: string | null;
   tunnel_token_ref?: string | null;
   credentials_reference?: string | null;
+  public_dns_record_id?: string | null;
   ui_dns_record_id?: string | null;
   api_dns_record_id?: string | null;
   provisioning_state?: string;
@@ -31,6 +33,7 @@ type CloudflareSettings = {
 type ProvisioningState = {
   overall_state: string;
   tunnel_state: string;
+  public_hostname_state: string;
   ui_hostname_state: string;
   api_hostname_state: string;
   dns_state: string;
@@ -40,6 +43,7 @@ type ProvisioningState = {
   last_error?: string | null;
   tunnel_id?: string | null;
   tunnel_name?: string | null;
+  public_dns_record_id?: string | null;
   ui_dns_record_id?: string | null;
   api_dns_record_id?: string | null;
 };
@@ -283,7 +287,7 @@ export default function EdgeGateway() {
     <div className="settings-page">
       <h1 className="settings-title">Edge Gateway</h1>
       <p className="settings-page-subtitle">
-        Public ingress for {branding.coreName} using platform-managed Cloudflare hostnames in V1 single-owner mode.
+        Public ingress for {branding.coreName} using a single platform-managed Cloudflare hostname with path-based Core routing.
       </p>
       <p className="settings-muted">
         Additional publications reuse the same managed Cloudflare tunnel; they add ingress rules and DNS, not separate tunnels.
@@ -294,7 +298,7 @@ export default function EdgeGateway() {
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>Public Identity</h2>
-          <p>Stable Core identity and derived public hostnames.</p>
+          <p>Stable Core identity and the single public hostname reserved for Core UI, API, node UI proxy, and addon UI proxy paths.</p>
         </div>
         <div className="settings-card">
           <div className="settings-kv-grid">
@@ -303,12 +307,12 @@ export default function EdgeGateway() {
               <div className="settings-mono">{status?.public_identity.core_id || "loading"}</div>
             </div>
             <div className="settings-kv-item">
-              <div className="settings-label-text">UI hostname</div>
-              <div className="settings-mono">{status?.public_identity.public_ui_hostname || "loading"}</div>
+              <div className="settings-label-text">Public hostname</div>
+              <div className="settings-mono">{status?.public_identity.public_hostname || status?.public_identity.public_ui_hostname || "loading"}</div>
             </div>
             <div className="settings-kv-item">
-              <div className="settings-label-text">API hostname</div>
-              <div className="settings-mono">{status?.public_identity.public_api_hostname || "loading"}</div>
+              <div className="settings-label-text">Reserved routes</div>
+              <div className="settings-mono">/, /api/*, /nodes/*, /addons/*</div>
             </div>
             <div className="settings-kv-item">
               <div className="settings-label-text">Managed domain</div>
@@ -422,12 +426,12 @@ export default function EdgeGateway() {
               <div className="settings-mono">{status?.provisioning.tunnel_id || status?.tunnel.tunnel_id || "Not provisioned"}</div>
             </div>
             <div className="settings-kv-item">
-              <div className="settings-label-text">UI DNS record</div>
-              <div className="settings-mono">{status?.provisioning.ui_dns_record_id || status?.cloudflare.ui_dns_record_id || "Not provisioned"}</div>
+              <div className="settings-label-text">Public DNS record</div>
+              <div className="settings-mono">{status?.provisioning.public_dns_record_id || status?.cloudflare.public_dns_record_id || "Not provisioned"}</div>
             </div>
             <div className="settings-kv-item">
-              <div className="settings-label-text">API DNS record</div>
-              <div className="settings-mono">{status?.provisioning.api_dns_record_id || status?.cloudflare.api_dns_record_id || "Not provisioned"}</div>
+              <div className="settings-label-text">Route ownership</div>
+              <div>/ to port 80, /api/* + /nodes/* + /addons/* to port 9001</div>
             </div>
             <div className="settings-kv-item">
               <div className="settings-label-text">Last success</div>
@@ -444,7 +448,7 @@ export default function EdgeGateway() {
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>Publications</h2>
-          <p>Core-owned hostnames are derived automatically; extra publications remain platform-owned in V1.</p>
+          <p>Core reserves the main public hostname and its root API/node/addon paths. Extra publications must avoid those reserved Core paths.</p>
         </div>
         <div className="settings-card">
           <div className="settings-form">

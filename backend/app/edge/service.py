@@ -67,6 +67,7 @@ class EdgeGatewayService:
             core_id=identity.core_id,
             core_name=identity.core_name,
             platform_domain=identity.platform_domain,
+            public_hostname=identity.public_hostname,
             public_ui_hostname=identity.public_ui_hostname,
             public_api_hostname=identity.public_api_hostname,
         )
@@ -98,6 +99,7 @@ class EdgeGatewayService:
                     "tunnel_id": None,
                     "tunnel_name": None,
                     "tunnel_token_ref": None,
+                    "public_dns_record_id": None,
                     "ui_dns_record_id": None,
                     "api_dns_record_id": None,
                     "provisioning_state": ProvisioningState.not_configured,
@@ -214,6 +216,7 @@ class EdgeGatewayService:
             "last_error": None if result.ok else "; ".join(result.validation_errors or [str(result.provisioning.last_error or "reconcile_failed")]),
             "provisioning_state": result.provisioning.overall_state.value,
             "tunnel_id": result.provisioning.tunnel_id,
+            "public_dns_record_id": result.provisioning.public_dns_record_id,
             "ui_dns_record_id": result.provisioning.ui_dns_record_id,
             "api_dns_record_id": result.provisioning.api_dns_record_id,
         }
@@ -299,7 +302,7 @@ class EdgeGatewayService:
         builtins = [
             EdgePublication(
                 publication_id="core-ui",
-                hostname=identity.public_ui_hostname,
+                hostname=identity.public_hostname,
                 path_prefix="/",
                 enabled=True,
                 source="core_owned",
@@ -312,15 +315,41 @@ class EdgeGatewayService:
             ),
             EdgePublication(
                 publication_id="core-api",
-                hostname=identity.public_api_hostname,
-                path_prefix="/",
+                hostname=identity.public_hostname,
+                path_prefix="/api",
                 enabled=True,
                 source="core_owned",
                 target={
                     "target_type": "core_api",
                     "target_id": "core-api",
                     "upstream_base_url": "http://127.0.0.1:9001",
-                    "allowed_path_prefixes": ["/"],
+                    "allowed_path_prefixes": ["/api"],
+                },
+            ),
+            EdgePublication(
+                publication_id="core-nodes-proxy",
+                hostname=identity.public_hostname,
+                path_prefix="/nodes",
+                enabled=True,
+                source="core_owned",
+                target={
+                    "target_type": "core_nodes_proxy",
+                    "target_id": "core-nodes-proxy",
+                    "upstream_base_url": "http://127.0.0.1:9001",
+                    "allowed_path_prefixes": ["/nodes"],
+                },
+            ),
+            EdgePublication(
+                publication_id="core-addons-proxy",
+                hostname=identity.public_hostname,
+                path_prefix="/addons",
+                enabled=True,
+                source="core_owned",
+                target={
+                    "target_type": "core_addons_proxy",
+                    "target_id": "core-addons-proxy",
+                    "upstream_base_url": "http://127.0.0.1:9001",
+                    "allowed_path_prefixes": ["/addons"],
                 },
             ),
         ]
@@ -372,8 +401,16 @@ class EdgeGatewayService:
             raise HTTPException(status_code=400, detail="edge_publication_hostname_invalid")
         if not hostname.endswith(f".{identity.platform_domain}"):
             raise HTTPException(status_code=400, detail="edge_publication_domain_invalid")
-        if publication.source == "core_owned" and hostname not in {identity.public_ui_hostname, identity.public_api_hostname}:
+        reserved_core_paths = {"/", "/api", "/nodes", "/addons"}
+        if publication.source == "core_owned" and hostname != identity.public_hostname:
             raise HTTPException(status_code=400, detail="edge_core_hostname_spoofed")
+        if publication.source == "core_owned" and publication.path_prefix not in reserved_core_paths:
+            raise HTTPException(status_code=400, detail="edge_core_path_prefix_invalid")
+        if publication.source != "core_owned" and hostname == identity.public_hostname:
+            if publication.path_prefix in reserved_core_paths or any(
+                publication.path_prefix.startswith(f"{prefix}/") for prefix in {"/api", "/nodes", "/addons"}
+            ):
+                raise HTTPException(status_code=400, detail="edge_publication_reserved_core_path")
         if publication.target.target_type == "node":
             node = self._node_registrations_store.get(publication.target.target_id) if self._node_registrations_store is not None else None
             if node is None or node.trust_status != "trusted":
@@ -442,6 +479,7 @@ class EdgeGatewayService:
             update={
                 "overall_state": ProvisioningState.pending if settings.enabled else ProvisioningState.not_configured,
                 "tunnel_state": ProvisioningState.pending if settings.enabled else ProvisioningState.not_configured,
+                "public_hostname_state": ProvisioningState.pending if settings.enabled else ProvisioningState.not_configured,
                 "ui_hostname_state": ProvisioningState.pending if settings.enabled else ProvisioningState.not_configured,
                 "api_hostname_state": ProvisioningState.pending if settings.enabled else ProvisioningState.not_configured,
                 "dns_state": ProvisioningState.pending if settings.enabled else ProvisioningState.not_configured,
@@ -472,8 +510,9 @@ class EdgeGatewayService:
                 dns_results = await self._ensure_dns(identity, settings, client)
                 settings = settings.model_copy(
                     update={
+                        "public_dns_record_id": dns_results[0].dns_record_id if len(dns_results) > 0 else settings.public_dns_record_id,
                         "ui_dns_record_id": dns_results[0].dns_record_id if len(dns_results) > 0 else settings.ui_dns_record_id,
-                        "api_dns_record_id": dns_results[1].dns_record_id if len(dns_results) > 1 else settings.api_dns_record_id,
+                        "api_dns_record_id": dns_results[0].dns_record_id if len(dns_results) > 0 else settings.api_dns_record_id,
                         "last_provisioned_at": utcnow_iso(),
                         "last_provision_error": None,
                         "provisioning_state": ProvisioningState.provisioned,
@@ -483,6 +522,7 @@ class EdgeGatewayService:
                     update={
                         "overall_state": ProvisioningState.provisioned,
                         "tunnel_state": ProvisioningState.provisioned,
+                        "public_hostname_state": ProvisioningState.provisioned,
                         "ui_hostname_state": ProvisioningState.provisioned,
                         "api_hostname_state": ProvisioningState.provisioned,
                         "dns_state": ProvisioningState.provisioned,
@@ -491,8 +531,9 @@ class EdgeGatewayService:
                         "last_error": None,
                         "tunnel_id": tunnel_result.tunnel_id,
                         "tunnel_name": tunnel_result.tunnel_name,
+                        "public_dns_record_id": dns_results[0].dns_record_id if len(dns_results) > 0 else None,
                         "ui_dns_record_id": dns_results[0].dns_record_id if len(dns_results) > 0 else None,
-                        "api_dns_record_id": dns_results[1].dns_record_id if len(dns_results) > 1 else None,
+                        "api_dns_record_id": dns_results[0].dns_record_id if len(dns_results) > 0 else None,
                     }
                 )
             except CloudflareApiError as exc:
@@ -563,7 +604,13 @@ class EdgeGatewayService:
         if action == "provision":
             await self._audit(
                 "edge_cloudflare_provision_completed",
-                {"ok": True, "tunnel_id": settings.tunnel_id, "ui_dns_record_id": settings.ui_dns_record_id, "api_dns_record_id": settings.api_dns_record_id},
+                {
+                    "ok": True,
+                    "tunnel_id": settings.tunnel_id,
+                    "public_dns_record_id": settings.public_dns_record_id,
+                    "ui_dns_record_id": settings.ui_dns_record_id,
+                    "api_dns_record_id": settings.api_dns_record_id,
+                },
             )
         return CloudflareProvisionResult(
             ok=not validation_errors and provisioning.overall_state != ProvisioningState.error,
@@ -655,10 +702,8 @@ class EdgeGatewayService:
         dns_target = self._dns_target(settings.model_copy(update={"tunnel_id": settings.tunnel_id}))
         if not dns_target:
             raise CloudflareApiError("dns_target", "cloudflare_tunnel_missing")
-        ui = await client.upsert_dns_record(hostname=identity.public_ui_hostname, content=dns_target, proxied=True)
-        api = await client.upsert_dns_record(hostname=identity.public_api_hostname, content=dns_target, proxied=True)
-        await self._audit("edge_cloudflare_dns_reconciled", {"hostnames": [identity.public_ui_hostname, identity.public_api_hostname]})
+        public = await client.upsert_dns_record(hostname=identity.public_hostname, content=dns_target, proxied=True)
+        await self._audit("edge_cloudflare_dns_reconciled", {"hostnames": [identity.public_hostname]})
         return [
-            CloudflareDnsResult(hostname=ui.name, dns_record_id=ui.record_id, content=ui.content, proxied=ui.proxied),
-            CloudflareDnsResult(hostname=api.name, dns_record_id=api.record_id, content=api.content, proxied=api.proxied),
+            CloudflareDnsResult(hostname=public.name, dns_record_id=public.record_id, content=public.content, proxied=public.proxied),
         ]

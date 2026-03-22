@@ -12,8 +12,9 @@ class CloudflareConfigRenderer:
         publications: list[EdgePublication],
     ) -> dict[str, object]:
         ingress: list[dict[str, object]] = [
-            {"hostname": identity.public_ui_hostname, "service": "http://127.0.0.1:80"},
-            {"hostname": identity.public_api_hostname, "service": "http://127.0.0.1:9001"},
+            {"hostname": identity.public_hostname, "path": "/api/*", "service": "http://127.0.0.1:9001"},
+            {"hostname": identity.public_hostname, "path": "/nodes/*", "service": "http://127.0.0.1:9001"},
+            {"hostname": identity.public_hostname, "path": "/addons/*", "service": "http://127.0.0.1:9001"},
         ]
         for publication in sorted(publications, key=lambda item: (item.hostname, item.path_prefix, item.publication_id)):
             if not publication.enabled:
@@ -25,6 +26,7 @@ class CloudflareConfigRenderer:
                     "service": publication.target.upstream_base_url,
                 }
             )
+        ingress.append({"hostname": identity.public_hostname, "service": "http://127.0.0.1:80"})
         ingress.append({"service": "http_status:404"})
         return {
             "tunnel": settings.tunnel_id,

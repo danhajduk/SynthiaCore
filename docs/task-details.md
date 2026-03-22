@@ -106,3 +106,17 @@ Preserved implementation skeleton notes:
 Original task detail preserved from the trailing line formerly embedded in `docs/New_tasks.txt`.
 
 - Task 777: update or create JSON schemas in `docs/json_schema/`
+
+## Task 752.1
+Original task detail preserved from the queue update added after queue normalization.
+
+- Rework Edge Gateway to enforce single-origin Core routing.
+- Target public architecture:
+  - `/` -> Core UI on port 80
+  - `/api/*` -> Core API on port 9001
+  - `/nodes/*` -> node UI proxy on port 9001
+  - `/addons/*` -> addon UI proxy on port 9001
+
+Implementation note:
+
+- Completed by switching Edge Gateway and Cloudflare rendering to a single canonical public hostname with reserved Core-owned path roots and path-based ingress routing.

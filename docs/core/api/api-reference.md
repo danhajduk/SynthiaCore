@@ -99,6 +99,7 @@ Platform metadata currently includes:
 - `docs_name`
 - `legacy_internal_namespace`
 - `legacy_compatibility_note`
+- `public_hostname`
 - `public_ui_hostname`
 - `public_api_hostname`
 

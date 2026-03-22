@@ -8,9 +8,11 @@ The Hexe Core Edge Gateway makes Core the public ingress point for the platform.
 
 Request path:
 
-- Client -> Cloudflare Tunnel -> Core public UI hostname
-- Client -> Cloudflare Tunnel -> Core public API hostname
-- Core -> local UI/API services
+- Client -> Cloudflare Tunnel -> Core public hostname
+- `/<root>` -> Core UI on port 80
+- `/api/*` -> Core API on port 9001
+- `/nodes/*` -> Core node UI/API proxy surfaces on port 9001
+- `/addons/*` -> Core addon UI/API proxy surfaces on port 9001
 - Core -> Supervisor-managed runtimes
 - Core -> trusted nodes through explicit later publications
 
@@ -18,10 +20,9 @@ Request path:
 
 Each Core instance owns a stable persisted `core_id`.
 
-Canonical hostnames:
+Canonical public hostname:
 
-- UI: `<core-id>.hexe-ai.com`
-- API: `api.<core-id>.hexe-ai.com`
+- `<core-id>.hexe-ai.com`
 
 Rules:
 
@@ -38,7 +39,7 @@ Core:
 
 - owns the canonical public identity
 - validates and stores publication records
-- derives Core-owned UI/API hostnames
+- derives the Core-owned public hostname
 - stores Cloudflare owner/account/zone/token-reference settings
 - provisions or repairs the managed tunnel and DNS state
 - renders desired Cloudflare tunnel ingress config
@@ -63,7 +64,9 @@ Nodes:
 Built-in Core-owned publications always exist logically:
 
 - `core-ui` -> `http://127.0.0.1:80`
-- `core-api` -> `http://127.0.0.1:9001`
+- `core-api` -> `http://127.0.0.1:9001` for `/api/*`
+- `core-nodes-proxy` -> `http://127.0.0.1:9001` for `/nodes/*`
+- `core-addons-proxy` -> `http://127.0.0.1:9001` for `/addons/*`
 
 Additional publications are operator-defined and constrained to the platform-owned base domain.
 
@@ -72,6 +75,7 @@ Operator note:
 - additional publications reuse the same managed Cloudflare tunnel; they add ingress rules and hostnames rather than creating separate tunnels
 - origin `upstream_base_url` values must be plain `http(s)://host[:port]` bases with no path suffix
 - V1 includes a dedicated `frigate` target type as a convenience for Frigate-style local services while still enforcing local-loopback origin rules
+- operator-defined publications cannot claim the reserved Core root paths (`/`, `/api`, `/nodes`, `/addons`) on the canonical public hostname
 
 Validated publication rules include:
 
@@ -88,7 +92,7 @@ Validated publication rules include:
 - Supervisor remains the host-local runtime authority
 - edge proxy forwarding uses SSRF guards, header filtering, and bounded timeouts
 - Cloudflare ownership is single-owner and platform-managed in V1
-- Core-derived UI/API hostnames cannot be replaced by operator-defined publications
+- Core-owned routes on the canonical public hostname cannot be replaced by operator-defined publications
 
 ## Cloudflare Provisioning
 
@@ -99,12 +103,11 @@ V1 uses a deterministic managed tunnel name:
 Live provisioning flow:
 
 1. validate settings and token reference
-2. ensure the stable `core_id` and hostnames exist
+2. ensure the stable `core_id` and public hostname exist
 3. find or create the deterministic tunnel
 4. push the canonical ingress configuration to Cloudflare through the tunnel configurations API
 5. upsert DNS for:
    - `<core-id>.hexe-ai.com`
-   - `api.<core-id>.hexe-ai.com`
 6. resolve the live tunnel token in-memory
 7. hand runtime config to Supervisor
 8. persist provisioning status and resource ids
@@ -129,7 +132,7 @@ Runtime notes:
 
 `GET /api/edge/status` exposes:
 
-- public UI/API hostnames
+- public hostname identity
 - Cloudflare settings projection
 - tunnel/configured runtime state
 - provisioning state projection

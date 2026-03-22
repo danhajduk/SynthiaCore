@@ -24,6 +24,7 @@ class CorePublicIdentity(BaseModel):
     core_id: str = Field(..., min_length=1)
     core_name: str = Field(..., min_length=1)
     platform_domain: str = Field(..., min_length=1)
+    public_hostname: str = Field(..., min_length=1)
     public_ui_hostname: str = Field(..., min_length=1)
     public_api_hostname: str = Field(..., min_length=1)
 
@@ -38,6 +39,7 @@ class CloudflareSettings(BaseModel):
     tunnel_name: str | None = None
     tunnel_token_ref: str | None = None
     credentials_reference: str | None = None
+    public_dns_record_id: str | None = None
     ui_dns_record_id: str | None = None
     api_dns_record_id: str | None = None
     managed_domain_base: str = "hexe-ai.com"
@@ -50,7 +52,7 @@ class CloudflareSettings(BaseModel):
 
 
 class EdgeTarget(BaseModel):
-    target_type: Literal["core_ui", "core_api", "local_service", "supervisor_runtime", "node", "frigate"]
+    target_type: Literal["core_ui", "core_api", "core_nodes_proxy", "core_addons_proxy", "local_service", "supervisor_runtime", "node", "frigate"]
     target_id: str
     upstream_base_url: str
     enabled: bool = True
@@ -108,6 +110,7 @@ class EdgeTunnelStatus(BaseModel):
 class EdgeProvisioningState(BaseModel):
     overall_state: ProvisioningState = ProvisioningState.not_configured
     tunnel_state: ProvisioningState = ProvisioningState.not_configured
+    public_hostname_state: ProvisioningState = ProvisioningState.not_configured
     ui_hostname_state: ProvisioningState = ProvisioningState.not_configured
     api_hostname_state: ProvisioningState = ProvisioningState.not_configured
     dns_state: ProvisioningState = ProvisioningState.not_configured
@@ -117,6 +120,7 @@ class EdgeProvisioningState(BaseModel):
     last_error: str | None = None
     tunnel_id: str | None = None
     tunnel_name: str | None = None
+    public_dns_record_id: str | None = None
     ui_dns_record_id: str | None = None
     api_dns_record_id: str | None = None
 
