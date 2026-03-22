@@ -135,7 +135,7 @@ Enable websocket passthrough for node/addon UIs.
 
 ---
 
-[TODO] Task 741 — Add Node UI proxy routes
+[DONE] Task 741 — Add Node UI proxy routes
 
 ### Routes
 - /nodes/{node_id}/ui/

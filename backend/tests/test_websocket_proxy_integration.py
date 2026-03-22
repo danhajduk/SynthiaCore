@@ -68,7 +68,7 @@ class _FakeAddonRegistry:
 
 class _FakeNodesService:
     def __init__(self, endpoint: str) -> None:
-        self._node = SimpleNamespace(requested_ui_endpoint=endpoint, requested_hostname=None)
+        self._node = SimpleNamespace(ui_enabled=True, ui_base_url=endpoint)
 
     def get_node(self, node_id: str):
         if node_id != "node-1":

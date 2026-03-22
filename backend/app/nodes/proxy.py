@@ -24,19 +24,15 @@ class NodeUiProxy:
 
     def _target_base(self, node_id: str, request: Request) -> str:
         node = self._service.get_node(node_id)
-        raw_endpoint = str(getattr(node, "requested_ui_endpoint", "") or "").strip()
+        if not bool(getattr(node, "ui_enabled", False)):
+            raise HTTPException(status_code=404, detail="node_ui_not_enabled")
+        raw_endpoint = str(getattr(node, "ui_base_url", "") or "").strip()
         if raw_endpoint:
             parsed = urlsplit(raw_endpoint)
             if parsed.scheme in {"http", "https"} and parsed.netloc:
                 return raw_endpoint.rstrip("/")
             raise HTTPException(status_code=502, detail="node_ui_endpoint_invalid")
-        raw_host = str(getattr(node, "requested_hostname", "") or "").strip()
-        if not raw_host:
-            raise HTTPException(status_code=404, detail="node_ui_endpoint_not_configured")
-        if raw_host.startswith("http://") or raw_host.startswith("https://"):
-            return raw_host.rstrip("/")
-        scheme = "https" if request.url.scheme == "https" else "http"
-        return f"{scheme}://{raw_host.rstrip('/')}"
+        raise HTTPException(status_code=404, detail="node_ui_endpoint_not_configured")
 
     @staticmethod
     def _rewrite_root_urls(content: bytes, content_type: str | None, node_id: str) -> bytes:

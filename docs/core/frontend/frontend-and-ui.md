@@ -19,7 +19,7 @@ Status: Implemented
 - Public route: `/`.
 - Onboarding approval route: `/onboarding/nodes/approve?sid=...&state=...` (login-gated within page flow).
 - Admin-gated routes: `/store`, `/addons`, `/settings`, `/settings/jobs`, `/settings/metrics`, `/settings/statistics`, and addon routes.
-- Node routes: `/nodes/:nodeId` for registry details and `/nodes/:nodeId/UI` for the Core-proxied node UI iframe when the node registration includes `requested_ui_endpoint` or `requested_hostname`.
+- Node routes: `/nodes/:nodeId` for registry details and `/nodes/:nodeId/UI` for the Core-proxied node UI iframe when the node registration exposes `ui_enabled=true` and a canonical `ui_base_url`.
 - Addon frame routes: `/addons/:addonId` and `/addons/:addonId/:section`.
 - Canonical backend proxy paths:
   - nodes: `/nodes/{node_id}/ui/` and `/nodes/{node_id}/ui/{path}`

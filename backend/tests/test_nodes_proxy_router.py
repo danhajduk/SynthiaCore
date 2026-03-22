@@ -1,5 +1,6 @@
 import unittest
 
+from fastapi import HTTPException
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
@@ -152,6 +153,72 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
         self.assertIn('"/nodes/node-123/ui/node_modules/vite/dist/client/env.mjs"', rewritten)
         self.assertIn('"/nodes/node-123/ui/src/App.jsx?t=123"', rewritten)
         self.assertIn('"/nodes/node-123/ui/src/theme/index.css"', rewritten)
+
+
+class _TargetService:
+    def __init__(self, node) -> None:
+        self._node = node
+
+    def get_node(self, node_id: str):
+        if node_id != "node-1":
+            raise HTTPException(status_code=404, detail="node_not_found")
+        return self._node
+
+
+class TestNodeUiProxyTargetSelection(unittest.TestCase):
+    def test_uses_canonical_ui_base_url(self) -> None:
+        proxy = NodeUiProxy(
+            _TargetService(
+                type(
+                    "Node",
+                    (),
+                    {
+                        "ui_enabled": True,
+                        "ui_base_url": "http://10.0.0.9:8765/ui",
+                    },
+                )()
+            )
+        )
+        request = type("Req", (), {"url": type("Url", (), {"scheme": "http"})()})()
+        self.assertEqual(proxy._target_base("node-1", request), "http://10.0.0.9:8765/ui")
+
+    def test_rejects_disabled_node_ui(self) -> None:
+        proxy = NodeUiProxy(
+            _TargetService(
+                type(
+                    "Node",
+                    (),
+                    {
+                        "ui_enabled": False,
+                        "ui_base_url": "http://10.0.0.9:8765/ui",
+                    },
+                )()
+            )
+        )
+        request = type("Req", (), {"url": type("Url", (), {"scheme": "http"})()})()
+        with self.assertRaises(HTTPException) as exc:
+            proxy._target_base("node-1", request)
+        self.assertEqual(exc.exception.status_code, 404)
+        self.assertEqual(exc.exception.detail, "node_ui_not_enabled")
+
+    def test_rejects_missing_node_ui_base_url(self) -> None:
+        proxy = NodeUiProxy(
+            _TargetService(
+                type(
+                    "Node",
+                    (),
+                    {
+                        "ui_enabled": True,
+                        "ui_base_url": None,
+                    },
+                )()
+            )
+        )
+        request = type("Req", (), {"url": type("Url", (), {"scheme": "http"})()})()
+        with self.assertRaises(HTTPException) as exc:
+            proxy._target_base("node-1", request)
+        self.assertEqual(exc.exception.status_code, 404)
+        self.assertEqual(exc.exception.detail, "node_ui_endpoint_not_configured")
 
 
 if __name__ == "__main__":

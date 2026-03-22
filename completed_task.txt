@@ -1,3 +1,4 @@
+2026-03-22 - Task 741: aligned node UI proxy routes to require canonical registry UI metadata (`ui_enabled` and `ui_base_url`) for HTTP and websocket traffic.
 2026-03-22 - Task 740: added websocket passthrough for addon and node proxy routes with real round-trip echo regression coverage.
 2026-03-22 - Task 739: added a shared HTTP reverse proxy service with forwarded-header injection and refit addon/node proxy routers onto the shared transport path.
 2026-03-22 - Task 738: extended node/addon registry models with canonical UI proxy metadata, legacy data backfill, and registry API coverage.
