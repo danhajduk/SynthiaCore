@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from urllib.parse import quote, urlsplit
 
 import httpx
@@ -34,6 +35,9 @@ REQUEST_HEADER_ALLOWLIST = {
     "user-agent",
 }
 
+HTML_ROOT_URL_ATTR_RE = re.compile(r'(?P<prefix>\b(?:src|href|action)=["\'])(?P<path>/[^"\']*)')
+ROOT_URL_STRING_RE = re.compile(r'(?P<quote>["\'])(?P<path>/(?!ui/nodes/|/)[^"\']*)(?P=quote)')
+
 
 class NodeUiProxy:
     def __init__(self, service: NodesDomainService) -> None:
@@ -42,6 +46,13 @@ class NodeUiProxy:
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+    @staticmethod
+    def _build_target_url(target_base: str, path: str, query: str = "") -> str:
+        target = f"{target_base}/{quote(path.lstrip('/'), safe='/@:')}" if path else target_base
+        if query:
+            target = f"{target}?{query}"
+        return target
 
     def _target_base(self, node_id: str, request: Request) -> str:
         node = self._service.get_node(node_id)
@@ -77,11 +88,34 @@ class NodeUiProxy:
             headers[key] = value
         return headers
 
+    @staticmethod
+    def _rewrite_root_urls(content: bytes, content_type: str | None, node_id: str) -> bytes:
+        normalized_type = str(content_type or "").lower()
+        is_html = "text/html" in normalized_type
+        is_js = "javascript" in normalized_type
+        is_css = "text/css" in normalized_type
+        if not (is_html or is_js or is_css):
+            return content
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            return content
+        proxy_prefix = f"/ui/nodes/{quote(node_id, safe='')}"
+        rewritten = text
+        if is_html:
+            rewritten = HTML_ROOT_URL_ATTR_RE.sub(
+                lambda match: f"{match.group('prefix')}{proxy_prefix}{match.group('path')}",
+                rewritten,
+            )
+        rewritten = ROOT_URL_STRING_RE.sub(
+            lambda match: f"{match.group('quote')}{proxy_prefix}{match.group('path')}{match.group('quote')}",
+            rewritten,
+        )
+        return rewritten.encode("utf-8")
+
     async def forward(self, request: Request, node_id: str, path: str = "") -> Response:
         target_base = self._target_base(node_id, request)
-        target = f"{target_base}/{quote(path.lstrip('/'), safe='/')}" if path else target_base
-        if request.url.query:
-            target = f"{target}?{request.url.query}"
+        target = self._build_target_url(target_base, path, request.url.query)
         body = await request.body()
         try:
             upstream = await self._client.request(
@@ -92,8 +126,13 @@ class NodeUiProxy:
             )
         except httpx.HTTPError as exc:
             raise HTTPException(status_code=502, detail=f"node_ui_proxy_error: {type(exc).__name__}")
+        content = self._rewrite_root_urls(
+            upstream.content,
+            upstream.headers.get("content-type"),
+            node_id,
+        )
         return Response(
-            content=upstream.content,
+            content=content,
             status_code=upstream.status_code,
             headers=self._safe_response_headers(upstream.headers),
         )

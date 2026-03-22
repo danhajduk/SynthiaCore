@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
+from app.nodes.proxy import NodeUiProxy
 from app.nodes.proxy import build_node_ui_proxy_router
 
 
@@ -58,6 +59,70 @@ class TestNodeUiProxyRouter(unittest.TestCase):
         self.assertEqual(head.status_code, 200, head.text)
 
         self.assertEqual(self.proxy.calls, [("HEAD", "node-1", "status")])
+
+
+class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
+    def test_build_target_url_preserves_vite_paths(self) -> None:
+        target = NodeUiProxy._build_target_url(
+            "http://10.0.0.100:8081",
+            "@vite/client",
+            "t=123",
+        )
+        self.assertEqual(target, "http://10.0.0.100:8081/@vite/client?t=123")
+
+    def test_rewrites_root_absolute_html_urls_to_proxy_prefix(self) -> None:
+        original = b"""
+        <!doctype html>
+        <html>
+          <head>
+            <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";</script>
+            <script type="module" src="/@vite/client"></script>
+            <link rel="stylesheet" href="/src/index.css" />
+          </head>
+          <body>
+            <form action="/submit"></form>
+            <img src="/logo.svg" />
+          </body>
+        </html>
+        """
+
+        rewritten = NodeUiProxy._rewrite_root_urls(
+            original,
+            "text/html; charset=utf-8",
+            "node-123",
+        ).decode("utf-8")
+
+        self.assertIn('from "/ui/nodes/node-123/@react-refresh"', rewritten)
+        self.assertIn('src="/ui/nodes/node-123/@vite/client"', rewritten)
+        self.assertIn('href="/ui/nodes/node-123/src/index.css"', rewritten)
+        self.assertIn('action="/ui/nodes/node-123/submit"', rewritten)
+        self.assertIn('src="/ui/nodes/node-123/logo.svg"', rewritten)
+
+    def test_leaves_non_html_responses_unchanged(self) -> None:
+        original = b'{"ok":true,"path":"/status"}'
+        rewritten = NodeUiProxy._rewrite_root_urls(
+            original,
+            "application/json",
+            "node-123",
+        )
+        self.assertEqual(rewritten, original)
+
+    def test_rewrites_root_absolute_javascript_imports(self) -> None:
+        original = b"""
+        import "/node_modules/vite/dist/client/env.mjs";
+        import App from "/src/App.jsx?t=123";
+        import "/src/theme/index.css";
+        """
+
+        rewritten = NodeUiProxy._rewrite_root_urls(
+            original,
+            "text/javascript",
+            "node-123",
+        ).decode("utf-8")
+
+        self.assertIn('"/ui/nodes/node-123/node_modules/vite/dist/client/env.mjs"', rewritten)
+        self.assertIn('"/ui/nodes/node-123/src/App.jsx?t=123"', rewritten)
+        self.assertIn('"/ui/nodes/node-123/src/theme/index.css"', rewritten)
 
 
 if __name__ == "__main__":

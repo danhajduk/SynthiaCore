@@ -35,6 +35,7 @@ UI endpoint rules:
 - Core accepts `ui_endpoint` only as an absolute `http(s)` URL.
 - Core persists the value as `requested_ui_endpoint` on the onboarding session and registration record.
 - Core node UI route `/nodes/:nodeId/UI` prefers `requested_ui_endpoint` and falls back to `requested_hostname` when no explicit endpoint was provided.
+- Core serves that route through the node UI proxy so root-relative node assets are requested back through `/ui/nodes/{node_id}/...`.
 - `hostname` remains supported as a lightweight identity/location hint and fallback UI target source.
 
 ## Approval And Decision
