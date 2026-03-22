@@ -824,3 +824,4 @@ Task 753: Define frontend path-prefix behavior requirements - Completed on 03/22
 Task 754: Define frontend API base-path requirements - Completed on 03/22/2026 16:07
 Task 755: Define websocket proxy compatibility requirements - Completed on 03/22/2026 16:10
 Task 756: Define forwarded-header contract from Core to proxied targets - Completed on 03/22/2026 16:12
+Task 757: Define runtime config injection contract for proxied UIs - Completed on 03/22/2026 16:15
