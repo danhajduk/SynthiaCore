@@ -69,6 +69,7 @@ class TestUiTargetResolver(unittest.TestCase):
                 "ui_enabled": True,
                 "ui_base_url": "http://10.0.0.9:8765/ui",
                 "ui_health_endpoint": "http://10.0.0.9:8765/health",
+                "api_base_url": "http://10.0.0.9:8081",
             },
         )()
         resolver = UiTargetResolver(nodes_service=_NodesService(node))

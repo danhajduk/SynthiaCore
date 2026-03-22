@@ -57,10 +57,12 @@ class NodeRecord(BaseModel):
     requested_node_type: str | None = None
     requested_hostname: str | None = None
     requested_ui_endpoint: str | None = None
+    requested_api_base_url: str | None = None
     ui_enabled: bool = False
     ui_base_url: str | None = None
     ui_mode: UiMode = "spa"
     ui_health_endpoint: str | None = None
+    api_base_url: str | None = None
     node_software_version: str
     approved_by_user_id: str | None = None
     approved_at: str | None = None
@@ -85,6 +87,11 @@ class NodeRecord(BaseModel):
     @classmethod
     def _validate_ui_health_endpoint(cls, value: str | None) -> str | None:
         return normalize_ui_health_endpoint(value)
+
+    @field_validator("api_base_url")
+    @classmethod
+    def _validate_api_base_url(cls, value: str | None) -> str | None:
+        return normalize_ui_base_url(value)
 
 
 class NodeRegistryListResponse(BaseModel):

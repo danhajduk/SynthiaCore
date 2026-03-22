@@ -46,6 +46,15 @@
       "pattern": "^https?://",
       "description": "Optional absolute node-hosted UI URL preferred by Core for /nodes/:nodeId/UI."
     },
+    "api_base_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "Optional absolute node API base URL preferred by Core for /api/nodes/{node_id}/... proxying."
+    },
     "node_nonce": {
       "type": "string",
       "minLength": 3,

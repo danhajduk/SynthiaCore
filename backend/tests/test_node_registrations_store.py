@@ -63,6 +63,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertIsNone(by_id.ui_base_url)
         self.assertEqual(by_id.ui_mode, "spa")
         self.assertIsNone(by_id.ui_health_endpoint)
+        self.assertIsNone(by_id.api_base_url)
         by_session = reloaded.get_by_session("sess-001")
         self.assertIsNotNone(by_session)
         assert by_session is not None
@@ -99,6 +100,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertIsNone(item.ui_base_url)
         self.assertEqual(item.ui_mode, "spa")
         self.assertIsNone(item.ui_health_endpoint)
+        self.assertIsNone(item.api_base_url)
 
     def test_backward_compatible_load_derives_ui_metadata_from_legacy_fields(self) -> None:
         payload = {
@@ -128,6 +130,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertEqual(item.ui_base_url, "http://legacy-ui.local:8765/ui")
         self.assertEqual(item.ui_mode, "spa")
         self.assertIsNone(item.ui_health_endpoint)
+        self.assertEqual(item.api_base_url, "http://legacy-ui.local:8765")
 
     def test_upsert_from_approved_session_binds_session_mapping(self) -> None:
         session = NodeOnboardingSession(
@@ -139,6 +142,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
             requested_node_software_version="2.0.0",
             requested_hostname=None,
             requested_ui_endpoint=None,
+            requested_api_base_url=None,
             requested_from_ip=None,
             request_metadata={},
             created_at="2026-03-11T00:00:00+00:00",
@@ -160,6 +164,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertFalse(created.ui_enabled)
         self.assertIsNone(created.ui_base_url)
         self.assertEqual(created.ui_mode, "spa")
+        self.assertIsNone(created.api_base_url)
 
         api_payload = created.to_api_dict()
         self.assertEqual(api_payload["requested_node_name"], "kitchen-node")
@@ -168,6 +173,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertFalse(api_payload["ui_enabled"])
         self.assertIsNone(api_payload["ui_base_url"])
         self.assertEqual(api_payload["ui_mode"], "spa")
+        self.assertIsNone(api_payload["api_base_url"])
 
     def test_upsert_from_approved_session_derives_ui_metadata(self) -> None:
         session = NodeOnboardingSession(
@@ -179,6 +185,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
             requested_node_software_version="2.1.0",
             requested_hostname="ui-node.local",
             requested_ui_endpoint="http://ui-node.local:8765/ui",
+            requested_api_base_url="http://ui-node.local:8081",
             requested_from_ip=None,
             request_metadata={},
             created_at="2026-03-11T00:00:00+00:00",
@@ -197,6 +204,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertEqual(created.ui_base_url, "http://ui-node.local:8765/ui")
         self.assertEqual(created.ui_mode, "spa")
         self.assertIsNone(created.ui_health_endpoint)
+        self.assertEqual(created.api_base_url, "http://ui-node.local:8081")
 
     def test_mark_trusted_by_session(self) -> None:
         record = NodeRegistrationRecord(

@@ -53,6 +53,7 @@ class NodeOnboardingStartRequest(BaseModel):
     protocol_version: str
     hostname: str | None = None
     ui_endpoint: str | None = None
+    api_base_url: str | None = None
     node_nonce: str
     node_id: str | None = None
 
@@ -439,6 +440,7 @@ def _session_payload(session) -> dict[str, object]:
         "requested_node_software_version": session.requested_node_software_version,
         "requested_hostname": session.requested_hostname,
         "requested_ui_endpoint": session.requested_ui_endpoint,
+        "requested_api_base_url": session.requested_api_base_url,
         "requested_from_ip": session.requested_from_ip,
         "created_at": session.created_at,
         "expires_at": session.expires_at,
@@ -717,6 +719,14 @@ def build_system_router(
                     status_code=400,
                     detail=_onboarding_error("ui_endpoint_invalid", "ui_endpoint must be an absolute http(s) url"),
                 )
+        requested_api_base_url = str(body.api_base_url or "").strip() or None
+        if requested_api_base_url:
+            parsed_api = urlsplit(requested_api_base_url)
+            if parsed_api.scheme not in {"http", "https"} or not parsed_api.netloc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=_onboarding_error("api_base_url_invalid", "api_base_url must be an absolute http(s) url"),
+                )
         try:
             node_nonce = _validate_node_nonce(body.node_nonce)
         except ValueError as exc:
@@ -754,6 +764,7 @@ def build_system_router(
             requested_node_software_version=body.node_software_version,
             requested_hostname=body.hostname,
             requested_ui_endpoint=requested_ui_endpoint,
+            requested_api_base_url=requested_api_base_url,
             requested_from_ip=(source_ip if source_ip != "unknown" else None),
             request_metadata={
                 "protocol_version": protocol_version,
@@ -782,6 +793,7 @@ def build_system_router(
                 "requested_node_software_version": session.requested_node_software_version,
                 "requested_hostname": session.requested_hostname,
                 "requested_ui_endpoint": session.requested_ui_endpoint,
+                "requested_api_base_url": session.requested_api_base_url,
                 "approval_url": _build_approval_url(request, session.session_id, approval_state),
                 "expires_at": session.expires_at,
                 "finalize": {

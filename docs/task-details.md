@@ -107,6 +107,23 @@ Original task detail preserved from the trailing line formerly embedded in `docs
 
 - Task 777: update or create JSON schemas in `docs/json_schema/`
 
+## Task 778-781
+Original task details preserved from the node API metadata follow-up queue added after the proxied UI contract work.
+
+Active normalized queue entries:
+
+- Task 778: Add canonical node api_base_url onboarding and registration metadata
+- Task 779: Route node API proxy through canonical api_base_url metadata
+- Task 780: Expose node api_base_url in admin/operator UI surfaces
+- Task 781: Document and schema-update the canonical node API metadata contract
+
+Preserved details:
+
+- Task 778 adds a first-class node `api_base_url` contract to onboarding, session persistence, registration persistence, and canonical node metadata so Core no longer has to infer the node API port from the UI origin.
+- Task 779 updates `/api/nodes/{node_id}/...` proxy routing to use canonical `api_base_url` metadata, while preserving safe fallback behavior for older registrations that only expose UI metadata.
+- Task 780 surfaces canonical node API metadata in the operator/admin UI so onboarding review and node detail pages show the effective node API origin.
+- Task 781 updates the onboarding/request schemas and verified docs so the node UI and node API contracts are both explicit and proxy-safe.
+
 ## Task 752.1
 Original task detail preserved from the queue update added after queue normalization.
 

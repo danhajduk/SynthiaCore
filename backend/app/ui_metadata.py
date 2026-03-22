@@ -28,6 +28,35 @@ def normalize_ui_health_endpoint(raw: str | None) -> str | None:
     return normalize_ui_base_url(raw)
 
 
+def derive_node_api_base_url(
+    *,
+    api_base_url: str | None = None,
+    ui_base_url: str | None = None,
+    requested_ui_endpoint: str | None = None,
+    requested_hostname: str | None = None,
+) -> str | None:
+    base = normalize_ui_base_url(api_base_url)
+    if base is not None:
+        return base
+    fallback = normalize_ui_base_url(ui_base_url)
+    if fallback is None:
+        fallback = normalize_ui_base_url(requested_ui_endpoint)
+    if fallback is not None:
+        parsed = urlsplit(fallback)
+        return urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+    host = str(requested_hostname or "").strip()
+    if not host:
+        return None
+    if host.startswith("http://") or host.startswith("https://"):
+        parsed_host = urlsplit(host)
+        if parsed_host.scheme in {"http", "https"} and parsed_host.netloc:
+            return urlunsplit((parsed_host.scheme, parsed_host.netloc, "", "", ""))
+    parsed_host = urlsplit(f"http://{host}")
+    if parsed_host.netloc:
+        return urlunsplit((parsed_host.scheme, parsed_host.netloc, "", "", ""))
+    return None
+
+
 def derive_node_ui_metadata(
     *,
     requested_ui_endpoint: str | None,

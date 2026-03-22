@@ -99,6 +99,7 @@ class TestNodeRegistrationsApi(unittest.TestCase):
                 "node_software_version": "1.0.0",
                 "protocol_version": "1.0",
                 "ui_endpoint": f"http://{node_name}.local:8765/ui",
+                "api_base_url": f"http://{node_name}.local:8081",
                 "node_nonce": nonce,
             },
         )
@@ -124,10 +125,12 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         self.assertEqual(items[0]["trust_status"], "approved")
         self.assertEqual(items[0]["source_onboarding_session_id"], created["source_onboarding_session_id"])
         self.assertEqual(items[0]["requested_ui_endpoint"], "http://office-node.local:8765/ui")
+        self.assertEqual(items[0]["requested_api_base_url"], "http://office-node.local:8081")
         self.assertTrue(items[0]["ui_enabled"])
         self.assertEqual(items[0]["ui_base_url"], "http://office-node.local:8765/ui")
         self.assertEqual(items[0]["ui_mode"], "spa")
         self.assertIsNone(items[0]["ui_health_endpoint"])
+        self.assertEqual(items[0]["api_base_url"], "http://office-node.local:8081")
 
         got = self.client.get(f"/api/system/nodes/registrations/{node_id}", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(got.status_code, 200, got.text)
@@ -135,10 +138,12 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         self.assertEqual(registration["node_type"], "ai")
         self.assertEqual(registration["requested_node_type"], "ai-node")
         self.assertEqual(registration["requested_ui_endpoint"], "http://office-node.local:8765/ui")
+        self.assertEqual(registration["requested_api_base_url"], "http://office-node.local:8081")
         self.assertTrue(registration["ui_enabled"])
         self.assertEqual(registration["ui_base_url"], "http://office-node.local:8765/ui")
         self.assertEqual(registration["ui_mode"], "spa")
         self.assertIsNone(registration["ui_health_endpoint"])
+        self.assertEqual(registration["api_base_url"], "http://office-node.local:8081")
 
     def test_finalize_marks_registration_trusted(self) -> None:
         started = self.client.post(

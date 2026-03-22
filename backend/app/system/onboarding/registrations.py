@@ -5,11 +5,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.ui_metadata import derive_node_ui_metadata
+from app.ui_metadata import derive_node_api_base_url, derive_node_ui_metadata
 
 from .sessions import NodeOnboardingSession
 
-NODE_REGISTRATION_SCHEMA_VERSION = "3"
+NODE_REGISTRATION_SCHEMA_VERSION = "4"
 REGISTRATION_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "node_name": ("node_name", "requested_node_name"),
     "node_type": ("node_type", "requested_node_type"),
@@ -51,10 +51,12 @@ class NodeRegistrationRecord:
     updated_at: str
     requested_hostname: str | None = None
     requested_ui_endpoint: str | None = None
+    requested_api_base_url: str | None = None
     ui_enabled: bool = False
     ui_base_url: str | None = None
     ui_mode: str = "spa"
     ui_health_endpoint: str | None = None
+    api_base_url: str | None = None
     declared_capabilities: list[str] = field(default_factory=list)
     enabled_providers: list[str] = field(default_factory=list)
     provider_intelligence: list[dict[str, object]] = field(default_factory=list)
@@ -73,10 +75,12 @@ class NodeRegistrationRecord:
             "requested_node_type": self.requested_node_type,
             "requested_hostname": self.requested_hostname,
             "requested_ui_endpoint": self.requested_ui_endpoint,
+            "requested_api_base_url": self.requested_api_base_url,
             "ui_enabled": self.ui_enabled,
             "ui_base_url": self.ui_base_url,
             "ui_mode": self.ui_mode,
             "ui_health_endpoint": self.ui_health_endpoint,
+            "api_base_url": self.api_base_url,
             "capabilities_summary": list(self.capabilities_summary or []),
             "declared_capabilities": list(self.declared_capabilities or []),
             "enabled_providers": list(self.enabled_providers or []),
@@ -100,10 +104,12 @@ class NodeRegistrationRecord:
         payload["requested_node_software_version"] = self.node_software_version
         payload["requested_hostname"] = self.requested_hostname
         payload["requested_ui_endpoint"] = self.requested_ui_endpoint
+        payload["requested_api_base_url"] = self.requested_api_base_url
         payload["ui_enabled"] = self.ui_enabled
         payload["ui_base_url"] = self.ui_base_url
         payload["ui_mode"] = self.ui_mode
         payload["ui_health_endpoint"] = self.ui_health_endpoint
+        payload["api_base_url"] = self.api_base_url
         return payload
 
 
@@ -168,6 +174,12 @@ class NodeRegistrationsStore:
                 ui_mode=str(item.get("ui_mode") or "").strip() or None,
                 ui_health_endpoint=str(item.get("ui_health_endpoint") or "").strip() or None,
             )
+            api_base_url = derive_node_api_base_url(
+                api_base_url=str(item.get("api_base_url") or "").strip() or None,
+                ui_base_url=ui_base_url,
+                requested_ui_endpoint=str(item.get("requested_ui_endpoint") or "").strip() or None,
+                requested_hostname=str(item.get("requested_hostname") or "").strip() or None,
+            )
             record = NodeRegistrationRecord(
                 node_id=node_id,
                 node_type=node_type,
@@ -176,10 +188,12 @@ class NodeRegistrationsStore:
                 requested_node_type=str(item.get("requested_node_type") or "").strip() or None,
                 requested_hostname=str(item.get("requested_hostname") or "").strip() or None,
                 requested_ui_endpoint=str(item.get("requested_ui_endpoint") or "").strip() or None,
+                requested_api_base_url=str(item.get("requested_api_base_url") or "").strip() or None,
                 ui_enabled=ui_enabled,
                 ui_base_url=ui_base_url,
                 ui_mode=ui_mode,
                 ui_health_endpoint=ui_health_endpoint,
+                api_base_url=api_base_url,
                 capabilities_summary=[v for v in capabilities if v],
                 declared_capabilities=[v for v in declared_capabilities if v],
                 enabled_providers=[v for v in enabled_providers if v],
@@ -259,6 +273,16 @@ class NodeRegistrationsStore:
             ui_mode=existing.ui_mode if existing is not None else None,
             ui_health_endpoint=existing.ui_health_endpoint if existing is not None else None,
         )
+        api_base_url = derive_node_api_base_url(
+            api_base_url=(
+                str(session.requested_api_base_url or "").strip() or None
+                if str(session.requested_api_base_url or "").strip()
+                else (existing.api_base_url if existing is not None else None)
+            ),
+            ui_base_url=ui_base_url,
+            requested_ui_endpoint=str(session.requested_ui_endpoint or "").strip() or None,
+            requested_hostname=str(session.requested_hostname or "").strip() or None,
+        )
         record = NodeRegistrationRecord(
             node_id=node_id,
             node_type=str(session.requested_node_type or "").strip(),
@@ -268,10 +292,12 @@ class NodeRegistrationsStore:
             or str(session.requested_node_type or "").strip(),
             requested_hostname=str(session.requested_hostname or "").strip() or None,
             requested_ui_endpoint=str(session.requested_ui_endpoint or "").strip() or None,
+            requested_api_base_url=str(session.requested_api_base_url or "").strip() or None,
             ui_enabled=ui_enabled,
             ui_base_url=ui_base_url,
             ui_mode=ui_mode,
             ui_health_endpoint=ui_health_endpoint,
+            api_base_url=api_base_url,
             capabilities_summary=[],
             declared_capabilities=[],
             enabled_providers=[],

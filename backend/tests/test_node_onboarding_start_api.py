@@ -80,6 +80,7 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
             "protocol_version": "1.0",
             "hostname": "office-node-host",
             "ui_endpoint": "http://office-node-host:8765/ui",
+            "api_base_url": "http://office-node-host:8081",
             "node_nonce": "nonce-abc",
         }
 
@@ -98,6 +99,7 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         self.assertIn("expires_at", session)
         self.assertEqual(session["requested_hostname"], "office-node-host")
         self.assertEqual(session["requested_ui_endpoint"], "http://office-node-host:8765/ui")
+        self.assertEqual(session["requested_api_base_url"], "http://office-node-host:8081")
         self.assertEqual(session["finalize"]["method"], "GET")
         self.assertIn("/api/system/nodes/onboarding/sessions/", session["finalize"]["path"])
         self.assertIn("/onboarding/registrations/approve", session["approval_url"])
@@ -108,6 +110,13 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         resp = self.client.post("/api/system/nodes/onboarding/sessions", json=payload)
         self.assertEqual(resp.status_code, 400, resp.text)
         self.assertEqual(resp.json()["detail"]["error"], "ui_endpoint_invalid")
+
+    def test_invalid_api_base_url_rejected(self) -> None:
+        payload = self._payload()
+        payload["api_base_url"] = "office-node-host:8081"
+        resp = self.client.post("/api/system/nodes/onboarding/sessions", json=payload)
+        self.assertEqual(resp.status_code, 400, resp.text)
+        self.assertEqual(resp.json()["detail"]["error"], "api_base_url_invalid")
 
     def test_legacy_ai_node_alias_routes_emit_deprecation_headers(self) -> None:
         started = self.client.post("/api/system/ai-nodes/onboarding/sessions", json=self._payload())
