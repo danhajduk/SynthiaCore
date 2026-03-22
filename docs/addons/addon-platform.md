@@ -32,6 +32,17 @@ Primary surfaces:
 - `/api/admin/addons/registry*`
 - `/api/store/status*`
 
+Registered addon records expose canonical Core-side UI proxy metadata:
+- `ui_enabled`
+- `ui_base_url`
+- `ui_mode`
+
+Registry UI metadata rules:
+- `ui_base_url` must be an absolute `http://` or `https://` URL when present
+- legacy registered addons safely backfill UI metadata from `base_url`
+- `ui_mode` defaults to `server`
+- missing UI metadata remains explicit through `ui_enabled = false`
+
 ## Addon Lifecycle
 
 Status: Implemented

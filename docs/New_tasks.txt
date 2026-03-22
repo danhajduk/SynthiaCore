@@ -47,7 +47,7 @@ Do not edit above this line:
 
 # Core Tasks — Unified UI Reverse Proxy (Nodes + Addons)
 
-[TODO] Task 738 — Extend registry models with UI proxy metadata
+[DONE] Task 738 — Extend registry models with UI proxy metadata
 
 ### Goal
 Allow Core to know how to proxy UI for nodes and addons.

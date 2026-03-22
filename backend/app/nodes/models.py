@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.ui_metadata import UiMode, normalize_ui_base_url, normalize_ui_health_endpoint, normalize_ui_mode
 
 
 class NodeCapabilityCategorySummary(BaseModel):
@@ -55,6 +57,10 @@ class NodeRecord(BaseModel):
     requested_node_type: str | None = None
     requested_hostname: str | None = None
     requested_ui_endpoint: str | None = None
+    ui_enabled: bool = False
+    ui_base_url: str | None = None
+    ui_mode: UiMode = "spa"
+    ui_health_endpoint: str | None = None
     node_software_version: str
     approved_by_user_id: str | None = None
     approved_at: str | None = None
@@ -64,6 +70,21 @@ class NodeRecord(BaseModel):
     provider_intelligence: list[dict[str, object]] = Field(default_factory=list)
     capabilities: NodeCapabilitySummary = Field(default_factory=NodeCapabilitySummary)
     status: NodeStatusSummary = Field(default_factory=NodeStatusSummary)
+
+    @field_validator("ui_base_url")
+    @classmethod
+    def _validate_ui_base_url(cls, value: str | None) -> str | None:
+        return normalize_ui_base_url(value)
+
+    @field_validator("ui_mode")
+    @classmethod
+    def _validate_ui_mode(cls, value: str) -> UiMode:
+        return normalize_ui_mode(value)
+
+    @field_validator("ui_health_endpoint")
+    @classmethod
+    def _validate_ui_health_endpoint(cls, value: str | None) -> str | None:
+        return normalize_ui_health_endpoint(value)
 
 
 class NodeRegistryListResponse(BaseModel):

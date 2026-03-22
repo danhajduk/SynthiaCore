@@ -1,3 +1,4 @@
+Task 738: Extend registry models with UI proxy metadata - Completed on 03/22/2026 15:01
 Task 004: Define Supervisor domain models and service boundaries - Completed on 03/16/2026 02:33
 Task 005: Move host-local health/resource logic behind Supervisor APIs - Completed on 03/16/2026 02:35
 Task 006: Add Supervisor host API surface - Completed on 03/16/2026 02:37

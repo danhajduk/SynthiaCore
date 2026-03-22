@@ -114,6 +114,10 @@ Status: Implemented
   - `GET /api/addons/registry`
   - `POST /api/addons/registry/{addon_id}/register`
   - `GET /api/admin/addons/registry`
+
+Registry payloads include canonical UI proxy metadata for Core-managed embedding:
+- addons: `ui_enabled`, `ui_base_url`, `ui_mode`
+- nodes: `ui_enabled`, `ui_base_url`, `ui_mode`, `ui_health_endpoint`
 - Install sessions:
   - `POST /api/addons/install/start`
   - `GET /api/addons/install/{session_id}`

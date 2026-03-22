@@ -124,6 +124,10 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         self.assertEqual(items[0]["trust_status"], "approved")
         self.assertEqual(items[0]["source_onboarding_session_id"], created["source_onboarding_session_id"])
         self.assertEqual(items[0]["requested_ui_endpoint"], "http://office-node.local:8765/ui")
+        self.assertTrue(items[0]["ui_enabled"])
+        self.assertEqual(items[0]["ui_base_url"], "http://office-node.local:8765/ui")
+        self.assertEqual(items[0]["ui_mode"], "spa")
+        self.assertIsNone(items[0]["ui_health_endpoint"])
 
         got = self.client.get(f"/api/system/nodes/registrations/{node_id}", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(got.status_code, 200, got.text)
@@ -131,6 +135,10 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         self.assertEqual(registration["node_type"], "ai")
         self.assertEqual(registration["requested_node_type"], "ai-node")
         self.assertEqual(registration["requested_ui_endpoint"], "http://office-node.local:8765/ui")
+        self.assertTrue(registration["ui_enabled"])
+        self.assertEqual(registration["ui_base_url"], "http://office-node.local:8765/ui")
+        self.assertEqual(registration["ui_mode"], "spa")
+        self.assertIsNone(registration["ui_health_endpoint"])
 
     def test_finalize_marks_registration_trusted(self) -> None:
         started = self.client.post(

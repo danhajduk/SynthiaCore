@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..addons.registry import AddonRegistry
+from ..ui_metadata import UiMode, normalize_ui_base_url, normalize_ui_mode
 from .admin import require_admin_token
 
 
@@ -13,6 +14,21 @@ class RegisterAddonRequest(BaseModel):
     base_url: str = Field(..., min_length=1)
     name: str | None = None
     version: str | None = None
+    ui_enabled: bool | None = None
+    ui_base_url: str | None = None
+    ui_mode: UiMode | None = None
+
+    @field_validator("ui_base_url")
+    @classmethod
+    def _validate_ui_base_url(cls, value: str | None) -> str | None:
+        return normalize_ui_base_url(value)
+
+    @field_validator("ui_mode")
+    @classmethod
+    def _validate_ui_mode(cls, value: UiMode | None) -> UiMode | None:
+        if value is None:
+            return None
+        return normalize_ui_mode(value, default="server")
 
 
 class ConfigureAddonRequest(BaseModel):
@@ -46,6 +62,9 @@ def build_addons_registry_router(registry: AddonRegistry) -> APIRouter:
             base_url=body.base_url.strip(),
             name=body.name.strip() if body.name else None,
             version=body.version.strip() if body.version else None,
+            ui_enabled=body.ui_enabled,
+            ui_base_url=body.ui_base_url,
+            ui_mode=body.ui_mode,
         )
         return {"ok": True, "addon": saved.model_dump(mode="json")}
 

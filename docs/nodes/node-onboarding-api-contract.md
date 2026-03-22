@@ -76,6 +76,18 @@ Deterministic behavior rules:
 - `GET /api/system/nodes/registrations/{node_id}` (admin auth)
 - `GET /api/system/nodes/trust-status/{node_id}` (node trust token or admin auth)
 
+Registration payloads include canonical Core-side UI metadata:
+- `ui_enabled`
+- `ui_base_url`
+- `ui_mode`
+- `ui_health_endpoint`
+
+Registry UI metadata rules:
+- `ui_base_url` is normalized to an absolute `http://` or `https://` URL when present.
+- for legacy records, Core derives UI metadata from `requested_ui_endpoint` first and then `requested_hostname`
+- `ui_mode` defaults to `spa` for nodes
+- missing UI metadata remains safe and explicit through `ui_enabled = false`
+
 Supports optional list filters:
 - `node_type`
 - `trust_status`

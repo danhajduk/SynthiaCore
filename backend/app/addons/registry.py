@@ -96,6 +96,12 @@ class AddonRegistry:
         addon.name = str(payload.get("name") or addon.name)
         addon.version = str(payload.get("version") or addon.version)
         addon.base_url = base_url
+        if payload.get("ui_enabled") is not None:
+            addon.ui_enabled = bool(payload.get("ui_enabled"))
+        if payload.get("ui_base_url") is not None:
+            addon.ui_base_url = str(payload.get("ui_base_url") or "").strip() or None
+        if payload.get("ui_mode") is not None:
+            addon.ui_mode = str(payload.get("ui_mode") or "").strip() or addon.ui_mode
         addon.tls_warning = _tls_warning_for_base_url(base_url)
         if addon.tls_warning:
             log.warning("MQTT announce addon '%s' TLS warning: %s", addon_id, addon.tls_warning)
@@ -123,6 +129,12 @@ class AddonRegistry:
             version=str(payload.get("version") or "unknown"),
             base_url=str(payload.get("base_url") or payload.get("api_base_url") or "http://localhost"),
         )
+        if payload.get("ui_enabled") is not None:
+            addon.ui_enabled = bool(payload.get("ui_enabled"))
+        if payload.get("ui_base_url") is not None:
+            addon.ui_base_url = str(payload.get("ui_base_url") or "").strip() or None
+        if payload.get("ui_mode") is not None:
+            addon.ui_mode = str(payload.get("ui_mode") or "").strip() or addon.ui_mode
         addon.tls_warning = _tls_warning_for_base_url(addon.base_url)
         if addon.tls_warning:
             log.warning("MQTT health addon '%s' TLS warning: %s", addon_id, addon.tls_warning)
@@ -200,6 +212,9 @@ class AddonRegistry:
         base_url: str,
         name: str | None = None,
         version: str | None = None,
+        ui_enabled: bool | None = None,
+        ui_base_url: str | None = None,
+        ui_mode: str | None = None,
     ) -> RegisteredAddon:
         now = _utcnow_iso()
         existing = self.registered.get(addon_id)
@@ -210,6 +225,12 @@ class AddonRegistry:
             base_url=base_url,
         )
         addon.base_url = base_url
+        if ui_enabled is not None:
+            addon.ui_enabled = bool(ui_enabled)
+        if ui_base_url is not None:
+            addon.ui_base_url = str(ui_base_url).strip() or None
+        if ui_mode is not None:
+            addon.ui_mode = str(ui_mode).strip() or addon.ui_mode
         addon.tls_warning = _tls_warning_for_base_url(base_url)
         if name:
             addon.name = name
@@ -487,6 +508,9 @@ def list_addons(registry: AddonRegistry) -> List[dict]:
             "show_sidebar": True,
             "enabled": registry.is_enabled(addon.id),
             "base_url": addon.base_url,
+            "ui_enabled": addon.ui_enabled,
+            "ui_base_url": addon.ui_base_url,
+            "ui_mode": addon.ui_mode,
             "capabilities": addon.capabilities,
             "health_status": addon.health_status,
             "last_health": addon.last_health,
@@ -508,6 +532,9 @@ def list_addons(registry: AddonRegistry) -> List[dict]:
             out[addon_id]["discovery_source"] = "local+registered"
         else:
             meta.setdefault("base_url", None)
+            meta.setdefault("ui_enabled", False)
+            meta.setdefault("ui_base_url", None)
+            meta.setdefault("ui_mode", "server")
             meta.setdefault("capabilities", [])
             meta.setdefault("health_status", "unknown")
             meta.setdefault("last_health", {})

@@ -1,3 +1,4 @@
+2026-03-22 - Task 738: extended node/addon registry models with canonical UI proxy metadata, legacy data backfill, and registry API coverage.
 2026-02-28 - Added registered addon enable support and finalized Task 1 backend registry merge behavior.
 2026-02-28 - Session complete: Task 1 distributed addon registry backend implementation finalized.
 2026-02-28 - Added reverse proxy for registered addon API/UI with timeout/retry/circuit-breaker and server-side auth headers.
