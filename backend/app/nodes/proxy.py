@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response, WebSocket
@@ -33,6 +33,11 @@ class NodeUiProxy:
                 return raw_endpoint.rstrip("/")
             raise HTTPException(status_code=502, detail="node_ui_endpoint_invalid")
         raise HTTPException(status_code=404, detail="node_ui_endpoint_not_configured")
+
+    def _api_target_base(self, node_id: str, request: Request) -> str:
+        ui_base = self._target_base(node_id, request)
+        parsed = urlsplit(ui_base)
+        return urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
 
     @staticmethod
     def _rewrite_root_urls(content: bytes, content_type: str | None, node_id: str) -> bytes:
@@ -101,6 +106,26 @@ class NodeUiProxy:
             extra_headers={"X-Hexe-Node-Id": node_id},
         )
 
+    async def forward_api(self, request: Request, node_id: str, path: str = "") -> Response:
+        target_base = self._api_target_base(node_id, request)
+        target = self._proxy.build_target_url(target_base, path, request.url.query)
+        headers = self._proxy.build_request_headers(
+            request,
+            public_prefix=f"/api/nodes/{node_id}",
+            extra_headers={"X-Hexe-Node-Id": node_id},
+        )
+        try:
+            upstream = await self._proxy.send(
+                request=request,
+                target_url=target,
+                headers=headers,
+            )
+        except HTTPException as exc:
+            if exc.status_code == 502:
+                raise HTTPException(status_code=502, detail=f"node_api_proxy_error: {str(exc.detail).removeprefix('proxy_error: ')}")
+            raise
+        return await self._proxy.stream_response(upstream)
+
 
 def build_node_ui_proxy_router(proxy: NodeUiProxy) -> APIRouter:
     router = APIRouter()
@@ -124,6 +149,20 @@ def build_node_ui_proxy_router(proxy: NodeUiProxy) -> APIRouter:
     @router.api_route("/ui/nodes/{node_id}", methods=["GET", "HEAD"])
     async def proxy_node_ui_root(node_id: str, request: Request):
         return await proxy.forward(request, node_id, "", public_prefix=f"/ui/nodes/{node_id}")
+
+    @router.api_route(
+        "/api/nodes/{node_id}/{path:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    )
+    async def proxy_node_api(node_id: str, path: str, request: Request):
+        return await proxy.forward_api(request, node_id, path)
+
+    @router.api_route(
+        "/api/nodes/{node_id}/",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    )
+    async def proxy_node_api_root(node_id: str, request: Request):
+        return await proxy.forward_api(request, node_id, "")
 
     @router.websocket("/nodes/{node_id}/ui/{path:path}")
     async def proxy_node_ui_canonical_websocket(node_id: str, path: str, websocket: WebSocket):

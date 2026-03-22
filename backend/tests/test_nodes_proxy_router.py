@@ -14,6 +14,7 @@ class _FakeNodeProxy:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, str, str]] = []
         self.websocket_calls: list[tuple[str, str, str]] = []
+        self.api_calls: list[tuple[str, str, str]] = []
 
     async def forward(self, request: Request, node_id: str, path: str = "", *, public_prefix: str = "") -> JSONResponse:
         self.calls.append((request.method, node_id, path, public_prefix))
@@ -31,6 +32,10 @@ class _FakeNodeProxy:
         await websocket.accept()
         await websocket.send_text(f"{node_id}:{path}:{public_prefix}")
         await websocket.close()
+
+    async def forward_api(self, request: Request, node_id: str, path: str = "") -> JSONResponse:
+        self.api_calls.append((request.method, node_id, path))
+        return JSONResponse({"method": request.method, "node_id": node_id, "path": path})
 
 
 class TestNodeUiProxyRouter(unittest.TestCase):
@@ -87,6 +92,28 @@ class TestNodeUiProxyRouter(unittest.TestCase):
             [
                 ("node-1", "ws", "/nodes/node-1/ui"),
                 ("node-1", "live", "/ui/nodes/node-1"),
+            ],
+        )
+
+    def test_node_api_proxy_routes_forward(self) -> None:
+        checks = [
+            ("GET", "/api/nodes/node-1/status", "status"),
+            ("POST", "/api/nodes/node-1/v1/infer", "v1/infer"),
+            ("GET", "/api/nodes/node-1/", ""),
+        ]
+        for method, url, expected_path in checks:
+            resp = self.client.request(method, url)
+            self.assertEqual(resp.status_code, 200, resp.text)
+            payload = resp.json()
+            self.assertEqual(payload["node_id"], "node-1")
+            self.assertEqual(payload["path"], expected_path)
+
+        self.assertEqual(
+            self.proxy.api_calls,
+            [
+                ("GET", "node-1", "status"),
+                ("POST", "node-1", "v1/infer"),
+                ("GET", "node-1", ""),
             ],
         )
 
@@ -181,6 +208,22 @@ class TestNodeUiProxyTargetSelection(unittest.TestCase):
         )
         request = type("Req", (), {"url": type("Url", (), {"scheme": "http"})()})()
         self.assertEqual(proxy._target_base("node-1", request), "http://10.0.0.9:8765/ui")
+
+    def test_api_target_base_uses_node_ui_origin(self) -> None:
+        proxy = NodeUiProxy(
+            _TargetService(
+                type(
+                    "Node",
+                    (),
+                    {
+                        "ui_enabled": True,
+                        "ui_base_url": "http://10.0.0.9:8765/ui",
+                    },
+                )()
+            )
+        )
+        request = type("Req", (), {"url": type("Url", (), {"scheme": "http"})()})()
+        self.assertEqual(proxy._api_target_base("node-1", request), "http://10.0.0.9:8765")
 
     def test_rejects_disabled_node_ui(self) -> None:
         proxy = NodeUiProxy(

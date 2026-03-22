@@ -159,7 +159,7 @@ Enable websocket passthrough for node/addon UIs.
 
 ---
 
-[TODO] Task 742 — Add Node API proxy routes
+[DONE] Task 742 — Add Node API proxy routes
 
 ### Routes
 - /api/nodes/{node_id}/{path:path}

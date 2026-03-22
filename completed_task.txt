@@ -1,3 +1,4 @@
+2026-03-22 - Task 742: added `/api/nodes/{node_id}/{path...}` passthrough using the node UI origin as the temporary upstream API base until nodes publish a dedicated API base field.
 2026-03-22 - Task 741: aligned node UI proxy routes to require canonical registry UI metadata (`ui_enabled` and `ui_base_url`) for HTTP and websocket traffic.
 2026-03-22 - Task 740: added websocket passthrough for addon and node proxy routes with real round-trip echo regression coverage.
 2026-03-22 - Task 739: added a shared HTTP reverse proxy service with forwarded-header injection and refit addon/node proxy routers onto the shared transport path.

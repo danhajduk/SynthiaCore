@@ -88,6 +88,11 @@ Registry UI metadata rules:
 - `ui_mode` defaults to `spa` for nodes
 - missing UI metadata remains safe and explicit through `ui_enabled = false`
 
+Current node API proxy assumption:
+- `GET|POST|PUT|PATCH|DELETE /api/nodes/{node_id}/{path...}` proxies to the same node origin as `ui_base_url`
+- Core strips the `/api/nodes/{node_id}` prefix before forwarding
+- until nodes publish a dedicated API base field, Core derives the upstream API base from the `ui_base_url` origin
+
 Supports optional list filters:
 - `node_type`
 - `trust_status`
