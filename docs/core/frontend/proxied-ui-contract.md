@@ -98,6 +98,7 @@ Use this checklist when authoring or reviewing a node/addon UI:
 - [Proxied UI API Base-Path Requirements](./proxied-ui-api-base-path.md)
 - [Proxied UI Websocket Compatibility Requirements](./proxied-ui-websocket-compatibility.md)
 - [Proxied UI Metadata](../api/proxied-ui-metadata.md)
+- [Proxied UI Forwarded-Header Contract](../api/proxied-ui-forwarded-headers.md)
 - [API Reference](../api/api-reference.md)
 - [Addon Platform](../../addons/addon-platform.md)
 - [Node Onboarding API Contract](../../nodes/node-onboarding-api-contract.md)

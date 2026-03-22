@@ -45,7 +45,6 @@ if it is not present and should be node-owned create a file with the new data in
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 756: Define forwarded-header contract from Core to proxied targets
 [TODO] Task 757: Define runtime config injection contract for proxied UIs
 [TODO] Task 758: Define redirect and link-generation behavior for proxied targets
 [TODO] Task 759: Define compatibility requirements for SPA-based UIs
