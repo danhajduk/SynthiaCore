@@ -44,5 +44,4 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
-[WIP] Task 780: Expose node api_base_url in admin/operator UI surfaces
-[TODO] Task 781: Document and schema-update the canonical node API metadata contract
+[WIP] Task 781: Document and schema-update the canonical node API metadata contract

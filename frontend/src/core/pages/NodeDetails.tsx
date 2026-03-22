@@ -66,6 +66,8 @@ type NodeRecord = {
   requested_node_type?: string | null;
   requested_hostname?: string | null;
   requested_ui_endpoint?: string | null;
+  requested_api_base_url?: string | null;
+  api_base_url?: string | null;
   node_software_version: string;
   approved_by_user_id?: string | null;
   approved_at?: string | null;
@@ -338,6 +340,14 @@ export default function NodeDetails() {
                 <div className="node-detail-card">
                   <div className="node-detail-label">UI Endpoint</div>
                   <div className="node-detail-value">{node.requested_ui_endpoint || "-"}</div>
+                </div>
+                <div className="node-detail-card">
+                  <div className="node-detail-label">Requested API Base</div>
+                  <div className="node-detail-value">{node.requested_api_base_url || "-"}</div>
+                </div>
+                <div className="node-detail-card">
+                  <div className="node-detail-label">Resolved API Base</div>
+                  <div className="node-detail-value">{node.api_base_url || "-"}</div>
                 </div>
                 <div className="node-detail-card">
                   <div className="node-detail-label">Onboarding Session</div>
