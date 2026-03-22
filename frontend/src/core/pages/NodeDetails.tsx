@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { useAdminSession } from "../auth/AdminSessionContext";
 import { usePlatformBranding } from "../branding";
 import { nodeUiFrameSrc } from "./nodeFrameUrl";
 import "./node-details.css";
@@ -134,13 +135,27 @@ function formatMap(values?: Record<string, number>): string {
   return entries.map(([key, value]) => `${key}=${value}`).join(", ");
 }
 
+async function readError(res: Response): Promise<string> {
+  try {
+    const payload = await res.json();
+    if (typeof payload?.detail === "string" && payload.detail.trim()) return payload.detail.trim();
+    if (typeof payload?.error === "string" && payload.error.trim()) return payload.error.trim();
+  } catch {
+    // Ignore parse failures and fall back to status text.
+  }
+  return `HTTP ${res.status}`;
+}
+
 export default function NodeDetails() {
+  const { authenticated: isAdmin } = useAdminSession();
   const branding = usePlatformBranding();
+  const navigate = useNavigate();
   const { nodeId = "" } = useParams();
   const [node, setNode] = useState<NodeRecord | null>(null);
   const [routing, setRouting] = useState<RoutingNodeGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -204,6 +219,25 @@ export default function NodeDetails() {
     [nodeId, node?.requested_hostname, node?.requested_ui_endpoint],
   );
 
+  async function removeNode() {
+    const target = String(nodeId || "").trim();
+    if (!target || deleteBusy) return;
+    setError(null);
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(`/api/system/nodes/registrations/${encodeURIComponent(target)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await readError(res));
+      navigate("/addons", { replace: true });
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   return (
     <section className="node-page">
       <div className="node-hero">
@@ -232,6 +266,11 @@ export default function NodeDetails() {
           >
             Diagnostics
           </a>
+          {isAdmin ? (
+            <button className="node-btn node-btn-danger" type="button" onClick={() => void removeNode()} disabled={deleteBusy}>
+              {deleteBusy ? "Removing..." : "Remove Node"}
+            </button>
+          ) : null}
         </div>
       </div>
 
