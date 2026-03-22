@@ -71,7 +71,7 @@ export default function NodeFrame() {
   );
 
   return (
-    <section className="addon-frame-page">
+    <section className="addon-frame-page addon-frame-page--solo">
       {loading ? (
         <div className="addon-frame-status">
           <strong>Loading node UI...</strong>

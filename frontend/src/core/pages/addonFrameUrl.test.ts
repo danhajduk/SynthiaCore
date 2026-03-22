@@ -17,4 +17,26 @@ describe("addonUiFrameSrc", () => {
   it("defaults to the backend proxy origin when no override is provided", () => {
     expect(addonUiFrameSrc("mqtt")).toContain("/addons/mqtt/");
   });
+
+  it("uses the same origin for tunneled or default-port deployments", () => {
+    expect(
+      addonUiFrameSrc("mqtt", "", {
+        origin: "https://a75d480287c33cab.hexe-ai.com",
+        hostname: "a75d480287c33cab.hexe-ai.com",
+        protocol: "https:",
+        port: "",
+      }),
+    ).toBe("https://a75d480287c33cab.hexe-ai.com/addons/mqtt/");
+  });
+
+  it("keeps the backend port fallback for frontend dev servers", () => {
+    expect(
+      addonUiFrameSrc("mqtt", "", {
+        origin: "http://127.0.0.1:5173",
+        hostname: "127.0.0.1",
+        protocol: "http:",
+        port: "5173",
+      }),
+    ).toBe("http://127.0.0.1:9001/addons/mqtt/");
+  });
 });

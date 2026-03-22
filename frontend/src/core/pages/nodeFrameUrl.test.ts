@@ -17,4 +17,36 @@ describe("nodeUiFrameSrc", () => {
   it("returns empty string for invalid non-absolute endpoints", () => {
     expect(nodeUiFrameSrc("node-1", "/ui", "node.local")).toBe("");
   });
+
+  it("uses the same origin for tunneled or default-port deployments", () => {
+    expect(
+      nodeUiFrameSrc(
+        "node-1",
+        "https://node.example.test/ui/",
+        "node.local",
+        {
+          origin: "https://a75d480287c33cab.hexe-ai.com",
+          hostname: "a75d480287c33cab.hexe-ai.com",
+          protocol: "https:",
+          port: "",
+        },
+      ),
+    ).toBe("https://a75d480287c33cab.hexe-ai.com/nodes/node-1/ui/");
+  });
+
+  it("keeps the backend port fallback for frontend dev servers", () => {
+    expect(
+      nodeUiFrameSrc(
+        "node-1",
+        "https://node.example.test/ui/",
+        "node.local",
+        {
+          origin: "http://127.0.0.1:5173",
+          hostname: "127.0.0.1",
+          protocol: "http:",
+          port: "5173",
+        },
+      ),
+    ).toBe("http://127.0.0.1:9001/nodes/node-1/ui/");
+  });
 });
