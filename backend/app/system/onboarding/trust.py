@@ -54,7 +54,7 @@ def _detect_advertise_host() -> str:
     hostname = str(socket.gethostname() or "").strip()
     if hostname and not _is_loopback_host(hostname):
         return hostname
-    return "synthia-core"
+    return "hexe-core"
 
 
 def _resolve_operational_mqtt_host() -> str:
@@ -150,7 +150,7 @@ class NodeTrustStore:
                     rec = NodeTrustRecord(
                         node_id=node_id,
                         node_type=str(item.get("node_type") or "ai-node").strip() or "ai-node",
-                        paired_core_id=str(item.get("paired_core_id") or "synthia-core"),
+                        paired_core_id=str(item.get("paired_core_id") or "hexe-core"),
                         node_trust_token=str(item.get("node_trust_token") or ""),
                         initial_baseline_policy=item.get("initial_baseline_policy")
                         if isinstance(item.get("initial_baseline_policy"), dict)
@@ -256,7 +256,7 @@ class NodeTrustStore:
 class NodeTrustIssuanceService:
     def __init__(self, store: NodeTrustStore) -> None:
         self._store = store
-        self._core_id = str(os.getenv("SYNTHIA_CORE_ID", "synthia-core")).strip() or "synthia-core"
+        self._core_id = str(os.getenv("SYNTHIA_CORE_ID", "hexe-core")).strip() or "hexe-core"
         self._mqtt_host = _resolve_operational_mqtt_host()
         try:
             self._mqtt_port = int(str(os.getenv("SYNTHIA_NODE_OPERATIONAL_MQTT_PORT", "")).strip() or 1883)

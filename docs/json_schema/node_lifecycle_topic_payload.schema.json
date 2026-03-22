@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexe.local/schemas/node_lifecycle_topic_payload.schema.json",
+  "title": "Node Lifecycle Topic Payload",
+  "description": "JSON Schema for payloads published by nodes to hexe/nodes/<node_id>/lifecycle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "node_id",
+    "lifecycle_state",
+    "reported_at"
+  ],
+  "properties": {
+    "node_id": {
+      "type": "string",
+      "pattern": "^node-.*$",
+      "description": "Canonical node identifier. This must match the <node_id> topic segment."
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "starting",
+        "ready",
+        "degraded",
+        "stopping",
+        "stopped",
+        "error",
+        "unknown"
+      ],
+      "description": "Current lifecycle state of the node process."
+    },
+    "reported_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp when the node generated this lifecycle payload."
+    },
+    "message": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "description": "Optional human-readable lifecycle detail."
+    },
+    "ready": {
+      "type": "boolean",
+      "description": "Convenience flag indicating whether the node is currently ready to accept work."
+    },
+    "desired_state": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 64,
+      "description": "Optional target state when transitioning, for example ready or stopped."
+    },
+    "details": {
+      "type": "object",
+      "default": {},
+      "description": "Optional structured lifecycle metadata.",
+      "additionalProperties": true
+    }
+  }
+}

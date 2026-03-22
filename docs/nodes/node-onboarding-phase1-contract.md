@@ -159,6 +159,20 @@ Node principals are exposed in MQTT principal APIs as synthetic `synthia_node` p
 - `status=active` when registry trust is `trusted`
 - `status=revoked` when registry trust is `revoked`/`rejected`
 - otherwise `status=pending`
+- node publish scope is restricted to `hexe/nodes/<node_id>/#`
+- node subscribe scopes are:
+  - `hexe/bootstrap/core`
+  - `hexe/nodes/<node_id>/#`
+
+Expected node-owned topic subtree:
+
+```text
+hexe/nodes/<node_id>/
+|- status            # current health snapshot (retained)
+|- lifecycle         # state transitions (starting, ready, degraded)
+|- telemetry         # metrics / heartbeat (non-retained)
+|- events            # notable events/errors
+```
 
 Node lifecycle actions:
 

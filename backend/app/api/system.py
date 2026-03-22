@@ -176,6 +176,9 @@ class NodeBudgetForceReleaseRequest(BaseModel):
     reason: str | None = None
 
 
+NODE_BOOTSTRAP_TOPIC = "hexe/bootstrap/core"
+
+
 def _onboarding_error(error: str, message: str, *, retryable: bool = False) -> dict[str, object]:
     return {
         "error": error,
@@ -233,6 +236,23 @@ def _supported_protocol_versions() -> set[str]:
     if not raw:
         raw = str(os.getenv("SYNTHIA_AI_NODE_ONBOARDING_PROTOCOLS", "1.0")).strip()
     return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+def _node_status_stale_after_s() -> int:
+    raw = str(os.getenv("SYNTHIA_NODE_STATUS_STALE_AFTER_S", "300")).strip()
+    try:
+        return max(30, int(raw))
+    except Exception:
+        return 300
+
+
+def _node_status_inactive_after_s() -> int:
+    raw = str(os.getenv("SYNTHIA_NODE_STATUS_INACTIVE_AFTER_S", "1800")).strip()
+    try:
+        inactive_after = max(60, int(raw))
+    except Exception:
+        inactive_after = 1800
+    return max(inactive_after, _node_status_stale_after_s() + 1)
 
 
 def _supported_node_types() -> set[str]:
@@ -492,7 +512,7 @@ def build_system_router(
         principal.username = identity
         principal.managed_by = "node_onboarding"
         principal.publish_topics = [topic_scope]
-        principal.subscribe_topics = [topic_scope]
+        principal.subscribe_topics = [NODE_BOOTSTRAP_TOPIC, topic_scope]
         principal.notes = "managed by node onboarding trust activation"
         principal.last_activated_at = _utcnow_iso()
         principal.last_revoked_at = None
@@ -2095,7 +2115,7 @@ def build_system_router(
         }
 
     @router.get("/system/nodes/operational-status/{node_id}")
-    def get_node_operational_status(
+    async def get_node_operational_status(
         node_id: str,
         request: Request,
         response: Response,
@@ -2127,11 +2147,51 @@ def build_system_router(
             node_telemetry_service.latest_timestamp(node_key) if node_telemetry_service is not None else None
         )
         response.headers["Cache-Control"] = "private, max-age=15"
+        mqtt_runtime_snapshot = None
+        status_stale = False
+        status_inactive = False
+        effective_health_status = None
+        last_status_report_at = None
+        last_status_age_s = None
+        status_freshness_state = "unknown"
+        if mqtt_manager is not None:
+            snapshot_fn = getattr(mqtt_manager, "node_runtime_snapshot", None)
+            if callable(snapshot_fn):
+                mqtt_runtime_snapshot = await snapshot_fn(node_key)
+        if isinstance(mqtt_runtime_snapshot, dict):
+            last_status_report_at = mqtt_runtime_snapshot.get("last_status_report_at")
+            effective_health_status = mqtt_runtime_snapshot.get("reported_health_status")
+            status_reported_epoch = float(mqtt_runtime_snapshot.get("_last_status_report_epoch") or 0.0)
+            if status_reported_epoch > 0.0:
+                last_status_age_s = max(0, int(time.time() - status_reported_epoch))
+                if last_status_age_s > _node_status_inactive_after_s():
+                    status_inactive = True
+                    status_stale = True
+                    status_freshness_state = "inactive"
+                    effective_health_status = "offline"
+                elif last_status_age_s > _node_status_stale_after_s():
+                    status_stale = True
+                    status_freshness_state = "stale"
+                    effective_health_status = "degraded"
+                else:
+                    status_freshness_state = "fresh"
         return {
             "ok": True,
             "node_id": node_key,
             "lifecycle_state": node_payload.get("registry_state"),
+            "reported_lifecycle_state": (
+                mqtt_runtime_snapshot.get("reported_lifecycle_state")
+                if isinstance(mqtt_runtime_snapshot, dict)
+                else None
+            ),
             "trust_status": node_payload.get("trust_status"),
+            "health_status": effective_health_status,
+            "status_stale": status_stale,
+            "status_inactive": status_inactive,
+            "status_freshness_state": status_freshness_state,
+            "status_age_s": last_status_age_s,
+            "status_stale_after_s": _node_status_stale_after_s(),
+            "status_inactive_after_s": _node_status_inactive_after_s(),
             "capability_status": node_payload.get("capability_status"),
             "governance_status": node_payload.get("governance_sync_status"),
             "operational_ready": bool(node_payload.get("operational_ready")),
@@ -2143,6 +2203,12 @@ def build_system_router(
             "governance_stale_for_s": node_payload.get("governance_stale_for_s"),
             "governance_outdated": bool(node_payload.get("governance_outdated")),
             "last_telemetry_timestamp": last_telemetry_timestamp,
+            "last_lifecycle_report_at": (
+                mqtt_runtime_snapshot.get("last_lifecycle_report_at")
+                if isinstance(mqtt_runtime_snapshot, dict)
+                else None
+            ),
+            "last_status_report_at": last_status_report_at,
             "updated_at": node_payload.get("updated_at"),
         }
 

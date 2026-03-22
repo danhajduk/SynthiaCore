@@ -179,7 +179,7 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         self.assertEqual(principal.status, "active")
         self.assertEqual(principal.username, activation["operational_mqtt_identity"])
         self.assertEqual(principal.publish_topics, [f"hexe/nodes/{node_id}/#"])
-        self.assertEqual(principal.subscribe_topics, [f"hexe/nodes/{node_id}/#"])
+        self.assertEqual(principal.subscribe_topics, ["hexe/bootstrap/core", f"hexe/nodes/{node_id}/#"])
 
         credential = self.mqtt_credential_store.get_principal_credential(f"node:{node_id}")
         self.assertIsNotNone(credential)

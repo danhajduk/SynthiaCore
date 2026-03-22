@@ -259,6 +259,44 @@ class TestMqttManager(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sessions["broker_clients"]["connected"], 7)
         self.assertEqual(sessions["broker_clients"]["disconnected"], 3)
 
+    async def test_tracks_node_lifecycle_and_health_topics(self) -> None:
+        manager = MqttManager(
+            settings_store=_FakeSettingsStore(),
+            registry=_FakeRegistry(),
+            service_catalog_store=_FakeServiceCatalogStore(),
+            enabled=True,
+        )
+        manager._loop = asyncio.get_running_loop()
+
+        manager._on_message(
+            None,
+            None,
+            _Msg(
+                "hexe/nodes/node-123/lifecycle",
+                {"node_id": "node-123", "lifecycle_state": "ready", "message": "boot complete"},
+                retain=True,
+            ),
+        )
+        manager._on_message(
+            None,
+            None,
+            _Msg(
+                "hexe/nodes/node-123/status",
+                {"node_id": "node-123", "health_status": "healthy", "summary": "all systems nominal"},
+                retain=True,
+            ),
+        )
+
+        snapshot = await manager.node_runtime_snapshot("node-123")
+        assert snapshot is not None
+        self.assertEqual(snapshot["node_id"], "node-123")
+        self.assertEqual(snapshot["reported_lifecycle_state"], "ready")
+        self.assertEqual(snapshot["reported_health_status"], "healthy")
+        self.assertEqual(snapshot["lifecycle"]["topic"], "hexe/nodes/node-123/lifecycle")
+        self.assertTrue(bool(snapshot["lifecycle"]["retained"]))
+        self.assertEqual(snapshot["status"]["topic"], "hexe/nodes/node-123/status")
+        self.assertTrue(bool(snapshot["status"]["retained"]))
+
     async def test_broker_health_metrics_from_sys_topics(self) -> None:
         manager = MqttManager(
             settings_store=_FakeSettingsStore(),

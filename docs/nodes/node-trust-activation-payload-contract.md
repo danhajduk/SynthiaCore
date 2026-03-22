@@ -61,6 +61,21 @@ Loopback values (for example `127.0.0.1`, `localhost`, `0.0.0.0`, `::1`) are rej
 After successful finalize+consume:
 - linked node registration trust status is promoted to `trusted`.
 - trust activation records now also persist canonical trust-state metadata used by the trust-status contract.
+- Core provisions an MQTT principal for the node with:
+  - publish scope: `hexe/nodes/<node_id>/#`
+  - subscribe scopes:
+    - `hexe/bootstrap/core`
+    - `hexe/nodes/<node_id>/#`
+
+The node-owned namespace is intentionally restricted to:
+
+```text
+hexe/nodes/<node_id>/
+|- status            # current health snapshot (retained)
+|- lifecycle         # state transitions (starting, ready, degraded)
+|- telemetry         # metrics / heartbeat (non-retained)
+|- events            # notable events/errors
+```
 
 ## Post-Activation Trust Loss
 

@@ -18,7 +18,7 @@ DEFAULT_PLATFORM_NODES_NAME = "Hexe Nodes"
 DEFAULT_PLATFORM_ADDONS_NAME = "Hexe Addons"
 DEFAULT_PLATFORM_DOCS_NAME = "Hexe Docs"
 DEFAULT_LEGACY_INTERNAL_NAMESPACE = "synthia"
-DEFAULT_CORE_ID = "synthia-core"
+DEFAULT_CORE_ID = "hexe-core"
 CORE_ID_PATTERN = re.compile(r"^[a-f0-9]{16}$")
 
 

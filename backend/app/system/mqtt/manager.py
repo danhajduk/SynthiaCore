@@ -101,6 +101,7 @@ class MqttManager:
         }
         self._principal_traffic_windows: dict[str, dict[str, Any]] = {}
         self._topic_activity: dict[str, dict[str, Any]] = {}
+        self._node_runtime_state: dict[str, dict[str, Any]] = {}
         self._integration_state_path = str(
             os.getenv("MQTT_INTEGRATION_STATE_PATH", os.path.join(os.getcwd(), "var", "mqtt_integration_state.json"))
         ).strip()
@@ -272,6 +273,15 @@ class MqttManager:
         for row in items:
             row.pop("_last_seen_epoch", None)
         return {"ok": True, "items": items}
+
+    async def node_runtime_snapshot(self, node_id: str) -> dict[str, Any] | None:
+        normalized = str(node_id or "").strip()
+        if not normalized:
+            return None
+        snapshot = self._node_runtime_state.get(normalized)
+        if snapshot is None:
+            return None
+        return json.loads(json.dumps(snapshot))
 
     async def runtime_stats_history(self, *, hours: int = 24, limit: int = 1440) -> dict[str, Any]:
         self._prune_stats_history()
@@ -561,6 +571,17 @@ class MqttManager:
                 self._dispatch_registry_update(addon_id, payload, announce=True)
             elif event == "health":
                 self._dispatch_registry_update(addon_id, payload, announce=False)
+        if len(parts) == 4 and parts[0] == "hexe" and parts[1] == "nodes" and parts[2]:
+            node_id = parts[2]
+            event = parts[3]
+            if event in {"lifecycle", "status"}:
+                self._record_node_runtime_state(
+                    node_id=node_id,
+                    topic=topic,
+                    payload=payload,
+                    retained=bool(getattr(msg, "retain", False)),
+                    event_type=event,
+                )
         if len(parts) >= 4 and parts[0] == "hexe" and parts[1] == "services" and parts[3] == "catalog":
             service_name = parts[2]
             self._dispatch_service_catalog_update(service_name, payload)
@@ -717,6 +738,61 @@ class MqttManager:
         item["_last_seen_epoch"] = now
         item["last_seen"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
         self._topic_activity[normalized] = item
+
+    @staticmethod
+    def _normalize_node_lifecycle_state(payload: dict[str, Any]) -> str | None:
+        for key in ("lifecycle_state", "state", "lifecycle", "status", "mode"):
+            value = str(payload.get(key) or "").strip().lower()
+            if value:
+                return value
+        return None
+
+    @staticmethod
+    def _normalize_node_health_status(payload: dict[str, Any]) -> str | None:
+        for key in ("health_status", "status", "health", "state"):
+            value = str(payload.get(key) or "").strip().lower()
+            if value:
+                return value
+        return None
+
+    def _record_node_runtime_state(
+        self,
+        *,
+        node_id: str,
+        topic: str,
+        payload: dict[str, Any],
+        retained: bool,
+        event_type: str,
+    ) -> None:
+        normalized_node_id = str(node_id or "").strip()
+        if not normalized_node_id:
+            return
+        now = time.time()
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+        snapshot = dict(self._node_runtime_state.get(normalized_node_id) or {})
+        event_payload = {
+            "topic": str(topic or "").strip(),
+            "payload": dict(payload or {}),
+            "received_at": now_iso,
+            "retained": bool(retained),
+        }
+        if event_type == "lifecycle":
+            lifecycle_state = self._normalize_node_lifecycle_state(payload)
+            event_payload["lifecycle_state"] = lifecycle_state
+            snapshot["lifecycle"] = event_payload
+            snapshot["reported_lifecycle_state"] = lifecycle_state
+            snapshot["last_lifecycle_report_at"] = now_iso
+            snapshot["_last_lifecycle_report_epoch"] = now
+        elif event_type == "status":
+            health_status = self._normalize_node_health_status(payload)
+            event_payload["health_status"] = health_status
+            snapshot["status"] = event_payload
+            snapshot["reported_health_status"] = health_status
+            snapshot["last_status_report_at"] = now_iso
+            snapshot["_last_status_report_epoch"] = now
+        snapshot["node_id"] = normalized_node_id
+        snapshot["updated_at"] = now_iso
+        self._node_runtime_state[normalized_node_id] = snapshot
 
     @staticmethod
     def _parse_int_payload(payload: dict[str, Any], decoded: str) -> int | None:

@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -43,6 +44,14 @@ class _FakeRegistry:
         return []
 
 
+class _FakeMqttManager:
+    def __init__(self) -> None:
+        self.snapshots: dict[str, dict[str, object]] = {}
+
+    async def node_runtime_snapshot(self, node_id: str) -> dict[str, object] | None:
+        return self.snapshots.get(node_id)
+
+
 @unittest.skipIf(not FASTAPI_STACK_AVAILABLE, "fastapi/testclient not available in this environment")
 class TestNodeOperationalStatusApi(unittest.TestCase):
     def setUp(self) -> None:
@@ -58,11 +67,13 @@ class TestNodeOperationalStatusApi(unittest.TestCase):
         self.governance_service = NodeGovernanceService(self.governance_store)
         self.governance_status_store = NodeGovernanceStatusStore(path=Path(self.tmpdir.name) / "node_governance_status.json")
         self.governance_status_service = NodeGovernanceStatusService(self.governance_status_store)
+        self.mqtt_manager = _FakeMqttManager()
 
         app = FastAPI()
         app.include_router(
             build_system_router(
                 _FakeRegistry(),
+                mqtt_manager=self.mqtt_manager,
                 onboarding_sessions_store=self.sessions,
                 node_registrations_store=self.registrations,
                 node_trust_issuance=self.trust_issuance,
@@ -217,6 +228,79 @@ class TestNodeOperationalStatusApi(unittest.TestCase):
             headers={"X-Node-Trust-Token": trust_token},
         )
         self.assertEqual(op_status.status_code, 403, op_status.text)
+
+    def test_operational_status_includes_reported_lifecycle_and_health_from_mqtt(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        self._declare_capabilities(node_id, trust_token)
+        now = time.time()
+        self.mqtt_manager.snapshots[node_id] = {
+            "node_id": node_id,
+            "reported_lifecycle_state": "ready",
+            "reported_health_status": "healthy",
+            "last_lifecycle_report_at": "2026-03-21T12:00:00Z",
+            "last_status_report_at": "2026-03-21T12:00:05Z",
+            "_last_status_report_epoch": now - 60,
+        }
+
+        res = self.client.get(
+            f"/api/system/nodes/operational-status/{node_id}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["reported_lifecycle_state"], "ready")
+        self.assertEqual(payload["health_status"], "healthy")
+        self.assertFalse(bool(payload["status_stale"]))
+        self.assertFalse(bool(payload["status_inactive"]))
+        self.assertEqual(payload["status_freshness_state"], "fresh")
+        self.assertEqual(payload["last_lifecycle_report_at"], "2026-03-21T12:00:00Z")
+        self.assertEqual(payload["last_status_report_at"], "2026-03-21T12:00:05Z")
+
+    def test_operational_status_marks_stale_node_health_as_unknown(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        self._declare_capabilities(node_id, trust_token)
+        now = time.time()
+        self.mqtt_manager.snapshots[node_id] = {
+            "node_id": node_id,
+            "reported_health_status": "healthy",
+            "last_status_report_at": "2026-03-21T11:00:00Z",
+            "_last_status_report_epoch": now - 600,
+        }
+
+        res = self.client.get(
+            f"/api/system/nodes/operational-status/{node_id}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["health_status"], "degraded")
+        self.assertTrue(bool(payload["status_stale"]))
+        self.assertFalse(bool(payload["status_inactive"]))
+        self.assertEqual(payload["status_freshness_state"], "stale")
+        self.assertEqual(int(payload["status_stale_after_s"]), 300)
+        self.assertEqual(int(payload["status_inactive_after_s"]), 1800)
+
+    def test_operational_status_marks_inactive_node_health_as_offline(self) -> None:
+        node_id, trust_token = self._trusted_node()
+        self._declare_capabilities(node_id, trust_token)
+        now = time.time()
+        self.mqtt_manager.snapshots[node_id] = {
+            "node_id": node_id,
+            "reported_health_status": "healthy",
+            "last_status_report_at": "2026-03-21T10:00:00Z",
+            "_last_status_report_epoch": now - 2000,
+        }
+
+        res = self.client.get(
+            f"/api/system/nodes/operational-status/{node_id}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(res.status_code, 200, res.text)
+        payload = res.json()
+        self.assertEqual(payload["health_status"], "offline")
+        self.assertTrue(bool(payload["status_stale"]))
+        self.assertTrue(bool(payload["status_inactive"]))
+        self.assertEqual(payload["status_freshness_state"], "inactive")
 
     def test_removed_node_can_read_formal_removal_status_with_old_token(self) -> None:
         node_id, trust_token = self._trusted_node()

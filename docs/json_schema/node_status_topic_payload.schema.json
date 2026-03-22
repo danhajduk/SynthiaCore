@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexe.local/schemas/node_status_topic_payload.schema.json",
+  "title": "Node Status Topic Payload",
+  "description": "JSON Schema for payloads published by nodes to hexe/nodes/<node_id>/status. Node status topics should be published as retained last-known health snapshots. Core should evaluate freshness from reported_at, not rely on MQTT message expiry as the primary source of truth for node liveness. Current recommended thresholds are under 5 minutes healthy or fresh, 5 to 30 minutes stale or degraded, and over 30 minutes inactive or offline.",
+  "type": "object",
+  "additionalProperties": false,
+  "$comment": "Recommended behavior: retain the latest status snapshot; mark status stale when now - reported_at exceeds the freshness threshold; mark the node inactive or offline when now - reported_at exceeds the inactivity threshold. MQTT message expiry may be used as secondary cleanup, but its expiry window should be longer than the Core inactivity threshold so diagnostic last-known state is preserved. The current recommended thresholds are stale after 300 seconds and inactive after 1800 seconds.",
+  "required": [
+    "node_id",
+    "health_status",
+    "reported_at"
+  ],
+  "properties": {
+    "node_id": {
+      "type": "string",
+      "pattern": "^node-.*$",
+      "description": "Canonical node identifier. This must match the <node_id> topic segment."
+    },
+    "health_status": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "degraded",
+        "unhealthy",
+        "error",
+        "unknown"
+      ],
+      "description": "Current health classification for the node."
+    },
+    "reported_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp when the node generated this health payload."
+    },
+    "ttl_s": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How long Core may consider this status fresh if no newer payload arrives. Keep this aligned with the current freshness policy of fresh under 5 minutes, stale from 5 to 30 minutes, and inactive over 30 minutes unless Core is configured otherwise."
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "description": "Optional node lifecycle state such as capability_setup_pending, operational, or degraded."
+    },
+    "summary": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "description": "Short human-readable health summary."
+    },
+    "ready": {
+      "type": "boolean",
+      "description": "Whether the node currently considers itself available for work."
+    },
+    "uptime_s": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optional process uptime in seconds."
+    },
+    "checks": {
+      "type": "object",
+      "default": {},
+      "description": "Optional named health checks and their values.",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "object",
+            "additionalProperties": true
+          }
+        ]
+      }
+    },
+    "details": {
+      "type": "object",
+      "default": {},
+      "description": "Optional structured health metadata.",
+      "additionalProperties": true
+    }
+  }
+}
