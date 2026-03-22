@@ -100,6 +100,7 @@ Use this checklist when authoring or reviewing a node/addon UI:
 - [Proxied UI Runtime Config Contract](./proxied-ui-runtime-config.md)
 - [Proxied UI Redirect And Link-Generation Contract](./proxied-ui-redirects.md)
 - [Proxied UI SPA Compatibility Requirements](./proxied-ui-spa-compatibility.md)
+- [Proxied UI Server-Rendered Compatibility Requirements](./proxied-ui-server-rendered-compatibility.md)
 - [Proxied UI Metadata](../api/proxied-ui-metadata.md)
 - [Proxied UI Forwarded-Header Contract](../api/proxied-ui-forwarded-headers.md)
 - [API Reference](../api/api-reference.md)

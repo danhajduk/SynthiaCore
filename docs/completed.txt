@@ -827,3 +827,4 @@ Task 756: Define forwarded-header contract from Core to proxied targets - Comple
 Task 757: Define runtime config injection contract for proxied UIs - Completed on 03/22/2026 16:15
 Task 758: Define redirect and link-generation behavior for proxied targets - Completed on 03/22/2026 16:17
 Task 759: Define compatibility requirements for SPA-based UIs - Completed on 03/22/2026 16:20
+Task 760: Define compatibility requirements for server-rendered UIs - Completed on 03/22/2026 16:22
