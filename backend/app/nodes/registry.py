@@ -21,6 +21,8 @@ def _node_record_from_payload(payload: dict[str, object]) -> NodeRecord:
         node_name=str(payload.get("node_name") or ""),
         node_type=str(payload.get("node_type") or ""),
         requested_node_type=str(payload.get("requested_node_type") or "").strip() or None,
+        requested_hostname=str(payload.get("requested_hostname") or "").strip() or None,
+        requested_ui_endpoint=str(payload.get("requested_ui_endpoint") or "").strip() or None,
         node_software_version=str(payload.get("node_software_version") or ""),
         approved_by_user_id=str(payload.get("approved_by_user_id") or "").strip() or None,
         approved_at=str(payload.get("approved_at") or "").strip() or None,

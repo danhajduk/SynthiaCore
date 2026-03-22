@@ -53,6 +53,8 @@ class NodeRecord(BaseModel):
     node_name: str
     node_type: str
     requested_node_type: str | None = None
+    requested_hostname: str | None = None
+    requested_ui_endpoint: str | None = None
     node_software_version: str
     approved_by_user_id: str | None = None
     approved_at: str | None = None

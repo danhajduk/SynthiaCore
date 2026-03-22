@@ -52,6 +52,7 @@ class NodeOnboardingSession:
     requested_node_type: str
     requested_node_software_version: str
     requested_hostname: str | None
+    requested_ui_endpoint: str | None
     requested_from_ip: str | None
     request_metadata: dict[str, Any]
     created_at: str
@@ -73,6 +74,7 @@ class NodeOnboardingSession:
             "requested_node_type": self.requested_node_type,
             "requested_node_software_version": self.requested_node_software_version,
             "requested_hostname": self.requested_hostname,
+            "requested_ui_endpoint": self.requested_ui_endpoint,
             "requested_from_ip": self.requested_from_ip,
             "request_metadata": dict(self.request_metadata or {}),
             "created_at": self.created_at,
@@ -128,6 +130,9 @@ class NodeOnboardingSessionsStore:
                 requested_node_type=node_type,
                 requested_node_software_version=node_version,
                 requested_hostname=(str(item.get("requested_hostname")).strip() if item.get("requested_hostname") else None),
+                requested_ui_endpoint=(
+                    str(item.get("requested_ui_endpoint")).strip() if item.get("requested_ui_endpoint") else None
+                ),
                 requested_from_ip=(str(item.get("requested_from_ip")).strip() if item.get("requested_from_ip") else None),
                 request_metadata=metadata if isinstance(metadata, dict) else {},
                 created_at=created_at,
@@ -211,6 +216,7 @@ class NodeOnboardingSessionsStore:
         requested_node_type: str,
         requested_node_software_version: str,
         requested_hostname: str | None = None,
+        requested_ui_endpoint: str | None = None,
         requested_from_ip: str | None = None,
         request_metadata: dict[str, Any] | None = None,
         ttl_seconds: int = 900,
@@ -241,6 +247,7 @@ class NodeOnboardingSessionsStore:
             requested_node_type=node_type,
             requested_node_software_version=node_version,
             requested_hostname=(str(requested_hostname).strip() if requested_hostname else None),
+            requested_ui_endpoint=(str(requested_ui_endpoint).strip() if requested_ui_endpoint else None),
             requested_from_ip=(str(requested_from_ip).strip() if requested_from_ip else None),
             request_metadata=dict(request_metadata or {}),
             created_at=now.isoformat(),

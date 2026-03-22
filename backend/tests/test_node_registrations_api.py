@@ -98,6 +98,7 @@ class TestNodeRegistrationsApi(unittest.TestCase):
                 "node_type": node_type,
                 "node_software_version": "1.0.0",
                 "protocol_version": "1.0",
+                "ui_endpoint": f"http://{node_name}.local:8765/ui",
                 "node_nonce": nonce,
             },
         )
@@ -122,12 +123,14 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         self.assertEqual(items[0]["node_id"], node_id)
         self.assertEqual(items[0]["trust_status"], "approved")
         self.assertEqual(items[0]["source_onboarding_session_id"], created["source_onboarding_session_id"])
+        self.assertEqual(items[0]["requested_ui_endpoint"], "http://office-node.local:8765/ui")
 
         got = self.client.get(f"/api/system/nodes/registrations/{node_id}", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(got.status_code, 200, got.text)
         registration = got.json()["registration"]
         self.assertEqual(registration["node_type"], "ai")
         self.assertEqual(registration["requested_node_type"], "ai-node")
+        self.assertEqual(registration["requested_ui_endpoint"], "http://office-node.local:8765/ui")
 
     def test_finalize_marks_registration_trusted(self) -> None:
         started = self.client.post(

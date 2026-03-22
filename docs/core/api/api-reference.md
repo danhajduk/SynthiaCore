@@ -35,7 +35,7 @@ Status: Implemented
   - `POST /api/edge/cloudflare/test` (admin session/token required)
 - Events/services:
   - `GET /api/system/events`
-  - `POST /api/system/nodes/onboarding/sessions`
+  - `POST /api/system/nodes/onboarding/sessions` (request may include optional `hostname` and optional absolute `ui_endpoint` for node-hosted operator UI discovery)
   - `GET /api/system/nodes/onboarding/sessions` (admin session/token required)
   - `GET /api/system/nodes/onboarding/sessions/{session_id}` (admin session/token required)
   - `POST /api/system/nodes/onboarding/sessions/{session_id}/approve` (admin session/token required)

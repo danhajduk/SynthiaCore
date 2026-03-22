@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { usePlatformBranding } from "../branding";
+import { nodeUiFrameSrc } from "./nodeFrameUrl";
 import "./node-details.css";
 
 type NodeCapabilityCategorySummary = {
@@ -62,6 +63,8 @@ type NodeRecord = {
   node_name: string;
   node_type: string;
   requested_node_type?: string | null;
+  requested_hostname?: string | null;
+  requested_ui_endpoint?: string | null;
   node_software_version: string;
   approved_by_user_id?: string | null;
   approved_at?: string | null;
@@ -196,6 +199,10 @@ export default function NodeDetails() {
   const lifecycle = useMemo(() => (node ? lifecycleSteps(node) : []), [node]);
   const capabilityCategories = useMemo(() => node?.capabilities.taxonomy.categories || [], [node]);
   const routingProviders = useMemo(() => routing?.providers || [], [routing]);
+  const nodeUiHref = useMemo(
+    () => nodeUiFrameSrc(node?.requested_ui_endpoint, node?.requested_hostname),
+    [node?.requested_hostname, node?.requested_ui_endpoint],
+  );
 
   return (
     <section className="node-page">
@@ -209,6 +216,11 @@ export default function NodeDetails() {
           <p className="node-subtitle">Canonical details for this trusted node from `/api/nodes/{nodeId}`.</p>
         </div>
         <div className="node-hero-actions">
+          {nodeUiHref ? (
+            <Link to={`/nodes/${encodeURIComponent(nodeId)}/UI`} className="node-btn">
+              Open UI
+            </Link>
+          ) : null}
           <a href={`/api/nodes/${encodeURIComponent(nodeId)}`} target="_blank" rel="noreferrer" className="node-btn">
             Raw API
           </a>
@@ -279,6 +291,14 @@ export default function NodeDetails() {
                 <div className="node-detail-card">
                   <div className="node-detail-label">Approved At</div>
                   <div className="node-detail-value">{formatTimestamp(node.approved_at)}</div>
+                </div>
+                <div className="node-detail-card">
+                  <div className="node-detail-label">Hostname</div>
+                  <div className="node-detail-value">{node.requested_hostname || "-"}</div>
+                </div>
+                <div className="node-detail-card">
+                  <div className="node-detail-label">UI Endpoint</div>
+                  <div className="node-detail-value">{node.requested_ui_endpoint || "-"}</div>
                 </div>
                 <div className="node-detail-card">
                   <div className="node-detail-label">Onboarding Session</div>

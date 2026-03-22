@@ -1,7 +1,7 @@
 # Node Onboarding API Contract
 
 Status: Implemented (baseline), Partial (multi-node-type rollout in progress)
-Last updated: 2026-03-11
+Last updated: 2026-03-22
 
 ## Purpose
 
@@ -24,10 +24,18 @@ Terminology note:
   - `protocol_version`
   - `node_nonce`
   - `hostname` (optional)
+  - `ui_endpoint` (optional absolute `http://` or `https://` URL for the node-hosted operator UI)
 - Response includes canonical and compatibility fields:
   - `node_name`, `node_type`, `node_software_version`
   - `requested_node_name`, `requested_node_type`, `requested_node_software_version` (compatibility aliases)
+  - `requested_hostname`, `requested_ui_endpoint`
   - `approval_url`, `session_id`, `expires_at`, `finalize`
+
+UI endpoint rules:
+- Core accepts `ui_endpoint` only as an absolute `http(s)` URL.
+- Core persists the value as `requested_ui_endpoint` on the onboarding session and registration record.
+- Core node UI route `/nodes/:nodeId/UI` prefers `requested_ui_endpoint` and falls back to `requested_hostname` when no explicit endpoint was provided.
+- `hostname` remains supported as a lightweight identity/location hint and fallback UI target source.
 
 ## Approval And Decision
 
@@ -112,3 +120,4 @@ Status: Implemented (baseline)
 - [Node Trust Activation Payload Contract](./node-trust-activation-payload-contract.md)
 - [Node Trust Status Contract](./node-trust-status-contract.md)
 - [Node Onboarding Migration Guide](./node-onboarding-migration-guide.md)
+- [Node Onboarding Start Request JSON Schema](../json_schema/node_onboarding_start_request.schema.json)

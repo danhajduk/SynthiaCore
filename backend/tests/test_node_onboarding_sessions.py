@@ -22,6 +22,7 @@ class TestNodeOnboardingSessionsStore(unittest.TestCase):
             requested_node_type="ai-node",
             requested_node_software_version="0.1.0",
             requested_hostname="node-host",
+            requested_ui_endpoint="http://node-host:8765/ui",
             requested_from_ip="10.0.0.22",
             request_metadata={"agent": "ai-node"},
             ttl_seconds=1200,
@@ -33,6 +34,7 @@ class TestNodeOnboardingSessionsStore(unittest.TestCase):
         self.assertEqual(session.requested_node_type, "ai-node")
         self.assertEqual(session.requested_node_software_version, "0.1.0")
         self.assertEqual(session.requested_hostname, "node-host")
+        self.assertEqual(session.requested_ui_endpoint, "http://node-host:8765/ui")
         self.assertEqual(session.requested_from_ip, "10.0.0.22")
         self.assertEqual(session.request_metadata["agent"], "ai-node")
         self.assertIsNone(session.approved_at)

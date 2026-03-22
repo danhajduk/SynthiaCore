@@ -5,6 +5,7 @@ import Home from "../pages/Home";
 import Addons from "../pages/Addons";
 import AddonFrame from "../pages/AddonFrame";
 import NodeDetails from "../pages/NodeDetails";
+import NodeFrame from "../pages/NodeFrame";
 import Settings from "../pages/Settings";
 import EdgeGateway from "../pages/EdgeGateway";
 import SettingsJobs from "../pages/SettingsJobs";
@@ -27,6 +28,7 @@ export function buildRoutes(isAdmin: boolean, ready: boolean): RouteObject[] {
     { path: "/", element: <Home /> },
     { path: "/store", element: protectedRoute(<AddonStorePage />) },
     { path: "/addons", element: protectedRoute(<Addons />) },
+    { path: "/nodes/:nodeId/UI", element: protectedRoute(<NodeFrame />) },
     { path: "/nodes/:nodeId", element: protectedRoute(<NodeDetails />) },
     { path: "/addons/:addonId/:section", element: protectedRoute(<AddonFrame />) },
     { path: "/addons/:addonId", element: protectedRoute(<AddonFrame />) },

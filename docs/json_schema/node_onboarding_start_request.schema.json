@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexe.local/schemas/node_onboarding_start_request.schema.json",
+  "title": "Node Onboarding Start Request",
+  "description": "JSON Schema for POST /api/system/nodes/onboarding/sessions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "node_name",
+    "node_type",
+    "node_software_version",
+    "protocol_version",
+    "node_nonce"
+  ],
+  "properties": {
+    "node_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "node_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "node_software_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "protocol_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hostname": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "description": "Optional node-reported host label used for operator context and UI fallback."
+    },
+    "ui_endpoint": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "Optional absolute node-hosted UI URL preferred by Core for /nodes/:nodeId/UI."
+    },
+    "node_nonce": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 256
+    },
+    "node_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  }
+}

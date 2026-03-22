@@ -37,7 +37,7 @@ Status: Implemented (baseline)
 Canonical end-to-end node lifecycle:
 
 1. `Node Identity` -> `unconfigured`
-Node presents `node_type`, node metadata, and nonce binding.
+Node presents `node_type`, node metadata, optional UI location metadata, and nonce binding.
 
 2. `Core Connection` -> `bootstrap_connecting`
 Node reaches Core's bootstrap MQTT listener.
@@ -94,11 +94,13 @@ Global registration record should include:
 - `node_name`
 - `software_version`
 - trust status and lifecycle state
+- optional operator-facing location metadata such as `requested_hostname` and `requested_ui_endpoint`
 - provenance fields (onboarding session, approval actor/timestamps)
 
 Implemented baseline:
 - persisted global registration store (`data/node_registrations.json`)
 - onboarding approval binds approved sessions to registration records
+- onboarding persists optional `requested_hostname` and `requested_ui_endpoint` metadata for later operator UI linking
 - schema/version marker and compatibility aliases for legacy AI-node field names
 
 ## Security And Trust Boundary
@@ -139,7 +141,7 @@ Headless compatibility:
 
 Status: Implemented (baseline)
 
-1. Node calls the onboarding start API with identity metadata and `node_nonce`.
+1. Node calls the onboarding start API with identity metadata, optional UI endpoint metadata, and `node_nonce`.
 2. Core validates request data, supported `node_type`, and protocol compatibility.
 3. Core creates a persisted pending session with expiry and returns the approval URL.
 4. Operator opens the approval URL and authenticates in Core if needed.

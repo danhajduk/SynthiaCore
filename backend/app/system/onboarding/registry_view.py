@@ -68,6 +68,8 @@ def node_registry_payload(item, node_governance_status_service: NodeGovernanceSt
         "requested_node_name": getattr(item, "node_name", None),
         "requested_node_type": getattr(item, "requested_node_type", None) or getattr(item, "node_type", None),
         "requested_node_software_version": getattr(item, "node_software_version", None),
+        "requested_hostname": getattr(item, "requested_hostname", None),
+        "requested_ui_endpoint": getattr(item, "requested_ui_endpoint", None),
         "trust_status": trust_status or "pending",
         "registry_state": registry_state_from_trust_status(trust_status),
         "approved_by_user_id": getattr(item, "approved_by_user_id", None),

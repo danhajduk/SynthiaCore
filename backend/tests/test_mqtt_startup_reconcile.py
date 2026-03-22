@@ -114,7 +114,52 @@ class TestMqttStartupReconcile(unittest.TestCase):
                 self.assertEqual(state.principals[principal_id].managed_by, "core")
             self.assertEqual(state.principals["core.runtime"].publish_topics, ["hexe/bootstrap/core", "hexe/core/mqtt/info"])
             self.assertEqual(state.principals["core.runtime"].subscribe_topics, ["#", "$SYS/#"])
+            self.assertEqual(state.principals["core.runtime"].username, "hx_core.runtime")
             self.assertIn("hx_core.runtime:$7$", password_text)
+
+    def test_reconcile_normalizes_existing_system_principal_username(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_store = MqttIntegrationStateStore(str(Path(tmp) / "state.json"))
+            audit = MqttAuthorityAuditStore(str(Path(tmp) / "audit.db"))
+            boundary = InMemoryBrokerRuntimeBoundary()
+            asyncio.run(boundary.ensure_running())
+            cred_store = MqttCredentialStore(str(Path(tmp) / "credentials.json"))
+            asyncio.run(
+                state_store.upsert_principal(
+                    MqttPrincipal(
+                        principal_id="core.runtime",
+                        principal_type="system",
+                        status="active",
+                        logical_identity="core.runtime",
+                        username="hexe_core.runtime",
+                    )
+                )
+            )
+            pipeline = MqttApplyPipeline(
+                runtime_boundary=boundary,
+                audit_store=audit,
+                live_dir=str(Path(tmp) / "live"),
+            )
+            reconciler = EmbeddedMqttStartupReconciler(
+                state_store=state_store,
+                acl_compiler=MqttAclCompiler(),
+                config_renderer=MqttBrokerConfigRenderer(),
+                apply_pipeline=pipeline,
+                audit_store=audit,
+                credential_store=cred_store,
+                mqtt_manager=_FakeMqttManager(),
+            )
+
+            result = asyncio.run(reconciler.reconcile_startup())
+
+            self.assertTrue(result.ok)
+            state = asyncio.run(state_store.get_state())
+            self.assertEqual(state.principals["core.runtime"].username, "hx_core.runtime")
+            password_text = (Path(tmp) / "live" / "passwords.conf").read_text(encoding="utf-8")
+            acl_text = (Path(tmp) / "live" / "acl_compiled.conf").read_text(encoding="utf-8")
+            self.assertIn("hx_core.runtime:$7$", password_text)
+            self.assertIn("user hx_core.runtime", acl_text)
+            self.assertNotIn("hexe_core.runtime", password_text)
 
     def test_bootstrap_publish_retries_after_runtime_available(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

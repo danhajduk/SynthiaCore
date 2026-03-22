@@ -227,6 +227,8 @@ def create_app() -> FastAPI:
             if mqtt_startup_reconciler is not None:
                 try:
                     await mqtt_startup_reconciler.reconcile_startup()
+                    if mqtt_manager is not None:
+                        await mqtt_manager.restart()
                 except Exception:
                     log.exception("Embedded MQTT startup reconciliation failed")
             mqtt_approval = getattr(app.state, "mqtt_registration_approval", None)

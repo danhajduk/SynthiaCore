@@ -47,6 +47,8 @@ class NodeRegistrationRecord:
     approved_at: str | None
     created_at: str
     updated_at: str
+    requested_hostname: str | None = None
+    requested_ui_endpoint: str | None = None
     declared_capabilities: list[str] = field(default_factory=list)
     enabled_providers: list[str] = field(default_factory=list)
     provider_intelligence: list[dict[str, object]] = field(default_factory=list)
@@ -63,6 +65,8 @@ class NodeRegistrationRecord:
             "node_name": self.node_name,
             "node_software_version": self.node_software_version,
             "requested_node_type": self.requested_node_type,
+            "requested_hostname": self.requested_hostname,
+            "requested_ui_endpoint": self.requested_ui_endpoint,
             "capabilities_summary": list(self.capabilities_summary or []),
             "declared_capabilities": list(self.declared_capabilities or []),
             "enabled_providers": list(self.enabled_providers or []),
@@ -84,6 +88,8 @@ class NodeRegistrationRecord:
         payload["requested_node_name"] = self.node_name
         payload["requested_node_type"] = str(self.requested_node_type or self.node_type)
         payload["requested_node_software_version"] = self.node_software_version
+        payload["requested_hostname"] = self.requested_hostname
+        payload["requested_ui_endpoint"] = self.requested_ui_endpoint
         return payload
 
 
@@ -146,6 +152,8 @@ class NodeRegistrationsStore:
                 node_name=node_name,
                 node_software_version=node_software_version,
                 requested_node_type=str(item.get("requested_node_type") or "").strip() or None,
+                requested_hostname=str(item.get("requested_hostname") or "").strip() or None,
+                requested_ui_endpoint=str(item.get("requested_ui_endpoint") or "").strip() or None,
                 capabilities_summary=[v for v in capabilities if v],
                 declared_capabilities=[v for v in declared_capabilities if v],
                 enabled_providers=[v for v in enabled_providers if v],
@@ -224,6 +232,8 @@ class NodeRegistrationsStore:
             node_software_version=str(session.requested_node_software_version or "").strip(),
             requested_node_type=str((session.request_metadata or {}).get("requested_node_type") or "").strip()
             or str(session.requested_node_type or "").strip(),
+            requested_hostname=str(session.requested_hostname or "").strip() or None,
+            requested_ui_endpoint=str(session.requested_ui_endpoint or "").strip() or None,
             capabilities_summary=[],
             declared_capabilities=[],
             enabled_providers=[],

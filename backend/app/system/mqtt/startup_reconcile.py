@@ -51,6 +51,13 @@ def _detect_advertise_host() -> str:
     return "127.0.0.1"
 
 
+def _canonical_system_username(principal_id: str) -> str:
+    normalized = str(principal_id or "").strip()
+    if not normalized:
+        return "hx_system"
+    return f"hx_{normalized}"
+
+
 @dataclass(frozen=True)
 class StartupReconcileResult:
     ok: bool
@@ -288,6 +295,7 @@ class EmbeddedMqttStartupReconciler:
             next_principal.principal_type = "system"
             if next_principal.status in {"revoked", "expired"}:
                 next_principal.status = "active"
+            next_principal.username = _canonical_system_username(principal_id)
             next_principal.managed_by = "core"
             next_principal.notes = "core_system_principal"
             if principal_id == "core.runtime":

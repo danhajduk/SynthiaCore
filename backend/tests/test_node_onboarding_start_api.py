@@ -16,7 +16,7 @@ except Exception:  # pragma: no cover - local env may not include FastAPI deps
     build_system_router = None
     FASTAPI_STACK_AVAILABLE = False
 
-from app.system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore
+from app.system.onboarding import NodeOnboardingSessionsStore, NodeRegistrationsStore, NodeTrustIssuanceService, NodeTrustStore
 
 
 class _FakeRegistry:
@@ -43,12 +43,15 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.store = NodeOnboardingSessionsStore(path=Path(self.tmpdir.name) / "node_onboarding_sessions.json")
         self.registrations = NodeRegistrationsStore(path=Path(self.tmpdir.name) / "node_registrations.json")
+        self.trust_store = NodeTrustStore(path=Path(self.tmpdir.name) / "node_trust_records.json")
+        self.trust_issuance = NodeTrustIssuanceService(self.trust_store)
         app = FastAPI()
         app.include_router(
             build_system_router(
                 _FakeRegistry(),
                 onboarding_sessions_store=self.store,
                 node_registrations_store=self.registrations,
+                node_trust_issuance=self.trust_issuance,
             ),
             prefix="/api",
         )
@@ -76,6 +79,7 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
             "node_software_version": "0.1.0",
             "protocol_version": "1.0",
             "hostname": "office-node-host",
+            "ui_endpoint": "http://office-node-host:8765/ui",
             "node_nonce": "nonce-abc",
         }
 
@@ -92,9 +96,18 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         self.assertIn("session_id", session)
         self.assertIn("approval_url", session)
         self.assertIn("expires_at", session)
+        self.assertEqual(session["requested_hostname"], "office-node-host")
+        self.assertEqual(session["requested_ui_endpoint"], "http://office-node-host:8765/ui")
         self.assertEqual(session["finalize"]["method"], "GET")
         self.assertIn("/api/system/nodes/onboarding/sessions/", session["finalize"]["path"])
         self.assertIn("/onboarding/registrations/approve", session["approval_url"])
+
+    def test_invalid_ui_endpoint_rejected(self) -> None:
+        payload = self._payload()
+        payload["ui_endpoint"] = "office-node-host/ui"
+        resp = self.client.post("/api/system/nodes/onboarding/sessions", json=payload)
+        self.assertEqual(resp.status_code, 400, resp.text)
+        self.assertEqual(resp.json()["detail"]["error"], "ui_endpoint_invalid")
 
     def test_legacy_ai_node_alias_routes_emit_deprecation_headers(self) -> None:
         started = self.client.post("/api/system/ai-nodes/onboarding/sessions", json=self._payload())
@@ -241,8 +254,8 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         invalid_nonce = self.client.get(
             f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=wrong"
         )
-        self.assertEqual(invalid_nonce.status_code, 200, invalid_nonce.text)
-        self.assertEqual(invalid_nonce.json()["onboarding_status"], "invalid")
+        self.assertEqual(invalid_nonce.status_code, 400, invalid_nonce.text)
+        self.assertEqual(invalid_nonce.json()["detail"], "node_nonce_invalid")
 
         pending = self.client.get(
             f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=nonce-abc"
@@ -270,7 +283,8 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
             f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=nonce-abc"
         )
         self.assertEqual(consumed.status_code, 200, consumed.text)
-        self.assertEqual(consumed.json()["onboarding_status"], "consumed")
+        self.assertEqual(consumed.json()["onboarding_status"], "approved")
+        self.assertTrue(consumed.json().get("replayed"))
 
     def test_requested_node_id_is_preserved_for_activation_payload(self) -> None:
         payload = self._payload()

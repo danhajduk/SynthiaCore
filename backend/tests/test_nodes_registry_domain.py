@@ -16,6 +16,14 @@ class _FakeGovernanceService:
     def get_status(self, node_id: str):
         return _FakeGovernanceStatus()
 
+    def governance_freshness(self, node_id: str):
+        return {
+            "state": "fresh",
+            "changed_at": "2026-03-16T00:00:00Z",
+            "stale_for_s": 0,
+            "outdated": False,
+        }
+
 
 class TestNodesRegistryDomain(unittest.TestCase):
     def test_registry_returns_canonical_node_record(self) -> None:
@@ -27,6 +35,8 @@ class TestNodesRegistryDomain(unittest.TestCase):
                 node_name="edge-a",
                 node_software_version="1.0.0",
                 requested_node_type="ai-node",
+                requested_hostname="edge-a.local",
+                requested_ui_endpoint="http://edge-a.local:8765/ui",
                 capabilities_summary=[],
                 trust_status="trusted",
                 source_onboarding_session_id="sess-1",
@@ -47,6 +57,8 @@ class TestNodesRegistryDomain(unittest.TestCase):
         self.assertIsNotNone(item)
         assert item is not None
         self.assertEqual(item.node_id, "node-1")
+        self.assertEqual(item.requested_hostname, "edge-a.local")
+        self.assertEqual(item.requested_ui_endpoint, "http://edge-a.local:8765/ui")
         self.assertEqual(item.capabilities.capability_profile_id, "cap-node-1-v1")
         self.assertEqual(item.capabilities.taxonomy.activation.stage, "operational")
         self.assertEqual(item.capabilities.taxonomy.categories[0].category_id, "task_families")
