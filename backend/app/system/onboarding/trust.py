@@ -77,7 +77,7 @@ def _sanitize_mqtt_username(value: str) -> str:
 
 
 def _default_node_mqtt_identity(node_id: str) -> str:
-    return _sanitize_mqtt_username(f"sn_{str(node_id or '').strip()}")
+    return _sanitize_mqtt_username(f"hn_{str(node_id or '').strip()}")
 
 
 @dataclass

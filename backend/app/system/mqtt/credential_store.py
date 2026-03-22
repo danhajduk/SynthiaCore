@@ -40,7 +40,7 @@ class MqttCredentialStore:
         payload = self._load_payload()
         credentials = dict(payload.get("credentials") or {})
         next_credentials: dict[str, dict[str, str]] = {}
-        lines = ["# managed by synthia core mqtt credential store"]
+        lines = ["# managed by hexe core mqtt credential store"]
 
         for principal in sorted(state.principals.values(), key=lambda item: item.principal_id):
             if not self._principal_requires_credential(principal):
@@ -142,11 +142,11 @@ class MqttCredentialStore:
             return _sanitize_username(preferred)
         if fallback and str(fallback).strip():
             return _sanitize_username(str(fallback))
-        prefix = "sx"
+        prefix = "hx"
         if principal.principal_type == "generic_user":
             prefix = "gu"
         elif principal.principal_type == "synthia_node":
-            prefix = "sn"
+            prefix = "hn"
         return _sanitize_username(f"{prefix}_{principal.logical_identity}")
 
     @staticmethod

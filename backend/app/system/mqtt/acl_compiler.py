@@ -289,9 +289,9 @@ class MqttAclCompiler:
         username = str(principal.username or "").strip()
         if username:
             return _sanitize_username(username)
-        prefix = "sx"
+        prefix = "hx"
         if principal.principal_type == "generic_user":
             prefix = "gu"
         elif principal.principal_type == "synthia_node":
-            prefix = "sn"
+            prefix = "hn"
         return _sanitize_username(f"{prefix}_{principal.logical_identity}")

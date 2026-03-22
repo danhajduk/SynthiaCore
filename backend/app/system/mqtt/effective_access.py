@@ -74,12 +74,17 @@ class MqttEffectiveAccessCompiler:
         anonymous_bootstrap_only = False
         generic_non_reserved_only = False
 
-        if principal.principal_type in {"synthia_addon", "synthia_node"}:
+        if principal.principal_type == "synthia_addon":
             grant = self._grant_for_principal(principal, state)
             if grant is None:
                 return None
             publish_topics = _sorted_unique(list(grant.publish_topics))
             subscribe_topics = _sorted_unique(list(grant.subscribe_topics))
+        elif principal.principal_type == "synthia_node":
+            # Node onboarding provisions direct topic scopes on the principal itself.
+            # Unlike addons, nodes do not use addon grants for their operational ACLs.
+            publish_topics = _sorted_unique(list(principal.publish_topics))
+            subscribe_topics = _sorted_unique(list(principal.subscribe_topics))
         elif principal.principal_type == "generic_user":
             mode = str(getattr(principal, "access_mode", "private") or "private").strip().lower()
             generic_non_reserved_only = mode == "non_reserved"

@@ -22,7 +22,7 @@ class TestMqttAclCompiler(unittest.TestCase):
                     status="active",
                     logical_identity="vision",
                     linked_addon_id="vision",
-                    username="sx_vision",
+                    username="hx_vision",
                 )
             },
             active_grants={
@@ -37,7 +37,7 @@ class TestMqttAclCompiler(unittest.TestCase):
         compiler = MqttAclCompiler()
         result = compiler.compile(state)
         acl = result.acl_text
-        self.assertIn("user sx_vision", acl)
+        self.assertIn("user hx_vision", acl)
         self.assertIn("topic write hexe/addons/vision/event/#", acl)
         self.assertIn("topic read hexe/system/health", acl)
 
@@ -63,8 +63,27 @@ class TestMqttAclCompiler(unittest.TestCase):
             },
         )
         acl = MqttAclCompiler().compile(state).acl_text
-        self.assertIn("user sx_mqtt", acl)
+        self.assertIn("user hx_mqtt", acl)
         self.assertNotIn("user addon_mqtt", acl)
+
+    def test_compiles_node_principal_from_direct_topic_scopes(self) -> None:
+        state = MqttIntegrationState(
+            principals={
+                "node:node-123": MqttPrincipal(
+                    principal_id="node:node-123",
+                    principal_type="synthia_node",
+                    status="active",
+                    logical_identity="node-123",
+                    linked_node_id="node-123",
+                    username="hn_node-123",
+                    publish_topics=["hexe/nodes/node-123/#"],
+                    subscribe_topics=["hexe/nodes/node-123/#"],
+                )
+            }
+        )
+        acl = MqttAclCompiler().compile(state).acl_text
+        self.assertIn("user hn_node-123", acl)
+        self.assertIn("topic readwrite hexe/nodes/node-123/#", acl)
 
     def test_generic_user_reserved_denies_include_future_federation_families(self) -> None:
         state = MqttIntegrationState(

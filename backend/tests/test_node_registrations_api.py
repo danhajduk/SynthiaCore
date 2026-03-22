@@ -170,7 +170,7 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         )
         self.assertEqual(finalized.status_code, 200, finalized.text)
         activation = finalized.json()["activation"]
-        self.assertTrue(str(activation["operational_mqtt_identity"]).startswith("sn_"))
+        self.assertTrue(str(activation["operational_mqtt_identity"]).startswith("hn_"))
 
         state = self.mqtt_state_store._read_sync()
         principal = state.principals.get(f"node:{node_id}")
@@ -197,7 +197,7 @@ class TestNodeRegistrationsApi(unittest.TestCase):
         )
         self.assertEqual(first.status_code, 200, first.text)
         activation = first.json()["activation"]
-        self.assertTrue(str(activation["operational_mqtt_identity"]).startswith("sn_"))
+        self.assertTrue(str(activation["operational_mqtt_identity"]).startswith("hn_"))
 
         second = self.client.get(
             f"/api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=nonce-mqtt-replay-1"

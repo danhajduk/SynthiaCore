@@ -60,6 +60,27 @@ class TestMqttEffectiveAccess(unittest.TestCase):
         self.assertIn("$SYS/#", by_id["core.runtime"].subscribe_scopes)
         self.assertIn("hexe/core/mqtt/info", by_id["core.runtime"].publish_scopes)
 
+    def test_compiles_direct_node_topics_without_addon_grant(self) -> None:
+        state = MqttIntegrationState(
+            principals={
+                "node:node-123": MqttPrincipal(
+                    principal_id="node:node-123",
+                    principal_type="synthia_node",
+                    status="active",
+                    logical_identity="node-123",
+                    linked_node_id="node-123",
+                    username="hn_node-123",
+                    publish_topics=["hexe/nodes/node-123/#"],
+                    subscribe_topics=["hexe/nodes/node-123/#"],
+                )
+            }
+        )
+        compiled = MqttEffectiveAccessCompiler().compile(state)
+        by_id = {item.principal_id: item for item in compiled}
+        self.assertIn("node:node-123", by_id)
+        self.assertEqual(by_id["node:node-123"].publish_scopes, ["hexe/nodes/node-123/#"])
+        self.assertEqual(by_id["node:node-123"].subscribe_scopes, ["hexe/nodes/node-123/#"])
+
 
 if __name__ == "__main__":
     unittest.main()

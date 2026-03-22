@@ -1,0 +1,367 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexe.local/schemas/node_capability_declaration_response.schema.json",
+  "title": "Node Capability Declaration Response",
+  "description": "JSON Schema for the successful response returned by Core after POST /system/nodes/capabilities/declaration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ok",
+    "acceptance_status",
+    "node_id",
+    "manifest_version",
+    "accepted_at",
+    "declared_capabilities",
+    "enabled_providers",
+    "provider_intelligence",
+    "unified_model_descriptors",
+    "capability_profile_id",
+    "capability_taxonomy"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "const": true
+    },
+    "acceptance_status": {
+      "type": "string",
+      "const": "accepted"
+    },
+    "node_id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128,
+      "pattern": "^node-.*$"
+    },
+    "manifest_version": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "const": "1.0"
+    },
+    "accepted_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "ISO-8601 UTC acceptance timestamp."
+    },
+    "declared_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._/-]{1,127}$"
+      }
+    },
+    "enabled_providers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]{1,127}$"
+      }
+    },
+    "provider_intelligence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/providerCapability"
+      }
+    },
+    "unified_model_descriptors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/unifiedModelDescriptor"
+      }
+    },
+    "capability_profile_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "capability_taxonomy": {
+      "$ref": "#/$defs/capabilityTaxonomy"
+    },
+    "governance_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "governance_issued_at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO-8601 UTC governance issuance timestamp."
+    }
+  },
+  "$defs": {
+    "floatMap": {
+      "type": "object",
+      "propertyNames": {
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "capacityDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "type": "string",
+          "minLength": 1
+        },
+        "period": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limits": {
+          "$ref": "#/$defs/floatMap"
+        },
+        "concurrency": {
+          "$ref": "#/$defs/floatMap"
+        },
+        "sla_hints": {
+          "type": "object",
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "providerModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "normalized_model_id",
+        "descriptor_id",
+        "availability",
+        "pricing",
+        "latency_metrics"
+      ],
+      "properties": {
+        "model_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "normalized_model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "descriptor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "availability": {
+          "type": "string",
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "pricing": {
+          "$ref": "#/$defs/floatMap"
+        },
+        "latency_metrics": {
+          "$ref": "#/$defs/floatMap"
+        },
+        "capacity": {
+          "$ref": "#/$defs/capacityDescriptor"
+        }
+      }
+    },
+    "providerCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "available_models"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{1,127}$"
+        },
+        "available_models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/providerModel"
+          }
+        },
+        "capacity": {
+          "$ref": "#/$defs/capacityDescriptor"
+        }
+      }
+    },
+    "unifiedModelDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalized_model_id",
+        "model_id",
+        "providers",
+        "provider_count"
+      ],
+      "properties": {
+        "normalized_model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]{1,127}$"
+          }
+        },
+        "provider_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "capabilityTaxonomyCategory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category_id",
+        "label",
+        "items",
+        "item_count"
+      ],
+      "properties": {
+        "category_id": {
+          "type": "string",
+          "enum": [
+            "task_families",
+            "provider_access",
+            "provider_models"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "item_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "capabilityActivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "declaration_received",
+        "profile_accepted",
+        "governance_issued",
+        "operational"
+      ],
+      "properties": {
+        "stage": {
+          "type": "string",
+          "enum": [
+            "not_declared",
+            "declaration_received",
+            "profile_accepted",
+            "governance_issued",
+            "operational"
+          ]
+        },
+        "declaration_received": {
+          "type": "boolean"
+        },
+        "profile_accepted": {
+          "type": "boolean"
+        },
+        "governance_issued": {
+          "type": "boolean"
+        },
+        "operational": {
+          "type": "boolean"
+        }
+      }
+    },
+    "capabilityTaxonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "categories",
+        "activation"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "1"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capabilityTaxonomyCategory"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "activation": {
+          "$ref": "#/$defs/capabilityActivation"
+        }
+      }
+    }
+  }
+}

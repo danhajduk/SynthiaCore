@@ -114,7 +114,7 @@ class TestMqttStartupReconcile(unittest.TestCase):
                 self.assertEqual(state.principals[principal_id].managed_by, "core")
             self.assertEqual(state.principals["core.runtime"].publish_topics, ["hexe/bootstrap/core", "hexe/core/mqtt/info"])
             self.assertEqual(state.principals["core.runtime"].subscribe_topics, ["#", "$SYS/#"])
-            self.assertIn("sx_core.runtime:$7$", password_text)
+            self.assertIn("hx_core.runtime:$7$", password_text)
 
     def test_bootstrap_publish_retries_after_runtime_available(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

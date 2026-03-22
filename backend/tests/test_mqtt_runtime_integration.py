@@ -219,11 +219,11 @@ class TestMqttRuntimeIntegration(unittest.TestCase):
         acl_text = (live_dir / "acl_compiled.conf").read_text(encoding="utf-8")
         self.assertIn("topic read hexe/bootstrap/core", acl_text)
         self.assertNotIn("topic deny #", acl_text)
-        self.assertIn("user sx_vision", acl_text)
+        self.assertIn("user hx_vision", acl_text)
         self.assertIn("topic write hexe/addons/vision/state/#", acl_text)
 
         passwords_text = (live_dir / "passwords.conf").read_text(encoding="utf-8")
-        self.assertIn("sx_vision:$7$", passwords_text)
+        self.assertIn("hx_vision:$7$", passwords_text)
         cred_payload = json.loads(Path(self.credential_store.path).read_text(encoding="utf-8"))
         self.assertIn("addon:vision", cred_payload.get("credentials", {}))
         self.assertTrue(cred_payload["credentials"]["addon:vision"]["password"])
