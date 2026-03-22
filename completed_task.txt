@@ -439,3 +439,5 @@
 2026-03-11 - Task 455: added broader global onboarding regression coverage across sessions, registrations, trust issuance, and compatibility routes.
 2026-03-11 - Task 456: completed global node onboarding documentation refresh and linked canonical contracts/migration guide across docs.
 2026-03-22 - Task 737: defined canonical addon/node UI proxy routes, redirect middleware, and frontend/backend route helpers.
+2026-03-22 - Task 749: added structured addon/node proxy lifecycle logging with identifiers, status, and latency.
+2026-03-22 - Task 750: expanded proxy validation coverage across UI, API, websocket, and failure scenarios.

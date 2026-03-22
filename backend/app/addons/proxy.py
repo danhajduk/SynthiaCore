@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -14,6 +15,8 @@ from app.api.admin import require_admin_request
 from app.reverse_proxy import ReverseProxyService
 
 from .registry import AddonRegistry
+
+log = logging.getLogger("synthia.proxy")
 
 LOCAL_PROXY_RETRIES = 1
 LOCAL_PROXY_TIMEOUT_SECONDS = 10.0
@@ -146,7 +149,32 @@ class AddonProxy:
             return False, f"addon_health_{status}"
         return True, None
 
+    @staticmethod
+    def _log_proxy_result(
+        *,
+        addon_id: str,
+        surface: str,
+        method: str,
+        path: str,
+        public_prefix: str,
+        status_code: int,
+        latency_ms: float,
+        outcome: str,
+    ) -> None:
+        log.info(
+            "proxy addon surface=%s addon_id=%s method=%s path=%s prefix=%s status=%s latency_ms=%.1f outcome=%s",
+            surface,
+            addon_id,
+            method,
+            path or "/",
+            public_prefix,
+            status_code,
+            latency_ms,
+            outcome,
+        )
+
     async def forward_ui(self, request: Request, addon_id: str, path: str = "", *, public_prefix: str = "") -> Response:
+        started_at = time.perf_counter()
         effective_public_prefix = public_prefix or f"/addons/{addon_id}"
         if addon_id in self._registry.addons and addon_id not in self._registry.registered:
             local_path = f"/api/addons/{quote(addon_id, safe='')}"
@@ -154,11 +182,31 @@ class AddonProxy:
                 local_path = f"{local_path}/{quote(path.lstrip('/'), safe='/')}"
             if request.url.query:
                 local_path = f"{local_path}?{request.url.query}"
+            self._log_proxy_result(
+                addon_id=addon_id,
+                surface="ui",
+                method=request.method,
+                path=path,
+                public_prefix=effective_public_prefix,
+                status_code=307,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome="embedded_redirect",
+            )
             return RedirectResponse(url=local_path, status_code=307)
 
         try:
             target_base = self._ui_target_base(addon_id, request)
         except HTTPException as exc:
+            self._log_proxy_result(
+                addon_id=addon_id,
+                surface="ui",
+                method=request.method,
+                path=path,
+                public_prefix=effective_public_prefix,
+                status_code=exc.status_code,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=str(exc.detail),
+            )
             return self._proxy.build_ui_error_response(
                 status_code=exc.status_code,
                 detail=str(exc.detail),
@@ -168,6 +216,16 @@ class AddonProxy:
             )
         healthy, health_detail = self._ui_health_state(addon_id)
         if not healthy:
+            self._log_proxy_result(
+                addon_id=addon_id,
+                surface="ui",
+                method=request.method,
+                path=path,
+                public_prefix=effective_public_prefix,
+                status_code=503,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=str(health_detail or "addon_unhealthy"),
+            )
             return self._proxy.build_ui_error_response(
                 status_code=503,
                 detail=str(health_detail or "addon_unhealthy"),
@@ -176,6 +234,16 @@ class AddonProxy:
                 public_prefix=effective_public_prefix,
             )
         if self._is_circuit_open(addon_id):
+            self._log_proxy_result(
+                addon_id=addon_id,
+                surface="ui",
+                method=request.method,
+                path=path,
+                public_prefix=effective_public_prefix,
+                status_code=503,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome="addon_circuit_open",
+            )
             return self._proxy.build_ui_error_response(
                 status_code=503,
                 detail="addon_circuit_open",
@@ -221,12 +289,32 @@ class AddonProxy:
                     response_headers.get("content-type"),
                     public_prefix=effective_public_prefix,
                 )
+                self._log_proxy_result(
+                    addon_id=addon_id,
+                    surface="ui",
+                    method=request.method,
+                    path=path,
+                    public_prefix=effective_public_prefix,
+                    status_code=upstream.status_code,
+                    latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                    outcome="proxied",
+                )
                 return Response(
                     content=content,
                     status_code=upstream.status_code,
                     headers=response_headers,
                 )
             except HTTPException as exc:
+                self._log_proxy_result(
+                    addon_id=addon_id,
+                    surface="ui",
+                    method=request.method,
+                    path=path,
+                    public_prefix=effective_public_prefix,
+                    status_code=exc.status_code,
+                    latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                    outcome=str(exc.detail),
+                )
                 if exc.status_code != 502:
                     return self._proxy.build_ui_error_response(
                         status_code=exc.status_code,
@@ -246,6 +334,16 @@ class AddonProxy:
                     continue
 
         if last_exc is not None:
+            self._log_proxy_result(
+                addon_id=addon_id,
+                surface="ui",
+                method=request.method,
+                path=path,
+                public_prefix=effective_public_prefix,
+                status_code=502,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=f"addon_proxy_error: {type(last_exc).__name__}",
+            )
             return self._proxy.build_ui_error_response(
                 status_code=502,
                 detail=f"addon_proxy_error: {type(last_exc).__name__}",
@@ -253,6 +351,16 @@ class AddonProxy:
                 target_label=addon_id,
                 public_prefix=effective_public_prefix,
             )
+        self._log_proxy_result(
+            addon_id=addon_id,
+            surface="ui",
+            method=request.method,
+            path=path,
+            public_prefix=effective_public_prefix,
+            status_code=502,
+            latency_ms=(time.perf_counter() - started_at) * 1000.0,
+            outcome="addon_proxy_error",
+        )
         return self._proxy.build_ui_error_response(
             status_code=502,
             detail="addon_proxy_error",
@@ -271,6 +379,7 @@ class AddonProxy:
         )
 
     async def forward_api(self, request: Request, addon_id: str, path: str = "") -> Response:
+        started_at = time.perf_counter()
         target_base = self._api_target_base(addon_id, request)
         if self._is_circuit_open(addon_id):
             raise HTTPException(status_code=503, detail="addon_circuit_open")
@@ -302,8 +411,28 @@ class AddonProxy:
                         continue
                 else:
                     self._record_success(addon_id)
+                self._log_proxy_result(
+                    addon_id=addon_id,
+                    surface="api",
+                    method=request.method,
+                    path=path,
+                    public_prefix=f"/api/addons/{addon_id}",
+                    status_code=upstream.status_code,
+                    latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                    outcome="proxied",
+                )
                 return await self._proxy.stream_response(upstream)
             except HTTPException as exc:
+                self._log_proxy_result(
+                    addon_id=addon_id,
+                    surface="api",
+                    method=request.method,
+                    path=path,
+                    public_prefix=f"/api/addons/{addon_id}",
+                    status_code=exc.status_code,
+                    latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                    outcome=str(exc.detail),
+                )
                 if exc.status_code != 502:
                     raise
                 last_exc = RuntimeError(str(exc.detail))
@@ -311,15 +440,56 @@ class AddonProxy:
                 if attempt < retries:
                     continue
         if last_exc is not None:
+            self._log_proxy_result(
+                addon_id=addon_id,
+                surface="api",
+                method=request.method,
+                path=path,
+                public_prefix=f"/api/addons/{addon_id}",
+                status_code=502,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=f"addon_api_proxy_error: {type(last_exc).__name__}",
+            )
             raise HTTPException(status_code=502, detail=f"addon_api_proxy_error: {type(last_exc).__name__}")
+        self._log_proxy_result(
+            addon_id=addon_id,
+            surface="api",
+            method=request.method,
+            path=path,
+            public_prefix=f"/api/addons/{addon_id}",
+            status_code=502,
+            latency_ms=(time.perf_counter() - started_at) * 1000.0,
+            outcome="addon_api_proxy_error",
+        )
         raise HTTPException(status_code=502, detail="addon_api_proxy_error")
 
     async def forward_websocket(self, websocket: WebSocket, addon_id: str, path: str = "", *, public_prefix: str = "") -> None:
+        started_at = time.perf_counter()
         if addon_id in self._registry.addons and addon_id not in self._registry.registered:
+            self._log_proxy_result(
+                addon_id=addon_id,
+                surface="ui_ws",
+                method="WS",
+                path=path,
+                public_prefix=public_prefix or f"/addons/{addon_id}",
+                status_code=1008,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome="embedded_addon_websocket_proxy_unsupported",
+            )
             await websocket.close(code=1008, reason="embedded_addon_websocket_proxy_unsupported")
             return
         healthy, health_detail = self._ui_health_state(addon_id)
         if not healthy:
+            self._log_proxy_result(
+                addon_id=addon_id,
+                surface="ui_ws",
+                method="WS",
+                path=path,
+                public_prefix=public_prefix or f"/addons/{addon_id}",
+                status_code=1013,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=str(health_detail or "addon_unhealthy"),
+            )
             await websocket.close(code=1013, reason=str(health_detail or "addon_unhealthy"))
             return
         target_base = self._ui_target_base(addon_id, websocket)
@@ -332,6 +502,16 @@ class AddonProxy:
                 **self._auth_headers(addon_id),
                 "X-Hexe-Addon-Id": addon_id,
             },
+        )
+        self._log_proxy_result(
+            addon_id=addon_id,
+            surface="ui_ws",
+            method="WS",
+            path=path,
+            public_prefix=public_prefix or f"/addons/{addon_id}",
+            status_code=101,
+            latency_ms=(time.perf_counter() - started_at) * 1000.0,
+            outcome="proxied",
         )
 
 

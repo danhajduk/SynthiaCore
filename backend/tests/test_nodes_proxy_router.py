@@ -327,6 +327,27 @@ class TestNodeUiProxyTargetSelection(unittest.TestCase):
             self.assertIn("Node UI Unavailable", response.text)
             self.assertIn("health_probe_status_unhealthy", response.text)
 
+    def test_ui_route_emits_proxy_log_entry(self) -> None:
+        proxy = NodeUiProxy(
+            _TargetService(
+                type(
+                    "Node",
+                    (),
+                    {
+                        "ui_enabled": False,
+                        "ui_base_url": "http://10.0.0.9:8765/ui",
+                    },
+                )()
+            )
+        )
+        app = FastAPI()
+        app.include_router(build_node_ui_proxy_router(proxy))
+        with patch.dict("os.environ", {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False):
+            client = TestClient(app)
+            with self.assertLogs("synthia.proxy", level="INFO") as captured:
+                client.get("/nodes/node-1/ui/", headers={"X-Admin-Token": "test-token"})
+        self.assertTrue(any("surface=ui" in message and "node_id=node-1" in message for message in captured.output))
+
 
 if __name__ == "__main__":
     unittest.main()

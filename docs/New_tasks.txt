@@ -284,40 +284,6 @@ Ensure only authorized users can access node/addon UIs.
 - unhealthy targets handled gracefully
 - user sees proper error state
 
----
-
-[TODO] Task 749 — Logging and observability
-
-### Requirements
-- log proxied requests
-- log failures and latency
-- include node/addon identifiers
-
-### Deliverables
-- structured logs
-
-### Acceptance Criteria
-- logs show full proxy lifecycle
-- debugging possible from logs alone
-
----
-
-[TODO] Task 750 — Integration and validation tests
-
-### Scope
-End-to-end validation of proxy system.
-
-### Tests
-- UI load for node and addon
-- API passthrough
-- websocket connection
-- failure scenarios
-
-### Acceptance Criteria
-- all proxy paths validated
-- no regressions in Core API
-- stable under repeated use
-
 # Core Tasks — Proxied UI Contract for Nodes and Addons
 
 [TODO] Task 751 — Define proxied UI contract for all externally mounted UIs

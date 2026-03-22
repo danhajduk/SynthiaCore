@@ -160,6 +160,16 @@ class TestAddonProxyTargetSelection(unittest.TestCase):
             self.assertIn("Addon UI Unavailable", response.text)
             self.assertIn("addon_health_unhealthy", response.text)
 
+    def test_ui_route_emits_proxy_log_entry(self) -> None:
+        proxy = AddonProxy(_FakeRegistry())
+        app = FastAPI()
+        app.include_router(build_proxy_router(proxy))
+        with patch.dict("os.environ", {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False):
+            client = TestClient(app)
+            with self.assertLogs("synthia.proxy", level="INFO") as captured:
+                client.get("/ui/addons/missing", headers={"X-Admin-Token": "test-token"})
+        self.assertTrue(any("surface=ui" in message and "addon_id=missing" in message for message in captured.output))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
+import time
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -9,6 +11,8 @@ from fastapi import APIRouter, HTTPException, Request, Response, WebSocket
 from app.api.admin import require_admin_request
 from app.reverse_proxy import ReverseProxyService
 from .service import NodesDomainService
+
+log = logging.getLogger("synthia.proxy")
 
 
 def _env_float(name: str, default: float) -> float:
@@ -52,6 +56,30 @@ class NodeUiProxy:
         parsed = urlsplit(ui_base)
         return urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
 
+    @staticmethod
+    def _log_proxy_result(
+        *,
+        node_id: str,
+        surface: str,
+        method: str,
+        path: str,
+        public_prefix: str,
+        status_code: int,
+        latency_ms: float,
+        outcome: str,
+    ) -> None:
+        log.info(
+            "proxy node surface=%s node_id=%s method=%s path=%s prefix=%s status=%s latency_ms=%.1f outcome=%s",
+            surface,
+            node_id,
+            method,
+            path or "/",
+            public_prefix,
+            status_code,
+            latency_ms,
+            outcome,
+        )
+
     async def _ui_health_state(self, node_id: str) -> tuple[bool, str | None]:
         node = self._service.get_node(node_id)
         raw_endpoint = str(getattr(node, "ui_health_endpoint", "") or "").strip()
@@ -63,10 +91,21 @@ class NodeUiProxy:
         )
 
     async def forward(self, request: Request, node_id: str, path: str = "", *, public_prefix: str = "") -> Response:
+        started_at = time.perf_counter()
         effective_public_prefix = public_prefix or f"/nodes/{node_id}/ui"
         try:
             target_base = self._target_base(node_id, request)
         except HTTPException as exc:
+            self._log_proxy_result(
+                node_id=node_id,
+                surface="ui",
+                method=request.method,
+                path=path,
+                public_prefix=effective_public_prefix,
+                status_code=exc.status_code,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=str(exc.detail),
+            )
             return self._proxy.build_ui_error_response(
                 status_code=exc.status_code,
                 detail=str(exc.detail),
@@ -76,6 +115,16 @@ class NodeUiProxy:
             )
         healthy, health_detail = await self._ui_health_state(node_id)
         if not healthy:
+            self._log_proxy_result(
+                node_id=node_id,
+                surface="ui",
+                method=request.method,
+                path=path,
+                public_prefix=effective_public_prefix,
+                status_code=503,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=str(health_detail or "node_unhealthy"),
+            )
             return self._proxy.build_ui_error_response(
                 status_code=503,
                 detail=str(health_detail or "node_unhealthy"),
@@ -97,6 +146,16 @@ class NodeUiProxy:
             )
         except HTTPException as exc:
             if exc.status_code == 502:
+                self._log_proxy_result(
+                    node_id=node_id,
+                    surface="ui",
+                    method=request.method,
+                    path=path,
+                    public_prefix=effective_public_prefix,
+                    status_code=502,
+                    latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                    outcome=f"node_ui_proxy_error: {str(exc.detail).removeprefix('proxy_error: ')}",
+                )
                 return self._proxy.build_ui_error_response(
                     status_code=502,
                     detail=f"node_ui_proxy_error: {str(exc.detail).removeprefix('proxy_error: ')}",
@@ -104,6 +163,16 @@ class NodeUiProxy:
                     target_label=node_id,
                     public_prefix=effective_public_prefix,
                 )
+            self._log_proxy_result(
+                node_id=node_id,
+                surface="ui",
+                method=request.method,
+                path=path,
+                public_prefix=effective_public_prefix,
+                status_code=exc.status_code,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=str(exc.detail),
+            )
             return self._proxy.build_ui_error_response(
                 status_code=exc.status_code,
                 detail=str(exc.detail),
@@ -118,6 +187,16 @@ class NodeUiProxy:
             content,
             response_headers.get("content-type"),
             public_prefix=effective_public_prefix,
+        )
+        self._log_proxy_result(
+            node_id=node_id,
+            surface="ui",
+            method=request.method,
+            path=path,
+            public_prefix=effective_public_prefix,
+            status_code=upstream.status_code,
+            latency_ms=(time.perf_counter() - started_at) * 1000.0,
+            outcome="proxied",
         )
         return Response(
             content=content,
@@ -135,8 +214,19 @@ class NodeUiProxy:
         )
 
     async def forward_websocket(self, websocket: WebSocket, node_id: str, path: str = "", *, public_prefix: str = "") -> None:
+        started_at = time.perf_counter()
         healthy, health_detail = await self._ui_health_state(node_id)
         if not healthy:
+            self._log_proxy_result(
+                node_id=node_id,
+                surface="ui_ws",
+                method="WS",
+                path=path,
+                public_prefix=public_prefix or f"/nodes/{node_id}/ui",
+                status_code=1013,
+                latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                outcome=str(health_detail or "node_unhealthy"),
+            )
             await websocket.close(code=1013, reason=str(health_detail or "node_unhealthy"))
             return
         target_base = self._target_base(node_id, websocket)
@@ -147,8 +237,19 @@ class NodeUiProxy:
             public_prefix=public_prefix or f"/nodes/{node_id}/ui",
             extra_headers={"X-Hexe-Node-Id": node_id},
         )
+        self._log_proxy_result(
+            node_id=node_id,
+            surface="ui_ws",
+            method="WS",
+            path=path,
+            public_prefix=public_prefix or f"/nodes/{node_id}/ui",
+            status_code=101,
+            latency_ms=(time.perf_counter() - started_at) * 1000.0,
+            outcome="proxied",
+        )
 
     async def forward_api(self, request: Request, node_id: str, path: str = "") -> Response:
+        started_at = time.perf_counter()
         target_base = self._api_target_base(node_id, request)
         target = self._proxy.build_target_url(target_base, path, request.url.query)
         headers = self._proxy.build_request_headers(
@@ -164,8 +265,28 @@ class NodeUiProxy:
             )
         except HTTPException as exc:
             if exc.status_code == 502:
+                self._log_proxy_result(
+                    node_id=node_id,
+                    surface="api",
+                    method=request.method,
+                    path=path,
+                    public_prefix=f"/api/nodes/{node_id}",
+                    status_code=502,
+                    latency_ms=(time.perf_counter() - started_at) * 1000.0,
+                    outcome=f"node_api_proxy_error: {str(exc.detail).removeprefix('proxy_error: ')}",
+                )
                 raise HTTPException(status_code=502, detail=f"node_api_proxy_error: {str(exc.detail).removeprefix('proxy_error: ')}")
             raise
+        self._log_proxy_result(
+            node_id=node_id,
+            surface="api",
+            method=request.method,
+            path=path,
+            public_prefix=f"/api/nodes/{node_id}",
+            status_code=upstream.status_code,
+            latency_ms=(time.perf_counter() - started_at) * 1000.0,
+            outcome="proxied",
+        )
         return await self._proxy.stream_response(upstream)
 
 
