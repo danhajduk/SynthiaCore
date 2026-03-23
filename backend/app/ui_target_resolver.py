@@ -101,7 +101,7 @@ class UiTargetResolver:
             UiProxyTarget(
                 kind="node",
                 target_id=node_id,
-                public_prefix=f"/nodes/{node_id}/ui",
+                public_prefix=f"/nodes/proxy/{node_id}",
                 ui_enabled=bool(getattr(node, "ui_enabled", False)),
                 ui_base_url=str(getattr(node, "ui_base_url", "") or "").strip() or None,
                 ui_health_endpoint=str(getattr(node, "ui_health_endpoint", "") or "").strip() or None,
@@ -116,7 +116,7 @@ class UiTargetResolver:
             target_id=node_id,
             surface="ui",
             source="node_registration",
-            public_prefix=f"/nodes/{node_id}/ui",
+            public_prefix=f"/nodes/proxy/{node_id}",
             target_base=str(availability.ui_base_url or "").rstrip("/"),
             health_endpoint=availability.ui_health_endpoint,
         )

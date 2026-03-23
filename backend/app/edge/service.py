@@ -329,14 +329,14 @@ class EdgeGatewayService:
             EdgePublication(
                 publication_id="core-nodes-proxy",
                 hostname=identity.public_hostname,
-                path_prefix="/nodes",
+                path_prefix="/nodes/proxy",
                 enabled=True,
                 source="core_owned",
                 target={
                     "target_type": "core_nodes_proxy",
                     "target_id": "core-nodes-proxy",
                     "upstream_base_url": "http://127.0.0.1:9001",
-                    "allowed_path_prefixes": ["/nodes"],
+                    "allowed_path_prefixes": ["/nodes/proxy"],
                 },
             ),
             EdgePublication(
@@ -401,14 +401,14 @@ class EdgeGatewayService:
             raise HTTPException(status_code=400, detail="edge_publication_hostname_invalid")
         if not hostname.endswith(f".{identity.platform_domain}"):
             raise HTTPException(status_code=400, detail="edge_publication_domain_invalid")
-        reserved_core_paths = {"/", "/api", "/nodes", "/addons/proxy"}
+        reserved_core_paths = {"/", "/api", "/nodes/proxy", "/addons/proxy"}
         if publication.source == "core_owned" and hostname != identity.public_hostname:
             raise HTTPException(status_code=400, detail="edge_core_hostname_spoofed")
         if publication.source == "core_owned" and publication.path_prefix not in reserved_core_paths:
             raise HTTPException(status_code=400, detail="edge_core_path_prefix_invalid")
         if publication.source != "core_owned" and hostname == identity.public_hostname:
             if publication.path_prefix in reserved_core_paths or any(
-                publication.path_prefix.startswith(f"{prefix}/") for prefix in {"/api", "/nodes", "/addons/proxy"}
+                publication.path_prefix.startswith(f"{prefix}/") for prefix in {"/api", "/nodes/proxy", "/addons/proxy"}
             ):
                 raise HTTPException(status_code=400, detail="edge_publication_reserved_core_path")
         if publication.target.target_type == "node":

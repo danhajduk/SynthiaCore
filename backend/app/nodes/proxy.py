@@ -17,6 +17,8 @@ from .service import NodesDomainService
 log = logging.getLogger("synthia.proxy")
 HTML_ROOT_URL_ATTR_RE = re.compile(r'(?P<prefix>\b(?:src|href|action)=["\'])(?P<path>/[^"\']*)')
 ROOT_URL_STRING_RE = re.compile(r'(?P<quote>["\'`])(?P<path>/[^"\'`]*)(?P=quote)')
+PROXIED_NODE_PATH_DETECTOR = r"/^\/nodes\/([^/]+)\/ui(?:\/.*)?$/i"
+PROXIED_NODE_PATH_DETECTOR_REWRITE = r"/^\/nodes\/proxy\/([^/]+)(?:\/.*)?$/i"
 
 
 def _env_float(name: str, default: float) -> float:
@@ -85,7 +87,7 @@ class NodeUiProxy:
 
     async def forward(self, request: Request, node_id: str, path: str = "", *, public_prefix: str = "") -> Response:
         started_at = time.perf_counter()
-        effective_public_prefix = public_prefix or f"/nodes/{node_id}/ui"
+        effective_public_prefix = public_prefix or f"/nodes/proxy/{node_id}"
         try:
             resolved_target = self._targets.resolve_node_ui(node_id)
             target_base = resolved_target.target_base
@@ -220,7 +222,7 @@ class NodeUiProxy:
 
         normalized_ui_prefix = public_prefix.rstrip("/")
         normalized_api_prefix = api_public_prefix.rstrip("/")
-        ignore_prefixes = ("/nodes/", "/ui/nodes/", "/api/nodes/")
+        ignore_prefixes = ("/nodes/proxy/", "/nodes/", "/ui/nodes/", "/api/nodes/")
 
         def should_rewrite(path: str) -> bool:
             if not path.startswith("/") or path == "/":
@@ -259,6 +261,8 @@ class NodeUiProxy:
             lambda match: f"{match.group('quote')}{rewrite_string_path(match.group('path'))}{match.group('quote')}",
             rewritten,
         )
+        if is_js:
+            rewritten = rewritten.replace(PROXIED_NODE_PATH_DETECTOR, PROXIED_NODE_PATH_DETECTOR_REWRITE)
         return rewritten.encode("utf-8")
 
     async def forward_websocket(self, websocket: WebSocket, node_id: str, path: str = "", *, public_prefix: str = "") -> None:
@@ -270,7 +274,7 @@ class NodeUiProxy:
                 surface="ui_ws",
                 method="WS",
                 path=path,
-                public_prefix=public_prefix or f"/nodes/{node_id}/ui",
+                public_prefix=public_prefix or f"/nodes/proxy/{node_id}",
                 status_code=1013,
                 latency_ms=(time.perf_counter() - started_at) * 1000.0,
                 outcome=str(health_detail or "node_unhealthy"),
@@ -282,7 +286,7 @@ class NodeUiProxy:
         await self._proxy.proxy_websocket(
             websocket,
             target_url=target,
-            public_prefix=public_prefix or f"/nodes/{node_id}/ui",
+                public_prefix=public_prefix or f"/nodes/proxy/{node_id}",
             extra_headers={"X-Hexe-Node-Id": node_id},
         )
         self._log_proxy_result(
@@ -290,7 +294,7 @@ class NodeUiProxy:
             surface="ui_ws",
             method="WS",
             path=path,
-            public_prefix=public_prefix or f"/nodes/{node_id}/ui",
+            public_prefix=public_prefix or f"/nodes/proxy/{node_id}",
             status_code=101,
             latency_ms=(time.perf_counter() - started_at) * 1000.0,
             outcome="proxied",
@@ -341,18 +345,33 @@ class NodeUiProxy:
 def build_node_ui_proxy_router(proxy: NodeUiProxy) -> APIRouter:
     router = APIRouter()
 
-    @router.api_route("/nodes/{node_id}/ui/{path:path}", methods=["GET", "HEAD"])
+    @router.api_route("/nodes/proxy/{node_id}/{path:path}", methods=["GET", "HEAD"])
     async def proxy_node_ui_canonical(node_id: str, path: str, request: Request):
+        require_admin_request(request)
+        return await proxy.forward(request, node_id, path, public_prefix=f"/nodes/proxy/{node_id}")
+
+    @router.api_route("/nodes/proxy/{node_id}/", methods=["GET", "HEAD"])
+    async def proxy_node_ui_canonical_root(node_id: str, request: Request):
+        require_admin_request(request)
+        return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
+
+    @router.api_route("/nodes/proxy/{node_id}", methods=["GET", "HEAD"])
+    async def proxy_node_ui_canonical_root_no_slash(node_id: str, request: Request):
+        require_admin_request(request)
+        return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
+
+    @router.api_route("/nodes/{node_id}/ui/{path:path}", methods=["GET", "HEAD"])
+    async def proxy_node_ui_legacy_canonical(node_id: str, path: str, request: Request):
         require_admin_request(request)
         return await proxy.forward(request, node_id, path, public_prefix=f"/nodes/{node_id}/ui")
 
     @router.api_route("/nodes/{node_id}/ui/", methods=["GET", "HEAD"])
-    async def proxy_node_ui_canonical_root(node_id: str, request: Request):
+    async def proxy_node_ui_legacy_canonical_root(node_id: str, request: Request):
         require_admin_request(request)
         return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/{node_id}/ui")
 
     @router.api_route("/nodes/{node_id}/ui", methods=["GET", "HEAD"])
-    async def proxy_node_ui_canonical_root_no_slash(node_id: str, request: Request):
+    async def proxy_node_ui_legacy_canonical_root_no_slash(node_id: str, request: Request):
         require_admin_request(request)
         return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/{node_id}/ui")
 
@@ -382,8 +401,26 @@ def build_node_ui_proxy_router(proxy: NodeUiProxy) -> APIRouter:
         require_admin_request(request)
         return await proxy.forward_api(request, node_id, "")
 
-    @router.websocket("/nodes/{node_id}/ui/{path:path}")
+    @router.websocket("/nodes/proxy/{node_id}/{path:path}")
     async def proxy_node_ui_canonical_websocket(node_id: str, path: str, websocket: WebSocket):
+        try:
+            require_admin_request(websocket)
+        except HTTPException:
+            await websocket.close(code=4401, reason="Unauthorized")
+            return
+        await proxy.forward_websocket(websocket, node_id, path, public_prefix=f"/nodes/proxy/{node_id}")
+
+    @router.websocket("/nodes/proxy/{node_id}/")
+    async def proxy_node_ui_canonical_root_websocket(node_id: str, websocket: WebSocket):
+        try:
+            require_admin_request(websocket)
+        except HTTPException:
+            await websocket.close(code=4401, reason="Unauthorized")
+            return
+        await proxy.forward_websocket(websocket, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
+
+    @router.websocket("/nodes/{node_id}/ui/{path:path}")
+    async def proxy_node_ui_legacy_canonical_websocket(node_id: str, path: str, websocket: WebSocket):
         try:
             require_admin_request(websocket)
         except HTTPException:
@@ -392,7 +429,7 @@ def build_node_ui_proxy_router(proxy: NodeUiProxy) -> APIRouter:
         await proxy.forward_websocket(websocket, node_id, path, public_prefix=f"/nodes/{node_id}/ui")
 
     @router.websocket("/nodes/{node_id}/ui/")
-    async def proxy_node_ui_canonical_root_websocket(node_id: str, websocket: WebSocket):
+    async def proxy_node_ui_legacy_canonical_root_websocket(node_id: str, websocket: WebSocket):
         try:
             require_admin_request(websocket)
         except HTTPException:

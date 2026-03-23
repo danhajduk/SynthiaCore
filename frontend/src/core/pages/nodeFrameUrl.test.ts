@@ -7,11 +7,11 @@ describe("nodeUiFrameSrc", () => {
   });
 
   it("uses the Core node proxy when an endpoint exists", () => {
-    expect(nodeUiFrameSrc("node-1", "https://node.example.test/ui/", "node.local")).toContain("/nodes/node-1/ui/");
+    expect(nodeUiFrameSrc("node-1", "https://node.example.test/ui/", "node.local")).toContain("/nodes/proxy/node-1/");
   });
 
   it("uses the Core node proxy when only a hostname exists", () => {
-    expect(nodeUiFrameSrc("node-1", "", "node.local")).toContain("/nodes/node-1/ui/");
+    expect(nodeUiFrameSrc("node-1", "", "node.local")).toContain("/nodes/proxy/node-1/");
   });
 
   it("returns empty string for invalid non-absolute endpoints", () => {
@@ -31,7 +31,7 @@ describe("nodeUiFrameSrc", () => {
           port: "",
         },
       ),
-    ).toBe("https://a75d480287c33cab.hexe-ai.com/nodes/node-1/ui/");
+    ).toBe("https://a75d480287c33cab.hexe-ai.com/nodes/proxy/node-1/");
   });
 
   it("keeps the backend port fallback for LAN/default-port access", () => {
@@ -47,7 +47,7 @@ describe("nodeUiFrameSrc", () => {
           port: "",
         },
       ),
-    ).toBe("http://10.0.0.100:9001/nodes/node-1/ui/");
+    ).toBe("http://10.0.0.100:9001/nodes/proxy/node-1/");
   });
 
   it("keeps the backend port fallback for frontend dev servers", () => {
@@ -63,6 +63,6 @@ describe("nodeUiFrameSrc", () => {
           port: "5173",
         },
       ),
-    ).toBe("http://127.0.0.1:9001/nodes/node-1/ui/");
+    ).toBe("http://127.0.0.1:9001/nodes/proxy/node-1/");
   });
 });

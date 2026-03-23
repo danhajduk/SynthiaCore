@@ -16,11 +16,11 @@ class TestProxyRouteRedirectMiddleware(unittest.TestCase):
         async def addon_root(addon_id: str):
             return PlainTextResponse(f"addon:{addon_id}")
 
-        @app.get("/nodes/{node_id}/ui/")
+        @app.get("/nodes/proxy/{node_id}/")
         async def node_root(node_id: str):
             return PlainTextResponse(f"node:{node_id}")
 
-        @app.get("/nodes/{node_id}/ui/{path:path}")
+        @app.get("/nodes/proxy/{node_id}/{path:path}")
         async def node_path(node_id: str, path: str):
             return PlainTextResponse(f"node:{node_id}:{path}")
 
@@ -33,7 +33,7 @@ class TestProxyRouteRedirectMiddleware(unittest.TestCase):
     def test_redirects_legacy_node_ui_routes_to_canonical_paths(self) -> None:
         response = self.client.get("/ui/nodes/node-1/assets/main.js", follow_redirects=False)
         self.assertEqual(response.status_code, 307, response.text)
-        self.assertEqual(response.headers["location"], "/nodes/node-1/ui/assets/main.js")
+        self.assertEqual(response.headers["location"], "/nodes/proxy/node-1/assets/main.js")
 
     def test_redirects_legacy_addon_ui_routes_to_canonical_paths(self) -> None:
         response = self.client.get("/ui/addons/mqtt?view=full", follow_redirects=False)
@@ -45,9 +45,9 @@ class TestProxyRouteRedirectMiddleware(unittest.TestCase):
         self.assertEqual(addon.status_code, 307, addon.text)
         self.assertEqual(addon.headers["location"], "/addons/proxy/mqtt/")
 
-        node = self.client.get("/nodes/node-1/ui", follow_redirects=False)
+        node = self.client.get("/nodes/proxy/node-1", follow_redirects=False)
         self.assertEqual(node.status_code, 307, node.text)
-        self.assertEqual(node.headers["location"], "/nodes/node-1/ui/")
+        self.assertEqual(node.headers["location"], "/nodes/proxy/node-1/")
 
 
 if __name__ == "__main__":

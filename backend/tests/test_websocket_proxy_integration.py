@@ -113,7 +113,7 @@ class TestWebSocketProxyIntegration(unittest.TestCase):
                 client = TestClient(app)
 
                 with client.websocket_connect(
-                    "/nodes/node-1/ui/ws",
+                    "/nodes/proxy/node-1/ws",
                     subprotocols=["chat"],
                     headers={"X-Admin-Token": "test-token"},
                 ) as ws:
@@ -124,7 +124,7 @@ class TestWebSocketProxyIntegration(unittest.TestCase):
 
                 self.assertTrue(upstream.requests)
                 headers = upstream.requests[-1]
-                self.assertEqual(headers.get("x-forwarded-prefix"), "/nodes/node-1/ui")
+                self.assertEqual(headers.get("x-forwarded-prefix"), "/nodes/proxy/node-1")
                 self.assertEqual(headers.get("x-hexe-node-id"), "node-1")
                 self.assertEqual(headers.get("sec-websocket-protocol"), "chat")
 

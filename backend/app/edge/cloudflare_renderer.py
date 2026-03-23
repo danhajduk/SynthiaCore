@@ -13,7 +13,7 @@ class CloudflareConfigRenderer:
     ) -> dict[str, object]:
         ingress: list[dict[str, object]] = [
             {"hostname": identity.public_hostname, "path": "/api/*", "service": "http://127.0.0.1:9001"},
-            {"hostname": identity.public_hostname, "path": "/nodes/*", "service": "http://127.0.0.1:9001"},
+            {"hostname": identity.public_hostname, "path": "/nodes/proxy/*", "service": "http://127.0.0.1:9001"},
             {"hostname": identity.public_hostname, "path": "/addons/proxy/*", "service": "http://127.0.0.1:9001"},
         ]
         for publication in sorted(publications, key=lambda item: (item.hostname, item.path_prefix, item.publication_id)):

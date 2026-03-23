@@ -75,7 +75,7 @@ class TestUiTargetResolver(unittest.TestCase):
         resolver = UiTargetResolver(nodes_service=_NodesService(node))
         ui_target = resolver.resolve_node_ui("node-1")
         api_target = resolver.resolve_node_api("node-1")
-        self.assertEqual(ui_target.public_prefix, "/nodes/node-1/ui")
+        self.assertEqual(ui_target.public_prefix, "/nodes/proxy/node-1")
         self.assertEqual(ui_target.health_endpoint, "http://10.0.0.9:8765/health")
         self.assertEqual(api_target.public_prefix, "/api/nodes/node-1")
         self.assertEqual(api_target.target_base, "http://10.0.0.9:8081/api")

@@ -55,8 +55,8 @@ class TestNodeUiProxyRouter(unittest.TestCase):
 
     def test_node_ui_routes_forward(self) -> None:
         checks = [
-            ("/nodes/node-1/ui/", ""),
-            ("/nodes/node-1/ui/assets/main.js", "assets/main.js"),
+            ("/nodes/proxy/node-1/", ""),
+            ("/nodes/proxy/node-1/assets/main.js", "assets/main.js"),
             ("/ui/nodes/node-1", ""),
             ("/ui/nodes/node-1/assets/main.js", "assets/main.js"),
         ]
@@ -72,25 +72,25 @@ class TestNodeUiProxyRouter(unittest.TestCase):
         self.assertEqual(
             self.proxy.calls,
             [
-                ("GET", "node-1", "", "/nodes/node-1/ui"),
-                ("GET", "node-1", "assets/main.js", "/nodes/node-1/ui"),
+                ("GET", "node-1", "", "/nodes/proxy/node-1"),
+                ("GET", "node-1", "assets/main.js", "/nodes/proxy/node-1"),
                 ("GET", "node-1", "", "/ui/nodes/node-1"),
                 ("GET", "node-1", "assets/main.js", "/ui/nodes/node-1"),
             ],
         )
 
     def test_node_ui_routes_remain_get_head_only(self) -> None:
-        denied = self.client.post("/nodes/node-1/ui/", headers={"X-Admin-Token": "test-token"})
+        denied = self.client.post("/nodes/proxy/node-1/", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(denied.status_code, 405, denied.text)
 
-        head = self.client.head("/nodes/node-1/ui/status", headers={"X-Admin-Token": "test-token"})
+        head = self.client.head("/nodes/proxy/node-1/status", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(head.status_code, 200, head.text)
 
-        self.assertEqual(self.proxy.calls, [("HEAD", "node-1", "status", "/nodes/node-1/ui")])
+        self.assertEqual(self.proxy.calls, [("HEAD", "node-1", "status", "/nodes/proxy/node-1")])
 
     def test_node_ui_websocket_routes_forward(self) -> None:
-        with self.client.websocket_connect("/nodes/node-1/ui/ws", headers={"X-Admin-Token": "test-token"}) as ws:
-            self.assertEqual(ws.receive_text(), "node-1:ws:/nodes/node-1/ui")
+        with self.client.websocket_connect("/nodes/proxy/node-1/ws", headers={"X-Admin-Token": "test-token"}) as ws:
+            self.assertEqual(ws.receive_text(), "node-1:ws:/nodes/proxy/node-1")
 
         with self.client.websocket_connect("/ui/nodes/node-1/live", headers={"X-Admin-Token": "test-token"}) as ws:
             self.assertEqual(ws.receive_text(), "node-1:live:/ui/nodes/node-1")
@@ -98,7 +98,7 @@ class TestNodeUiProxyRouter(unittest.TestCase):
         self.assertEqual(
             self.proxy.websocket_calls,
             [
-                ("node-1", "ws", "/nodes/node-1/ui"),
+                ("node-1", "ws", "/nodes/proxy/node-1"),
                 ("node-1", "live", "/ui/nodes/node-1"),
             ],
         )
@@ -126,12 +126,12 @@ class TestNodeUiProxyRouter(unittest.TestCase):
         )
 
     def test_proxy_routes_require_admin_auth(self) -> None:
-        denied = self.client.get("/nodes/node-1/ui/")
+        denied = self.client.get("/nodes/proxy/node-1/")
         self.assertEqual(denied.status_code, 401, denied.text)
 
     def test_websocket_proxy_requires_admin_auth(self) -> None:
         with self.assertRaises(WebSocketDisconnect) as exc:
-            with self.client.websocket_connect("/nodes/node-1/ui/ws"):
+            with self.client.websocket_connect("/nodes/proxy/node-1/ws"):
                 pass
         self.assertEqual(exc.exception.code, 4401)
 
@@ -165,15 +165,15 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
         rewritten = NodeUiProxy._rewrite_root_urls(
             original,
             "text/html; charset=utf-8",
-            public_prefix="/nodes/node-123/ui",
+            public_prefix="/nodes/proxy/node-123",
             api_public_prefix="/api/nodes/node-123",
         ).decode("utf-8")
 
-        self.assertIn('from "/nodes/node-123/ui/@react-refresh"', rewritten)
-        self.assertIn('src="/nodes/node-123/ui/@vite/client"', rewritten)
-        self.assertIn('href="/nodes/node-123/ui/src/index.css"', rewritten)
-        self.assertIn('action="/nodes/node-123/ui/submit"', rewritten)
-        self.assertIn('src="/nodes/node-123/ui/logo.svg"', rewritten)
+        self.assertIn('from "/nodes/proxy/node-123/@react-refresh"', rewritten)
+        self.assertIn('src="/nodes/proxy/node-123/@vite/client"', rewritten)
+        self.assertIn('href="/nodes/proxy/node-123/src/index.css"', rewritten)
+        self.assertIn('action="/nodes/proxy/node-123/submit"', rewritten)
+        self.assertIn('src="/nodes/proxy/node-123/logo.svg"', rewritten)
         self.assertIn('"/node/status"', rewritten)
 
     def test_leaves_non_html_responses_unchanged(self) -> None:
@@ -181,7 +181,7 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
         rewritten = NodeUiProxy._rewrite_root_urls(
             original,
             "application/json",
-            public_prefix="/nodes/node-123/ui",
+            public_prefix="/nodes/proxy/node-123",
             api_public_prefix="/api/nodes/node-123",
         )
         self.assertEqual(rewritten, original)
@@ -196,13 +196,13 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
         rewritten = NodeUiProxy._rewrite_root_urls(
             original,
             "text/javascript",
-            public_prefix="/nodes/node-123/ui",
+            public_prefix="/nodes/proxy/node-123",
             api_public_prefix="/api/nodes/node-123",
         ).decode("utf-8")
 
-        self.assertIn('"/nodes/node-123/ui/node_modules/vite/dist/client/env.mjs"', rewritten)
-        self.assertIn('"/nodes/node-123/ui/src/App.jsx?t=123"', rewritten)
-        self.assertIn('"/nodes/node-123/ui/src/theme/index.css"', rewritten)
+        self.assertIn('"/nodes/proxy/node-123/node_modules/vite/dist/client/env.mjs"', rewritten)
+        self.assertIn('"/nodes/proxy/node-123/src/App.jsx?t=123"', rewritten)
+        self.assertIn('"/nodes/proxy/node-123/src/theme/index.css"', rewritten)
 
     def test_rewrites_root_absolute_javascript_api_calls_to_node_api_proxy(self) -> None:
         original = b"""
@@ -214,13 +214,27 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
         rewritten = NodeUiProxy._rewrite_root_urls(
             original,
             "text/javascript",
-            public_prefix="/nodes/node-123/ui",
+            public_prefix="/nodes/proxy/node-123",
             api_public_prefix="/api/nodes/node-123",
         ).decode("utf-8")
 
         self.assertIn('"/node/status"', rewritten)
         self.assertIn('"/v1/models"', rewritten)
         self.assertIn('`/providers/openai/models/latest?limit=${OPENAI_LATEST_MODELS_LIMIT}`', rewritten)
+
+    def test_rewrites_proxied_node_path_detector_for_new_canonical_prefix(self) -> None:
+        original = b"""
+        const match = pathname.match(/^\/nodes\/([^/]+)\/ui(?:\/.*)?$/i);
+        """
+
+        rewritten = NodeUiProxy._rewrite_root_urls(
+            original,
+            "text/javascript",
+            public_prefix="/nodes/proxy/node-123",
+            api_public_prefix="/api/nodes/node-123",
+        ).decode("utf-8")
+
+        self.assertIn(r"pathname.match(/^\/nodes\/proxy\/([^/]+)(?:\/.*)?$/i)", rewritten)
 
 
 class _TargetService:
@@ -361,7 +375,7 @@ class TestNodeUiProxyTargetSelection(unittest.TestCase):
         app.include_router(build_node_ui_proxy_router(proxy))
         with patch.dict("os.environ", {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False):
             client = TestClient(app)
-            response = client.get("/nodes/node-1/ui/", headers={"X-Admin-Token": "test-token"})
+            response = client.get("/nodes/proxy/node-1/", headers={"X-Admin-Token": "test-token"})
             self.assertEqual(response.status_code, 404, response.text)
             self.assertIn("Node UI Unavailable", response.text)
             self.assertIn("node_ui_not_enabled", response.text)
@@ -385,7 +399,7 @@ class TestNodeUiProxyTargetSelection(unittest.TestCase):
         app.include_router(build_node_ui_proxy_router(proxy))
         with patch.dict("os.environ", {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False):
             client = TestClient(app)
-            response = client.get("/nodes/node-1/ui/", headers={"X-Admin-Token": "test-token"})
+            response = client.get("/nodes/proxy/node-1/", headers={"X-Admin-Token": "test-token"})
             self.assertEqual(response.status_code, 503, response.text)
             self.assertIn("Node UI Unavailable", response.text)
             self.assertIn("health_probe_status_unhealthy", response.text)
@@ -408,7 +422,7 @@ class TestNodeUiProxyTargetSelection(unittest.TestCase):
         with patch.dict("os.environ", {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False):
             client = TestClient(app)
             with self.assertLogs("synthia.proxy", level="INFO") as captured:
-                client.get("/nodes/node-1/ui/", headers={"X-Admin-Token": "test-token"})
+                client.get("/nodes/proxy/node-1/", headers={"X-Admin-Token": "test-token"})
         self.assertTrue(any("surface=ui" in message and "node_id=node-1" in message for message in captured.output))
 
 

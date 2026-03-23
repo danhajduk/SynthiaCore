@@ -312,7 +312,7 @@ export default function EdgeGateway() {
             </div>
             <div className="settings-kv-item">
               <div className="settings-label-text">Reserved routes</div>
-              <div className="settings-mono">/, /api/*, /nodes/*, /addons/proxy/*</div>
+              <div className="settings-mono">/, /api/*, /nodes/proxy/*, /addons/proxy/*</div>
             </div>
             <div className="settings-kv-item">
               <div className="settings-label-text">Managed domain</div>
@@ -431,7 +431,7 @@ export default function EdgeGateway() {
             </div>
             <div className="settings-kv-item">
               <div className="settings-label-text">Route ownership</div>
-              <div>/ to port 80, /api/* + /nodes/* + /addons/proxy/* to port 9001</div>
+              <div>/ to port 80, /api/* + /nodes/proxy/* + /addons/proxy/* to port 9001</div>
             </div>
             <div className="settings-kv-item">
               <div className="settings-label-text">Last success</div>
