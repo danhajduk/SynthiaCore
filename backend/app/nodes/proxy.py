@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from urllib.parse import urlsplit, urlunsplit
 
@@ -14,6 +15,8 @@ from app.ui_target_resolver import UiTargetResolver
 from .service import NodesDomainService
 
 log = logging.getLogger("synthia.proxy")
+HTML_ROOT_URL_ATTR_RE = re.compile(r'(?P<prefix>\b(?:src|href|action)=["\'])(?P<path>/[^"\']*)')
+ROOT_URL_STRING_RE = re.compile(r'(?P<quote>["\'])(?P<path>/[^"\']*)(?P=quote)')
 
 
 def _env_float(name: str, default: float) -> float:
@@ -178,6 +181,7 @@ class NodeUiProxy:
             content,
             response_headers.get("content-type"),
             public_prefix=effective_public_prefix,
+            api_public_prefix=f"/api/nodes/{node_id}",
         )
         self._log_proxy_result(
             node_id=node_id,
@@ -196,13 +200,57 @@ class NodeUiProxy:
         )
 
     @staticmethod
-    def _rewrite_root_urls(content: bytes, content_type: str | None, *, public_prefix: str) -> bytes:
-        return ReverseProxyService.rewrite_root_relative_urls(
-            content,
-            content_type,
-            proxy_prefix=public_prefix,
-            ignore_prefixes=("/nodes/", "/ui/nodes/"),
+    def _rewrite_root_urls(
+        content: bytes,
+        content_type: str | None,
+        *,
+        public_prefix: str,
+        api_public_prefix: str,
+    ) -> bytes:
+        normalized_type = str(content_type or "").lower()
+        is_html = "text/html" in normalized_type
+        is_js = "javascript" in normalized_type
+        is_css = "text/css" in normalized_type
+        if not (is_html or is_js or is_css):
+            return content
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            return content
+
+        normalized_ui_prefix = public_prefix.rstrip("/")
+        normalized_api_prefix = api_public_prefix.rstrip("/")
+        ignore_prefixes = ("/nodes/", "/ui/nodes/", "/api/nodes/")
+
+        def should_rewrite(path: str) -> bool:
+            if not path.startswith("/") or path == "/":
+                return False
+            for prefix in ignore_prefixes:
+                normalized = str(prefix or "").rstrip("/")
+                if normalized and (path == normalized or path.startswith(f"{normalized}/")):
+                    return False
+            return True
+
+        def rewrite_path(path: str) -> str:
+            if not should_rewrite(path):
+                return path
+            if path == "/api":
+                return normalized_api_prefix
+            if path.startswith("/api/"):
+                return f"{normalized_api_prefix}{path.removeprefix('/api')}"
+            return f"{normalized_ui_prefix}{path}"
+
+        rewritten = text
+        if is_html:
+            rewritten = HTML_ROOT_URL_ATTR_RE.sub(
+                lambda match: f"{match.group('prefix')}{rewrite_path(match.group('path'))}",
+                rewritten,
+            )
+        rewritten = ROOT_URL_STRING_RE.sub(
+            lambda match: f"{match.group('quote')}{rewrite_path(match.group('path'))}{match.group('quote')}",
+            rewritten,
         )
+        return rewritten.encode("utf-8")
 
     async def forward_websocket(self, websocket: WebSocket, node_id: str, path: str = "", *, public_prefix: str = "") -> None:
         started_at = time.perf_counter()

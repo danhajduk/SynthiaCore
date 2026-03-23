@@ -157,6 +157,7 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
           <body>
             <form action="/submit"></form>
             <img src="/logo.svg" />
+            <script>window.__status = "/api/node/status";</script>
           </body>
         </html>
         """
@@ -165,6 +166,7 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
             original,
             "text/html; charset=utf-8",
             public_prefix="/nodes/node-123/ui",
+            api_public_prefix="/api/nodes/node-123",
         ).decode("utf-8")
 
         self.assertIn('from "/nodes/node-123/ui/@react-refresh"', rewritten)
@@ -172,6 +174,7 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
         self.assertIn('href="/nodes/node-123/ui/src/index.css"', rewritten)
         self.assertIn('action="/nodes/node-123/ui/submit"', rewritten)
         self.assertIn('src="/nodes/node-123/ui/logo.svg"', rewritten)
+        self.assertIn('"/api/nodes/node-123/node/status"', rewritten)
 
     def test_leaves_non_html_responses_unchanged(self) -> None:
         original = b'{"ok":true,"path":"/status"}'
@@ -179,6 +182,7 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
             original,
             "application/json",
             public_prefix="/nodes/node-123/ui",
+            api_public_prefix="/api/nodes/node-123",
         )
         self.assertEqual(rewritten, original)
 
@@ -193,11 +197,28 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
             original,
             "text/javascript",
             public_prefix="/nodes/node-123/ui",
+            api_public_prefix="/api/nodes/node-123",
         ).decode("utf-8")
 
         self.assertIn('"/nodes/node-123/ui/node_modules/vite/dist/client/env.mjs"', rewritten)
         self.assertIn('"/nodes/node-123/ui/src/App.jsx?t=123"', rewritten)
         self.assertIn('"/nodes/node-123/ui/src/theme/index.css"', rewritten)
+
+    def test_rewrites_root_absolute_javascript_api_calls_to_node_api_proxy(self) -> None:
+        original = b"""
+        const statusPath = "/api/node/status";
+        const absoluteApi = "/api/v1/models";
+        """
+
+        rewritten = NodeUiProxy._rewrite_root_urls(
+            original,
+            "text/javascript",
+            public_prefix="/nodes/node-123/ui",
+            api_public_prefix="/api/nodes/node-123",
+        ).decode("utf-8")
+
+        self.assertIn('"/api/nodes/node-123/node/status"', rewritten)
+        self.assertIn('"/api/nodes/node-123/v1/models"', rewritten)
 
 
 class _TargetService:
