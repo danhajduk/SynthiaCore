@@ -255,6 +255,48 @@ class TestNodeOnboardingStartApi(unittest.TestCase):
         self.assertEqual(reject.json()["session"]["session_state"], "rejected")
         self.assertEqual(reject.json()["session"]["rejection_reason"], "Unrecognized node")
 
+    def test_admin_can_cancel_all_active_sessions(self) -> None:
+        first = self.client.post("/api/system/nodes/onboarding/sessions", json=self._payload())
+        self.assertEqual(first.status_code, 200, first.text)
+
+        second_payload = self._payload()
+        second_payload["node_nonce"] = "nonce-second"
+        second_payload["node_name"] = "office-node-2"
+        second_payload["hostname"] = "office-node-2-host"
+        second_payload["ui_endpoint"] = "http://office-node-2-host:8765/ui"
+        second_payload["api_base_url"] = "http://office-node-2-host:8081"
+        second = self.client.post("/api/system/nodes/onboarding/sessions", json=second_payload)
+        self.assertEqual(second.status_code, 200, second.text)
+        second_state = second.json()["session"]["approval_url"].split("state=", 1)[1]
+        approve = self.client.post(
+            f"/api/system/nodes/onboarding/sessions/{second.json()['session']['session_id']}/approve?state={second_state}",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(approve.status_code, 200, approve.text)
+
+        cancel = self.client.post(
+            "/api/system/nodes/onboarding/sessions/cancel-active",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(cancel.status_code, 200, cancel.text)
+        payload = cancel.json()
+        self.assertEqual(payload["cancelled_count"], 2)
+        self.assertEqual(
+            sorted(item["session_state"] for item in payload["items"]),
+            ["cancelled", "cancelled"],
+        )
+
+        listed = self.client.get(
+            "/api/system/nodes/onboarding/sessions",
+            headers={"X-Admin-Token": "test-token"},
+        )
+        self.assertEqual(listed.status_code, 200, listed.text)
+        active = [
+            item for item in listed.json()["items"]
+            if str(item.get("session_state") or "").strip().lower() in {"pending", "approved"}
+        ]
+        self.assertEqual(active, [])
+
     def test_finalize_outcomes(self) -> None:
         started = self.client.post("/api/system/nodes/onboarding/sessions", json=self._payload())
         self.assertEqual(started.status_code, 200, started.text)

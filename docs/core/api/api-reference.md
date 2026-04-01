@@ -40,6 +40,7 @@ Status: Implemented
   - `GET /api/system/nodes/onboarding/sessions/{session_id}` (admin session/token required)
   - `POST /api/system/nodes/onboarding/sessions/{session_id}/approve` (admin session/token required)
   - `POST /api/system/nodes/onboarding/sessions/{session_id}/reject` (admin session/token required)
+  - `POST /api/system/nodes/onboarding/sessions/cancel-active` (admin session/token required; cancels all active `pending` and `approved` onboarding sessions)
   - `GET /api/system/nodes/onboarding/sessions/{session_id}/finalize?node_nonce=...`
   - `GET /api/system/nodes/registrations` (admin session/token required)
   - `GET /api/system/nodes/registrations/{node_id}` (admin session/token required)

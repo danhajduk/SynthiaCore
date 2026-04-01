@@ -839,6 +839,44 @@ def build_system_router(
             payload.append(_session_payload(session))
         return {"ok": True, "items": payload}
 
+    @router.post("/system/nodes/onboarding/sessions/cancel-active")
+    def cancel_active_node_onboarding_sessions(
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+    ):
+        require_admin_token(x_admin_token, request)
+        _enforce_csrf_for_cookie_session(request, x_admin_token)
+        _expire_if_needed(onboarding_sessions_store)
+        if onboarding_sessions_store is None:
+            raise HTTPException(status_code=503, detail="onboarding_sessions_unavailable")
+
+        active_sessions = [
+            session
+            for session in onboarding_sessions_store.list_sessions()
+            if str(session.session_state or "").strip().lower() in {"pending", "approved"}
+        ]
+        cancelled_payloads: list[dict[str, object]] = []
+        actor_id = _admin_actor(x_admin_token)
+        for session in active_sessions:
+            try:
+                cancelled = onboarding_sessions_store.cancel_session(session.session_id, actor_id=actor_id)
+            except ValueError:
+                continue
+            cancelled_payloads.append(_session_payload(cancelled))
+
+        if cancelled_payloads:
+            _record_audit(
+                audit_store,
+                event_type="node_onboarding_sessions_cancelled",
+                actor_role="admin",
+                actor_id=actor_id,
+                details={
+                    "cancelled_session_count": len(cancelled_payloads),
+                    "cancelled_session_ids": [str(item.get("session_id") or "") for item in cancelled_payloads],
+                },
+            )
+        return {"ok": True, "cancelled_count": len(cancelled_payloads), "items": cancelled_payloads}
+
     @router.get("/system/nodes/registrations")
     def list_node_registrations(
         request: Request,

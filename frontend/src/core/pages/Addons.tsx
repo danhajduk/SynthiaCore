@@ -83,6 +83,15 @@ type NodeRegistration = {
   updated_at?: string | null;
 };
 
+type CancelActiveOnboardingSessionsResult = {
+  ok: boolean;
+  cancelled_count?: number;
+  items?: Array<{
+    session_id?: string;
+    session_state?: string;
+  }>;
+};
+
 type NodeBudgetDeclaration = {
   node_id?: string;
   currency?: string;
@@ -380,6 +389,7 @@ export default function Addons() {
   const [nodeCapabilityFilter, setNodeCapabilityFilter] = useState<string>("all");
   const [catalogBusy, setCatalogBusy] = useState(false);
   const [catalogMsg, setCatalogMsg] = useState<string | null>(null);
+  const [cancelSessionsBusy, setCancelSessionsBusy] = useState(false);
   const [uninstallStates, setUninstallStates] = useState<Record<string, UninstallViewState>>({});
   const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
 
@@ -535,6 +545,32 @@ export default function Addons() {
       setCatalogMsg(`Catalog update failed: ${e?.message ?? String(e)}`);
     } finally {
       setCatalogBusy(false);
+    }
+  }
+
+  async function clearActiveOnboardingSessions() {
+    if (!isAdmin || cancelSessionsBusy) return;
+    const confirmed = window.confirm("Clear all active onboarding sessions?");
+    if (!confirmed) return;
+    setCancelSessionsBusy(true);
+    setNodesErr(null);
+    setCatalogMsg(null);
+    try {
+      const res = await fetch("/api/system/nodes/onboarding/sessions/cancel-active", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await readError(res));
+      const payload = (await res.json()) as CancelActiveOnboardingSessionsResult;
+      const cancelledCount = Number(payload.cancelled_count || 0);
+      setCatalogMsg(cancelledCount > 0 ? `Cleared ${cancelledCount} active onboarding session(s).` : "No active onboarding sessions.");
+      await refreshNodes();
+      await refreshRoutingMetadata();
+      await refreshBudgets();
+    } catch (e: any) {
+      setNodesErr(e?.message ?? String(e));
+    } finally {
+      setCancelSessionsBusy(false);
     }
   }
 
@@ -770,6 +806,9 @@ export default function Addons() {
         <div className="addons-head-actions">
           <button className="addon-btn" onClick={() => void updateCatalogNow()} disabled={catalogBusy}>
             {catalogBusy ? "Updating Catalog..." : "Update Catalog"}
+          </button>
+          <button className="addon-btn" onClick={() => void clearActiveOnboardingSessions()} disabled={!isAdmin || cancelSessionsBusy}>
+            {cancelSessionsBusy ? "Clearing Sessions..." : "Clear Onboarding"}
           </button>
           <button className="addon-btn" onClick={() => void refreshAll()} disabled={nodesBusy || routingBusy || busy !== null}>
             {nodesBusy || routingBusy ? "Refreshing..." : "Refresh"}
