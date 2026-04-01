@@ -9,7 +9,9 @@ function AppLayout() {
   const location = useLocation();
   const element = useRoutes(buildRoutes(authenticated, ready));
   const chromeless =
-    location.pathname === "/onboarding/registrations/approve" || location.pathname === "/onboarding/nodes/approve";
+    location.pathname === "/onboarding/registrations/approve" ||
+    location.pathname === "/onboarding/nodes/approve" ||
+    location.pathname === "/proxy-login";
   return (
     <Shell isAdmin={authenticated} chromeless={chromeless}>
       {element}

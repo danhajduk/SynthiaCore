@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   BrainCircuit,
   Clock3,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { useAdminSession } from "../auth/AdminSessionContext";
+import { sanitizeNextPath } from "../auth/nextPath";
 import { usePlatformBranding } from "../branding";
 import "./home.css";
 
@@ -229,6 +230,7 @@ function addonHealthState(item: AddonSummary, stack: StackSummary | null): strin
 export default function Home() {
   const { authenticated, login, logout, ready } = useAdminSession();
   const branding = usePlatformBranding();
+  const location = useLocation();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -241,6 +243,10 @@ export default function Home() {
   const [dataErr, setDataErr] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [showReasons, setShowReasons] = useState(false);
+  const nextPath = useMemo(
+    () => sanitizeNextPath(new URLSearchParams(location.search).get("next")),
+    [location.search],
+  );
 
   async function loadDashboardData() {
     try {
@@ -283,6 +289,12 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    if (nextPath === "/" || nextPath === location.pathname) return;
+    window.location.assign(nextPath);
+  }, [authenticated, location.pathname, nextPath, ready]);
+
   async function submitLogin() {
     if (!username.trim() || !password) {
       setErr("username_and_password_required");
@@ -297,6 +309,9 @@ export default function Home() {
         return;
       }
       setPassword("");
+      if (nextPath !== "/" && nextPath !== location.pathname) {
+        window.location.assign(nextPath);
+      }
     } finally {
       setBusy(false);
     }

@@ -44,3 +44,57 @@ if it is not present and should be node-owned create a file with the new data in
 
 Do not edit above this line:
 #######################################################################
+
+# [TODO] Task 001: Add centralized public Gmail OAuth callback endpoint
+
+## Goal
+
+Expose the Core-owned public Gmail callback endpoint at:
+
+`https://hexe-ai.com/google/gmail/callback`
+
+## Scope
+
+- add an HTTPS route for `GET /google/gmail/callback`
+- accept `code`, `state`, `error`, and `error_description`
+- verify signed `state` before any routing logic
+- reject missing, expired, malformed, or tampered state with `400`
+- keep the old callback path operational until all nodes have migrated
+
+## Acceptance Criteria
+
+- `https://hexe-ai.com/google/gmail/callback` is live
+- callback requests no longer depend on subdomain or host parsing
+- invalid or expired state is rejected before token routing
+
+---
+
+# [TODO] Task 002: Implement Core-owned Gmail OAuth flow routing from signed state
+
+## Goal
+
+Use signed OAuth `state` to route centralized Gmail callbacks back to the correct Core-owned flow and node context.
+
+## Scope
+
+- define the Core-owned signed state contract
+- include at minimum:
+  - `v`
+  - `provider`
+  - `core_id`
+  - `flow_id`
+  - `exp`
+- HMAC sign and base64url encode the payload
+- persist a Core-owned flow record keyed by `flow_id`
+- validate flow existence, expiry, and completion state during callback
+- route the callback to the correct node/core context using verified state only
+- preserve redirect behavior back to the correct Core UI success/failure page
+
+## Acceptance Criteria
+
+- Core no longer derives routing from callback hostnames
+- callbacks are routed using verified `core_id` and `flow_id` from state
+- repeated or already-completed callbacks are handled safely
+- success and failure redirects land on the correct Core instance UI
+
+---

@@ -1,0 +1,101 @@
+.proxy-login-page {
+  min-height: 100vh;
+  display: grid;
+  background:
+    radial-gradient(circle at top left, hsl(var(--sx-primary) / 0.16), transparent 28%),
+    linear-gradient(180deg, hsl(var(--sx-bg)), hsl(var(--sx-panel)));
+  color: white;
+}
+
+.proxy-login-shell {
+  width: min(980px, calc(100% - 40px));
+  margin: auto;
+  padding: 40px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.proxy-login-copy {
+  display: grid;
+  gap: 14px;
+}
+
+.proxy-login-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--sx-primary) / 0.85);
+}
+
+.proxy-login-title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.05;
+}
+
+.proxy-login-lead {
+  margin: 0;
+  color: hsl(var(--sx-text) / 0.78);
+  line-height: 1.6;
+}
+
+.proxy-login-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--sx-text) / 0.12);
+  background: hsl(var(--sx-text) / 0.05);
+  color: hsl(var(--sx-text) / 0.78);
+}
+
+.proxy-login-next code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.proxy-login-card {
+  display: grid;
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid hsl(var(--sx-text) / 0.1);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, hsl(var(--sx-text) / 0.06), hsl(var(--sx-text) / 0.03)),
+    hsl(var(--sx-panel));
+  box-shadow: 0 24px 80px hsl(0 0% 0% / 0.25);
+}
+
+.proxy-login-card label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.proxy-login-card input {
+  border: 1px solid hsl(var(--sx-text) / 0.14);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: hsl(var(--sx-text) / 0.04);
+  color: white;
+}
+
+.proxy-login-error {
+  color: hsl(var(--sx-danger) / 0.9);
+  background: hsl(var(--sx-danger) / 0.12);
+  border: 1px solid hsl(var(--sx-danger) / 0.25);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 860px) {
+  .proxy-login-shell {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 24px 0;
+  }
+}

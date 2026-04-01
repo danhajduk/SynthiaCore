@@ -126,8 +126,17 @@ class TestNodeUiProxyRouter(unittest.TestCase):
         )
 
     def test_proxy_routes_require_admin_auth(self) -> None:
-        denied = self.client.get("/nodes/proxy/node-1/")
-        self.assertEqual(denied.status_code, 401, denied.text)
+        denied = self.client.get("/nodes/proxy/node-1/", follow_redirects=False)
+        self.assertEqual(denied.status_code, 307, denied.text)
+        self.assertEqual(denied.headers["location"], "/proxy-login?next=%2Fnodes%2Fproxy%2Fnode-1%2F")
+
+    def test_proxy_routes_preserve_query_when_redirecting_to_login(self) -> None:
+        denied = self.client.get("/nodes/proxy/node-1/google/gmail/callback?code=abc&state=xyz", follow_redirects=False)
+        self.assertEqual(denied.status_code, 307, denied.text)
+        self.assertEqual(
+            denied.headers["location"],
+            "/proxy-login?next=%2Fnodes%2Fproxy%2Fnode-1%2Fgoogle%2Fgmail%2Fcallback%3Fcode%3Dabc%26state%3Dxyz",
+        )
 
     def test_websocket_proxy_requires_admin_auth(self) -> None:
         with self.assertRaises(WebSocketDisconnect) as exc:

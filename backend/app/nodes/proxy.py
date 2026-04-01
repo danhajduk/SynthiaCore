@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import time
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response, WebSocket
@@ -30,6 +30,16 @@ def _env_float(name: str, default: float) -> float:
 
 NODE_PROXY_TIMEOUT_SECONDS = 10.0
 NODE_UI_HEALTH_TIMEOUT_SECONDS = 2.0
+
+
+def _admin_login_redirect(request: Request) -> Response:
+    next_target = str(request.url.path or "").strip() or "/"
+    if request.url.query:
+        next_target = f"{next_target}?{request.url.query}"
+    return Response(
+        status_code=307,
+        headers={"location": f"/proxy-login?next={quote(next_target, safe='')}"},
+    )
 
 
 class NodeUiProxy:
@@ -347,42 +357,82 @@ def build_node_ui_proxy_router(proxy: NodeUiProxy) -> APIRouter:
 
     @router.api_route("/nodes/proxy/{node_id}/{path:path}", methods=["GET", "HEAD"])
     async def proxy_node_ui_canonical(node_id: str, path: str, request: Request):
-        require_admin_request(request)
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return _admin_login_redirect(request)
+            raise
         return await proxy.forward(request, node_id, path, public_prefix=f"/nodes/proxy/{node_id}")
 
     @router.api_route("/nodes/proxy/{node_id}/", methods=["GET", "HEAD"])
     async def proxy_node_ui_canonical_root(node_id: str, request: Request):
-        require_admin_request(request)
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return _admin_login_redirect(request)
+            raise
         return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
 
     @router.api_route("/nodes/proxy/{node_id}", methods=["GET", "HEAD"])
     async def proxy_node_ui_canonical_root_no_slash(node_id: str, request: Request):
-        require_admin_request(request)
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return _admin_login_redirect(request)
+            raise
         return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
 
     @router.api_route("/nodes/{node_id}/ui/{path:path}", methods=["GET", "HEAD"])
     async def proxy_node_ui_legacy_canonical(node_id: str, path: str, request: Request):
-        require_admin_request(request)
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return _admin_login_redirect(request)
+            raise
         return await proxy.forward(request, node_id, path, public_prefix=f"/nodes/{node_id}/ui")
 
     @router.api_route("/nodes/{node_id}/ui/", methods=["GET", "HEAD"])
     async def proxy_node_ui_legacy_canonical_root(node_id: str, request: Request):
-        require_admin_request(request)
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return _admin_login_redirect(request)
+            raise
         return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/{node_id}/ui")
 
     @router.api_route("/nodes/{node_id}/ui", methods=["GET", "HEAD"])
     async def proxy_node_ui_legacy_canonical_root_no_slash(node_id: str, request: Request):
-        require_admin_request(request)
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return _admin_login_redirect(request)
+            raise
         return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/{node_id}/ui")
 
     @router.api_route("/ui/nodes/{node_id}/{path:path}", methods=["GET", "HEAD"])
     async def proxy_node_ui(node_id: str, path: str, request: Request):
-        require_admin_request(request)
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return _admin_login_redirect(request)
+            raise
         return await proxy.forward(request, node_id, path, public_prefix=f"/ui/nodes/{node_id}")
 
     @router.api_route("/ui/nodes/{node_id}", methods=["GET", "HEAD"])
     async def proxy_node_ui_root(node_id: str, request: Request):
-        require_admin_request(request)
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401:
+                return _admin_login_redirect(request)
+            raise
         return await proxy.forward(request, node_id, "", public_prefix=f"/ui/nodes/{node_id}")
 
     @router.api_route(
