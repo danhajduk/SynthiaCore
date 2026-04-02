@@ -80,6 +80,7 @@ class NodeEffectiveBudgetView(BaseModel):
 class TaskExecutionResolutionCandidate(BaseModel):
     service_id: str
     provider_node_id: str | None = None
+    provider_api_base_url: str | None = None
     service_type: str | None = None
     provider: str | None = None
     models_allowed: list[str] = Field(default_factory=list)
