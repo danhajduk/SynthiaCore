@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import tempfile
 import unittest
@@ -36,6 +37,7 @@ from app.system.onboarding.provider_model_policy import ProviderModelApprovalPol
 from app.system.services import ServiceCatalogStore
 from app.system.auth import ServiceTokenKeyStore
 from app.api import system as system_api
+from app.system.audit import AuditLogStore
 
 
 class _FakeRegistry:
@@ -100,6 +102,8 @@ class TestNodeServiceResolutionApi(unittest.TestCase):
         self.settings = _FakeSettingsStore()
         self.service_token_keys = ServiceTokenKeyStore(self.settings)
         self.service_catalog_store = ServiceCatalogStore(str(base / "service_catalogs.json"))
+        self.audit_store = AuditLogStore(str(base / "audit.log"))
+        self.audit_path = base / "audit.log"
 
         app = FastAPI()
         app.include_router(
@@ -116,6 +120,7 @@ class TestNodeServiceResolutionApi(unittest.TestCase):
                 node_budget_service=self.budget_service,
                 provider_model_policy_service=self.provider_policy,
                 model_routing_registry_service=self.routing_service,
+                audit_store=self.audit_store,
             ),
             prefix="/api",
         )
@@ -135,6 +140,11 @@ class TestNodeServiceResolutionApi(unittest.TestCase):
     def tearDown(self) -> None:
         self.env_patch.stop()
         self.tmpdir.cleanup()
+
+    def _audit_events(self) -> list[dict]:
+        if not self.audit_path.exists():
+            return []
+        return [json.loads(line) for line in self.audit_path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
     def _trusted_node(self) -> tuple[str, str]:
         started = self.client.post(
@@ -325,6 +335,13 @@ class TestNodeServiceResolutionApi(unittest.TestCase):
         self.assertEqual(len(reports.json()["items"]), 1)
         self.assertEqual(reports.json()["rollups"]["providers"][0]["provider"], "openai")
         self.assertEqual(reports.json()["rollups"]["task_families"][0]["task_family"], "task.summarization")
+        resolve_events = [item for item in self._audit_events() if item.get("event_type") == "node_service_resolved"]
+        self.assertGreaterEqual(len(resolve_events), 1)
+        event = resolve_events[-1]
+        self.assertEqual(event["actor_id"], node_id)
+        self.assertEqual(event["details"]["selected_service_id"], "summary-service")
+        self.assertEqual(event["details"]["candidate_count"], 1)
+        self.assertEqual(event["details"]["result"], "resolved")
 
     def test_resolution_uses_provider_node_budget_for_delegating_node(self) -> None:
         provider_node_id, _provider_trust_token = self._configure_node_for_resolution()
@@ -498,6 +515,12 @@ class TestNodeServiceResolutionApi(unittest.TestCase):
         )
         self.assertEqual(resolved.status_code, 200, resolved.text)
         self.assertEqual(resolved.json()["candidates"], [])
+        resolve_events = [item for item in self._audit_events() if item.get("event_type") == "node_service_resolved"]
+        self.assertGreaterEqual(len(resolve_events), 1)
+        event = resolve_events[-1]
+        self.assertEqual(event["actor_id"], node_id)
+        self.assertEqual(event["details"]["candidate_count"], 0)
+        self.assertEqual(event["details"]["result"], "no_candidates")
 
     def test_resolution_filters_unauthorized_provider_requests(self) -> None:
         node_id, trust_token = self._configure_node_for_resolution()

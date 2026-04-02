@@ -1731,6 +1731,7 @@ def build_system_router(
     @router.post("/system/nodes/services/resolve")
     async def resolve_node_service(
         body: TaskExecutionResolutionRequest,
+        request: Request,
         x_node_trust_token: str | None = Header(default=None),
     ):
         node_id = str(body.node_id or "").strip()
@@ -1760,6 +1761,29 @@ def build_system_router(
             request=body,
             governance_bundle=governance_bundle.to_dict(),
             budget_service=node_budget_service,
+        )
+        _record_audit(
+            audit_store,
+            event_type="node_service_resolved",
+            actor_role="node",
+            actor_id=node_id,
+            details={
+                "node_id": node_id,
+                "task_family": str(body.task_family or "").strip(),
+                "task_type": str(body.type or "").strip() or None,
+                "preferred_provider": str(body.preferred_provider or "").strip() or None,
+                "preferred_model": str(body.preferred_model or "").strip() or None,
+                "selected_service_id": response_payload.selected_service_id,
+                "candidate_count": len(response_payload.candidates),
+                "candidate_service_ids": [item.service_id for item in response_payload.candidates],
+                "candidate_provider_node_ids": [
+                    str(item.provider_node_id or "").strip()
+                    for item in response_payload.candidates
+                    if str(item.provider_node_id or "").strip()
+                ],
+                "source_ip": str(request.client.host if request.client else "unknown"),
+                "result": "resolved" if response_payload.candidates else "no_candidates",
+            },
         )
         return {"ok": True, **response_payload.model_dump(mode="json")}
 
