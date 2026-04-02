@@ -20,6 +20,10 @@ class TestProxyRouteRedirectMiddleware(unittest.TestCase):
         async def node_root(node_id: str):
             return PlainTextResponse(f"node:{node_id}")
 
+        @app.get("/nodes/proxy/ui/{node_id}/{path:path}")
+        async def node_ui_navigation_path(node_id: str, path: str):
+            return PlainTextResponse(f"node-ui:{node_id}:{path}")
+
         @app.get("/nodes/proxy/{node_id}/{path:path}")
         async def node_path(node_id: str, path: str):
             return PlainTextResponse(f"node:{node_id}:{path}")
@@ -33,7 +37,7 @@ class TestProxyRouteRedirectMiddleware(unittest.TestCase):
     def test_redirects_legacy_node_ui_routes_to_canonical_paths(self) -> None:
         response = self.client.get("/ui/nodes/node-1/assets/main.js", follow_redirects=False)
         self.assertEqual(response.status_code, 307, response.text)
-        self.assertEqual(response.headers["location"], "/nodes/proxy/node-1/assets/main.js")
+        self.assertEqual(response.headers["location"], "/nodes/proxy/ui/node-1/assets/main.js")
 
     def test_redirects_legacy_addon_ui_routes_to_canonical_paths(self) -> None:
         response = self.client.get("/ui/addons/mqtt?view=full", follow_redirects=False)
@@ -48,6 +52,11 @@ class TestProxyRouteRedirectMiddleware(unittest.TestCase):
         node = self.client.get("/nodes/proxy/node-1", follow_redirects=False)
         self.assertEqual(node.status_code, 307, node.text)
         self.assertEqual(node.headers["location"], "/nodes/proxy/node-1/")
+
+    def test_leaves_nodes_proxy_ui_alias_untouched(self) -> None:
+        response = self.client.get("/nodes/proxy/ui/node-1/google/gmail/callback", follow_redirects=False)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.text, "node-ui:node-1:google/gmail/callback")
 
 
 if __name__ == "__main__":

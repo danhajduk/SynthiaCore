@@ -130,7 +130,7 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertEqual(item.ui_base_url, "http://legacy-ui.local:8765/ui")
         self.assertEqual(item.ui_mode, "spa")
         self.assertIsNone(item.ui_health_endpoint)
-        self.assertEqual(item.api_base_url, "http://legacy-ui.local:8765")
+        self.assertEqual(item.api_base_url, "http://legacy-ui.local:8765/api")
 
     def test_upsert_from_approved_session_binds_session_mapping(self) -> None:
         session = NodeOnboardingSession(
@@ -204,7 +204,75 @@ class TestNodeRegistrationsStore(unittest.TestCase):
         self.assertEqual(created.ui_base_url, "http://ui-node.local:8765/ui")
         self.assertEqual(created.ui_mode, "spa")
         self.assertIsNone(created.ui_health_endpoint)
-        self.assertEqual(created.api_base_url, "http://ui-node.local:8081")
+        self.assertEqual(created.api_base_url, "http://ui-node.local:8081/api")
+
+    def test_upsert_from_approved_session_derives_ui_base_from_api_base_url_when_ui_missing(self) -> None:
+        session = NodeOnboardingSession(
+            session_id="sess-api-ui",
+            session_state="approved",
+            node_nonce="nonce-api-ui",
+            requested_node_name="email-node",
+            requested_node_type="email-node",
+            requested_node_software_version="0.1.0",
+            requested_hostname="10.0.0.100",
+            requested_ui_endpoint=None,
+            requested_api_base_url="http://10.0.0.100:9003/api",
+            requested_from_ip=None,
+            request_metadata={},
+            created_at="2026-03-11T00:00:00+00:00",
+            expires_at="2026-03-11T00:15:00+00:00",
+            approved_at="2026-03-11T00:01:00+00:00",
+            rejected_at=None,
+            approved_by_user_id="admin:bob",
+            rejection_reason=None,
+            linked_node_id="node-email",
+            final_payload_consumed_at=None,
+            state_history=[],
+        )
+
+        created = self.store.upsert_from_approved_session(session)
+        self.assertTrue(created.ui_enabled)
+        self.assertEqual(created.ui_base_url, "http://10.0.0.100:9003")
+        self.assertEqual(created.api_base_url, "http://10.0.0.100:9003/api")
+
+    def test_load_repairs_legacy_hostname_only_ui_base_when_api_base_has_port(self) -> None:
+        payload = {
+            "field_aliases": {},
+            "schema_version": "4",
+            "session_to_node": {},
+            "items": [
+                {
+                    "node_id": "node-email",
+                    "node_name": "Email Node",
+                    "node_type": "email",
+                    "node_software_version": "0.1.0",
+                    "requested_node_type": "email-node",
+                    "requested_hostname": "10.0.0.100",
+                    "requested_ui_endpoint": None,
+                    "requested_api_base_url": "http://10.0.0.100:9003/api",
+                    "ui_enabled": True,
+                    "ui_base_url": "http://10.0.0.100",
+                    "ui_mode": "spa",
+                    "ui_health_endpoint": None,
+                    "api_base_url": "http://10.0.0.100:9003/api",
+                    "capabilities_summary": [],
+                    "trust_status": "trusted",
+                    "source_onboarding_session_id": "sess-email",
+                    "approved_by_user_id": "admin",
+                    "approved_at": "2026-03-11T00:01:00+00:00",
+                    "created_at": "2026-03-11T00:00:00+00:00",
+                    "updated_at": "2026-03-11T00:01:00+00:00",
+                }
+            ],
+        }
+        self.path.write_text(json.dumps(payload), encoding="utf-8")
+
+        reloaded = NodeRegistrationsStore(path=self.path)
+        item = reloaded.get("node-email")
+        self.assertIsNotNone(item)
+        assert item is not None
+        self.assertEqual(item.ui_base_url, "http://10.0.0.100:9003")
+        self.assertEqual(item.api_base_url, "http://10.0.0.100:9003/api")
 
     def test_mark_trusted_by_session(self) -> None:
         record = NodeRegistrationRecord(

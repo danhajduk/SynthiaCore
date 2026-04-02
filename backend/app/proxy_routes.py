@@ -11,6 +11,7 @@ from starlette.responses import Response
 PROXY_REDIRECT_STATUS = 307
 
 _NODE_UI_BASE_RE = re.compile(r"^/nodes/proxy/(?P<node_id>[^/]+)$")
+_NODE_UI_NAVIGATION_RE = re.compile(r"^/nodes/proxy/ui/(?P<node_id>[^/]+)(?:/(?P<path>.*))?$")
 _ADDON_UI_BASE_RE = re.compile(r"^/addons/proxy/(?P<addon_id>[^/]+)$")
 _LEGACY_CANONICAL_NODE_UI_RE = re.compile(r"^/nodes/(?P<node_id>[^/]+)/ui(?:/(?P<path>.*))?$")
 _LEGACY_NODE_UI_RE = re.compile(r"^/ui/nodes/(?P<node_id>[^/]+)(?:/(?P<path>.*))?$")
@@ -25,8 +26,12 @@ def _encode_tail(path: str = "") -> str:
     return quote(str(path or "").lstrip("/"), safe="/@:")
 
 
-def node_ui_proxy_base(node_id: str) -> str:
+def node_api_proxy_base(node_id: str) -> str:
     return f"/nodes/proxy/{_encode_id(node_id)}/"
+
+
+def node_ui_proxy_base(node_id: str) -> str:
+    return f"/nodes/proxy/ui/{_encode_id(node_id)}/"
 
 
 def node_ui_proxy_path(node_id: str, path: str = "") -> str:
@@ -51,9 +56,12 @@ def _with_query(path: str, request: Request) -> str:
 
 
 def resolve_proxy_redirect_path(path: str) -> str | None:
+    if _NODE_UI_NAVIGATION_RE.match(path):
+        return None
+
     match = _NODE_UI_BASE_RE.match(path)
     if match:
-        return node_ui_proxy_base(match.group("node_id"))
+        return node_api_proxy_base(match.group("node_id"))
 
     match = _LEGACY_CANONICAL_NODE_UI_RE.match(path)
     if match:

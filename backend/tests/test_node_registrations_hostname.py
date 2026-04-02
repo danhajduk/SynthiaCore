@@ -32,14 +32,14 @@ class TestNodeRegistrationsHostname(unittest.TestCase):
             self.assertEqual(record.requested_hostname, "office-node.local")
             self.assertEqual(record.requested_ui_endpoint, "http://office-node.local:8765/ui")
             self.assertEqual(record.requested_api_base_url, "http://office-node.local:8081")
-            self.assertEqual(record.api_base_url, "http://office-node.local:8081")
+            self.assertEqual(record.api_base_url, "http://office-node.local:8081/api")
             stored = registrations.get("node-office")
             self.assertIsNotNone(stored)
             assert stored is not None
             self.assertEqual(stored.requested_hostname, "office-node.local")
             self.assertEqual(stored.requested_ui_endpoint, "http://office-node.local:8765/ui")
             self.assertEqual(stored.requested_api_base_url, "http://office-node.local:8081")
-            self.assertEqual(stored.api_base_url, "http://office-node.local:8081")
+            self.assertEqual(stored.api_base_url, "http://office-node.local:8081/api")
 
 
 if __name__ == "__main__":

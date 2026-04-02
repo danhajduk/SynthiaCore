@@ -360,7 +360,13 @@ def _derive_overall_status(payload: dict[str, Any]) -> dict[str, Any]:
             reasons.append("MQTT authority degraded")
         reconcile = mqtt_infra.get("reconciliation", {})
         if isinstance(reconcile, dict) and str(reconcile.get("status") or "").lower() in {"degraded", "error"}:
-            reasons.append("MQTT reconciliation degraded")
+            broker_healthy = isinstance(broker_runtime, dict) and broker_runtime.get("healthy") is True
+            authority_healthy = isinstance(authority, dict) and authority.get("healthy") is True
+            setup_ready = isinstance(authority, dict) and authority.get("setup_ready") is True
+            # Reconciliation status is historical. If runtime and authority have
+            # already recovered, don't keep the whole dashboard degraded.
+            if not (broker_healthy and authority_healthy and setup_ready):
+                reasons.append("MQTT reconciliation degraded")
         bootstrap = mqtt_infra.get("bootstrap_publish", {})
         if (
             isinstance(bootstrap, dict)

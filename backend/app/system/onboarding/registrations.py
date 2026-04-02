@@ -169,6 +169,7 @@ class NodeRegistrationsStore:
             ui_enabled, ui_base_url, ui_mode, ui_health_endpoint = derive_node_ui_metadata(
                 requested_hostname=str(item.get("requested_hostname") or "").strip() or None,
                 requested_ui_endpoint=str(item.get("requested_ui_endpoint") or "").strip() or None,
+                requested_api_base_url=str(item.get("requested_api_base_url") or "").strip() or None,
                 ui_enabled=item.get("ui_enabled") if item.get("ui_enabled") is not None else None,
                 ui_base_url=str(item.get("ui_base_url") or "").strip() or None,
                 ui_mode=str(item.get("ui_mode") or "").strip() or None,
@@ -268,6 +269,7 @@ class NodeRegistrationsStore:
         ui_enabled, ui_base_url, ui_mode, ui_health_endpoint = derive_node_ui_metadata(
             requested_hostname=str(session.requested_hostname or "").strip() or None,
             requested_ui_endpoint=str(session.requested_ui_endpoint or "").strip() or None,
+            requested_api_base_url=str(session.requested_api_base_url or "").strip() or None,
             ui_enabled=existing.ui_enabled if existing is not None else None,
             ui_base_url=existing.ui_base_url if existing is not None else None,
             ui_mode=existing.ui_mode if existing is not None else None,

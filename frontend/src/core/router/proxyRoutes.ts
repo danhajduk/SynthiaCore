@@ -9,5 +9,5 @@ export function nodeUiProxyPath(nodeId: string, path?: string): string {
   const safeNodeId = encodeURIComponent(String(nodeId || "").trim());
   if (!safeNodeId) return "";
   const cleanPath = String(path || "").trim().replace(/^\/+/, "");
-  return cleanPath ? `/nodes/proxy/${safeNodeId}/${cleanPath}` : `/nodes/proxy/${safeNodeId}/`;
+  return cleanPath ? `/nodes/proxy/ui/${safeNodeId}/${cleanPath}` : `/nodes/proxy/ui/${safeNodeId}/`;
 }

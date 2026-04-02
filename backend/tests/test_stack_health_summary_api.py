@@ -296,6 +296,39 @@ class TestStackHealthSummaryApi(unittest.TestCase):
         self.assertEqual(payload["overall"], "degraded")
         self.assertIn("AI offline", payload["reasons"])
 
+    def test_stale_mqtt_reconcile_does_not_degrade_when_runtime_is_healthy(self) -> None:
+        payload = stack_health._derive_overall_status(
+            {
+                "subsystems": {
+                    "core": {"state": "healthy"},
+                    "supervisor": {"state": "healthy"},
+                    "workers": {"state": "active"},
+                    "mqtt": {
+                        "state": "connected",
+                        "infrastructure": {
+                            "broker_runtime": {"healthy": True, "state": "running"},
+                            "authority": {
+                                "healthy": True,
+                                "authority_ready": True,
+                                "setup_ready": True,
+                                "setup_status": "ready",
+                            },
+                            "reconciliation": {"status": "degraded"},
+                            "bootstrap_publish": {"published": True, "attempts": 1},
+                        },
+                    },
+                    "scheduler": {"state": "running"},
+                    "addons": {"unhealthy_count": 0},
+                },
+                "connectivity": {
+                    "network": {"state": "reachable"},
+                    "internet": {"state": "reachable"},
+                },
+            }
+        )
+        self.assertEqual(payload["overall"], "ok")
+        self.assertNotIn("MQTT reconciliation degraded", payload["reasons"])
+
     @patch("app.system.stack_health.subprocess.run")
     def test_stack_summary_uses_cached_speed_only(self, mock_run) -> None:
         stack_health._sampler._speed_cache = {

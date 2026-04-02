@@ -41,6 +41,17 @@ def normalize_node_api_base_url(raw: str | None) -> str | None:
     return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
 
 
+def _derive_ui_base_from_api_base_url(raw: str | None) -> str | None:
+    base = normalize_node_api_base_url(raw)
+    if base is None:
+        return None
+    parsed = urlsplit(base)
+    path = parsed.path.rstrip("/")
+    if path.endswith("/api"):
+        path = path[: -len("/api")]
+    return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+
+
 def derive_node_api_base_url(
     *,
     api_base_url: str | None = None,
@@ -73,6 +84,7 @@ def derive_node_api_base_url(
 def derive_node_ui_metadata(
     *,
     requested_ui_endpoint: str | None,
+    requested_api_base_url: str | None = None,
     requested_hostname: str | None,
     ui_enabled: bool | None = None,
     ui_base_url: str | None = None,
@@ -80,15 +92,21 @@ def derive_node_ui_metadata(
     ui_health_endpoint: str | None = None,
 ) -> tuple[bool, str | None, UiMode, str | None]:
     base = normalize_ui_base_url(ui_base_url)
+    requested_base = normalize_ui_base_url(requested_ui_endpoint)
+    api_base = _derive_ui_base_from_api_base_url(requested_api_base_url)
+    host = str(requested_hostname or "").strip()
+    host_base = None
+    if host:
+        if host.startswith("http://") or host.startswith("https://"):
+            host_base = normalize_ui_base_url(host)
+        else:
+            host_base = normalize_ui_base_url(f"http://{host}")
+
     if base is None:
-        base = normalize_ui_base_url(requested_ui_endpoint)
-    if base is None:
-        host = str(requested_hostname or "").strip()
-        if host:
-            if host.startswith("http://") or host.startswith("https://"):
-                base = normalize_ui_base_url(host)
-            else:
-                base = normalize_ui_base_url(f"http://{host}")
+        base = requested_base or api_base or host_base
+    elif requested_base is None and api_base is not None and host_base is not None and base == host_base and base != api_base:
+        # Repair registrations created before we preserved the port from requested_api_base_url.
+        base = api_base
     enabled = bool(base) if ui_enabled is None else bool(ui_enabled)
     if not enabled:
         return False, None, normalize_ui_mode(ui_mode), normalize_ui_health_endpoint(ui_health_endpoint)

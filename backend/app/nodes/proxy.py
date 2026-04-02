@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
 import time
+from html import escape
 from urllib.parse import quote, urlsplit, urlunsplit
 
 import httpx
@@ -40,6 +42,10 @@ def _admin_login_redirect(request: Request) -> Response:
         status_code=307,
         headers={"location": f"/proxy-login?next={quote(next_target, safe='')}"},
     )
+
+
+def _reserved_node_proxy_segment(node_id: str) -> bool:
+    return str(node_id or "").strip() in {"ui", "no-json"}
 
 
 class NodeUiProxy:
@@ -95,7 +101,16 @@ class NodeUiProxy:
             timeout=httpx.Timeout(_env_float("SYNTHIA_NODE_UI_HEALTH_TIMEOUT_SECONDS", NODE_UI_HEALTH_TIMEOUT_SECONDS)),
         )
 
-    async def forward(self, request: Request, node_id: str, path: str = "", *, public_prefix: str = "") -> Response:
+    async def forward(
+        self,
+        request: Request,
+        node_id: str,
+        path: str = "",
+        *,
+        public_prefix: str = "",
+        render_navigation_json_page: bool = False,
+        api_public_prefix: str | None = None,
+    ) -> Response:
         started_at = time.perf_counter()
         effective_public_prefix = public_prefix or f"/nodes/proxy/{node_id}"
         try:
@@ -189,11 +204,22 @@ class NodeUiProxy:
         content = await upstream.aread()
         response_headers = self._proxy.safe_response_headers(upstream.headers)
         await upstream.aclose()
+        if render_navigation_json_page:
+            callback_page = self._render_browser_json_navigation_page(
+                request=request,
+                status_code=upstream.status_code,
+                content=content,
+                content_type=response_headers.get("content-type"),
+            )
+            if callback_page is not None:
+                response_headers["content-type"] = "text/html; charset=utf-8"
+                response_headers.pop("content-length", None)
+                content = callback_page
         content = self._rewrite_root_urls(
             content,
             response_headers.get("content-type"),
             public_prefix=effective_public_prefix,
-            api_public_prefix=f"/api/nodes/{node_id}",
+            api_public_prefix=api_public_prefix or f"/api/nodes/{node_id}",
         )
         self._log_proxy_result(
             node_id=node_id,
@@ -210,6 +236,100 @@ class NodeUiProxy:
             status_code=upstream.status_code,
             headers=response_headers,
         )
+
+    @staticmethod
+    def _render_browser_json_navigation_page(
+        *,
+        request: Request,
+        status_code: int,
+        content: bytes,
+        content_type: str | None,
+    ) -> bytes | None:
+        normalized_type = str(content_type or "").lower()
+        accept = str(request.headers.get("accept", "") or "").lower()
+        if "json" not in normalized_type or "text/html" not in accept:
+            return None
+        try:
+            payload = json.loads(content.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None
+
+        if 200 <= status_code < 300:
+            title = "Request Complete"
+            message = "The proxied node request completed successfully. This window can close now."
+            should_close = True
+        else:
+            detail = payload.get("detail") if isinstance(payload, dict) else None
+            title = "Request Failed"
+            message = str(detail or "The proxied node request did not complete successfully.")
+            should_close = False
+        return NodeUiProxy._build_oauth_callback_html(title=title, message=message, should_close=should_close)
+
+    @staticmethod
+    def _build_oauth_callback_html(*, title: str, message: str, should_close: bool) -> bytes:
+        safe_title = escape(title)
+        safe_message = escape(message)
+        auto_close = """
+        <script>
+        (function () {
+          try {
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage({ type: "hexe:gmail-oauth-complete" }, "*");
+            }
+          } catch (error) {}
+          window.close();
+        })();
+        </script>
+        """ if should_close else ""
+        html = f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{safe_title}</title>
+    <style>
+      :root {{
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #f4efe7;
+        color: #1f2933;
+      }}
+      body {{
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at top, rgba(216, 173, 120, 0.25), transparent 40%),
+          linear-gradient(180deg, #f7f2eb 0%, #efe5d6 100%);
+      }}
+      main {{
+        width: min(28rem, calc(100vw - 2rem));
+        padding: 2rem;
+        border-radius: 1.25rem;
+        background: rgba(255, 252, 247, 0.92);
+        box-shadow: 0 24px 70px rgba(78, 52, 24, 0.16);
+      }}
+      h1 {{
+        margin: 0 0 0.75rem;
+        font-size: 1.4rem;
+      }}
+      p {{
+        margin: 0;
+        line-height: 1.5;
+      }}
+    </style>
+    {auto_close}
+  </head>
+  <body>
+    <main>
+      <h1>{safe_title}</h1>
+      <p>{safe_message}</p>
+    </main>
+  </body>
+</html>
+"""
+        return html.encode("utf-8")
 
     @staticmethod
     def _rewrite_root_urls(
@@ -310,13 +430,22 @@ class NodeUiProxy:
             outcome="proxied",
         )
 
-    async def forward_api(self, request: Request, node_id: str, path: str = "") -> Response:
+    async def forward_api(
+        self,
+        request: Request,
+        node_id: str,
+        path: str = "",
+        *,
+        public_prefix: str | None = None,
+        render_navigation_json_page: bool = False,
+    ) -> Response:
         started_at = time.perf_counter()
         target_base = self._api_target_base(node_id, request)
         target = self._proxy.build_target_url(target_base, path, request.url.query)
+        effective_public_prefix = public_prefix or f"/api/nodes/{node_id}"
         headers = self._proxy.build_request_headers(
             request,
-            public_prefix=f"/api/nodes/{node_id}",
+            public_prefix=effective_public_prefix,
             extra_headers={"X-Hexe-Node-Id": node_id},
         )
         try:
@@ -332,7 +461,7 @@ class NodeUiProxy:
                     surface="api",
                     method=request.method,
                     path=path,
-                    public_prefix=f"/api/nodes/{node_id}",
+                    public_prefix=effective_public_prefix,
                     status_code=502,
                     latency_ms=(time.perf_counter() - started_at) * 1000.0,
                     outcome=f"node_api_proxy_error: {str(exc.detail).removeprefix('proxy_error: ')}",
@@ -344,46 +473,186 @@ class NodeUiProxy:
             surface="api",
             method=request.method,
             path=path,
-            public_prefix=f"/api/nodes/{node_id}",
+            public_prefix=effective_public_prefix,
             status_code=upstream.status_code,
             latency_ms=(time.perf_counter() - started_at) * 1000.0,
             outcome="proxied",
         )
-        return await self._proxy.stream_response(upstream)
+        if not render_navigation_json_page:
+            return await self._proxy.stream_response(upstream)
+
+        content = await upstream.aread()
+        response_headers = self._proxy.safe_response_headers(upstream.headers)
+        await upstream.aclose()
+        callback_page = self._render_browser_json_navigation_page(
+            request=request,
+            status_code=upstream.status_code,
+            content=content,
+            content_type=response_headers.get("content-type"),
+        )
+        if callback_page is not None:
+            response_headers["content-type"] = "text/html; charset=utf-8"
+            response_headers.pop("content-length", None)
+            content = callback_page
+        return Response(
+            content=content,
+            status_code=upstream.status_code,
+            headers=response_headers,
+        )
 
 
 def build_node_ui_proxy_router(proxy: NodeUiProxy) -> APIRouter:
     router = APIRouter()
 
-    @router.api_route("/nodes/proxy/{node_id}/{path:path}", methods=["GET", "HEAD"])
-    async def proxy_node_ui_canonical(node_id: str, path: str, request: Request):
+    @router.api_route("/nodes/proxy/ui/{node_id}/{path:path}", methods=["GET", "HEAD"])
+    async def proxy_node_ui_navigation(node_id: str, path: str, request: Request):
         try:
             require_admin_request(request)
         except HTTPException as exc:
             if exc.status_code == 401:
                 return _admin_login_redirect(request)
             raise
-        return await proxy.forward(request, node_id, path, public_prefix=f"/nodes/proxy/{node_id}")
+        return await proxy.forward(
+            request,
+            node_id,
+            path,
+            public_prefix=f"/nodes/proxy/ui/{node_id}",
+            api_public_prefix=f"/nodes/proxy/{node_id}",
+        )
 
-    @router.api_route("/nodes/proxy/{node_id}/", methods=["GET", "HEAD"])
-    async def proxy_node_ui_canonical_root(node_id: str, request: Request):
+    @router.api_route("/nodes/proxy/ui/{node_id}/", methods=["GET", "HEAD"])
+    async def proxy_node_ui_navigation_root(node_id: str, request: Request):
         try:
             require_admin_request(request)
         except HTTPException as exc:
             if exc.status_code == 401:
                 return _admin_login_redirect(request)
             raise
-        return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
+        return await proxy.forward(
+            request,
+            node_id,
+            "",
+            public_prefix=f"/nodes/proxy/ui/{node_id}",
+            api_public_prefix=f"/nodes/proxy/{node_id}",
+        )
 
-    @router.api_route("/nodes/proxy/{node_id}", methods=["GET", "HEAD"])
-    async def proxy_node_ui_canonical_root_no_slash(node_id: str, request: Request):
+    @router.api_route("/nodes/proxy/ui/{node_id}", methods=["GET", "HEAD"])
+    async def proxy_node_ui_navigation_root_no_slash(node_id: str, request: Request):
         try:
             require_admin_request(request)
         except HTTPException as exc:
             if exc.status_code == 401:
                 return _admin_login_redirect(request)
             raise
-        return await proxy.forward(request, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
+        return await proxy.forward(
+            request,
+            node_id,
+            "",
+            public_prefix=f"/nodes/proxy/ui/{node_id}",
+            api_public_prefix=f"/nodes/proxy/{node_id}",
+        )
+
+    @router.api_route(
+        "/nodes/proxy/no-json/{node_id}/{path:path}",
+        methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    )
+    async def proxy_node_api_navigation(node_id: str, path: str, request: Request):
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401 and request.method in {"GET", "HEAD"}:
+                return _admin_login_redirect(request)
+            raise
+        return await proxy.forward_api(
+            request,
+            node_id,
+            path,
+            public_prefix=f"/nodes/proxy/no-json/{node_id}",
+            render_navigation_json_page=True,
+        )
+
+    @router.api_route(
+        "/nodes/proxy/no-json/{node_id}/",
+        methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    )
+    async def proxy_node_api_navigation_root(node_id: str, request: Request):
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401 and request.method in {"GET", "HEAD"}:
+                return _admin_login_redirect(request)
+            raise
+        return await proxy.forward_api(
+            request,
+            node_id,
+            "",
+            public_prefix=f"/nodes/proxy/no-json/{node_id}",
+            render_navigation_json_page=True,
+        )
+
+    @router.api_route(
+        "/nodes/proxy/no-json/{node_id}",
+        methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    )
+    async def proxy_node_api_navigation_root_no_slash(node_id: str, request: Request):
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401 and request.method in {"GET", "HEAD"}:
+                return _admin_login_redirect(request)
+            raise
+        return await proxy.forward_api(
+            request,
+            node_id,
+            "",
+            public_prefix=f"/nodes/proxy/no-json/{node_id}",
+            render_navigation_json_page=True,
+        )
+
+    @router.api_route(
+        "/nodes/proxy/{node_id}/{path:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    )
+    async def proxy_node_api_canonical(node_id: str, path: str, request: Request):
+        if _reserved_node_proxy_segment(node_id):
+            raise HTTPException(status_code=405, detail="Method Not Allowed")
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401 and request.method in {"GET", "HEAD"}:
+                return _admin_login_redirect(request)
+            raise
+        return await proxy.forward_api(request, node_id, path, public_prefix=f"/nodes/proxy/{node_id}")
+
+    @router.api_route(
+        "/nodes/proxy/{node_id}/",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    )
+    async def proxy_node_api_canonical_root(node_id: str, request: Request):
+        if _reserved_node_proxy_segment(node_id):
+            raise HTTPException(status_code=405, detail="Method Not Allowed")
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401 and request.method in {"GET", "HEAD"}:
+                return _admin_login_redirect(request)
+            raise
+        return await proxy.forward_api(request, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
+
+    @router.api_route(
+        "/nodes/proxy/{node_id}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    )
+    async def proxy_node_api_canonical_root_no_slash(node_id: str, request: Request):
+        if _reserved_node_proxy_segment(node_id):
+            raise HTTPException(status_code=405, detail="Method Not Allowed")
+        try:
+            require_admin_request(request)
+        except HTTPException as exc:
+            if exc.status_code == 401 and request.method in {"GET", "HEAD"}:
+                return _admin_login_redirect(request)
+            raise
+        return await proxy.forward_api(request, node_id, "", public_prefix=f"/nodes/proxy/{node_id}")
 
     @router.api_route("/nodes/{node_id}/ui/{path:path}", methods=["GET", "HEAD"])
     async def proxy_node_ui_legacy_canonical(node_id: str, path: str, request: Request):
@@ -450,6 +719,24 @@ def build_node_ui_proxy_router(proxy: NodeUiProxy) -> APIRouter:
     async def proxy_node_api_root(node_id: str, request: Request):
         require_admin_request(request)
         return await proxy.forward_api(request, node_id, "")
+
+    @router.websocket("/nodes/proxy/ui/{node_id}/{path:path}")
+    async def proxy_node_ui_navigation_websocket(node_id: str, path: str, websocket: WebSocket):
+        try:
+            require_admin_request(websocket)
+        except HTTPException:
+            await websocket.close(code=4401, reason="Unauthorized")
+            return
+        await proxy.forward_websocket(websocket, node_id, path, public_prefix=f"/nodes/proxy/ui/{node_id}")
+
+    @router.websocket("/nodes/proxy/ui/{node_id}/")
+    async def proxy_node_ui_navigation_root_websocket(node_id: str, websocket: WebSocket):
+        try:
+            require_admin_request(websocket)
+        except HTTPException:
+            await websocket.close(code=4401, reason="Unauthorized")
+            return
+        await proxy.forward_websocket(websocket, node_id, "", public_prefix=f"/nodes/proxy/ui/{node_id}")
 
     @router.websocket("/nodes/proxy/{node_id}/{path:path}")
     async def proxy_node_ui_canonical_websocket(node_id: str, path: str, websocket: WebSocket):

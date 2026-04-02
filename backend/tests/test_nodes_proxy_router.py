@@ -15,18 +15,29 @@ from app.reverse_proxy import ReverseProxyService
 
 class _FakeNodeProxy:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str, str, str]] = []
+        self.calls: list[tuple[str, str, str, str, bool]] = []
         self.websocket_calls: list[tuple[str, str, str]] = []
         self.api_calls: list[tuple[str, str, str]] = []
 
-    async def forward(self, request: Request, node_id: str, path: str = "", *, public_prefix: str = "") -> JSONResponse:
-        self.calls.append((request.method, node_id, path, public_prefix))
+    async def forward(
+        self,
+        request: Request,
+        node_id: str,
+        path: str = "",
+        *,
+        public_prefix: str = "",
+        render_navigation_json_page: bool = False,
+        api_public_prefix: str | None = None,
+    ) -> JSONResponse:
+        self.calls.append((request.method, node_id, path, public_prefix, render_navigation_json_page))
         return JSONResponse(
             {
                 "method": request.method,
                 "node_id": node_id,
                 "path": path,
                 "public_prefix": public_prefix,
+                "render_navigation_json_page": render_navigation_json_page,
+                "api_public_prefix": api_public_prefix,
             }
         )
 
@@ -36,9 +47,25 @@ class _FakeNodeProxy:
         await websocket.send_text(f"{node_id}:{path}:{public_prefix}")
         await websocket.close()
 
-    async def forward_api(self, request: Request, node_id: str, path: str = "") -> JSONResponse:
+    async def forward_api(
+        self,
+        request: Request,
+        node_id: str,
+        path: str = "",
+        *,
+        public_prefix: str | None = None,
+        render_navigation_json_page: bool = False,
+    ) -> JSONResponse:
         self.api_calls.append((request.method, node_id, path))
-        return JSONResponse({"method": request.method, "node_id": node_id, "path": path})
+        return JSONResponse(
+            {
+                "method": request.method,
+                "node_id": node_id,
+                "path": path,
+                "public_prefix": public_prefix,
+                "render_navigation_json_page": render_navigation_json_page,
+            }
+        )
 
 
 class TestNodeUiProxyRouter(unittest.TestCase):
@@ -55,42 +82,43 @@ class TestNodeUiProxyRouter(unittest.TestCase):
 
     def test_node_ui_routes_forward(self) -> None:
         checks = [
-            ("/nodes/proxy/node-1/", ""),
-            ("/nodes/proxy/node-1/assets/main.js", "assets/main.js"),
-            ("/ui/nodes/node-1", ""),
-            ("/ui/nodes/node-1/assets/main.js", "assets/main.js"),
+            ("/nodes/proxy/ui/node-1/", "", "/nodes/proxy/ui/node-1"),
+            ("/nodes/proxy/ui/node-1/assets/main.js", "assets/main.js", "/nodes/proxy/ui/node-1"),
+            ("/ui/nodes/node-1", "", "/ui/nodes/node-1"),
+            ("/ui/nodes/node-1/assets/main.js", "assets/main.js", "/ui/nodes/node-1"),
         ]
 
-        for url, expected_path in checks:
+        for url, expected_path, expected_prefix in checks:
             resp = self.client.get(url, headers={"X-Admin-Token": "test-token"})
             self.assertEqual(resp.status_code, 200, resp.text)
             payload = resp.json()
             self.assertEqual(payload["node_id"], "node-1")
             self.assertEqual(payload["path"], expected_path)
-            self.assertTrue(payload["public_prefix"].startswith("/"))
+            self.assertEqual(payload["public_prefix"], expected_prefix)
+            self.assertFalse(payload["render_navigation_json_page"])
 
         self.assertEqual(
             self.proxy.calls,
             [
-                ("GET", "node-1", "", "/nodes/proxy/node-1"),
-                ("GET", "node-1", "assets/main.js", "/nodes/proxy/node-1"),
-                ("GET", "node-1", "", "/ui/nodes/node-1"),
-                ("GET", "node-1", "assets/main.js", "/ui/nodes/node-1"),
+                ("GET", "node-1", "", "/nodes/proxy/ui/node-1", False),
+                ("GET", "node-1", "assets/main.js", "/nodes/proxy/ui/node-1", False),
+                ("GET", "node-1", "", "/ui/nodes/node-1", False),
+                ("GET", "node-1", "assets/main.js", "/ui/nodes/node-1", False),
             ],
         )
 
     def test_node_ui_routes_remain_get_head_only(self) -> None:
-        denied = self.client.post("/nodes/proxy/node-1/", headers={"X-Admin-Token": "test-token"})
+        denied = self.client.post("/nodes/proxy/ui/node-1/", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(denied.status_code, 405, denied.text)
 
-        head = self.client.head("/nodes/proxy/node-1/status", headers={"X-Admin-Token": "test-token"})
+        head = self.client.head("/nodes/proxy/ui/node-1/status", headers={"X-Admin-Token": "test-token"})
         self.assertEqual(head.status_code, 200, head.text)
 
-        self.assertEqual(self.proxy.calls, [("HEAD", "node-1", "status", "/nodes/proxy/node-1")])
+        self.assertEqual(self.proxy.calls, [("HEAD", "node-1", "status", "/nodes/proxy/ui/node-1", False)])
 
     def test_node_ui_websocket_routes_forward(self) -> None:
-        with self.client.websocket_connect("/nodes/proxy/node-1/ws", headers={"X-Admin-Token": "test-token"}) as ws:
-            self.assertEqual(ws.receive_text(), "node-1:ws:/nodes/proxy/node-1")
+        with self.client.websocket_connect("/nodes/proxy/ui/node-1/ws", headers={"X-Admin-Token": "test-token"}) as ws:
+            self.assertEqual(ws.receive_text(), "node-1:ws:/nodes/proxy/ui/node-1")
 
         with self.client.websocket_connect("/ui/nodes/node-1/live", headers={"X-Admin-Token": "test-token"}) as ws:
             self.assertEqual(ws.receive_text(), "node-1:live:/ui/nodes/node-1")
@@ -98,15 +126,18 @@ class TestNodeUiProxyRouter(unittest.TestCase):
         self.assertEqual(
             self.proxy.websocket_calls,
             [
-                ("node-1", "ws", "/nodes/proxy/node-1"),
+                ("node-1", "ws", "/nodes/proxy/ui/node-1"),
                 ("node-1", "live", "/ui/nodes/node-1"),
             ],
         )
 
     def test_node_api_proxy_routes_forward(self) -> None:
         checks = [
-            ("GET", "/api/nodes/node-1/status", "status"),
-            ("POST", "/api/nodes/node-1/v1/infer", "v1/infer"),
+            ("GET", "/nodes/proxy/node-1/status", "status"),
+            ("POST", "/nodes/proxy/node-1/v1/infer", "v1/infer"),
+            ("GET", "/nodes/proxy/no-json/node-1/google/gmail/callback", "google/gmail/callback"),
+            ("POST", "/nodes/proxy/no-json/node-1/v1/infer", "v1/infer"),
+            ("GET", "/nodes/proxy/node-1/", ""),
             ("GET", "/api/nodes/node-1/", ""),
         ]
         for method, url, expected_path in checks:
@@ -121,26 +152,37 @@ class TestNodeUiProxyRouter(unittest.TestCase):
             [
                 ("GET", "node-1", "status"),
                 ("POST", "node-1", "v1/infer"),
+                ("GET", "node-1", "google/gmail/callback"),
+                ("POST", "node-1", "v1/infer"),
+                ("GET", "node-1", ""),
                 ("GET", "node-1", ""),
             ],
         )
 
     def test_proxy_routes_require_admin_auth(self) -> None:
-        denied = self.client.get("/nodes/proxy/node-1/", follow_redirects=False)
+        denied = self.client.get("/nodes/proxy/ui/node-1/", follow_redirects=False)
         self.assertEqual(denied.status_code, 307, denied.text)
-        self.assertEqual(denied.headers["location"], "/proxy-login?next=%2Fnodes%2Fproxy%2Fnode-1%2F")
+        self.assertEqual(denied.headers["location"], "/proxy-login?next=%2Fnodes%2Fproxy%2Fui%2Fnode-1%2F")
 
     def test_proxy_routes_preserve_query_when_redirecting_to_login(self) -> None:
-        denied = self.client.get("/nodes/proxy/node-1/google/gmail/callback?code=abc&state=xyz", follow_redirects=False)
+        denied = self.client.get("/nodes/proxy/ui/node-1/google/gmail/callback?code=abc&state=xyz", follow_redirects=False)
         self.assertEqual(denied.status_code, 307, denied.text)
         self.assertEqual(
             denied.headers["location"],
-            "/proxy-login?next=%2Fnodes%2Fproxy%2Fnode-1%2Fgoogle%2Fgmail%2Fcallback%3Fcode%3Dabc%26state%3Dxyz",
+            "/proxy-login?next=%2Fnodes%2Fproxy%2Fui%2Fnode-1%2Fgoogle%2Fgmail%2Fcallback%3Fcode%3Dabc%26state%3Dxyz",
+        )
+
+    def test_proxy_no_json_routes_preserve_query_when_redirecting_to_login(self) -> None:
+        denied = self.client.get("/nodes/proxy/no-json/node-1/google/gmail/callback?code=abc&state=xyz", follow_redirects=False)
+        self.assertEqual(denied.status_code, 307, denied.text)
+        self.assertEqual(
+            denied.headers["location"],
+            "/proxy-login?next=%2Fnodes%2Fproxy%2Fno-json%2Fnode-1%2Fgoogle%2Fgmail%2Fcallback%3Fcode%3Dabc%26state%3Dxyz",
         )
 
     def test_websocket_proxy_requires_admin_auth(self) -> None:
         with self.assertRaises(WebSocketDisconnect) as exc:
-            with self.client.websocket_connect("/nodes/proxy/node-1/ws"):
+            with self.client.websocket_connect("/nodes/proxy/ui/node-1/ws"):
                 pass
         self.assertEqual(exc.exception.code, 4401)
 
@@ -244,6 +286,44 @@ class TestNodeUiProxyHtmlRewrite(unittest.TestCase):
         ).decode("utf-8")
 
         self.assertIn(r"pathname.match(/^\/nodes\/proxy\/([^/]+)(?:\/.*)?$/i)", rewritten)
+
+    def test_renders_html_completion_page_for_browser_navigation_json(self) -> None:
+        request = type("Req", (), {"headers": {"accept": "text/html,application/xhtml+xml"}})()
+        rendered = NodeUiProxy._render_browser_json_navigation_page(
+            request=request,
+            status_code=200,
+            content=b'{"status":"connected","account_id":"primary"}',
+            content_type="application/json",
+        )
+        self.assertIsNotNone(rendered)
+        text = rendered.decode("utf-8")
+        self.assertIn("Request Complete", text)
+        self.assertIn("window.close()", text)
+        self.assertNotIn('{"status":"connected"', text)
+
+    def test_renders_html_error_page_for_browser_navigation_json(self) -> None:
+        request = type("Req", (), {"headers": {"accept": "text/html,application/xhtml+xml"}})()
+        rendered = NodeUiProxy._render_browser_json_navigation_page(
+            request=request,
+            status_code=400,
+            content=b'{"detail":"OAuth state does not exist."}',
+            content_type="application/json",
+        )
+        self.assertIsNotNone(rendered)
+        text = rendered.decode("utf-8")
+        self.assertIn("Request Failed", text)
+        self.assertIn("OAuth state does not exist.", text)
+        self.assertNotIn("window.close()", text)
+
+    def test_leaves_json_unchanged_for_non_browser_requests(self) -> None:
+        request = type("Req", (), {"headers": {"accept": "application/json"}})()
+        rendered = NodeUiProxy._render_browser_json_navigation_page(
+            request=request,
+            status_code=200,
+            content=b'{"ok":true}',
+            content_type="application/json",
+        )
+        self.assertIsNone(rendered)
 
 
 class _TargetService:
@@ -384,7 +464,7 @@ class TestNodeUiProxyTargetSelection(unittest.TestCase):
         app.include_router(build_node_ui_proxy_router(proxy))
         with patch.dict("os.environ", {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False):
             client = TestClient(app)
-            response = client.get("/nodes/proxy/node-1/", headers={"X-Admin-Token": "test-token"})
+            response = client.get("/nodes/proxy/ui/node-1/", headers={"X-Admin-Token": "test-token"})
             self.assertEqual(response.status_code, 404, response.text)
             self.assertIn("Node UI Unavailable", response.text)
             self.assertIn("node_ui_not_enabled", response.text)
@@ -408,7 +488,7 @@ class TestNodeUiProxyTargetSelection(unittest.TestCase):
         app.include_router(build_node_ui_proxy_router(proxy))
         with patch.dict("os.environ", {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False):
             client = TestClient(app)
-            response = client.get("/nodes/proxy/node-1/", headers={"X-Admin-Token": "test-token"})
+            response = client.get("/nodes/proxy/ui/node-1/", headers={"X-Admin-Token": "test-token"})
             self.assertEqual(response.status_code, 503, response.text)
             self.assertIn("Node UI Unavailable", response.text)
             self.assertIn("health_probe_status_unhealthy", response.text)
@@ -431,7 +511,7 @@ class TestNodeUiProxyTargetSelection(unittest.TestCase):
         with patch.dict("os.environ", {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False):
             client = TestClient(app)
             with self.assertLogs("synthia.proxy", level="INFO") as captured:
-                client.get("/nodes/proxy/node-1/", headers={"X-Admin-Token": "test-token"})
+                client.get("/nodes/proxy/ui/node-1/", headers={"X-Admin-Token": "test-token"})
         self.assertTrue(any("surface=ui" in message and "node_id=node-1" in message for message in captured.output))
 
 
