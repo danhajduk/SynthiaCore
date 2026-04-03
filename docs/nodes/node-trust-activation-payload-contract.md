@@ -75,6 +75,8 @@ hexe/nodes/<node_id>/
 |- lifecycle         # state transitions (starting, ready, degraded)
 |- telemetry         # metrics / heartbeat (non-retained)
 |- events            # notable events/errors
+|- notify/request    # node -> Core notification proxy request
+|- notify/result     # Core -> node notification proxy result
 ```
 
 ## Post-Activation Trust Loss
@@ -111,3 +113,4 @@ AI-node consumers can continue using existing baseline fields while migrating to
 - [Node Trust Status Contract](./node-trust-status-contract.md)
 - [Node Onboarding And Registration Architecture](./node-onboarding-registration-architecture.md)
 - [Node Onboarding Migration Guide](./node-onboarding-migration-guide.md)
+- [Node Notification MQTT Contract](./node-notification-mqtt-contract.md)

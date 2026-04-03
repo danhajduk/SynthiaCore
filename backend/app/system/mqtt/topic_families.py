@@ -59,22 +59,9 @@ CANONICAL_RESERVED_PREFIXES: tuple[str, ...] = (
 )
 GENERIC_USER_RESERVED_ACL_DENIES: tuple[str, ...] = (
     "$SYS/#",
-    f"{MQTT_TOPIC_ROOT}/bootstrap/#",
-    f"{MQTT_TOPIC_ROOT}/runtime/#",
-    f"{MQTT_TOPIC_ROOT}/system/#",
-    f"{MQTT_TOPIC_ROOT}/core/#",
-    f"{MQTT_TOPIC_ROOT}/supervisor/#",
-    f"{MQTT_TOPIC_ROOT}/scheduler/#",
-    f"{MQTT_TOPIC_ROOT}/policy/#",
-    f"{MQTT_TOPIC_ROOT}/telemetry/#",
-    f"{MQTT_TOPIC_ROOT}/events/#",
-    f"{MQTT_TOPIC_ROOT}/remote/#",
-    f"{MQTT_TOPIC_ROOT}/bridges/#",
-    f"{MQTT_TOPIC_ROOT}/import/#",
-    f"{MQTT_TOPIC_ROOT}/services/#",
-    f"{MQTT_TOPIC_ROOT}/addons/#",
-    f"{MQTT_TOPIC_ROOT}/nodes/#",
+    f"{MQTT_TOPIC_ROOT}/#",
 )
+GENERIC_USER_NOTIFY_EXTERNAL_TOPIC = "hexe-notify/#"
 TOP_LEVEL_RESERVED_FAMILIES: tuple[str, ...] = (
     "bootstrap",
     "runtime",
@@ -211,3 +198,7 @@ def canonical_reserved_prefixes() -> list[str]:
 
 def generic_user_reserved_acl_denies() -> list[str]:
     return sorted({str(item).strip() for item in GENERIC_USER_RESERVED_ACL_DENIES if str(item).strip()})
+
+
+def generic_user_notify_external_topic() -> str:
+    return GENERIC_USER_NOTIFY_EXTERNAL_TOPIC

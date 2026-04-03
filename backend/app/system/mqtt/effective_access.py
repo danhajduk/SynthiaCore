@@ -6,6 +6,7 @@ from .integration_models import MqttAddonGrant, MqttIntegrationState, MqttPrinci
 from .topic_families import (
     BOOTSTRAP_TOPIC,
     canonical_reserved_prefixes,
+    generic_user_notify_external_topic,
     generic_user_reserved_acl_denies,
     is_platform_reserved_topic,
 )
@@ -32,6 +33,7 @@ class MqttEffectiveAccessCompiler:
         self._bootstrap_topic = str(bootstrap_topic).strip() or BOOTSTRAP_TOPIC
         self._reserved_prefixes = _sorted_unique(reserved_prefixes or canonical_reserved_prefixes())
         self._generic_user_reserved_denies = _sorted_unique(generic_user_reserved_acl_denies())
+        self._generic_user_notify_external_topic = generic_user_notify_external_topic()
 
     def compile(self, state: MqttIntegrationState) -> list[MqttEffectiveAccessEntry]:
         out: list[MqttEffectiveAccessEntry] = [
@@ -122,6 +124,9 @@ class MqttEffectiveAccessCompiler:
                 if custom_subscribe_topics:
                     subscribe_topics = list(custom_subscribe_topics)
             reserved_denies = [] if mode == "admin" else list(self._generic_user_reserved_denies)
+            if mode != "admin":
+                publish_topics = _sorted_unique([*publish_topics, self._generic_user_notify_external_topic])
+                subscribe_topics = _sorted_unique([*subscribe_topics, self._generic_user_notify_external_topic])
         elif principal.principal_type == "system":
             # Core-managed system principals render explicit publish/subscribe topics.
             publish_topics = _sorted_unique(list(principal.publish_topics))

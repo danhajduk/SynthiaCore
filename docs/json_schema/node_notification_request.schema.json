@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexe.local/schemas/node_notification_request.schema.json",
+  "title": "Node Notification Request",
+  "description": "JSON Schema for node-originated notification proxy requests published to hexe/nodes/<node_id>/notify/request. Core validates this request, rewrites source identity to the authenticated node, publishes to the canonical internal notification bus, and may bridge to external targets such as hexe-notify/<target>.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "targets"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "node_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional node identifier echo. When present it must match the <node_id> topic segment."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "popup",
+        "event",
+        "state"
+      ]
+    },
+    "targets": {
+      "$ref": "./notification_message.schema.json#/$defs/NotificationTargets"
+    },
+    "delivery": {
+      "$ref": "./notification_message.schema.json#/$defs/NotificationDelivery"
+    },
+    "retain": {
+      "type": "boolean",
+      "default": false,
+      "description": "Only valid for state notifications."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "component": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional node-supplied source hints. Core still rewrites the authoritative source identity to the node."
+    },
+    "content": {
+      "$ref": "./notification_message.schema.json#/$defs/NotificationContent"
+    },
+    "event": {
+      "$ref": "./notification_message.schema.json#/$defs/NotificationEvent"
+    },
+    "state": {
+      "$ref": "./notification_message.schema.json#/$defs/NotificationState"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "retain": {
+            "const": true
+          }
+        },
+        "required": [
+          "retain"
+        ]
+      },
+      "then": {
+        "properties": {
+          "kind": {
+            "const": "state"
+          }
+        }
+      }
+    },
+    {
+      "anyOf": [
+        {
+          "required": [
+            "data"
+          ]
+        },
+        {
+          "required": [
+            "event"
+          ]
+        },
+        {
+          "required": [
+            "state"
+          ]
+        },
+        {
+          "required": [
+            "content"
+          ],
+          "properties": {
+            "content": {
+              "anyOf": [
+                {
+                  "required": [
+                    "title"
+                  ]
+                },
+                {
+                  "required": [
+                    "subtitle"
+                  ]
+                },
+                {
+                  "required": [
+                    "message"
+                  ]
+                },
+                {
+                  "required": [
+                    "body"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

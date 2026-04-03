@@ -24,7 +24,7 @@ class TestNotificationPublisher(unittest.IsolatedAsyncioTestCase):
         return {
             "source": {"kind": "core", "id": "core", "component": "startup"},
             "targets": {"broadcast": True},
-            "delivery": {"severity": "info", "priority": "normal"},
+            "delivery": {"severity": "info", "priority": "normal", "urgency": "notification"},
             "content": {"title": "Synthia", "message": "Ready"},
             "event": {"event_type": "startup_complete"},
         }
@@ -40,6 +40,7 @@ class TestNotificationPublisher(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(mqtt.calls[0]["retain"])
         self.assertEqual(mqtt.calls[0]["qos"], 2)
         self.assertIn("event", mqtt.calls[0]["payload"]["delivery"]["channels"])
+        self.assertEqual(mqtt.calls[0]["payload"]["delivery"]["urgency"], "notification")
         self.assertNotIn("state", mqtt.calls[0]["payload"])
 
     async def test_popup_publish_forces_non_retained_messages(self) -> None:

@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexe.local/schemas/notification_message.schema.json",
+  "title": "Notification Message",
+  "description": "Canonical JSON Schema for Hexe MQTT notification payloads published on hexe/notify/internal/popup, hexe/notify/internal/event, and hexe/notify/internal/state. External bridge-owned topics may transform this envelope into a smaller target-specific payload.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source",
+    "targets"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Notification schema version."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque notification message identifier. Producers usually emit a UUID."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp when the notification message was created."
+    },
+    "source": {
+      "$ref": "#/$defs/NotificationSource"
+    },
+    "targets": {
+      "$ref": "#/$defs/NotificationTargets"
+    },
+    "delivery": {
+      "$ref": "#/$defs/NotificationDelivery"
+    },
+    "content": {
+      "$ref": "#/$defs/NotificationContent"
+    },
+    "event": {
+      "$ref": "#/$defs/NotificationEvent"
+    },
+    "state": {
+      "$ref": "#/$defs/NotificationState"
+    },
+    "data": {
+      "type": "object",
+      "description": "Optional producer-defined structured payload.",
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "required": [
+            "data"
+          ]
+        },
+        {
+          "required": [
+            "event"
+          ]
+        },
+        {
+          "required": [
+            "state"
+          ]
+        },
+        {
+          "required": [
+            "content"
+          ],
+          "properties": {
+            "content": {
+              "anyOf": [
+                {
+                  "required": [
+                    "title"
+                  ]
+                },
+                {
+                  "required": [
+                    "subtitle"
+                  ]
+                },
+                {
+                  "required": [
+                    "message"
+                  ]
+                },
+                {
+                  "required": [
+                    "body"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "NotificationSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "core",
+            "addon",
+            "node",
+            "service",
+            "system",
+            "user"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "component": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "user": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": true
+        }
+      }
+    },
+    "NotificationTargets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "broadcast": {
+          "type": "boolean",
+          "default": false
+        },
+        "users": {
+          "$ref": "#/$defs/NonEmptyStringArray"
+        },
+        "hosts": {
+          "$ref": "#/$defs/NonEmptyStringArray"
+        },
+        "sessions": {
+          "$ref": "#/$defs/NonEmptyStringArray"
+        },
+        "external": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "broadcast": {
+              "const": true
+            }
+          },
+          "required": [
+            "broadcast"
+          ]
+        },
+        {
+          "required": [
+            "users"
+          ]
+        },
+        {
+          "required": [
+            "hosts"
+          ]
+        },
+        {
+          "required": [
+            "sessions"
+          ]
+        },
+        {
+          "required": [
+            "external"
+          ]
+        }
+      ]
+    },
+    "NotificationDelivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "success",
+            "warning",
+            "error",
+            "critical"
+          ],
+          "default": "info"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "low",
+            "normal",
+            "high",
+            "urgent"
+          ],
+          "default": "normal"
+        },
+        "urgency": {
+          "type": "string",
+          "enum": [
+            "info",
+            "error",
+            "notification",
+            "urgent",
+            "actions_needed"
+          ],
+          "description": "Optional user-facing urgency hint for consumers and bridges."
+        },
+        "channels": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "enum": [
+              "popup",
+              "event",
+              "state",
+              "external"
+            ]
+          }
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "dedupe_key": {
+          "type": "string"
+        }
+      }
+    },
+    "NotificationContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        }
+      }
+    },
+    "NotificationEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": true
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "event_type"
+          ]
+        },
+        {
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "required": [
+            "summary"
+          ]
+        },
+        {
+          "properties": {
+            "attributes": {
+              "minProperties": 1
+            }
+          },
+          "required": [
+            "attributes"
+          ]
+        }
+      ]
+    },
+    "NotificationState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state_type": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "current": {
+          "type": "string"
+        },
+        "previous": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": true
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "state_type"
+          ]
+        },
+        {
+          "required": [
+            "status"
+          ]
+        },
+        {
+          "required": [
+            "current"
+          ]
+        },
+        {
+          "required": [
+            "previous"
+          ]
+        },
+        {
+          "properties": {
+            "attributes": {
+              "minProperties": 1
+            }
+          },
+          "required": [
+            "attributes"
+          ]
+        }
+      ]
+    },
+    "NonEmptyStringArray": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

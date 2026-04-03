@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 INTERNAL_EVENT_TOPIC = "hexe/notify/internal/event"
 INTERNAL_STATE_TOPIC = "hexe/notify/internal/state"
 INTERNAL_POPUP_TOPIC = "hexe/notify/internal/popup"
+NODE_NOTIFICATION_REQUEST_TOPIC_FILTER = "hexe/nodes/+/notify/request"
 
 _EXTERNAL_TARGET_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 
@@ -61,11 +62,25 @@ class NotificationPriority(str, Enum):
     URGENT = "urgent"
 
 
+class NotificationUrgency(str, Enum):
+    INFO = "info"
+    ERROR = "error"
+    NOTIFICATION = "notification"
+    URGENT = "urgent"
+    ACTIONS_NEEDED = "actions_needed"
+
+
 class NotificationChannel(str, Enum):
     POPUP = "popup"
     EVENT = "event"
     STATE = "state"
     EXTERNAL = "external"
+
+
+class NotificationKind(str, Enum):
+    POPUP = "popup"
+    EVENT = "event"
+    STATE = "state"
 
 
 class NotificationSource(BaseModel):
@@ -121,6 +136,7 @@ class NotificationDelivery(BaseModel):
 
     severity: NotificationSeverity = NotificationSeverity.INFO
     priority: NotificationPriority = NotificationPriority.NORMAL
+    urgency: NotificationUrgency | None = None
     channels: list[NotificationChannel] = Field(default_factory=list)
     ttl_seconds: int | None = Field(default=None, ge=1)
     dedupe_key: str | None = None
@@ -254,4 +270,86 @@ def external_notification_topic(target: str) -> str:
     clean = str(target or "").strip()
     if not _EXTERNAL_TARGET_RE.match(clean):
         raise ValueError("external target must match [A-Za-z0-9_.-]{1,64}")
-    return f"hexe/notify/external/{clean}"
+    return f"hexe-notify/{clean}"
+
+
+class NodeNotificationRequestSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    component: str | None = None
+    label: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class NodeNotificationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int = Field(default=1, ge=1)
+    request_id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: str = Field(default_factory=_utcnow_iso)
+    node_id: str | None = None
+    kind: NotificationKind
+    targets: NotificationTargets
+    delivery: NotificationDelivery = Field(default_factory=NotificationDelivery)
+    retain: bool = False
+    source: NodeNotificationRequestSource | None = None
+    content: NotificationContent | None = None
+    event: NotificationEvent | None = None
+    state: NotificationState | None = None
+    data: dict[str, Any] | None = None
+
+    @field_validator("created_at")
+    @classmethod
+    def _validate_request_created_at(cls, value: str) -> str:
+        return _parse_datetime(value).isoformat()
+
+    @model_validator(mode="after")
+    def _ensure_payload_present(self) -> "NodeNotificationRequest":
+        has_content = self.content is not None and self.content.has_payload()
+        has_event = self.event is not None
+        has_state = self.state is not None
+        has_data = bool(self.data)
+        if not (has_content or has_event or has_state or has_data):
+            raise ValueError("at least one payload section must exist: content, event, state, or data")
+        if self.retain and self.kind != NotificationKind.STATE:
+            raise ValueError("retain is only supported for state notifications")
+        return self
+
+
+class NodeNotificationProxyStatus(str, Enum):
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
+class NodeNotificationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: int = Field(default=1, ge=1)
+    request_id: str
+    node_id: str = Field(..., min_length=1)
+    status: NodeNotificationProxyStatus
+    accepted: bool
+    created_at: str = Field(default_factory=_utcnow_iso)
+    notification_id: str | None = None
+    internal_topic: str | None = None
+    error: str | None = None
+    requested_external_targets: list[str] = Field(default_factory=list)
+
+    @field_validator("created_at")
+    @classmethod
+    def _validate_result_created_at(cls, value: str) -> str:
+        return _parse_datetime(value).isoformat()
+
+
+def node_notification_request_topic(node_id: str) -> str:
+    clean = str(node_id or "").strip()
+    if not clean:
+        raise ValueError("node_id is required")
+    return f"hexe/nodes/{clean}/notify/request"
+
+
+def node_notification_result_topic(node_id: str) -> str:
+    clean = str(node_id or "").strip()
+    if not clean:
+        raise ValueError("node_id is required")
+    return f"hexe/nodes/{clean}/notify/result"

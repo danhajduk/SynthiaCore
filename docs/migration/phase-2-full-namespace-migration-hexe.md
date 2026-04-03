@@ -34,7 +34,7 @@ Canonical active examples:
 - `hexe/notify/internal/popup`
 - `hexe/notify/internal/event`
 - `hexe/notify/internal/state`
-- `hexe/notify/external/<target>`
+- `hexe-notify/<target>`
 - `hexe/addons/<addon_id>/...`
 - `hexe/nodes/<node_id>/...`
 - `hexe/services/<service>/catalog`

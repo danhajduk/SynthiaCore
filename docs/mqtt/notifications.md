@@ -14,6 +14,8 @@ Code anchors:
 - `backend/app/core/notification_producer.py`
 - `backend/app/core/notification_consumer.py`
 - `backend/app/core/notification_bridge.py`
+- `backend/app/core/notification_proxy.py`
+- `backend/app/core/system_notification_service.py`
 
 ## Topic Model
 
@@ -25,12 +27,21 @@ Internal canonical topics:
 - `hexe/notify/internal/state`
 
 External bridge-owned topics:
-- `hexe/notify/external/<target>`
-- currently implemented target: `hexe/notify/external/ha`
+- `hexe-notify/<target>`
+- currently implemented target: `hexe-notify/ha`
+
+Node notification proxy topics:
+- request: `hexe/nodes/<node_id>/notify/request`
+- result: `hexe/nodes/<node_id>/notify/result`
 
 Producer rule:
 - Core producers publish only to internal topics through the shared publisher.
 - External topics are owned by bridge services and must not be published directly by normal producers.
+
+Current Core-originated HA alerts:
+- system online after startup reconcile completes
+- core MQTT runtime warnings when the runtime becomes degraded
+- core MQTT runtime errors when the runtime supervisor fails
 
 ## Schema
 
@@ -62,6 +73,7 @@ Validation rules:
 - empty `event` objects are rejected
 - empty `state` objects are rejected
 - empty payload objects should be omitted rather than sent as `{}` placeholders
+- `delivery.urgency` is optional and currently supports `info`, `error`, `notification`, `urgent`, and `actions_needed`
 
 ## Routing Rules
 
@@ -85,6 +97,7 @@ Delivery channel behavior:
 - `delivery.channels` are routing hints for consumers and bridges
 - they are not hard execution commands
 - consumers may still apply local filters such as popup support, expiry, and target matching
+- `delivery.urgency` is a user-facing urgency hint that local and external consumers may use in addition to severity
 
 ## Retain, TTL, and Dedupe
 
@@ -133,12 +146,13 @@ Current conventions:
 Status: Implemented
 
 External topic:
-- `hexe/notify/external/ha`
+- `hexe-notify/ha`
 
 Current payload fields:
 - `title`: user-facing title
 - `message`: simplified message body
 - `severity`: canonical severity string
+- `urgency`: optional user-facing urgency hint
 - `tag`: dedupe key when present
 - `kind`: `popup`, `event`, or `state`
 - `created_at`: canonical message timestamp
@@ -150,6 +164,30 @@ Producer and bridge responsibilities:
 - producers emit canonical internal notifications only
 - bridge transforms internal notifications to simplified HA payloads
 - bridge forwards only supported external targets and currently supports `ha`
+
+Current Core HA alert conventions:
+- system online uses severity `success` and urgency `notification`
+- core warnings use severity `warning` and urgency `actions_needed`
+- core errors use severity `error` and urgency `urgent`
+- runtime-health alerts are transition-based so Core does not emit them on every supervisor loop iteration
+
+## Node Proxy Contract
+
+Status: Implemented
+
+Trusted nodes can ask Core to emit notifications over MQTT only.
+
+Current behavior:
+- node publishes a request on `hexe/nodes/<node_id>/notify/request`
+- Core validates the request and rewrites the authoritative source to the node identity
+- Core publishes to the canonical internal topic selected by request `kind`
+- Core publishes an acceptance or rejection result on `hexe/nodes/<node_id>/notify/result`
+- external forwarding still depends on the normal bridge rules and currently supports `targets.external=["ha"]`
+
+Canonical node-facing contract:
+- [../nodes/node-notification-mqtt-contract.md](../nodes/node-notification-mqtt-contract.md)
+- [../json_schema/node_notification_request.schema.json](../json_schema/node_notification_request.schema.json)
+- [../json_schema/node_notification_result.schema.json](../json_schema/node_notification_result.schema.json)
 
 Example popup-originated external payload:
 
@@ -229,7 +267,7 @@ Current emitted flow:
 
 Expected observable results:
 - local desktop popup appears when the local consumer target matches the current user/host/session
-- bridge publishes transformed event payload to `hexe/notify/external/ha`
+- bridge publishes transformed event payload to `hexe-notify/ha`
 - logs show publish, bridge, and consumer decisions
 
 ## See Also

@@ -126,6 +126,7 @@ class CoreNotificationPublisher:
         delivery = NotificationDelivery(
             severity=parsed.delivery.severity,
             priority=parsed.delivery.priority,
+            urgency=parsed.delivery.urgency,
             channels=channels,
             ttl_seconds=parsed.delivery.ttl_seconds,
             dedupe_key=parsed.delivery.dedupe_key,

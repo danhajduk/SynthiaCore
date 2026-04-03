@@ -63,14 +63,18 @@ Status: Implemented (canonical shared schema), Partial (publishers/consumers sti
 - Core exposes a reusable MQTT notification publisher utility at `backend/app/core/notification_publisher.py` and wires it on app state as `notification_publisher`.
 - Core exposes an internal-to-external notification bridge at `backend/app/core/notification_bridge.py` and wires it on app state as `notification_bridge`.
 - Core exposes a local desktop notification consumer at `backend/app/core/notification_consumer.py` and wires it on app state as `notification_consumer`.
+- Core exposes a node notification proxy service at `backend/app/core/notification_proxy.py` and wires it on app state as `notification_proxy`.
 - Core emits startup smoke-test notifications through `backend/app/core/notification_producer.py` after MQTT startup/reconcile completes.
 - Canonical internal topics are `hexe/notify/internal/event`, `hexe/notify/internal/state`, and `hexe/notify/internal/popup`.
-- External bridge targets should derive downstream topics via `hexe/notify/external/<target>` using the shared topic helper.
+- External bridge targets should derive downstream topics via `hexe-notify/<target>` using the shared topic helper.
+- Trusted nodes can request notifications over MQTT through `hexe/nodes/<node_id>/notify/request`, and Core publishes request results to `hexe/nodes/<node_id>/notify/result`.
 - The shared contract validates target scope, payload presence, optional TTL expiry, and reusable JSON serialization/parsing for future Core, addon, and node notification producers/consumers.
 - The publisher validates payloads before publish, omits empty optional sections with `exclude_none`, keeps popup/event notifications non-retained, and only allows retained state notifications when explicitly requested.
+- The shared delivery contract now also supports optional `urgency` values (`info`, `error`, `notification`, `urgent`, `actions_needed`) for user-facing notification urgency hints.
 - Current startup smoke-test production emits one popup, one event, and one retained ready-state notification with structured emission logs.
 - The desktop consumer listens for internal popup and event topics, validates canonical payloads, drops invalid or expired notifications, matches local user/host/session or broadcast targets, deduplicates by `dedupe_key`, and uses `notify-send` for local desktop display when available.
-- The bridge listens on `hexe/notify/internal/#`, forwards only valid non-expired messages with supported `targets.external` entries, and currently transforms `ha` messages into a simplified downstream payload on `hexe/notify/external/ha`.
+- The bridge listens on `hexe/notify/internal/#`, forwards only valid non-expired messages with supported `targets.external` entries, and currently transforms `ha` messages into a simplified downstream payload on `hexe-notify/ha`.
+- The node notification proxy listens on `hexe/nodes/+/notify/request`, validates the node request contract, rewrites the authoritative source to the node identity, publishes into the internal notification bus, and emits an acceptance or rejection result back under the same node-scoped MQTT family.
 
 ## Principals and Users
 

@@ -12,6 +12,8 @@ The active MQTT namespace is `hexe/...`.
   Canonical MQTT topic families and scope rules derived from runtime code.
 - [notifications.md](./notifications.md)
   Notification schema, internal/external topic families, and bridge behavior.
+- [../nodes/node-notification-mqtt-contract.md](../nodes/node-notification-mqtt-contract.md)
+  MQTT-only node notification proxy contract and request/result payloads.
 
 ## Code Boundary
 

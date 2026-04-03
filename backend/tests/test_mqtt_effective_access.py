@@ -53,9 +53,9 @@ class TestMqttEffectiveAccess(unittest.TestCase):
         self.assertIn("user:guest1", by_id)
         self.assertFalse(by_id["user:guest1"].generic_non_reserved_only)
         self.assertNotIn("hexe/core/should-deny", by_id["user:guest1"].publish_scopes)
-        self.assertIn("hexe/core/#", by_id["user:guest1"].reserved_prefix_denies)
-        self.assertIn("hexe/addons/#", by_id["user:guest1"].reserved_prefix_denies)
-        self.assertNotIn("hexe/#", by_id["user:guest1"].reserved_prefix_denies)
+        self.assertIn("hexe-notify/#", by_id["user:guest1"].publish_scopes)
+        self.assertIn("hexe-notify/#", by_id["user:guest1"].subscribe_scopes)
+        self.assertIn("hexe/#", by_id["user:guest1"].reserved_prefix_denies)
 
         self.assertIn("core.runtime", by_id)
         self.assertIn("#", by_id["core.runtime"].subscribe_scopes)
@@ -100,10 +100,9 @@ class TestMqttEffectiveAccess(unittest.TestCase):
 
         compiled = MqttEffectiveAccessCompiler().compile(state)
         by_id = {item.principal_id: item for item in compiled}
-        self.assertEqual(by_id["user:guest1"].publish_scopes, ["#"])
-        self.assertEqual(by_id["user:guest1"].subscribe_scopes, ["#"])
-        self.assertNotIn("hexe/notify/external/#", by_id["user:guest1"].reserved_prefix_denies)
-        self.assertIn("hexe/services/#", by_id["user:guest1"].reserved_prefix_denies)
+        self.assertEqual(by_id["user:guest1"].publish_scopes, ["#", "hexe-notify/#"])
+        self.assertEqual(by_id["user:guest1"].subscribe_scopes, ["#", "hexe-notify/#"])
+        self.assertIn("hexe/#", by_id["user:guest1"].reserved_prefix_denies)
 
 
 if __name__ == "__main__":

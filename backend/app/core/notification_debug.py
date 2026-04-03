@@ -39,7 +39,7 @@ class DevelopmentNotificationTrigger:
                 "delivery": {"severity": "warning", "priority": "high", "dedupe_key": "dev-event-ha"},
                 "content": {"title": f"{naming.platform_short()} Debug Alert", "message": "Developer-triggered alert for HA/mobile relay."},
                 "event": {"event_type": "debug_external_alert", "summary": "Debug external alert", "attributes": {"target": "ha"}},
-                "data": {"debug": True, "bridge_expected": "hexe/notify/external/ha"},
+                "data": {"debug": True, "bridge_expected": "hexe-notify/ha"},
             }
         )
         self._log_result("event", event_result)

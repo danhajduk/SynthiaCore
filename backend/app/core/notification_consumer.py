@@ -125,12 +125,21 @@ class LocalDesktopNotificationConsumer:
         ]
         body = "\n".join([str(item).strip() for item in body_parts if str(item or "").strip()]) or "Notification received"
         urgency = {
-            "critical": "critical",
+            "urgent": "critical",
             "error": "critical",
-            "warning": "normal",
-            "success": "low",
+            "actions_needed": "normal",
+            "notification": "normal",
             "info": "low",
-        }.get(message.delivery.severity.value, "normal")
+        }.get(
+            (message.delivery.urgency.value if message.delivery.urgency is not None else ""),
+            {
+                "critical": "critical",
+                "error": "critical",
+                "warning": "normal",
+                "success": "low",
+                "info": "low",
+            }.get(message.delivery.severity.value, "normal"),
+        )
         expire_ms = int(message.delivery.ttl_seconds * 1000) if message.delivery.ttl_seconds is not None else 5000
 
         try:

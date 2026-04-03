@@ -87,3 +87,20 @@ class TestNotificationConsumer(unittest.IsolatedAsyncioTestCase):
             await consumer._handle_runtime_message("hexe/notify/internal/popup", payload, False)
 
         self.assertEqual(run_mock.call_count, 1)
+
+    async def test_explicit_urgency_overrides_severity_mapping(self) -> None:
+        mqtt = _FakeMqttManager()
+        consumer = LocalDesktopNotificationConsumer(mqtt, notifier_cmd="/usr/bin/notify-send")
+        consumer._hostname = "test-host"
+        consumer._user = "dan"
+
+        with patch("app.core.notification_consumer.subprocess.run") as run_mock:
+            await consumer._handle_runtime_message(
+                "hexe/notify/internal/popup",
+                self._payload(delivery={"severity": "info", "urgency": "urgent", "channels": ["popup"]}),
+                False,
+            )
+
+        args = run_mock.call_args[0][0]
+        self.assertEqual(args[0], "/usr/bin/notify-send")
+        self.assertIn("critical", args)

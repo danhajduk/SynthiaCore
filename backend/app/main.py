@@ -13,9 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core import (
     CoreNotificationPublisher,
     CoreStartupNotificationProducer,
+    CoreSystemNotificationService,
     DevelopmentNotificationTrigger,
     LocalDesktopNotificationConsumer,
     NotificationBridgeService,
+    NodeNotificationProxyService,
 )
 from .core.logging import setup_logging
 from .core.health import router as health_router
@@ -225,6 +227,9 @@ def create_app() -> FastAPI:
             notification_consumer = getattr(app.state, "notification_consumer", None)
             if notification_consumer is not None:
                 await notification_consumer.start()
+            notification_proxy = getattr(app.state, "notification_proxy", None)
+            if notification_proxy is not None:
+                await notification_proxy.start()
             mqtt_startup_reconciler = getattr(app.state, "mqtt_startup_reconciler", None)
             if mqtt_startup_reconciler is not None:
                 try:
@@ -247,6 +252,15 @@ def create_app() -> FastAPI:
                     await notification_producer.emit_startup_notifications()
                 except Exception:
                     log.exception("Core startup notification emission failed")
+            system_notification_service = getattr(app.state, "system_notification_service", None)
+            if system_notification_service is not None:
+                try:
+                    await system_notification_service.emit_system_online(
+                        component="startup",
+                        message=f"{naming.core()} startup complete and Home Assistant notifications are active.",
+                    )
+                except Exception:
+                    log.exception("Core HA system online notification emission failed")
 
         def _track_startup_task(task: asyncio.Task) -> None:
             tasks = getattr(app.state, "startup_warmup_tasks", None)
@@ -268,6 +282,9 @@ def create_app() -> FastAPI:
         _track_startup_task(asyncio.create_task(mqtt_warmup_sequence()))
 
         async def mqtt_runtime_supervision_loop() -> None:
+            last_runtime_healthy: bool | None = None
+            last_runtime_warning_reason: str | None = None
+            last_runtime_error_reason: str | None = None
             while True:
                 try:
                     runtime = getattr(app.state, "mqtt_runtime_boundary", None)
@@ -277,6 +294,7 @@ def create_app() -> FastAPI:
                     mqtt_obsv = getattr(app.state, "mqtt_observability_store", None)
                     startup_reconciler = getattr(app.state, "mqtt_startup_reconciler", None)
                     noisy_evaluator = getattr(app.state, "mqtt_noisy_evaluator", None)
+                    system_notification_service = getattr(app.state, "system_notification_service", None)
                     if runtime is not None and state_store is not None:
                         status = await runtime.health_check()
                         if not status.healthy:
@@ -309,6 +327,27 @@ def create_app() -> FastAPI:
                                     message=status.degraded_reason,
                                     payload={"provider": status.provider, "state": status.state},
                                 )
+                            degraded_reason = str(status.degraded_reason or "runtime_unhealthy").strip() or "runtime_unhealthy"
+                            if (
+                                system_notification_service is not None
+                                and (
+                                    last_runtime_healthy is not False
+                                    or last_runtime_warning_reason != degraded_reason
+                                )
+                            ):
+                                await system_notification_service.emit_system_warning(
+                                    component="mqtt_runtime",
+                                    message=f"{naming.core()} MQTT runtime warning: {degraded_reason}",
+                                    dedupe_key="core-mqtt-runtime-warning",
+                                    data={
+                                        "provider": status.provider,
+                                        "state": status.state,
+                                        "degraded_reason": degraded_reason,
+                                    },
+                                )
+                            last_runtime_healthy = False
+                            last_runtime_warning_reason = degraded_reason
+                            last_runtime_error_reason = None
                         elif state.setup_status == "degraded" and state.setup_error:
                             await state_store.update_setup_state(
                                 MqttSetupStateUpdate(
@@ -322,6 +361,21 @@ def create_app() -> FastAPI:
                                     authority_ready=True,
                                 )
                             )
+                        if status.healthy:
+                            if (
+                                system_notification_service is not None
+                                and (
+                                    last_runtime_healthy is False
+                                    or last_runtime_error_reason is not None
+                                )
+                            ):
+                                await system_notification_service.emit_system_online(
+                                    component="mqtt_runtime",
+                                    message=f"{naming.core()} MQTT runtime is healthy again.",
+                                )
+                            last_runtime_healthy = True
+                            last_runtime_warning_reason = None
+                            last_runtime_error_reason = None
                         if status.healthy and startup_reconciler is not None:
                             # Keep bootstrap discovery fresh for listeners that join later.
                             await startup_reconciler.ensure_bootstrap_published(force=True)
@@ -342,8 +396,29 @@ def create_app() -> FastAPI:
                         )
                     if noisy_evaluator is not None:
                         await noisy_evaluator.evaluate()
-                except Exception:
+                except Exception as exc:
                     log.exception("MQTT runtime supervision loop failed")
+                    system_notification_service = getattr(app.state, "system_notification_service", None)
+                    error_reason = f"{type(exc).__name__}:{str(exc or '').strip()}"
+                    if (
+                        system_notification_service is not None
+                        and last_runtime_error_reason != error_reason
+                    ):
+                        message = f"{naming.core()} MQTT runtime supervision error: {type(exc).__name__}"
+                        detail = str(exc or "").strip()
+                        if detail:
+                            message = f"{message}: {detail}"
+                        try:
+                            await system_notification_service.emit_system_error(
+                                component="mqtt_runtime_supervisor",
+                                message=message,
+                                dedupe_key="core-mqtt-runtime-error",
+                                data={"error_type": type(exc).__name__, "error": detail or None},
+                            )
+                        except Exception:
+                            log.exception("Core HA system error notification emission failed")
+                    last_runtime_healthy = False
+                    last_runtime_error_reason = error_reason
                 await asyncio.sleep(30.0)
 
         asyncio.create_task(mqtt_runtime_supervision_loop())
@@ -364,6 +439,9 @@ def create_app() -> FastAPI:
         notification_consumer = getattr(app.state, "notification_consumer", None)
         if notification_consumer is not None:
             await notification_consumer.stop()
+        notification_proxy = getattr(app.state, "notification_proxy", None)
+        if notification_proxy is not None:
+            await notification_proxy.stop()
         mqtt_runtime_boundary = getattr(app.state, "mqtt_runtime_boundary", None)
         if mqtt_runtime_boundary is not None:
             stop = getattr(mqtt_runtime_boundary, "stop", None)
@@ -591,11 +669,20 @@ def create_app() -> FastAPI:
     app.state.notification_publisher = CoreNotificationPublisher(mqtt_manager)
     app.state.notification_bridge = NotificationBridgeService(mqtt_manager, mqtt_manager)
     app.state.notification_consumer = LocalDesktopNotificationConsumer(mqtt_manager)
+    app.state.notification_proxy = NodeNotificationProxyService(
+        app.state.notification_publisher,
+        mqtt_manager,
+        mqtt_integration_state_store,
+    )
     app.state.notification_producer = CoreStartupNotificationProducer(
         app.state.notification_publisher,
         core_version=app.version,
     )
     app.state.notification_debug_trigger = DevelopmentNotificationTrigger(
+        app.state.notification_publisher,
+        core_version=app.version,
+    )
+    app.state.system_notification_service = CoreSystemNotificationService(
         app.state.notification_publisher,
         core_version=app.version,
     )

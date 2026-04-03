@@ -100,6 +100,7 @@ class NotificationBridgeService:
             "title": title,
             "message": "\n".join([str(item).strip() for item in body_parts if str(item or "").strip()]) or title,
             "severity": message.delivery.severity.value,
+            "urgency": (message.delivery.urgency.value if message.delivery.urgency is not None else None),
             "tag": message.delivery.dedupe_key,
             "kind": self._notification_kind(source_topic),
             "created_at": message.created_at,

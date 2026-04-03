@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexe.local/schemas/notification_external_payload.schema.json",
+  "title": "Notification External Payload",
+  "description": "JSON Schema for bridge-owned payloads published to hexe-notify/<target>. This is the current generic external notification contract derived from the canonical internal notification envelope. Individual targets may impose additional target-specific requirements.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "message",
+    "severity",
+    "kind",
+    "created_at",
+    "source"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "User-facing notification title."
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Simplified notification body."
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "success",
+        "warning",
+        "error",
+        "critical"
+      ],
+      "description": "Canonical severity string copied from the internal notification."
+    },
+    "urgency": {
+      "type": "string",
+      "enum": [
+        "info",
+        "error",
+        "notification",
+        "urgent",
+        "actions_needed"
+      ],
+      "description": "Optional user-facing urgency hint copied from delivery.urgency."
+    },
+    "tag": {
+      "type": "string",
+      "description": "Optional dedupe key forwarded from delivery.dedupe_key."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "popup",
+        "event",
+        "state"
+      ],
+      "description": "Notification kind inferred from the internal source topic."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Canonical notification creation timestamp."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "core",
+            "addon",
+            "node",
+            "service",
+            "system",
+            "user"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "component": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

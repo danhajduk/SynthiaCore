@@ -448,7 +448,8 @@ class TestMqttAdminLifecycleApi(unittest.TestCase):
         self.assertEqual(inspect_access.status_code, 200, inspect_access.text)
         payload = inspect_access.json()["effective_access"]
         self.assertFalse(payload["generic_non_reserved_only"])
-        self.assertIn("hexe/core/#", payload["reserved_prefix_denies"])
+        self.assertIn("hexe/#", payload["reserved_prefix_denies"])
+        self.assertIn("hexe-notify/#", payload["publish_scopes"])
         self.assertIn("normalized_effective_access", inspect_access.json())
 
         inspect_debug = self.client.get(

@@ -764,7 +764,7 @@ def build_mqtt_router(
             "results": results,
             "expected": {
                 "desktop_popup": "local popup should appear when targets match local session",
-                "external_topic": "hexe/notify/external/ha should receive transformed event payload",
+                "external_topic": "hexe-notify/ha should receive transformed event payload",
                 "logs": "publish, bridge, and consumer logs should show the flow",
             },
         }

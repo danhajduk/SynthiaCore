@@ -9,17 +9,22 @@ from app.core import (
     INTERNAL_EVENT_TOPIC,
     INTERNAL_POPUP_TOPIC,
     INTERNAL_STATE_TOPIC,
+    NODE_NOTIFICATION_REQUEST_TOPIC_FILTER,
+    NodeNotificationRequest,
     NotificationChannel,
     NotificationContent,
     NotificationEvent,
     NotificationMessage,
     NotificationPriority,
     NotificationSeverity,
+    NotificationUrgency,
     NotificationSource,
     NotificationSourceKind,
     NotificationState,
     NotificationTargets,
     external_notification_topic,
+    node_notification_request_topic,
+    node_notification_result_topic,
     notification_message_from_json,
     notification_message_to_json,
 )
@@ -33,6 +38,7 @@ class TestNotificationSchema(unittest.TestCase):
             "delivery": {
                 "severity": NotificationSeverity.INFO,
                 "priority": NotificationPriority.NORMAL,
+                "urgency": NotificationUrgency.NOTIFICATION,
                 "channels": [NotificationChannel.POPUP, NotificationChannel.EVENT],
                 "ttl_seconds": 60,
                 "dedupe_key": "startup-complete",
@@ -52,6 +58,7 @@ class TestNotificationSchema(unittest.TestCase):
 
         self.assertEqual(parsed.source.kind, NotificationSourceKind.CORE)
         self.assertEqual(parsed.delivery.channels, [NotificationChannel.POPUP, NotificationChannel.EVENT])
+        self.assertEqual(parsed.delivery.urgency, NotificationUrgency.NOTIFICATION)
         self.assertEqual(parsed.content.message, "Startup complete")
         self.assertNotIn('"state": null', raw)
 
@@ -112,9 +119,32 @@ class TestNotificationSchema(unittest.TestCase):
         self.assertEqual(INTERNAL_EVENT_TOPIC, "hexe/notify/internal/event")
         self.assertEqual(INTERNAL_STATE_TOPIC, "hexe/notify/internal/state")
         self.assertEqual(INTERNAL_POPUP_TOPIC, "hexe/notify/internal/popup")
-        self.assertEqual(external_notification_topic("ha"), "hexe/notify/external/ha")
+        self.assertEqual(NODE_NOTIFICATION_REQUEST_TOPIC_FILTER, "hexe/nodes/+/notify/request")
+        self.assertEqual(external_notification_topic("ha"), "hexe-notify/ha")
+        self.assertEqual(node_notification_request_topic("node-123"), "hexe/nodes/node-123/notify/request")
+        self.assertEqual(node_notification_result_topic("node-123"), "hexe/nodes/node-123/notify/result")
         with self.assertRaises(ValueError):
             external_notification_topic("bad target")
+
+    def test_node_notification_request_requires_payload_section(self) -> None:
+        with self.assertRaises(ValidationError):
+            NodeNotificationRequest.model_validate(
+                {
+                    "kind": "event",
+                    "targets": {"external": ["ha"]},
+                }
+            )
+
+    def test_node_notification_request_restricts_retain_to_state_notifications(self) -> None:
+        with self.assertRaises(ValidationError):
+            NodeNotificationRequest.model_validate(
+                {
+                    "kind": "event",
+                    "retain": True,
+                    "targets": {"external": ["ha"]},
+                    "event": {"event_type": "motion_detected"},
+                }
+            )
 
 
 if __name__ == "__main__":

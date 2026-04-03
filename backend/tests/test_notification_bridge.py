@@ -36,7 +36,7 @@ class TestNotificationBridge(unittest.IsolatedAsyncioTestCase):
         payload = {
             "source": {"kind": "core", "id": "hexe-core", "component": "startup"},
             "targets": {"broadcast": True, "external": ["ha"]},
-            "delivery": {"severity": "warning", "priority": "high", "dedupe_key": "alert-tag", "channels": ["event"]},
+            "delivery": {"severity": "warning", "priority": "high", "urgency": "actions_needed", "dedupe_key": "alert-tag", "channels": ["event"]},
             "content": {"title": "Alert", "message": "Attention"},
             "event": {"event_type": "core_alert", "summary": "Important alert"},
         }
@@ -51,10 +51,11 @@ class TestNotificationBridge(unittest.IsolatedAsyncioTestCase):
         await bridge._handle_runtime_message("hexe/notify/internal/event", self._payload(), False)
 
         self.assertEqual(len(publisher.calls), 1)
-        self.assertEqual(publisher.calls[0]["topic"], "hexe/notify/external/ha")
+        self.assertEqual(publisher.calls[0]["topic"], "hexe-notify/ha")
         self.assertEqual(publisher.calls[0]["payload"]["title"], "Alert")
         self.assertEqual(publisher.calls[0]["payload"]["message"], "Attention\nImportant alert")
         self.assertEqual(publisher.calls[0]["payload"]["severity"], "warning")
+        self.assertEqual(publisher.calls[0]["payload"]["urgency"], "actions_needed")
         self.assertEqual(publisher.calls[0]["payload"]["tag"], "alert-tag")
         self.assertEqual(publisher.calls[0]["payload"]["kind"], "event")
         self.assertFalse(publisher.calls[0]["retain"])
