@@ -263,7 +263,7 @@ def create_app() -> FastAPI:
                 try:
                     await system_notification_service.emit_system_online(
                         component="startup",
-                        message=f"{naming.core()} startup complete and Home Assistant notifications are active.",
+                        message=f"{naming.core()} startup completed and the {naming.core()} is now online.",
                     )
                 except Exception:
                     log.exception("Core HA system online notification emission failed")
