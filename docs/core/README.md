@@ -34,6 +34,7 @@ Core is currently implemented across:
 - [./api/README.md](./api/README.md)
 - [./frontend/README.md](./frontend/README.md)
 - [./scheduler/README.md](./scheduler/README.md)
+- [./node-budget-assignment-flow.md](./node-budget-assignment-flow.md)
 - [../workers/README.md](../workers/README.md)
 - [../addons/README.md](../addons/README.md)
 - [../mqtt/README.md](../mqtt/README.md)
