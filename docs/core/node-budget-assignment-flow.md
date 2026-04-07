@@ -832,3 +832,5 @@ Queue-based reservation logic does exist elsewhere in the budgeting subsystem, b
 
 - [node-service-resolution-and-budgeting.md](/home/dan/Projects/Hexe/docs/core/node-service-resolution-and-budgeting.md)
 - [node-budget-management-contract.md](/home/dan/Projects/Hexe/docs/nodes/node-budget-management-contract.md)
+- [feature-request-service-node-daily-budget-reporting.md](/home/dan/Projects/Hexe/docs/core/feature-request-service-node-daily-budget-reporting.md)
+- [feature-request-probation-grants-and-provider-grant-updates.md](/home/dan/Projects/Hexe/docs/core/feature-request-probation-grants-and-provider-grant-updates.md)

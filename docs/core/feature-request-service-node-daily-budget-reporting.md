@@ -128,3 +128,8 @@ Requested addition:
 - missing daily service-node reports are detectable
 - delegated execution on provider-owned grants can be audited from provider-side reports
 - abusive or inconsistent client-side reporting can be identified through reconciliation gaps
+
+## Related Requests
+
+- [feature-request-probation-grants-and-provider-grant-updates.md](/home/dan/Projects/Hexe/docs/core/feature-request-probation-grants-and-provider-grant-updates.md)
+- [node-budget-assignment-flow.md](/home/dan/Projects/Hexe/docs/core/node-budget-assignment-flow.md)
