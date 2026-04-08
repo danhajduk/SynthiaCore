@@ -317,9 +317,11 @@ def create_app() -> FastAPI:
             health_status = "healthy" if tunnel_status.healthy else ("unhealthy" if cloudflare_settings.enabled else "unknown")
             last_error = tunnel_status.last_error or cloudflare_settings.last_provision_error
             provider = str(os.getenv("SYNTHIA_CLOUDFLARED_PROVIDER", "auto")).strip().lower() or "auto"
-            container_name = (
-                str(os.getenv("SYNTHIA_CLOUDFLARED_CONTAINER_NAME", "hexe-cloudflared")).strip() or "hexe-cloudflared"
-            ) if provider == "docker" else None
+            container_name = None
+            if provider in {"auto", "docker"}:
+                container_name = (
+                    str(os.getenv("SYNTHIA_CLOUDFLARED_CONTAINER_NAME", "hexe-cloudflared")).strip() or "hexe-cloudflared"
+                )
             stats = await _collect_container_stats([container_name] if container_name else [])
             runtime_usage = stats.get(container_name or "", {}) if container_name else {}
 
