@@ -11,6 +11,8 @@ from app.supervisor import (
     ManagedNodeSummary,
     ProcessResourceSummary,
     SupervisorAdmissionContextSummary,
+    SupervisorCoreRuntimeActionResult,
+    SupervisorCoreRuntimeSummary,
     SupervisorHealthSummary,
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
@@ -130,6 +132,21 @@ class _FakeSupervisorService:
             hostname="host-a",
         )
 
+    def _core_runtime(self) -> SupervisorCoreRuntimeSummary:
+        return SupervisorCoreRuntimeSummary(
+            runtime_id="core-api",
+            runtime_name="Hexe Core API",
+            runtime_kind="core_service",
+            management_mode="monitor",
+            desired_state="running",
+            runtime_state="running",
+            lifecycle_state="running",
+            health_status="healthy",
+            freshness_state="online",
+            host_id="host-a",
+            hostname="host-a",
+        )
+
     def list_registered_runtimes(self) -> list[SupervisorRegisteredRuntimeSummary]:
         return [self._runtime()]
 
@@ -150,6 +167,27 @@ class _FakeSupervisorService:
 
     def restart_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
         return SupervisorRuntimeActionResult(action="restart", runtime=self._runtime())
+
+    def list_core_runtimes(self) -> list[SupervisorCoreRuntimeSummary]:
+        return [self._core_runtime()]
+
+    def get_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeSummary:
+        return self._core_runtime()
+
+    def register_core_runtime(self, body) -> SupervisorCoreRuntimeSummary:
+        return self._core_runtime()
+
+    def heartbeat_core_runtime(self, body) -> SupervisorCoreRuntimeSummary:
+        return self._core_runtime()
+
+    def start_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return SupervisorCoreRuntimeActionResult(action="start", runtime=self._core_runtime())
+
+    def stop_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return SupervisorCoreRuntimeActionResult(action="stop", runtime=self._core_runtime())
+
+    def restart_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return SupervisorCoreRuntimeActionResult(action="restart", runtime=self._core_runtime())
 
     def get_runtime_state(self, runtime_id: str) -> dict[str, object]:
         return {"exists": runtime_id == "cloudflared"}
@@ -183,6 +221,11 @@ class TestSupervisorRouterContract(unittest.TestCase):
         self.assertEqual(client.post("/api/supervisor/runtimes/register", json={"node_id": "node-1", "node_name": "office-node", "node_type": "ai"}).json()["node_id"], "node-1")
         self.assertEqual(client.post("/api/supervisor/runtimes/heartbeat", json={"node_id": "node-1"}).json()["node_id"], "node-1")
         self.assertEqual(client.post("/api/supervisor/runtimes/node-1/start").json()["action"], "start")
+        self.assertEqual(client.get("/api/supervisor/core/runtimes").json()["items"][0]["runtime_id"], "core-api")
+        self.assertEqual(client.get("/api/supervisor/core/runtimes/core-api").json()["runtime"]["runtime_name"], "Hexe Core API")
+        self.assertEqual(client.post("/api/supervisor/core/runtimes/register", json={"runtime_id": "core-api", "runtime_name": "Hexe Core API"}).json()["runtime_id"], "core-api")
+        self.assertEqual(client.post("/api/supervisor/core/runtimes/heartbeat", json={"runtime_id": "core-api"}).json()["runtime_id"], "core-api")
+        self.assertEqual(client.post("/api/supervisor/core/runtimes/core-api/start").json()["action"], "start")
 
 
 if __name__ == "__main__":

@@ -19,6 +19,14 @@ Status: Implemented
   - `POST /api/supervisor/runtimes/{node_id}/start`
   - `POST /api/supervisor/runtimes/{node_id}/stop`
   - `POST /api/supervisor/runtimes/{node_id}/restart`
+- Supervisor owns a Core-hosted runtime contract for Core services, addons, and aux containers through:
+  - `POST /api/supervisor/core/runtimes/register`
+  - `POST /api/supervisor/core/runtimes/heartbeat`
+  - `GET /api/supervisor/core/runtimes`
+  - `GET /api/supervisor/core/runtimes/{runtime_id}`
+  - `POST /api/supervisor/core/runtimes/{runtime_id}/start`
+  - `POST /api/supervisor/core/runtimes/{runtime_id}/stop`
+  - `POST /api/supervisor/core/runtimes/{runtime_id}/restart`
 - Supervisor computes heartbeat freshness for real Nodes as `online`, `stale`, `offline`, or `error` based on the locally tracked runtime record.
 - Standalone addon realization is compose-based today through `compose_up` and `compose_down` in `backend/app/supervisor/service.py`.
 - Supervisor API service probes are available at `/health` and `/ready` on the standalone Supervisor API server.
@@ -27,8 +35,10 @@ Status: Implemented
 
 Status: Implemented
 
-- Aux services/containers running on a host must send heartbeats to the local Supervisor over the Unix socket at `/run/hexe/supervisor.sock`.
-- Heartbeats are sent via `POST /api/supervisor/runtimes/heartbeat` and should include runtime metadata relevant to the aux service.
+- Core-hosted services and aux containers must send heartbeats to the local Supervisor over the Unix socket at `/run/hexe/supervisor.sock`.
+- Heartbeats for Core-owned runtimes are sent via `POST /api/supervisor/core/runtimes/heartbeat` and should include runtime metadata relevant to the aux service.
+- Core services are monitor-only and will be rejected when start/stop/restart actions are attempted.
+- Core-owned addons and aux services/containers are declared as `manage` to allow Supervisor action intent tracking.
 - Each aux container must include a lightweight heartbeat script or sidecar that posts to the Supervisor socket.
 
 ## Restart Semantics Boundary

@@ -104,6 +104,64 @@ class SupervisorRuntimeActionResult(BaseModel):
     runtime: SupervisorRegisteredRuntimeSummary
 
 
+class SupervisorCoreRuntimeSummary(BaseModel):
+    runtime_id: str
+    runtime_name: str
+    runtime_kind: str = "core_service"
+    management_mode: str = "monitor"
+    desired_state: str
+    runtime_state: str
+    lifecycle_state: str
+    health_status: str
+    freshness_state: str = "unknown"
+    host_id: str | None = None
+    hostname: str | None = None
+    registered_at: str | None = None
+    updated_at: str | None = None
+    last_seen_at: str | None = None
+    last_action: str | None = None
+    last_action_at: str | None = None
+    last_error: str | None = None
+    running: bool | None = None
+    resource_usage: dict[str, object] = Field(default_factory=dict)
+    runtime_metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class SupervisorCoreRuntimeRegistrationRequest(BaseModel):
+    runtime_id: str
+    runtime_name: str
+    runtime_kind: str = "core_service"
+    management_mode: str = "monitor"
+    host_id: str | None = None
+    hostname: str | None = None
+    desired_state: str = "running"
+    runtime_state: str = "running"
+    lifecycle_state: str = "running"
+    health_status: str = "unknown"
+    last_error: str | None = None
+    running: bool | None = True
+    resource_usage: dict[str, object] = Field(default_factory=dict)
+    runtime_metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class SupervisorCoreRuntimeHeartbeatRequest(BaseModel):
+    runtime_id: str
+    host_id: str | None = None
+    hostname: str | None = None
+    runtime_state: str | None = None
+    lifecycle_state: str | None = None
+    health_status: str | None = None
+    last_error: str | None = None
+    running: bool | None = None
+    resource_usage: dict[str, object] = Field(default_factory=dict)
+    runtime_metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class SupervisorCoreRuntimeActionResult(BaseModel):
+    action: str
+    runtime: SupervisorCoreRuntimeSummary
+
+
 class ProcessResourceSummary(BaseModel):
     rss_bytes: int | None = Field(default=None, ge=0)
     cpu_percent: float | None = Field(default=None)

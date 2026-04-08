@@ -23,6 +23,10 @@ from .models import (
     ManagedNodeSummary,
     ProcessResourceSummary,
     SupervisorAdmissionContextSummary,
+    SupervisorCoreRuntimeActionResult,
+    SupervisorCoreRuntimeHeartbeatRequest,
+    SupervisorCoreRuntimeRegistrationRequest,
+    SupervisorCoreRuntimeSummary,
     SupervisorHealthSummary,
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
@@ -33,6 +37,7 @@ from .models import (
     SupervisorRuntimeRegistrationRequest,
     SupervisorRuntimeSummary,
 )
+from .core_runtime_store import SupervisorCoreRuntimeRecord, SupervisorCoreRuntimeStore
 from .runtime_nodes import merge_runtime_identity
 from .runtime_store import SupervisorRuntimeNodeRecord, SupervisorRuntimeNodesStore
 
@@ -42,10 +47,12 @@ class SupervisorDomainService:
         self,
         runtime_service: StandaloneRuntimeService | None = None,
         runtime_nodes_store: SupervisorRuntimeNodesStore | None = None,
+        core_runtime_store: SupervisorCoreRuntimeStore | None = None,
         node_registrations_store: NodeRegistrationsStore | None = None,
     ) -> None:
         self._runtime_service = runtime_service or StandaloneRuntimeService()
         self._runtime_nodes_store = runtime_nodes_store or SupervisorRuntimeNodesStore()
+        self._core_runtime_store = core_runtime_store or SupervisorCoreRuntimeStore()
         self._node_registrations_store = node_registrations_store
 
     def _runtime_provider(self) -> str:
@@ -213,6 +220,120 @@ class SupervisorDomainService:
     def restart_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
         return self._registered_runtime_action(
             node_id,
+            action="restart",
+            desired_state="running",
+            lifecycle_state="restarting",
+        )
+
+    def _normalize_core_runtime_kind(self, value: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized in {"core", "core_service"}:
+            return "core_service"
+        if normalized in {"addon", "aux_service", "aux_container"}:
+            return normalized
+        return normalized or "core_service"
+
+    def _normalize_core_management_mode(self, value: str, *, runtime_kind: str) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in {"monitor", "manage"}:
+            normalized = "monitor" if runtime_kind == "core_service" else "manage"
+        if runtime_kind == "core_service":
+            return "monitor"
+        return normalized
+
+    def _core_runtime_summary(self, record: SupervisorCoreRuntimeRecord) -> SupervisorCoreRuntimeSummary:
+        return SupervisorCoreRuntimeSummary(
+            runtime_id=record.runtime_id,
+            runtime_name=record.runtime_name,
+            runtime_kind=record.runtime_kind,
+            management_mode=record.management_mode,
+            desired_state=record.desired_state,
+            runtime_state=record.runtime_state,
+            lifecycle_state=record.lifecycle_state,
+            health_status=record.health_status,
+            freshness_state=self._freshness_state(
+                record.last_seen_at,
+                health_status=record.health_status,
+                runtime_state=record.runtime_state,
+            ),
+            host_id=record.host_id,
+            hostname=record.hostname,
+            registered_at=record.registered_at,
+            updated_at=record.updated_at,
+            last_seen_at=record.last_seen_at,
+            last_action=record.last_action,
+            last_action_at=record.last_action_at,
+            last_error=record.last_error,
+            running=record.running,
+            resource_usage=dict(record.resource_usage or {}),
+            runtime_metadata=dict(record.runtime_metadata or {}),
+        )
+
+    def list_core_runtimes(self) -> list[SupervisorCoreRuntimeSummary]:
+        return [self._core_runtime_summary(item) for item in self._core_runtime_store.list()]
+
+    def get_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeSummary:
+        record = self._core_runtime_store.get(runtime_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="core_runtime_not_registered")
+        return self._core_runtime_summary(record)
+
+    def register_core_runtime(self, payload: SupervisorCoreRuntimeRegistrationRequest) -> SupervisorCoreRuntimeSummary:
+        data = payload.model_dump()
+        runtime_kind = self._normalize_core_runtime_kind(data.get("runtime_kind"))
+        data["runtime_kind"] = runtime_kind
+        data["management_mode"] = self._normalize_core_management_mode(data.get("management_mode"), runtime_kind=runtime_kind)
+        record = self._core_runtime_store.upsert_registration(payload=data)
+        return self._core_runtime_summary(record)
+
+    def heartbeat_core_runtime(self, payload: SupervisorCoreRuntimeHeartbeatRequest) -> SupervisorCoreRuntimeSummary:
+        record = self._core_runtime_store.apply_heartbeat(payload.runtime_id, payload=payload.model_dump())
+        if record is None:
+            raise HTTPException(status_code=404, detail="core_runtime_not_registered")
+        return self._core_runtime_summary(record)
+
+    def _core_runtime_action(
+        self,
+        runtime_id: str,
+        *,
+        action: str,
+        desired_state: str,
+        lifecycle_state: str,
+    ) -> SupervisorCoreRuntimeActionResult:
+        record = self._core_runtime_store.get(runtime_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="core_runtime_not_registered")
+        if str(record.management_mode or "").strip().lower() != "manage":
+            raise HTTPException(status_code=409, detail="core_runtime_monitor_only")
+        updated = self._core_runtime_store.apply_action(
+            runtime_id,
+            action=action,
+            desired_state=desired_state,
+            lifecycle_state=lifecycle_state,
+        )
+        if updated is None:
+            raise HTTPException(status_code=404, detail="core_runtime_not_registered")
+        return SupervisorCoreRuntimeActionResult(action=action, runtime=self._core_runtime_summary(updated))
+
+    def start_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return self._core_runtime_action(
+            runtime_id,
+            action="start",
+            desired_state="running",
+            lifecycle_state="starting",
+        )
+
+    def stop_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return self._core_runtime_action(
+            runtime_id,
+            action="stop",
+            desired_state="stopped",
+            lifecycle_state="stopping",
+        )
+
+    def restart_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return self._core_runtime_action(
+            runtime_id,
             action="restart",
             desired_state="running",
             lifecycle_state="restarting",

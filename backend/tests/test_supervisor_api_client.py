@@ -52,6 +52,55 @@ class TestSupervisorApiClient(unittest.TestCase):
                 return httpx.Response(200, json={"exists": True})
             if request.url.path == "/api/supervisor/runtime/cloudflared/apply":
                 return httpx.Response(200, json={"ok": True, "runtime_state": "configured"})
+            if request.url.path == "/api/supervisor/core/runtimes":
+                return httpx.Response(
+                    200,
+                    json={
+                        "items": [
+                            {
+                                "runtime_id": "core-api",
+                                "runtime_name": "Hexe Core API",
+                                "runtime_kind": "core_service",
+                                "management_mode": "monitor",
+                                "desired_state": "running",
+                                "runtime_state": "running",
+                                "lifecycle_state": "running",
+                                "health_status": "healthy",
+                                "freshness_state": "online",
+                            }
+                        ]
+                    },
+                )
+            if request.url.path == "/api/supervisor/core/runtimes/register":
+                return httpx.Response(
+                    200,
+                    json={
+                        "runtime_id": "core-api",
+                        "runtime_name": "Hexe Core API",
+                        "runtime_kind": "core_service",
+                        "management_mode": "monitor",
+                        "desired_state": "running",
+                        "runtime_state": "running",
+                        "lifecycle_state": "running",
+                        "health_status": "healthy",
+                        "freshness_state": "online",
+                    },
+                )
+            if request.url.path == "/api/supervisor/core/runtimes/heartbeat":
+                return httpx.Response(
+                    200,
+                    json={
+                        "runtime_id": "core-api",
+                        "runtime_name": "Hexe Core API",
+                        "runtime_kind": "core_service",
+                        "management_mode": "monitor",
+                        "desired_state": "running",
+                        "runtime_state": "running",
+                        "lifecycle_state": "running",
+                        "health_status": "healthy",
+                        "freshness_state": "online",
+                    },
+                )
             return httpx.Response(404, json={"detail": "not_found"})
 
         transport = httpx.MockTransport(handler)
@@ -77,6 +126,18 @@ class TestSupervisorApiClient(unittest.TestCase):
 
         apply_result = client.apply_cloudflared_config({"rendered": True})
         self.assertTrue(apply_result["ok"])
+
+        core_created = client.register_core_runtime({"runtime_id": "core-api", "runtime_name": "Hexe Core API"})
+        self.assertIsNotNone(core_created)
+        self.assertEqual(core_created.runtime_id, "core-api")
+
+        core_heartbeat = client.heartbeat_core_runtime({"runtime_id": "core-api"})
+        self.assertIsNotNone(core_heartbeat)
+        self.assertEqual(core_heartbeat.runtime_name, "Hexe Core API")
+
+        core_runtimes = client.list_core_runtimes()
+        self.assertIsNotNone(core_runtimes)
+        self.assertEqual(core_runtimes[0].runtime_id, "core-api")
 
         with tempfile.TemporaryDirectory() as tmp:
             store = SupervisorRuntimeNodesStore(path=Path(tmp) / "runtime.json")

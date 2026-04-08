@@ -25,6 +25,14 @@ Supervisor API routes are served by the standalone Supervisor service rather tha
   - `POST /api/supervisor/nodes/{node_id}/start`
   - `POST /api/supervisor/nodes/{node_id}/stop`
   - `POST /api/supervisor/nodes/{node_id}/restart`
+- core-hosted runtime supervision for Core services, addons, and aux containers through:
+  - `POST /api/supervisor/core/runtimes/register`
+  - `POST /api/supervisor/core/runtimes/heartbeat`
+  - `GET /api/supervisor/core/runtimes`
+  - `GET /api/supervisor/core/runtimes/{runtime_id}`
+  - `POST /api/supervisor/core/runtimes/{runtime_id}/start`
+  - `POST /api/supervisor/core/runtimes/{runtime_id}/stop`
+  - `POST /api/supervisor/core/runtimes/{runtime_id}/restart`
 - standalone runtime state reporting through:
   - `GET /api/supervisor/health`
   - `GET /api/supervisor/info`

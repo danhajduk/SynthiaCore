@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 
 from .config import DEFAULT_SUPERVISOR_PORT, DEFAULT_SUPERVISOR_SOCKET
-from .models import SupervisorAdmissionContextSummary, SupervisorRegisteredRuntimeSummary
+from .models import SupervisorAdmissionContextSummary, SupervisorCoreRuntimeSummary, SupervisorRegisteredRuntimeSummary
 from .runtime_store import SupervisorRuntimeNodeRecord, SupervisorRuntimeNodesStore
 
 log = logging.getLogger("synthia.supervisor.client")
@@ -191,6 +191,53 @@ class SupervisorApiClient:
             )
         store.replace_all(records)
         return True
+
+    def list_core_runtimes(self) -> list[SupervisorCoreRuntimeSummary] | None:
+        payload = self._request_json("GET", "/api/supervisor/core/runtimes")
+        if payload is None:
+            return None
+        raw_items = payload.get("items")
+        if not isinstance(raw_items, list):
+            return None
+        items: list[SupervisorCoreRuntimeSummary] = []
+        for item in raw_items:
+            if not isinstance(item, dict):
+                continue
+            try:
+                items.append(SupervisorCoreRuntimeSummary.model_validate(item))
+            except Exception:
+                continue
+        return items
+
+    def get_core_runtime(self, runtime_id: str) -> SupervisorCoreRuntimeSummary | None:
+        payload = self._request_json("GET", f"/api/supervisor/core/runtimes/{runtime_id}")
+        if payload is None:
+            return None
+        runtime = payload.get("runtime")
+        if not isinstance(runtime, dict):
+            return None
+        try:
+            return SupervisorCoreRuntimeSummary.model_validate(runtime)
+        except Exception:
+            return None
+
+    def register_core_runtime(self, payload: dict[str, Any]) -> SupervisorCoreRuntimeSummary | None:
+        response = self._request_json("POST", "/api/supervisor/core/runtimes/register", payload=payload)
+        if response is None:
+            return None
+        try:
+            return SupervisorCoreRuntimeSummary.model_validate(response)
+        except Exception:
+            return None
+
+    def heartbeat_core_runtime(self, payload: dict[str, Any]) -> SupervisorCoreRuntimeSummary | None:
+        response = self._request_json("POST", "/api/supervisor/core/runtimes/heartbeat", payload=payload)
+        if response is None:
+            return None
+        try:
+            return SupervisorCoreRuntimeSummary.model_validate(response)
+        except Exception:
+            return None
 
     def get_runtime_state(self, runtime_id: str) -> dict[str, Any]:
         payload = self._request_json("GET", f"/api/supervisor/runtime/{runtime_id}")

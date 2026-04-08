@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import socket
 from datetime import timedelta
 from pathlib import Path
 
@@ -192,6 +194,106 @@ def create_app() -> FastAPI:
                 await asyncio.sleep(30.0)
 
         asyncio.create_task(addon_health_poll_loop())
+
+        def _load_core_runtime_overrides() -> list[dict[str, object]]:
+            raw = str(os.getenv("HEXE_CORE_RUNTIME_DECLARATIONS_JSON", "")).strip()
+            if not raw:
+                return []
+            try:
+                parsed = json.loads(raw)
+            except Exception:
+                log.warning("Invalid HEXE_CORE_RUNTIME_DECLARATIONS_JSON payload")
+                return []
+            if isinstance(parsed, dict):
+                items = parsed.get("items") if isinstance(parsed.get("items"), list) else []
+            elif isinstance(parsed, list):
+                items = parsed
+            else:
+                items = []
+            return [item for item in items if isinstance(item, dict)]
+
+        def _collect_core_runtime_declarations() -> list[dict[str, object]]:
+            hostname = socket.gethostname()
+            items: list[dict[str, object]] = [
+                {
+                    "runtime_id": "core-api",
+                    "runtime_name": f"{naming.core()} API",
+                    "runtime_kind": "core_service",
+                    "management_mode": "monitor",
+                    "host_id": hostname,
+                    "hostname": hostname,
+                    "desired_state": "running",
+                    "runtime_state": "running",
+                    "lifecycle_state": "running",
+                    "health_status": "healthy",
+                    "running": True,
+                    "runtime_metadata": {"component": "core-api"},
+                }
+            ]
+            registry = getattr(app.state, "addon_registry", None)
+            if registry is not None:
+                for addon in registry.list_registered():
+                    health_status = str(addon.health_status or "unknown")
+                    running = health_status in {"ok", "healthy"}
+                    items.append(
+                        {
+                            "runtime_id": f"addon:{addon.id}",
+                            "runtime_name": str(addon.name or addon.id),
+                            "runtime_kind": "addon",
+                            "management_mode": "manage",
+                            "host_id": hostname,
+                            "hostname": hostname,
+                            "desired_state": "running" if registry.is_enabled(addon.id) else "stopped",
+                            "runtime_state": "running" if running else "unknown",
+                            "lifecycle_state": "running" if running else "unknown",
+                            "health_status": health_status,
+                            "running": running,
+                            "runtime_metadata": {
+                                "addon_id": addon.id,
+                                "version": addon.version,
+                                "base_url": addon.base_url,
+                                "ui_base_url": addon.ui_base_url,
+                                "ui_mode": addon.ui_mode,
+                            },
+                        }
+                    )
+
+            items.extend(_load_core_runtime_overrides())
+            merged: dict[str, dict[str, object]] = {}
+            for item in items:
+                runtime_id = str(item.get("runtime_id") or "").strip()
+                if not runtime_id:
+                    continue
+                item.setdefault("host_id", hostname)
+                item.setdefault("hostname", hostname)
+                merged[runtime_id] = item
+            return list(merged.values())
+
+        async def core_runtime_supervisor_loop() -> None:
+            while True:
+                try:
+                    supervisor_client = getattr(app.state, "supervisor_client", None)
+                    if supervisor_client is not None:
+                        for payload in _collect_core_runtime_declarations():
+                            await asyncio.to_thread(supervisor_client.register_core_runtime, payload)
+                            heartbeat_payload = {
+                                "runtime_id": payload.get("runtime_id"),
+                                "host_id": payload.get("host_id"),
+                                "hostname": payload.get("hostname"),
+                                "runtime_state": payload.get("runtime_state"),
+                                "lifecycle_state": payload.get("lifecycle_state"),
+                                "health_status": payload.get("health_status"),
+                                "last_error": payload.get("last_error"),
+                                "running": payload.get("running"),
+                                "resource_usage": payload.get("resource_usage", {}),
+                                "runtime_metadata": payload.get("runtime_metadata", {}),
+                            }
+                            await asyncio.to_thread(supervisor_client.heartbeat_core_runtime, heartbeat_payload)
+                except Exception:
+                    log.exception("Core runtime supervisor heartbeat loop failed")
+                await asyncio.sleep(30.0)
+
+        asyncio.create_task(core_runtime_supervisor_loop())
 
         async def store_catalog_refresh_loop() -> None:
             while True:

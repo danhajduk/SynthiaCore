@@ -146,6 +146,46 @@ class TestSupervisorRuntimeRegistration(unittest.TestCase):
             )
             self.assertEqual(missing.status_code, 404, missing.text)
 
+    def test_register_and_manage_core_runtimes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            runtimes = SupervisorRuntimeNodesStore(path=root / "supervisor_runtime_nodes.json")
+            supervisor = SupervisorDomainService(self._runtime_service(root / "services"), runtimes)
+            app = FastAPI()
+            app.include_router(build_supervisor_router(supervisor), prefix="/api")
+            client = TestClient(app)
+
+            core_created = client.post(
+                "/api/supervisor/core/runtimes/register",
+                json={
+                    "runtime_id": "core-api",
+                    "runtime_name": "Hexe Core API",
+                    "runtime_kind": "core_service",
+                    "management_mode": "manage",
+                },
+            )
+            self.assertEqual(core_created.status_code, 200, core_created.text)
+            self.assertEqual(core_created.json()["management_mode"], "monitor")
+
+            core_action = client.post("/api/supervisor/core/runtimes/core-api/restart")
+            self.assertEqual(core_action.status_code, 409, core_action.text)
+            self.assertEqual(core_action.json()["detail"], "core_runtime_monitor_only")
+
+            addon_created = client.post(
+                "/api/supervisor/core/runtimes/register",
+                json={
+                    "runtime_id": "addon:voice",
+                    "runtime_name": "Voice Addon",
+                    "runtime_kind": "addon",
+                    "management_mode": "manage",
+                },
+            )
+            self.assertEqual(addon_created.status_code, 200, addon_created.text)
+
+            stopped = client.post("/api/supervisor/core/runtimes/addon:voice/stop")
+            self.assertEqual(stopped.status_code, 200, stopped.text)
+            self.assertEqual(stopped.json()["runtime"]["desired_state"], "stopped")
+
 
 if __name__ == "__main__":
     unittest.main()

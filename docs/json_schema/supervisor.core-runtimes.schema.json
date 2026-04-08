@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Canonical JSON Schema for the Supervisor Core runtime contract used by /api/supervisor/core/runtimes/*.",
+  "schemas": {
+    "SupervisorCoreRuntimeRegistrationRequest": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": [
+        "runtime_id",
+        "runtime_name"
+      ],
+      "properties": {
+        "runtime_id": { "type": "string" },
+        "runtime_name": { "type": "string" },
+        "runtime_kind": { "type": "string", "default": "core_service" },
+        "management_mode": { "type": "string", "default": "monitor" },
+        "host_id": { "type": ["string", "null"] },
+        "hostname": { "type": ["string", "null"] },
+        "desired_state": { "type": "string", "default": "running" },
+        "runtime_state": { "type": "string", "default": "running" },
+        "lifecycle_state": { "type": "string", "default": "running" },
+        "health_status": { "type": "string", "default": "unknown" },
+        "last_error": { "type": ["string", "null"] },
+        "running": { "type": ["boolean", "null"], "default": true },
+        "resource_usage": { "type": "object", "default": {} },
+        "runtime_metadata": { "type": "object", "default": {} }
+      }
+    },
+    "SupervisorCoreRuntimeHeartbeatRequest": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": [
+        "runtime_id"
+      ],
+      "properties": {
+        "runtime_id": { "type": "string" },
+        "host_id": { "type": ["string", "null"] },
+        "hostname": { "type": ["string", "null"] },
+        "runtime_state": { "type": ["string", "null"] },
+        "lifecycle_state": { "type": ["string", "null"] },
+        "health_status": { "type": ["string", "null"] },
+        "last_error": { "type": ["string", "null"] },
+        "running": { "type": ["boolean", "null"] },
+        "resource_usage": { "type": "object", "default": {} },
+        "runtime_metadata": { "type": "object", "default": {} }
+      }
+    },
+    "SupervisorCoreRuntimeSummary": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": [
+        "runtime_id",
+        "runtime_name",
+        "runtime_kind",
+        "management_mode",
+        "desired_state",
+        "runtime_state",
+        "lifecycle_state",
+        "health_status"
+      ],
+      "properties": {
+        "runtime_id": { "type": "string" },
+        "runtime_name": { "type": "string" },
+        "runtime_kind": { "type": "string", "default": "core_service" },
+        "management_mode": { "type": "string", "default": "monitor" },
+        "desired_state": { "type": "string" },
+        "runtime_state": { "type": "string" },
+        "lifecycle_state": { "type": "string" },
+        "health_status": { "type": "string" },
+        "freshness_state": { "type": "string", "default": "unknown" },
+        "host_id": { "type": ["string", "null"] },
+        "hostname": { "type": ["string", "null"] },
+        "registered_at": { "type": ["string", "null"] },
+        "updated_at": { "type": ["string", "null"] },
+        "last_seen_at": { "type": ["string", "null"] },
+        "last_action": { "type": ["string", "null"] },
+        "last_action_at": { "type": ["string", "null"] },
+        "last_error": { "type": ["string", "null"] },
+        "running": { "type": ["boolean", "null"] },
+        "resource_usage": { "type": "object", "default": {} },
+        "runtime_metadata": { "type": "object", "default": {} }
+      }
+    },
+    "SupervisorCoreRuntimeActionResult": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": [
+        "action",
+        "runtime"
+      ],
+      "properties": {
+        "action": { "type": "string" },
+        "runtime": {
+          "$ref": "#/schemas/SupervisorCoreRuntimeSummary"
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,10 @@ from .models import (
     ManagedNodeSummary,
     ProcessResourceSummary,
     SupervisorAdmissionContextSummary,
+    SupervisorCoreRuntimeActionResult,
+    SupervisorCoreRuntimeHeartbeatRequest,
+    SupervisorCoreRuntimeRegistrationRequest,
+    SupervisorCoreRuntimeSummary,
     SupervisorHealthSummary,
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
@@ -16,6 +20,7 @@ from .models import (
 )
 from .router import build_supervisor_router
 from .config import SupervisorApiConfig, supervisor_api_config
+from .core_runtime_store import SupervisorCoreRuntimeRecord, SupervisorCoreRuntimeStore
 from .runtime_store import SupervisorRuntimeNodeRecord, SupervisorRuntimeNodesStore
 from .service import SupervisorDomainService
 
@@ -25,10 +30,16 @@ __all__ = [
     "ManagedNodeSummary",
     "ProcessResourceSummary",
     "SupervisorAdmissionContextSummary",
+    "SupervisorCoreRuntimeActionResult",
+    "SupervisorCoreRuntimeHeartbeatRequest",
+    "SupervisorCoreRuntimeRegistrationRequest",
+    "SupervisorCoreRuntimeSummary",
     "SupervisorHealthSummary",
     "SupervisorInfoSummary",
     "SupervisorNodeActionResult",
     "SupervisorOwnershipBoundary",
+    "SupervisorCoreRuntimeRecord",
+    "SupervisorCoreRuntimeStore",
     "SupervisorRegisteredRuntimeSummary",
     "SupervisorRuntimeActionResult",
     "SupervisorRuntimeHeartbeatRequest",

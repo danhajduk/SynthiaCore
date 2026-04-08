@@ -8,6 +8,10 @@ from .models import (
     HostResourceSummary,
     ManagedNodeSummary,
     SupervisorAdmissionContextSummary,
+    SupervisorCoreRuntimeActionResult,
+    SupervisorCoreRuntimeHeartbeatRequest,
+    SupervisorCoreRuntimeRegistrationRequest,
+    SupervisorCoreRuntimeSummary,
     SupervisorHealthSummary,
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
@@ -105,5 +109,33 @@ def build_supervisor_router(service: SupervisorDomainService | None = None) -> A
     @router.post("/supervisor/runtimes/{node_id}/restart")
     def restart_supervisor_runtime(node_id: str) -> SupervisorRuntimeActionResult:
         return supervisor.restart_registered_runtime(node_id)
+
+    @router.post("/supervisor/core/runtimes/register")
+    def register_core_runtime(body: SupervisorCoreRuntimeRegistrationRequest) -> SupervisorCoreRuntimeSummary:
+        return supervisor.register_core_runtime(body)
+
+    @router.post("/supervisor/core/runtimes/heartbeat")
+    def heartbeat_core_runtime(body: SupervisorCoreRuntimeHeartbeatRequest) -> SupervisorCoreRuntimeSummary:
+        return supervisor.heartbeat_core_runtime(body)
+
+    @router.get("/supervisor/core/runtimes")
+    def list_core_runtimes() -> dict[str, list[SupervisorCoreRuntimeSummary]]:
+        return {"items": supervisor.list_core_runtimes()}
+
+    @router.get("/supervisor/core/runtimes/{runtime_id}")
+    def get_core_runtime(runtime_id: str) -> dict[str, SupervisorCoreRuntimeSummary]:
+        return {"runtime": supervisor.get_core_runtime(runtime_id)}
+
+    @router.post("/supervisor/core/runtimes/{runtime_id}/start")
+    def start_core_runtime(runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return supervisor.start_core_runtime(runtime_id)
+
+    @router.post("/supervisor/core/runtimes/{runtime_id}/stop")
+    def stop_core_runtime(runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return supervisor.stop_core_runtime(runtime_id)
+
+    @router.post("/supervisor/core/runtimes/{runtime_id}/restart")
+    def restart_core_runtime(runtime_id: str) -> SupervisorCoreRuntimeActionResult:
+        return supervisor.restart_core_runtime(runtime_id)
 
     return router

@@ -127,6 +127,94 @@ Returned by:
 - `POST /api/supervisor/runtimes/{node_id}/start`
 - `POST /api/supervisor/runtimes/{node_id}/stop`
 - `POST /api/supervisor/runtimes/{node_id}/restart`
+- `POST /api/supervisor/core/runtimes/register`
+- `POST /api/supervisor/core/runtimes/heartbeat`
+- `GET /api/supervisor/core/runtimes`
+- `GET /api/supervisor/core/runtimes/{runtime_id}`
+- `POST /api/supervisor/core/runtimes/{runtime_id}/start`
+- `POST /api/supervisor/core/runtimes/{runtime_id}/stop`
+- `POST /api/supervisor/core/runtimes/{runtime_id}/restart`
+
+Includes:
+
+- `action`
+- `runtime`
+
+### SupervisorCoreRuntimeSummary
+
+Status: Implemented
+
+This model represents Core-hosted runtimes (core services, addons, aux services/containers) declared to the local Supervisor.
+
+Returned by:
+
+- `POST /api/supervisor/core/runtimes/register`
+- `POST /api/supervisor/core/runtimes/heartbeat`
+- `GET /api/supervisor/core/runtimes/{runtime_id}`
+
+Included in:
+
+- `GET /api/supervisor/core/runtimes`
+
+Fields include:
+
+- `runtime_id`
+- `runtime_name`
+- `runtime_kind`
+- `management_mode`
+- `desired_state`
+- `runtime_state`
+- `lifecycle_state`
+- `health_status`
+- `freshness_state`
+- `host_id`
+- `hostname`
+- `registered_at`
+- `updated_at`
+- `last_seen_at`
+- `last_action`
+- `last_action_at`
+- `last_error`
+- `running`
+- `resource_usage`
+- `runtime_metadata`
+
+### SupervisorCoreRuntimeRegistrationRequest
+
+Status: Implemented
+
+Accepted by:
+
+- `POST /api/supervisor/core/runtimes/register`
+
+Purpose:
+
+- declare a Core-hosted runtime to the local Supervisor
+- define if the runtime is monitor-only (`core_service`) or manageable (`addon`, `aux_service`, `aux_container`)
+
+### SupervisorCoreRuntimeHeartbeatRequest
+
+Status: Implemented
+
+Accepted by:
+
+- `POST /api/supervisor/core/runtimes/heartbeat`
+
+Purpose:
+
+- refresh Core-hosted runtime liveness
+- update runtime state, health, and resource usage
+- keep heartbeat freshness under Supervisor ownership
+
+### SupervisorCoreRuntimeActionResult
+
+Status: Implemented
+
+Returned by:
+
+- `POST /api/supervisor/core/runtimes/{runtime_id}/start`
+- `POST /api/supervisor/core/runtimes/{runtime_id}/stop`
+- `POST /api/supervisor/core/runtimes/{runtime_id}/restart`
 
 Includes:
 
@@ -273,6 +361,8 @@ Schemas:
 
 - [../json_schema/supervisor.models.schema.json](../json_schema/supervisor.models.schema.json)
 - [../json_schema/supervisor.api.schema.json](../json_schema/supervisor.api.schema.json)
+- [../json_schema/supervisor.runtime-nodes.schema.json](../json_schema/supervisor.runtime-nodes.schema.json)
+- [../json_schema/supervisor.core-runtimes.schema.json](../json_schema/supervisor.core-runtimes.schema.json)
 
 ## Ownership Boundary
 
@@ -286,6 +376,8 @@ Current Supervisor ownership:
 - real Node heartbeat freshness tracking
 - real Node runtime state projection
 - real Node runtime action intent tracking
+- Core runtime declaration and heartbeat freshness tracking
+- Core runtime action intent tracking for manageable Core-hosted runtimes
 
 Current Core-owned dependencies:
 
