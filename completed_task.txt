@@ -463,3 +463,4 @@
 2026-03-22 - Session complete: added canonical node API metadata, proxy routing, operator UI visibility, and verified docs/schema updates.
 2026-04-07 - Task 795: documented Supervisor service configuration and environment contract.
 2026-04-07 - Task 796: added systemd unit template for the Supervisor API service.
+2026-04-07 - Task 797: removed in-process Supervisor API wiring from Core.

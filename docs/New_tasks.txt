@@ -48,7 +48,6 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 797: Decouple Core from in-process Supervisor API wiring
 [TODO] Task 798: Add Supervisor client integration in Core for remote Supervisor hosts
 [TODO] Task 799: Add health and readiness probes for Supervisor API service
 [TODO] Task 800: Update deployment scripts for Supervisor API service installation

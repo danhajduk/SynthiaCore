@@ -28,8 +28,6 @@ from .addons.registry import build_registry, register_addons
 from .addons.install_sessions import InstallSessionsStore
 from .addons.proxy import AddonProxy, build_proxy_router
 from .nodes import NodeUiProxy, build_node_ui_proxy_router, build_nodes_router, NodesDomainService
-from .supervisor import build_supervisor_router, SupervisorDomainService
-from .supervisor.runtime_store import SupervisorRuntimeNodesStore
 from .api.system import build_system_router
 from .api.admin_registry import build_admin_registry_router
 from .api.addons_registry import build_addons_registry_router
@@ -651,19 +649,10 @@ def create_app() -> FastAPI:
     app.state.platform_events = event_service
     runtime_service = StandaloneRuntimeService()
     app.state.standalone_runtime_service = runtime_service
-    supervisor_runtime_nodes_store = SupervisorRuntimeNodesStore()
-    app.state.supervisor_runtime_nodes_store = supervisor_runtime_nodes_store
-    supervisor_service = SupervisorDomainService(
-        runtime_service,
-        supervisor_runtime_nodes_store,
-        node_registrations_store,
-    )
-    app.state.supervisor_service = supervisor_service
     edge_gateway_service = EdgeGatewayService(
         edge_gateway_store,
         settings_store=settings_store,
         node_registrations_store=node_registrations_store,
-        supervisor_service=supervisor_service,
         audit_store=audit_store,
     )
     app.state.edge_gateway_service = edge_gateway_service
@@ -672,7 +661,6 @@ def create_app() -> FastAPI:
         engine,
         debug_enabled=bool(getattr(cfg_boot, "scheduler_debug_enabled", False)),
         events=event_service,
-        supervisor_service=supervisor_service,
         node_budget_service=node_budget_service,
         audit_store=audit_store,
     )
@@ -783,14 +771,9 @@ def create_app() -> FastAPI:
 
     # System API using the registry
     app.include_router(build_architecture_router(), prefix="/api")
-    app.include_router(
-        build_supervisor_router(supervisor_service),
-        prefix="/api",
-    )
     nodes_service = NodesDomainService(
         node_registrations_store,
         node_governance_status_service,
-        supervisor_runtime_nodes_store,
     )
     app.include_router(
         build_nodes_router(nodes_service),

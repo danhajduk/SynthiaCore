@@ -12,6 +12,8 @@ Supervisor currently spans:
 - `backend/app/system/runtime/`
 - `backend/app/supervisor/`
 
+Supervisor API routes are served by the standalone Supervisor service rather than the Core process.
+
 ## Current Responsibilities
 
 - host monitoring through `HostResourceSummary`, `SupervisorHealthSummary`, and `SupervisorRuntimeSummary`
