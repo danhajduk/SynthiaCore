@@ -461,3 +461,4 @@
 2026-03-22 - Task 780: exposed node api_base_url metadata in operator onboarding and registry UI pages.
 2026-03-22 - Task 781: updated the canonical node onboarding and API docs for dedicated node API metadata.
 2026-03-22 - Session complete: added canonical node API metadata, proxy routing, operator UI visibility, and verified docs/schema updates.
+2026-04-07 - Task 795: documented Supervisor service configuration and environment contract.

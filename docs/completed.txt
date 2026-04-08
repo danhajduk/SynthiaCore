@@ -849,3 +849,4 @@ Task 791: Add tests for Supervisor real Node registration, heartbeat, and freshn
 Task 792: Update Supervisor docs and schemas for the real Node runtime contract - Completed on 04/07/2026 19:18
 Task 793: Define Supervisor service boundary and external API host binding - Completed on 04/07/2026 22:00
 Task 794: Add Supervisor standalone API server entrypoint - Completed on 04/07/2026 22:08
+Task 795: Add Supervisor service configuration and environment contract - Completed on 04/07/2026 22:12

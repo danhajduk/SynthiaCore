@@ -28,6 +28,16 @@ Supervisor currently spans:
   - `GET /api/supervisor/runtime`
 - compose-based realization for host-local standalone addon workloads
 
+## Service Configuration
+
+The Supervisor API service reads its binding and transport settings from environment variables. These values are used by the standalone Supervisor API server and are safe to apply on Core or Node hosts.
+
+- `HEXE_SUPERVISOR_TRANSPORT`: API transport mode. Supported values: `socket` or `http`. Default: `socket`.
+- `HEXE_SUPERVISOR_BIND`: TCP bind host when `HEXE_SUPERVISOR_TRANSPORT=http`. Default: `127.0.0.1`.
+- `HEXE_SUPERVISOR_PORT`: TCP port when `HEXE_SUPERVISOR_TRANSPORT=http`. Default: `57665`.
+- `HEXE_SUPERVISOR_SOCKET`: Unix socket path when `HEXE_SUPERVISOR_TRANSPORT=socket`. Default: `/run/hexe/supervisor.sock`.
+- `HEXE_SUPERVISOR_LOG_LEVEL`: Supervisor API server log level. Default: `INFO`.
+
 ## Explicit Non-Goals
 
 Status: Implemented
@@ -58,6 +68,7 @@ Supervisor may grow into these areas later, but they are not implemented today:
 - [lifecycle-control.md](./lifecycle-control.md)
 - [workload-admission.md](./workload-admission.md)
 - [architecture-gap.md](./architecture-gap.md)
+- [service-configuration.md](./service-configuration.md)
 
 ## See Also
 
