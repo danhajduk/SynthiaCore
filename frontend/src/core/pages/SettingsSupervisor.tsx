@@ -299,7 +299,6 @@ export default function SettingsSupervisor() {
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>System Metrics</h2>
-          <p>Matches the primary dashboard metrics for host health and connectivity.</p>
         </div>
         <div className="settings-card">
           {!stats ? (
@@ -335,7 +334,6 @@ export default function SettingsSupervisor() {
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>Core Services & Aux Runtimes</h2>
-          <p>Core-owned services and aux containers registered with the local Supervisor.</p>
         </div>
         <div className="settings-card">
           {coreServices.length === 0 ? (
@@ -388,7 +386,6 @@ export default function SettingsSupervisor() {
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>Node Runtimes</h2>
-          <p>Supervisor-registered node runtime inventory and aux metadata.</p>
         </div>
         <div className="settings-card">
           {nodeRuntimes.length === 0 ? (
@@ -441,7 +438,6 @@ export default function SettingsSupervisor() {
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>Addons</h2>
-          <p>Embedded addon runtimes registered to the local Supervisor.</p>
         </div>
         <div className="settings-card">
           {addonRuntimes.length === 0 ? (
@@ -492,7 +488,6 @@ export default function SettingsSupervisor() {
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>Addon Containers</h2>
-          <p>Embedded addon containers surfaced as standalone runtime entities.</p>
         </div>
         <div className="settings-card">
           {addonContainers.length === 0 ? (
