@@ -31,9 +31,8 @@ const systemItems: NavItem[] = [
   { label: "Settings", path: "/settings" },
   { label: "Supervisor", path: "/settings/supervisor" },
   { label: "Edge Gateway", path: "/settings/edge" },
-  { label: "Scheduler Jobs", path: "/settings/jobs" },
+  { label: "Scheduler", path: "/settings/scheduler" },
   { label: "System Metrics", path: "/settings/metrics" },
-  { label: "Job Statistics", path: "/settings/statistics" },
 ];
 
 export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {

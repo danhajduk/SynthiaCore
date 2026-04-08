@@ -243,6 +243,11 @@
 .settings-state-completed { background: hsl(var(--sx-accent) / 0.22); }
 .settings-state-failed { background: hsl(var(--sx-danger) / 0.25); }
 .settings-state-expired { background: hsl(var(--sx-accent) / 0.25); }
+.settings-state-healthy { background: hsl(var(--sx-success) / 0.25); }
+.settings-state-scheduled { background: hsl(var(--sx-accent) / 0.25); }
+.settings-state-stopped { background: hsl(var(--sx-warning) / 0.25); }
+.settings-state-idle { background: hsl(var(--sx-warning) / 0.18); }
+.settings-state-failing { background: hsl(var(--sx-danger) / 0.25); }
 
 .settings-job-detail {
   margin-top: var(--sx-space-3);
