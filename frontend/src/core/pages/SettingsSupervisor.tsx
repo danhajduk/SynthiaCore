@@ -248,20 +248,9 @@ export default function SettingsSupervisor() {
   return (
     <div className="settings-page">
       <h1 className="settings-title">Settings / Supervisor</h1>
-      <p className="settings-muted">
-        Local Supervisor telemetry, host metrics, and registered runtime inventory for Core services, addons, aux containers, and
-        node runtimes.
-      </p>
       <div className="settings-row">
         <div />
-        <div className="settings-row-actions">
-          <Link className="settings-btn" to="/settings">
-            Back to settings
-          </Link>
-          <button className="settings-btn" onClick={() => void loadSummary()} disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh supervisor data"}
-          </button>
-        </div>
+        <div className="settings-row-actions" />
       </div>
 
       {err && <div className="settings-error">Failed to load supervisor summary: {err}</div>}
