@@ -466,3 +466,4 @@
 2026-04-07 - Task 797: removed in-process Supervisor API wiring from Core.
 2026-04-07 - Task 798: integrated the Supervisor API client for remote hosts in Core.
 2026-04-07 - Task 799: added health and readiness probes for the Supervisor API service.
+2026-04-07 - Task 800: updated deployment scripts for the Supervisor API service unit.

@@ -77,6 +77,7 @@ if [[ "$SERVICE_UPDATE" == "true" ]]; then
   UNIT_SRC_DIR="$REPO_DIR/systemd/user"
   UNIT_DST_DIR="$HOME/.config/systemd/user"
   SUPERVISOR_UNIT="synthia-supervisor.service"
+  SUPERVISOR_API_UNIT="synthia-supervisor-api.service"
   DASHBOARD_UNIT="synthia-dashboard.service"
   mkdir -p "$UNIT_DST_DIR"
 
@@ -103,6 +104,11 @@ if [[ "$SERVICE_UPDATE" == "true" ]]; then
   else
     echo "[update] WARN: missing optional unit template: $UNIT_SRC_DIR/${SUPERVISOR_UNIT}.in"
   fi
+  if [[ -f "$UNIT_SRC_DIR/${SUPERVISOR_API_UNIT}.in" ]]; then
+    install_unit "$UNIT_SRC_DIR/${SUPERVISOR_API_UNIT}.in" "$UNIT_DST_DIR/${SUPERVISOR_API_UNIT}"
+  else
+    echo "[update] WARN: missing optional unit template: $UNIT_SRC_DIR/${SUPERVISOR_API_UNIT}.in"
+  fi
 
   systemctl --user daemon-reload
   systemctl --user restart synthia-backend.service
@@ -112,6 +118,9 @@ if [[ "$SERVICE_UPDATE" == "true" ]]; then
   fi
   if [[ -f "$UNIT_DST_DIR/${SUPERVISOR_UNIT}" ]]; then
     systemctl --user restart "$SUPERVISOR_UNIT"
+  fi
+  if [[ -f "$UNIT_DST_DIR/${SUPERVISOR_API_UNIT}" ]]; then
+    systemctl --user restart "$SUPERVISOR_API_UNIT"
   fi
 fi
 
@@ -123,6 +132,9 @@ if systemctl --user cat synthia-dashboard.service >/dev/null 2>&1; then
 fi
 if systemctl --user cat synthia-supervisor.service >/dev/null 2>&1; then
   systemctl --user restart synthia-supervisor.service
+fi
+if systemctl --user cat synthia-supervisor-api.service >/dev/null 2>&1; then
+  systemctl --user restart synthia-supervisor-api.service
 fi
 
 

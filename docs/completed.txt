@@ -854,3 +854,4 @@ Task 796: Add Supervisor systemd unit for API service (host-agnostic) - Complete
 Task 797: Decouple Core from in-process Supervisor API wiring - Completed on 04/07/2026 22:16
 Task 798: Add Supervisor client integration in Core for remote Supervisor hosts - Completed on 04/07/2026 22:24
 Task 799: Add health and readiness probes for Supervisor API service - Completed on 04/07/2026 22:25
+Task 800: Update deployment scripts for Supervisor API service installation - Completed on 04/07/2026 22:26
