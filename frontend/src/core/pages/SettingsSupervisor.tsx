@@ -224,7 +224,12 @@ export default function SettingsSupervisor() {
 
   const coreRuntimes = Array.isArray(summary?.core_runtimes) ? summary?.core_runtimes : [];
   const nodeRuntimes = Array.isArray(summary?.runtimes) ? summary?.runtimes : [];
-  const managedNodes = Array.isArray(summary?.nodes) ? summary?.nodes : [];
+  const coreServices = coreRuntimes.filter(
+    (item) => String(item.runtime_kind || "").toLowerCase() !== "addon",
+  );
+  const addonRuntimes = coreRuntimes.filter(
+    (item) => String(item.runtime_kind || "").toLowerCase() === "addon",
+  );
 
   return (
     <div className="settings-page">
@@ -261,7 +266,7 @@ export default function SettingsSupervisor() {
               <div className="settings-help">
                 Host {stats.hostname} • uptime {fmtUptime(stats.uptime_s)}
               </div>
-              <div className="home-metrics">
+              <div className="settings-metrics-grid">
                 <MetricBar label="CPU" percent={stats.cpu.percent_total} />
                 <MetricBar label="Memory" percent={stats.mem.percent} />
                 <MetricBar
@@ -287,58 +292,115 @@ export default function SettingsSupervisor() {
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>Core Services & Aux Runtimes</h2>
-          <p>Core-owned services, addons, and aux containers registered with the local Supervisor.</p>
+          <p>Core-owned services and aux containers registered with the local Supervisor.</p>
         </div>
         <div className="settings-card">
-          {coreRuntimes.length === 0 && <div className="settings-help">No Core runtimes registered yet.</div>}
-          {coreRuntimes.map((runtime) => (
-            <div key={String(runtime.runtime_id || runtime.runtime_name)} className="settings-kv-item">
-              <div className="settings-label-text">{String(runtime.runtime_name || runtime.runtime_id || "Unnamed")}</div>
-              <div className="settings-help">ID {String(runtime.runtime_id || "-")}</div>
-              <div className="settings-help">Kind {displayState(runtime.runtime_kind)} • Mode {displayState(runtime.management_mode)}</div>
-              <div className="settings-help">
-                State {displayState(runtime.runtime_state)} • Health {displayState(runtime.health_status)} • Desired {displayState(runtime.desired_state)}
-              </div>
-              {renderMetadata(runtime.runtime_metadata as Record<string, unknown>)}
-            </div>
-          ))}
+          {coreServices.length === 0 ? (
+            <div className="settings-help">No Core services or aux runtimes registered yet.</div>
+          ) : (
+            <table className="settings-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>ID</th>
+                  <th>Kind</th>
+                  <th>Mode</th>
+                  <th>State</th>
+                  <th>Health</th>
+                  <th>Desired</th>
+                </tr>
+              </thead>
+              <tbody>
+                {coreServices.map((runtime) => (
+                  <tr key={String(runtime.runtime_id || runtime.runtime_name)}>
+                    <td>{String(runtime.runtime_name || runtime.runtime_id || "Unnamed")}</td>
+                    <td className="settings-mono">{String(runtime.runtime_id || "-")}</td>
+                    <td>{displayState(runtime.runtime_kind)}</td>
+                    <td>{displayState(runtime.management_mode)}</td>
+                    <td>{displayState(runtime.runtime_state)}</td>
+                    <td>{displayState(runtime.health_status)}</td>
+                    <td>{displayState(runtime.desired_state)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 
       <section className="settings-section">
         <div className="settings-section-head">
           <h2>Node Runtimes</h2>
-          <p>Supervisor-registered Node runtime inventory and aux metadata.</p>
+          <p>Supervisor-registered node runtime inventory and aux metadata.</p>
         </div>
         <div className="settings-card">
-          {nodeRuntimes.length === 0 && <div className="settings-help">No node runtimes registered yet.</div>}
-          {nodeRuntimes.map((runtime) => (
-            <div key={String(runtime.node_id || runtime.node_name)} className="settings-kv-item">
-              <div className="settings-label-text">{String(runtime.node_name || runtime.node_id || "Unnamed")}</div>
-              <div className="settings-help">ID {String(runtime.node_id || "-")} • Type {String(runtime.node_type || "-")}</div>
-              <div className="settings-help">
-                State {displayState(runtime.runtime_state)} • Health {displayState(runtime.health_status)} • Desired {displayState(runtime.desired_state)}
-              </div>
-              {renderMetadata(runtime.runtime_metadata as Record<string, unknown>)}
-            </div>
-          ))}
+          {nodeRuntimes.length === 0 ? (
+            <div className="settings-help">No node runtimes registered yet.</div>
+          ) : (
+            <table className="settings-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>ID</th>
+                  <th>Type</th>
+                  <th>State</th>
+                  <th>Health</th>
+                  <th>Desired</th>
+                  <th>Freshness</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nodeRuntimes.map((runtime) => (
+                  <tr key={String(runtime.node_id || runtime.node_name)}>
+                    <td>{String(runtime.node_name || runtime.node_id || "Unnamed")}</td>
+                    <td className="settings-mono">{String(runtime.node_id || "-")}</td>
+                    <td>{String(runtime.node_type || "-")}</td>
+                    <td>{displayState(runtime.runtime_state)}</td>
+                    <td>{displayState(runtime.health_status)}</td>
+                    <td>{displayState(runtime.desired_state)}</td>
+                    <td>{displayState(runtime.freshness_state)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 
       <section className="settings-section">
         <div className="settings-section-head">
-          <h2>Standalone Addon Runtimes</h2>
-          <p>Supervisor-managed standalone addon lifecycle state (compatibility view).</p>
+          <h2>Addons</h2>
+          <p>Embedded addon runtimes registered to the local Supervisor.</p>
         </div>
         <div className="settings-card">
-          {managedNodes.length === 0 && <div className="settings-help">No standalone addon runtimes listed.</div>}
-          {managedNodes.map((node) => (
-            <div key={String(node.node_id || node.node_name)} className="settings-kv-item">
-              <div className="settings-label-text">{String(node.node_id || node.node_name || "Addon")}</div>
-              <div className="settings-help">State {displayState(node.runtime_state)} • Health {displayState(node.health_status)}</div>
-              {renderMetadata(node as Record<string, unknown>)}
-            </div>
-          ))}
+          {addonRuntimes.length === 0 ? (
+            <div className="settings-help">No embedded addons registered yet.</div>
+          ) : (
+            <table className="settings-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>ID</th>
+                  <th>Mode</th>
+                  <th>State</th>
+                  <th>Health</th>
+                  <th>Desired</th>
+                </tr>
+              </thead>
+              <tbody>
+                {addonRuntimes.map((runtime) => (
+                  <tr key={String(runtime.runtime_id || runtime.runtime_name)}>
+                    <td>{String(runtime.runtime_name || runtime.runtime_id || "Addon")}</td>
+                    <td className="settings-mono">{String(runtime.runtime_id || "-")}</td>
+                    <td>{displayState(runtime.management_mode)}</td>
+                    <td>{displayState(runtime.runtime_state)}</td>
+                    <td>{displayState(runtime.health_status)}</td>
+                    <td>{displayState(runtime.desired_state)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </div>

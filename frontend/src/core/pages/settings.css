@@ -403,6 +403,45 @@
   gap: calc(var(--sx-space-1) + 2px);
 }
 
+.settings-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sx-space-3);
+}
+
+@media (max-width: 900px) {
+  .settings-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .settings-metrics-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.settings-table th,
+.settings-table td {
+  padding: calc(var(--sx-space-1) + 2px) var(--sx-space-2);
+  border-bottom: 1px solid hsl(var(--sx-text) / 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.settings-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
 .settings-connectivity-config {
   margin-top: calc(var(--sx-space-3) + 2px);
   padding-top: 14px;
