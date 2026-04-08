@@ -60,6 +60,8 @@ type NodeServiceRow = {
   service_state: string;
   desired_state?: string;
   health_status?: string;
+  cpu_percent?: number;
+  mem_percent?: number;
 };
 
 type SystemStats = {
@@ -321,6 +323,8 @@ export default function SettingsSupervisor() {
             service_state: String(svc.service_state || svc.state || svc.status || "unknown"),
             desired_state: svc.desired_state ? String(svc.desired_state) : undefined,
             health_status: svc.health_status ? String(svc.health_status) : undefined,
+            cpu_percent: typeof svc.cpu_percent === "number" ? svc.cpu_percent : undefined,
+            mem_percent: typeof svc.mem_percent === "number" ? svc.mem_percent : undefined,
           };
           return normalized.service_id === "node" ? null : normalized;
         })
@@ -340,6 +344,8 @@ export default function SettingsSupervisor() {
             service_state: String(svc.service_state || svc.state || svc.status || "unknown"),
             desired_state: svc.desired_state ? String(svc.desired_state) : undefined,
             health_status: svc.health_status ? String(svc.health_status) : undefined,
+            cpu_percent: typeof svc.cpu_percent === "number" ? svc.cpu_percent : undefined,
+            mem_percent: typeof svc.mem_percent === "number" ? svc.mem_percent : undefined,
           };
         }
         return {
@@ -531,22 +537,22 @@ export default function SettingsSupervisor() {
                   }
                   const service = row.service;
                   return (
-                    <tr key={`service:${row.node_id}:${service.service_id}`}>
+                    <tr key={`service:${row.node_id}:${service.service_id}`} className="settings-subrow">
                       <td>
                         <StatusLed tone={statusTone(service.health_status || service.service_state)} />
                       </td>
-                      <td>{`${row.node_name} / ${service.service_name}`}</td>
+                      <td className="settings-subrow-name">{service.service_name}</td>
                       <td className="settings-mono">{service.service_id}</td>
                       <td>service</td>
                       <td>{displayState(service.service_state)}</td>
-                      <td>{displayState(service.health_status)}</td>
-                      <td>{displayState(service.desired_state)}</td>
+                      <td>{displayState(service.health_status || service.service_state)}</td>
                       <td>-</td>
                       <td>-</td>
                       <td>-</td>
                       <td>-</td>
                       <td>-</td>
-                      <td>-</td>
+                      <td>{formatPctValue(service.cpu_percent)}</td>
+                      <td>{formatPctValue(service.mem_percent)}</td>
                     </tr>
                   );
                 })}
