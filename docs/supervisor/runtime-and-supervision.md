@@ -8,6 +8,9 @@ Status: Implemented
 - Supervisor reports host resources and process state through `/api/supervisor/health`, `/api/supervisor/resources`, and `/api/supervisor/runtime`.
 - Supervisor produces admission context through `/api/supervisor/admission`.
 - Supervisor lists standalone addon runtime state and performs start/stop/restart actions through `/api/supervisor/nodes` and the corresponding node action routes.
+- Supervisor exposes runtime state and runtime-apply actions for Supervisor-managed helper runtimes (currently `cloudflared`) through:
+  - `GET /api/supervisor/runtime/{runtime_id}`
+  - `POST /api/supervisor/runtime/{runtime_id}/apply`
 - Supervisor now also owns a separate runtime contract for real Nodes through:
   - `POST /api/supervisor/runtimes/register`
   - `POST /api/supervisor/runtimes/heartbeat`
@@ -18,6 +21,7 @@ Status: Implemented
   - `POST /api/supervisor/runtimes/{node_id}/restart`
 - Supervisor computes heartbeat freshness for real Nodes as `online`, `stale`, `offline`, or `error` based on the locally tracked runtime record.
 - Standalone addon realization is compose-based today through `compose_up` and `compose_down` in `backend/app/supervisor/service.py`.
+- Supervisor API service probes are available at `/health` and `/ready` on the standalone Supervisor API server.
 
 ## Restart Semantics Boundary
 

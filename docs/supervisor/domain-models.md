@@ -213,6 +213,32 @@ Includes:
 - `managed_node_count`
 - `healthy_managed_node_count`
 
+### SupervisorRuntimeState (Cloudflared)
+
+Status: Implemented
+
+Returned by:
+
+- `GET /api/supervisor/runtime/{runtime_id}`
+
+Notes:
+
+- `runtime_id=cloudflared` returns a runtime state payload with `exists=true`.
+- Other runtime ids currently return `{ "exists": false }`.
+
+### SupervisorRuntimeApplyResult (Cloudflared)
+
+Status: Implemented
+
+Returned by:
+
+- `POST /api/supervisor/runtime/{runtime_id}/apply`
+
+Notes:
+
+- `runtime_id=cloudflared` applies the rendered tunnel configuration and returns `ok`, `runtime_state`, and `config_path`.
+- Unsupported runtime ids return `{ "ok": false, "runtime_state": "unsupported" }`.
+
 ### Supervisor Host API Surface
 
 Status: Implemented
@@ -223,6 +249,8 @@ Current Supervisor routes:
 - `GET /api/supervisor/info`
 - `GET /api/supervisor/resources`
 - `GET /api/supervisor/runtime`
+- `GET /api/supervisor/runtime/{runtime_id}`
+- `POST /api/supervisor/runtime/{runtime_id}/apply`
 - `GET /api/supervisor/admission`
 - `GET /api/supervisor/nodes`
 - `POST /api/supervisor/nodes/{node_id}/start`
@@ -235,6 +263,16 @@ Current Supervisor routes:
 - `POST /api/supervisor/runtimes/{node_id}/start`
 - `POST /api/supervisor/runtimes/{node_id}/stop`
 - `POST /api/supervisor/runtimes/{node_id}/restart`
+
+Supervisor service probes:
+
+- `GET /health`
+- `GET /ready`
+
+Schemas:
+
+- [../json_schema/supervisor.models.schema.json](../json_schema/supervisor.models.schema.json)
+- [../json_schema/supervisor.api.schema.json](../json_schema/supervisor.api.schema.json)
 
 ## Ownership Boundary
 

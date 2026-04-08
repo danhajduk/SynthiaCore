@@ -11,6 +11,8 @@ Supervisor currently spans:
 - `backend/synthia_supervisor/`
 - `backend/app/system/runtime/`
 - `backend/app/supervisor/`
+- `backend/app/supervisor/server.py`
+- `systemd/user/synthia-supervisor-api.service.in`
 
 Supervisor API routes are served by the standalone Supervisor service rather than the Core process.
 
@@ -33,6 +35,8 @@ Supervisor API routes are served by the standalone Supervisor service rather tha
 ## Service Configuration
 
 The Supervisor API service reads its binding and transport settings from environment variables. These values are used by the standalone Supervisor API server and are safe to apply on Core or Node hosts.
+
+Core uses a Supervisor API client with its own environment-backed settings (see [service-configuration.md](./service-configuration.md)).
 
 - `HEXE_SUPERVISOR_TRANSPORT`: API transport mode. Supported values: `socket` or `http`. Default: `socket`.
 - `HEXE_SUPERVISOR_BIND`: TCP bind host when `HEXE_SUPERVISOR_TRANSPORT=http`. Default: `127.0.0.1`.

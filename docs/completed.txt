@@ -856,3 +856,4 @@ Task 798: Add Supervisor client integration in Core for remote Supervisor hosts 
 Task 799: Add health and readiness probes for Supervisor API service - Completed on 04/07/2026 22:25
 Task 800: Update deployment scripts for Supervisor API service installation - Completed on 04/07/2026 22:26
 Task 801: Add tests for Supervisor API server and remote client integration - Completed on 04/07/2026 22:30
+Task 802: Update docs and schemas for Supervisor standalone service - Completed on 04/07/2026 22:33

@@ -468,3 +468,4 @@
 2026-04-07 - Task 799: added health and readiness probes for the Supervisor API service.
 2026-04-07 - Task 800: updated deployment scripts for the Supervisor API service unit.
 2026-04-07 - Task 801: added tests for Supervisor API probes and client integration.
+2026-04-07 - Task 802: updated Supervisor standalone service docs and schemas.

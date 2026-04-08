@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Supervisor API Supplemental Schemas",
+  "description": "Standalone Supervisor API payloads not represented in Pydantic model catalogs.",
+  "schemas": {
+    "SupervisorServiceHealth": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "SupervisorServiceHealth",
+      "type": "object"
+    },
+    "SupervisorServiceReadiness": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "status": {
+          "title": "Status",
+          "type": "string"
+        },
+        "admission": {
+          "description": "Supervisor admission summary payload.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "status",
+        "admission"
+      ],
+      "title": "SupervisorServiceReadiness",
+      "type": "object"
+    },
+    "SupervisorRuntimeState": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "exists": {
+          "title": "Exists",
+          "type": "boolean"
+        },
+        "runtime_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime Id"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        },
+        "healthy": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Healthy"
+        },
+        "last_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Error"
+        },
+        "last_action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Action"
+        },
+        "last_action_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Action At"
+        },
+        "last_started_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Started At"
+        },
+        "checked_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checked At"
+        },
+        "config_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Config Path"
+        },
+        "tunnel_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tunnel Id"
+        },
+        "container_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Container Name"
+        },
+        "container_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Container Id"
+        },
+        "pid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pid"
+        }
+      },
+      "required": [
+        "exists"
+      ],
+      "title": "SupervisorRuntimeState",
+      "type": "object"
+    },
+    "SupervisorRuntimeApplyResult": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "runtime_state": {
+          "title": "Runtime State",
+          "type": "string"
+        },
+        "config_path": {
+          "title": "Config Path",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        }
+      },
+      "required": [
+        "ok",
+        "runtime_state",
+        "config_path"
+      ],
+      "title": "SupervisorRuntimeApplyResult",
+      "type": "object"
+    }
+  },
+  "type": "object"
+}

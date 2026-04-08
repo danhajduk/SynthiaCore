@@ -28,9 +28,13 @@ Supervisor is the host-local runtime authority. In current code this spans:
 - `backend/synthia_supervisor/`
 - `backend/app/system/runtime/`
 - `backend/app/supervisor/`
+- `backend/app/supervisor/server.py`
+- `systemd/user/synthia-supervisor-api.service.in`
 
 Current top-level routes:
 
+- `GET /health`
+- `GET /ready`
 - `GET /api/supervisor/health`
 - `GET /api/supervisor/info`
 
