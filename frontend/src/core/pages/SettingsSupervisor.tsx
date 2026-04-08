@@ -508,6 +508,11 @@ export default function SettingsSupervisor() {
                   <th>Provider</th>
                   <th>Reason</th>
                   <th>Addon</th>
+                  <th>RPS</th>
+                  <th>P95</th>
+                  <th>Err%</th>
+                  <th>CPU</th>
+                  <th>Mem</th>
                 </tr>
               </thead>
               <tbody>
@@ -524,6 +529,11 @@ export default function SettingsSupervisor() {
                     <td>{String(entry.container?.provider || "-")}</td>
                     <td>{String(entry.container?.degraded_reason || entry.container?.last_error || "-")}</td>
                     <td>{entry.addonName}</td>
+                    <td>{formatRps(entry.container?.rps)}</td>
+                    <td>{formatMs(entry.container?.latency_ms_p95)}</td>
+                    <td>{formatPct(entry.container?.error_rate)}</td>
+                    <td>{formatPct(entry.container?.cpu_percent)}</td>
+                    <td>{formatPct(entry.container?.mem_percent)}</td>
                   </tr>
                 ))}
               </tbody>
