@@ -133,6 +133,50 @@ class SupervisorDomainService:
             return "stale"
         return "online"
 
+    def _core_runtime_heartbeat_interval_s(self) -> float:
+        raw = str(os.getenv("HEXE_SUPERVISOR_CORE_HEARTBEAT_S", "5")).strip()
+        try:
+            parsed = float(raw)
+        except Exception:
+            return 5.0
+        return max(1.0, parsed)
+
+    def _core_runtime_stale_after_s(self) -> float:
+        raw = str(os.getenv("HEXE_SUPERVISOR_CORE_HEARTBEAT_STALE_S", "")).strip()
+        if raw:
+            try:
+                parsed = float(raw)
+                return max(1.0, parsed)
+            except Exception:
+                pass
+        return max(1.0, self._core_runtime_heartbeat_interval_s() * 2)
+
+    def _core_runtime_offline_after_s(self) -> float:
+        raw = str(os.getenv("HEXE_SUPERVISOR_CORE_HEARTBEAT_OFFLINE_S", "")).strip()
+        if raw:
+            try:
+                parsed = float(raw)
+                return max(self._core_runtime_stale_after_s() + 1.0, parsed)
+            except Exception:
+                pass
+        return max(self._core_runtime_stale_after_s() + 1.0, self._core_runtime_heartbeat_interval_s() * 5)
+
+    def _core_freshness_state(self, last_seen_at: str | None, *, health_status: str, runtime_state: str) -> str:
+        if str(runtime_state or "").strip().lower() == "error" or str(health_status or "").strip().lower() == "error":
+            return "error"
+        if not last_seen_at:
+            return "offline"
+        try:
+            seen = datetime.fromisoformat(str(last_seen_at).replace("Z", "+00:00"))
+        except Exception:
+            return "offline"
+        age_s = max(0.0, (datetime.now(timezone.utc) - seen).total_seconds())
+        if age_s >= self._core_runtime_offline_after_s():
+            return "offline"
+        if age_s >= self._core_runtime_stale_after_s():
+            return "stale"
+        return "online"
+
     def _registered_runtime_summary(self, record: SupervisorRuntimeNodeRecord) -> SupervisorRegisteredRuntimeSummary:
         merged = merge_runtime_identity(record, self._node_registrations_store)
         return SupervisorRegisteredRuntimeSummary(
@@ -251,7 +295,7 @@ class SupervisorDomainService:
             runtime_state=record.runtime_state,
             lifecycle_state=record.lifecycle_state,
             health_status=record.health_status,
-            freshness_state=self._freshness_state(
+            freshness_state=self._core_freshness_state(
                 record.last_seen_at,
                 health_status=record.health_status,
                 runtime_state=record.runtime_state,

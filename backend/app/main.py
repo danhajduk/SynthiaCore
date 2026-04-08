@@ -8,6 +8,7 @@ import os
 import socket
 from datetime import timedelta
 from pathlib import Path
+import httpx
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -104,6 +105,8 @@ from app.system.runtime import StandaloneRuntimeService
 from app.system.repo_status import router as repo_status_router
 from app.system.stack_health import build_stack_health_router, speed_sampler_loop
 from app.system.supervisor_status import build_supervisor_status_router
+from app.system.internal_scheduler import InternalScheduler
+from app.system.internal_scheduler_state_store import InternalSchedulerStateStore
 from app.system.scheduler import build_scheduler_router
 from app.store import CatalogCacheClient, build_store_models_router, StoreAuditLogStore, StoreSourcesStore, build_store_router
 from app.store.catalog import catalog_refresh_due
@@ -213,7 +216,26 @@ def create_app() -> FastAPI:
                 items = []
             return [item for item in items if isinstance(item, dict)]
 
-        def _collect_core_runtime_declarations() -> list[dict[str, object]]:
+        async def _probe_core_api_health() -> tuple[str, str | None]:
+            host = str(os.getenv("SYNTHIA_BACKEND_HOST", "127.0.0.1")).strip() or "127.0.0.1"
+            port = str(os.getenv("SYNTHIA_BACKEND_PORT", "9001")).strip() or "9001"
+            url = f"http://{host}:{port}/health"
+            try:
+                async with httpx.AsyncClient(timeout=2.0) as client:
+                    response = await client.get(url)
+                if response.status_code != 200:
+                    return "unhealthy", f"http_{response.status_code}"
+                payload = response.json()
+                status = str(payload.get("status") or "ok").strip().lower()
+                return ("healthy", None) if status == "ok" else ("unhealthy", f"status_{status}")
+            except Exception as exc:
+                return "unhealthy", str(exc)
+
+        def _collect_core_runtime_declarations(
+            *,
+            core_health_status: str,
+            core_last_error: str | None,
+        ) -> list[dict[str, object]]:
             hostname = socket.gethostname()
             items: list[dict[str, object]] = [
                 {
@@ -224,9 +246,10 @@ def create_app() -> FastAPI:
                     "host_id": hostname,
                     "hostname": hostname,
                     "desired_state": "running",
-                    "runtime_state": "running",
+                    "runtime_state": "running" if core_health_status == "healthy" else "error",
                     "lifecycle_state": "running",
-                    "health_status": "healthy",
+                    "health_status": core_health_status,
+                    "last_error": core_last_error,
                     "running": True,
                     "runtime_metadata": {"component": "core-api"},
                 }
@@ -270,38 +293,59 @@ def create_app() -> FastAPI:
                 merged[runtime_id] = item
             return list(merged.values())
 
-        async def core_runtime_supervisor_loop() -> None:
-            interval_s = 5.0
+        async def core_runtime_supervisor_job_once() -> dict[str, object]:
+            supervisor_client = getattr(app.state, "supervisor_client", None)
+            if supervisor_client is None:
+                raise ValueError("supervisor_client_unavailable")
+            health_status, last_error = await _probe_core_api_health()
+            payloads = _collect_core_runtime_declarations(
+                core_health_status=health_status,
+                core_last_error=last_error,
+            )
+            sent = 0
+            for payload in payloads:
+                await asyncio.to_thread(supervisor_client.register_core_runtime, payload)
+                heartbeat_payload = {
+                    "runtime_id": payload.get("runtime_id"),
+                    "host_id": payload.get("host_id"),
+                    "hostname": payload.get("hostname"),
+                    "runtime_state": payload.get("runtime_state"),
+                    "lifecycle_state": payload.get("lifecycle_state"),
+                    "health_status": payload.get("health_status"),
+                    "last_error": payload.get("last_error"),
+                    "running": payload.get("running"),
+                    "resource_usage": payload.get("resource_usage", {}),
+                    "runtime_metadata": payload.get("runtime_metadata", {}),
+                }
+                await asyncio.to_thread(supervisor_client.heartbeat_core_runtime, heartbeat_payload)
+                sent += 1
+            return {"status": "ok", "runtime_count": sent}
+
+        internal_scheduler = getattr(app.state, "internal_scheduler", None)
+        if internal_scheduler is not None and hasattr(internal_scheduler, "register_interval_task"):
+            interval_seconds = 5
             raw_interval = str(os.getenv("HEXE_SUPERVISOR_CORE_HEARTBEAT_S", "")).strip()
             if raw_interval:
                 try:
-                    interval_s = max(1.0, float(raw_interval))
+                    interval_seconds = max(1, int(float(raw_interval)))
                 except Exception:
-                    interval_s = 5.0
-            while True:
-                try:
-                    supervisor_client = getattr(app.state, "supervisor_client", None)
-                    if supervisor_client is not None:
-                        for payload in _collect_core_runtime_declarations():
-                            await asyncio.to_thread(supervisor_client.register_core_runtime, payload)
-                            heartbeat_payload = {
-                                "runtime_id": payload.get("runtime_id"),
-                                "host_id": payload.get("host_id"),
-                                "hostname": payload.get("hostname"),
-                                "runtime_state": payload.get("runtime_state"),
-                                "lifecycle_state": payload.get("lifecycle_state"),
-                                "health_status": payload.get("health_status"),
-                                "last_error": payload.get("last_error"),
-                                "running": payload.get("running"),
-                                "resource_usage": payload.get("resource_usage", {}),
-                                "runtime_metadata": payload.get("runtime_metadata", {}),
-                            }
-                            await asyncio.to_thread(supervisor_client.heartbeat_core_runtime, heartbeat_payload)
-                except Exception:
-                    log.exception("Core runtime supervisor heartbeat loop failed")
-                await asyncio.sleep(interval_s)
-
-        asyncio.create_task(core_runtime_supervisor_loop())
+                    interval_seconds = 5
+            schedule_name = "heartbeat_5_seconds" if interval_seconds == 5 else "interval_seconds"
+            schedule_detail = None if interval_seconds == 5 else f"Every {interval_seconds} seconds"
+            internal_scheduler.register_interval_task(
+                task_id="core_runtime_heartbeat",
+                display_name="Core Runtime Heartbeat",
+                interval_seconds=interval_seconds,
+                schedule_name=schedule_name,
+                schedule_detail=schedule_detail,
+                task_kind="local_recurring",
+                readiness_critical=False,
+            )
+            internal_scheduler.start_interval_task(
+                task_id="core_runtime_heartbeat",
+                coroutine_factory=core_runtime_supervisor_job_once,
+                initial_delay_seconds=1,
+            )
 
         async def store_catalog_refresh_loop() -> None:
             while True:
@@ -751,6 +795,14 @@ def create_app() -> FastAPI:
     app.state.node_telemetry_service = node_telemetry_service
     app.state.node_budget_store = node_budget_store
     app.state.node_budget_service = node_budget_service
+
+    internal_scheduler_state_store = InternalSchedulerStateStore(
+        path=os.path.join(os.getcwd(), "var", "internal_scheduler_state.json"),
+        logger=log,
+    )
+    internal_scheduler = InternalScheduler(logger=log, store=internal_scheduler_state_store)
+    app.state.internal_scheduler_state_store = internal_scheduler_state_store
+    app.state.internal_scheduler = internal_scheduler
 
     app.include_router(build_settings_router(settings_store, audit_store), prefix="/api/system", tags=["settings"])
     app.include_router(build_users_router(users_store, audit_store), prefix="/api/admin", tags=["admin-users"])

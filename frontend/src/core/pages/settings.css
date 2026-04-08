@@ -442,6 +442,27 @@
   opacity: 0.7;
 }
 
+.settings-led {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: hsl(var(--sx-text) / 0.3);
+  box-shadow: 0 0 0 2px hsl(var(--sx-bg) / 0.6);
+}
+
+.settings-led-ok {
+  background: hsl(var(--sx-success));
+}
+
+.settings-led-warn {
+  background: hsl(var(--sx-warning));
+}
+
+.settings-led-bad {
+  background: hsl(var(--sx-danger));
+}
+
 .settings-connectivity-config {
   margin-top: calc(var(--sx-space-3) + 2px);
   padding-top: 14px;

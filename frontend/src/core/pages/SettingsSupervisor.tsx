@@ -96,6 +96,20 @@ function displayState(value: unknown): string {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+function statusTone(state: unknown): "ok" | "warn" | "bad" | "neutral" {
+  const x = String(state || "unknown").toLowerCase();
+  if (["healthy", "connected", "running", "active", "reachable", "ok", "idle", "online"].includes(x)) return "ok";
+  if (["degraded", "unknown", "unavailable", "not_configured", "partial", "limited", "stale"].includes(x)) return "warn";
+  if (["unhealthy", "disconnected", "unreachable", "error", "failed", "down", "offline", "stopped"].includes(x)) {
+    return "bad";
+  }
+  return "neutral";
+}
+
+function StatusLed({ tone }: { tone: "ok" | "warn" | "bad" | "neutral" }) {
+  return <span className={`settings-led settings-led-${tone}`} />;
+}
+
 function fmtUptime(sec: number): string {
   const h = sec / 3600;
   if (h < 48) return `${h.toFixed(1)}h`;
@@ -301,6 +315,7 @@ export default function SettingsSupervisor() {
             <table className="settings-table">
               <thead>
                 <tr>
+                  <th />
                   <th>Name</th>
                   <th>ID</th>
                   <th>Kind</th>
@@ -313,6 +328,9 @@ export default function SettingsSupervisor() {
               <tbody>
                 {coreServices.map((runtime) => (
                   <tr key={String(runtime.runtime_id || runtime.runtime_name)}>
+                    <td>
+                      <StatusLed tone={statusTone(runtime.health_status || runtime.runtime_state)} />
+                    </td>
                     <td>{String(runtime.runtime_name || runtime.runtime_id || "Unnamed")}</td>
                     <td className="settings-mono">{String(runtime.runtime_id || "-")}</td>
                     <td>{displayState(runtime.runtime_kind)}</td>
@@ -340,6 +358,7 @@ export default function SettingsSupervisor() {
             <table className="settings-table">
               <thead>
                 <tr>
+                  <th />
                   <th>Name</th>
                   <th>ID</th>
                   <th>Type</th>
@@ -352,6 +371,9 @@ export default function SettingsSupervisor() {
               <tbody>
                 {nodeRuntimes.map((runtime) => (
                   <tr key={String(runtime.node_id || runtime.node_name)}>
+                    <td>
+                      <StatusLed tone={statusTone(runtime.freshness_state || runtime.health_status)} />
+                    </td>
                     <td>{String(runtime.node_name || runtime.node_id || "Unnamed")}</td>
                     <td className="settings-mono">{String(runtime.node_id || "-")}</td>
                     <td>{String(runtime.node_type || "-")}</td>
@@ -379,6 +401,7 @@ export default function SettingsSupervisor() {
             <table className="settings-table">
               <thead>
                 <tr>
+                  <th />
                   <th>Name</th>
                   <th>ID</th>
                   <th>Mode</th>
@@ -390,6 +413,9 @@ export default function SettingsSupervisor() {
               <tbody>
                 {addonRuntimes.map((runtime) => (
                   <tr key={String(runtime.runtime_id || runtime.runtime_name)}>
+                    <td>
+                      <StatusLed tone={statusTone(runtime.health_status || runtime.runtime_state)} />
+                    </td>
                     <td>{String(runtime.runtime_name || runtime.runtime_id || "Addon")}</td>
                     <td className="settings-mono">{String(runtime.runtime_id || "-")}</td>
                     <td>{displayState(runtime.management_mode)}</td>
