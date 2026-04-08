@@ -381,13 +381,21 @@ export default function SettingsSupervisor() {
 
   async function runNodeRuntimeAction(nodeId: string, action: "start" | "stop" | "restart") {
     if (!nodeId) return;
+    const services = nodeServicesByNode[nodeId] || [];
+    if (services.length === 0) return;
     setErr(null);
     setActionBusy((prev) => ({ ...prev, [nodeId]: action }));
     try {
-      const res = await fetch(`/api/supervisor/runtimes/${encodeURIComponent(nodeId)}/${action}`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const results = await Promise.all(
+        services.map((service) =>
+          fetch(
+            `/api/supervisor/runtimes/${encodeURIComponent(nodeId)}/services/${encodeURIComponent(service.service_id)}/${action}`,
+            { method: "POST" },
+          ),
+        ),
+      );
+      const failed = results.find((res) => !res.ok);
+      if (failed) throw new Error(`HTTP ${failed.status}`);
       await loadSummary();
     } catch (e: any) {
       setErr(e?.message ?? String(e));
