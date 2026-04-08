@@ -93,6 +93,8 @@ class ApiMetricsMiddleware(BaseHTTPMiddleware):
         collector: ApiMetricsCollector,
         exclude_prefixes=(
             "/api/system/stats",
+            "/api/system/stack/summary",
+            "/api/system/supervisor/summary",
             "/api/health",
             "/docs",
             "/openapi.json",
