@@ -57,6 +57,22 @@ class AddonRegistry:
     errors: Dict[str, str]
     enabled: Dict[str, bool]
     registered: Dict[str, RegisteredAddon]
+    _list_cache: tuple[float, list[dict]] | None = None
+    _list_cache_ttl_s: float = 10.0
+
+    def _list_cache_get(self) -> list[dict] | None:
+        if self._list_cache is None:
+            return None
+        ts, payload = self._list_cache
+        if (time.time() - ts) > self._list_cache_ttl_s:
+            return None
+        return payload
+
+    def _list_cache_set(self, payload: list[dict]) -> None:
+        self._list_cache = (time.time(), payload)
+
+    def invalidate_list_cache(self) -> None:
+        self._list_cache = None
 
     def is_enabled(self, addon_id: str) -> bool:
         return self.enabled.get(addon_id, True)
@@ -65,6 +81,7 @@ class AddonRegistry:
         self.enabled[addon_id] = enabled
         _save_addon_state(self.enabled)
         log.info("Addon '%s' set to %s", addon_id, "enabled" if enabled else "disabled")
+        self.invalidate_list_cache()
 
     def has_addon(self, addon_id: str) -> bool:
         return addon_id in self.addons or addon_id in self.registered
@@ -106,6 +123,7 @@ class AddonRegistry:
         if existed:
             del self.registered[addon_id]
             _save_registered_addons(self.registered)
+            self.invalidate_list_cache()
         return existed
 
     def update_from_mqtt_announce(self, addon_id: str, payload: dict) -> RegisteredAddon:
@@ -147,6 +165,7 @@ class AddonRegistry:
         addon.updated_at = now
         self.registered[addon_id] = addon
         _save_registered_addons(self.registered)
+        self.invalidate_list_cache()
         return addon
 
     def update_from_mqtt_health(self, addon_id: str, payload: dict) -> RegisteredAddon:
@@ -180,6 +199,7 @@ class AddonRegistry:
         addon.updated_at = now
         self.registered[addon_id] = addon
         _save_registered_addons(self.registered)
+        self.invalidate_list_cache()
         return addon
 
     @staticmethod
@@ -304,6 +324,7 @@ class AddonRegistry:
 
         self.registered[addon_id] = addon
         _save_registered_addons(self.registered)
+        self.invalidate_list_cache()
         return addon
 
     async def configure_registered(self, addon_id: str, config: dict[str, Any]) -> dict[str, Any]:
@@ -322,6 +343,7 @@ class AddonRegistry:
         addon.updated_at = _utcnow_iso()
         self.registered[addon_id] = addon
         _save_registered_addons(self.registered)
+        self.invalidate_list_cache()
         payload: dict[str, Any]
         try:
             data = resp.json()
@@ -356,6 +378,7 @@ class AddonRegistry:
         addon.updated_at = _utcnow_iso()
         self.registered[addon_id] = addon
         _save_registered_addons(self.registered)
+        self.invalidate_list_cache()
         return payload
 
     async def refresh_registered_health(self) -> None:
@@ -376,6 +399,7 @@ class AddonRegistry:
                 changed = True
         if changed:
             _save_registered_addons(self.registered)
+            self.invalidate_list_cache()
 
     async def _check_registered_contract_async(
         self,
@@ -546,6 +570,9 @@ def register_addons(app: FastAPI, registry: AddonRegistry) -> None:
         app.include_router(addon.router, prefix=prefix, dependencies=[Depends(_enabled_check)])
 
 def list_addons(registry: AddonRegistry) -> List[dict]:
+    cached = registry._list_cache_get()
+    if cached is not None:
+        return cached
     out: Dict[str, dict] = {}
 
     for addon in registry.list_registered():
@@ -594,4 +621,6 @@ def list_addons(registry: AddonRegistry) -> List[dict]:
             meta.setdefault("tls_warning", None)
             meta["discovery_source"] = "local"
             out[addon_id] = meta
-    return sorted(out.values(), key=lambda x: x["id"])
+    payload = sorted(out.values(), key=lambda x: x["id"])
+    registry._list_cache_set(payload)
+    return payload
