@@ -511,6 +511,17 @@ export default function SettingsSupervisor() {
             {nodeRuntimes.map((runtime) => {
               const nodeId = String(runtime.node_id || "");
               const services = nodeServicesByNode[nodeId] || [];
+              const servicesCpu = services.reduce(
+                (sum, service) => sum + (typeof service.cpu_percent === "number" ? service.cpu_percent : 0),
+                0,
+              );
+              const servicesMem = services.reduce(
+                (sum, service) => sum + (typeof service.mem_percent === "number" ? service.mem_percent : 0),
+                0,
+              );
+              const runtimeUsage = runtime as { resource_usage?: { cpu_percent?: number; mem_percent?: number } };
+              const nodeCpu = services.length > 0 ? servicesCpu : runtimeUsage.resource_usage?.cpu_percent;
+              const nodeMem = services.length > 0 ? servicesMem : runtimeUsage.resource_usage?.mem_percent;
               return (
                 <div key={`runtime:${nodeId || runtime.node_name}`} className="settings-card settings-node-card">
                   <div className="settings-node-header">
@@ -570,15 +581,11 @@ export default function SettingsSupervisor() {
                     </div>
                     <div>
                       <div className="settings-node-label">CPU</div>
-                      <strong>
-                        {formatPctValue((runtime as { resource_usage?: { cpu_percent?: number } }).resource_usage?.cpu_percent)}
-                      </strong>
+                      <strong>{formatPctValue(nodeCpu)}</strong>
                     </div>
                     <div>
                       <div className="settings-node-label">Mem</div>
-                      <strong>
-                        {formatPctValue((runtime as { resource_usage?: { mem_percent?: number } }).resource_usage?.mem_percent)}
-                      </strong>
+                      <strong>{formatPctValue(nodeMem)}</strong>
                     </div>
                   </div>
                   {expandedNodes[nodeId] && (
