@@ -6,6 +6,8 @@ import json
 import logging
 import os
 import socket
+import time
+import subprocess
 from datetime import timedelta
 from pathlib import Path
 import httpx
@@ -228,6 +230,70 @@ def create_app() -> FastAPI:
             except Exception as exc:
                 return "unhealthy", str(exc)
 
+        def _docker_stats_sync(container_names: list[str]) -> dict[str, dict[str, float]]:
+            if not container_names:
+                return {}
+            names = [str(name).strip() for name in container_names if str(name).strip()]
+            if not names:
+                return {}
+            try:
+                result = subprocess.run(
+                    [
+                        "docker",
+                        "stats",
+                        "--no-stream",
+                        "--format",
+                        "{{.Name}}\t{{.CPUPerc}}\t{{.MemPerc}}",
+                        *names,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=2.0,
+                    check=False,
+                )
+            except Exception:
+                return {}
+            if result.returncode != 0:
+                return {}
+            stats: dict[str, dict[str, float]] = {}
+            for line in (result.stdout or "").splitlines():
+                parts = [chunk.strip() for chunk in line.split("\t")]
+                if len(parts) < 3:
+                    continue
+                name, cpu_raw, mem_raw = parts[0], parts[1], parts[2]
+                if not name:
+                    continue
+                try:
+                    cpu = float(cpu_raw.replace("%", "").strip())
+                except Exception:
+                    cpu = 0.0
+                try:
+                    mem = float(mem_raw.replace("%", "").strip())
+                except Exception:
+                    mem = 0.0
+                stats[name] = {"cpu_percent": cpu, "mem_percent": mem}
+            return stats
+
+        async def _collect_container_stats(container_names: list[str]) -> dict[str, dict[str, float]]:
+            cache = getattr(app.state, "docker_stats_cache", None)
+            if not isinstance(cache, dict):
+                cache = {"ts": 0.0, "payload": {}}
+                setattr(app.state, "docker_stats_cache", cache)
+            ttl_s = 10.0
+            raw_ttl = str(os.getenv("HEXE_SUPERVISOR_CONTAINER_STATS_CACHE_S", "")).strip()
+            if raw_ttl:
+                try:
+                    ttl_s = max(1.0, float(raw_ttl))
+                except Exception:
+                    ttl_s = 10.0
+            now = time.time()
+            if cache.get("payload") and (now - float(cache.get("ts", 0.0))) <= ttl_s:
+                return dict(cache["payload"])
+            payload = await asyncio.to_thread(_docker_stats_sync, container_names)
+            cache["payload"] = payload
+            cache["ts"] = now
+            return dict(payload)
+
         async def _collect_core_aux_runtimes() -> list[dict[str, object]]:
             items: list[dict[str, object]] = []
             hostname = socket.gethostname()
@@ -251,6 +317,11 @@ def create_app() -> FastAPI:
             health_status = "healthy" if tunnel_status.healthy else ("unhealthy" if cloudflare_settings.enabled else "unknown")
             last_error = tunnel_status.last_error or cloudflare_settings.last_provision_error
             provider = str(os.getenv("SYNTHIA_CLOUDFLARED_PROVIDER", "auto")).strip().lower() or "auto"
+            container_name = (
+                str(os.getenv("SYNTHIA_CLOUDFLARED_CONTAINER_NAME", "hexe-cloudflared")).strip() or "hexe-cloudflared"
+            ) if provider == "docker" else None
+            stats = await _collect_container_stats([container_name] if container_name else [])
+            runtime_usage = stats.get(container_name or "", {}) if container_name else {}
 
             provisioning_state = getattr(cloudflare_settings.provisioning_state, "value", cloudflare_settings.provisioning_state)
             items.append(
@@ -267,6 +338,7 @@ def create_app() -> FastAPI:
                     "health_status": health_status,
                     "last_error": last_error,
                     "running": running,
+                    "resource_usage": runtime_usage,
                     "runtime_metadata": {
                         "component": "cloudflared",
                         "provider": provider,
@@ -277,6 +349,7 @@ def create_app() -> FastAPI:
                         "config_path": tunnel_status.config_path,
                         "provisioning_state": str(provisioning_state),
                         "last_provisioned_at": cloudflare_settings.last_provisioned_at,
+                        "container_name": container_name,
                     },
                 }
             )
@@ -298,6 +371,20 @@ def create_app() -> FastAPI:
                     except Exception:
                         log.exception("Failed to load MQTT runtime status for Supervisor registration")
 
+            container_names: list[str] = []
+            mqtt_container_name = str(os.getenv("SYNTHIA_MQTT_DOCKER_CONTAINER", "synthia-mqtt-broker"))
+            container_names.append(mqtt_container_name)
+            for addon in addons:
+                last_health = addon.get("last_health") if isinstance(addon.get("last_health"), dict) else {}
+                raw_containers = last_health.get("containers") if isinstance(last_health, dict) else None
+                if isinstance(raw_containers, list):
+                    for container in raw_containers:
+                        if isinstance(container, dict):
+                            name = str(container.get("name") or container.get("container_name") or "").strip()
+                            if name:
+                                container_names.append(name)
+            container_stats = await _collect_container_stats(container_names)
+
             items: list[dict[str, object]] = []
             for addon in addons:
                 addon_id = str(addon.get("id") or "").strip()
@@ -311,7 +398,8 @@ def create_app() -> FastAPI:
                 if isinstance(raw_containers, list):
                     containers = [item for item in raw_containers if isinstance(item, dict)]
                 if addon_id == "mqtt" and not containers and mqtt_status is not None:
-                    container_name = str(os.getenv("SYNTHIA_MQTT_DOCKER_CONTAINER", "synthia-mqtt-broker"))
+                    container_name = mqtt_container_name
+                    stats = container_stats.get(container_name, {})
                     containers = [
                         {
                             "name": container_name,
@@ -319,12 +407,25 @@ def create_app() -> FastAPI:
                             "healthy": bool(getattr(mqtt_status, "healthy", False)),
                             "provider": str(getattr(mqtt_status, "provider", "unknown")),
                             "degraded_reason": getattr(mqtt_status, "degraded_reason", None),
+                            "cpu_percent": stats.get("cpu_percent"),
+                            "mem_percent": stats.get("mem_percent"),
                         }
                     ]
+                for container in containers:
+                    name = str(container.get("name") or container.get("container_name") or "").strip()
+                    stats = container_stats.get(name, {})
+                    if stats:
+                        container.setdefault("cpu_percent", stats.get("cpu_percent"))
+                        container.setdefault("mem_percent", stats.get("mem_percent"))
                 running = health_status in {"ok", "healthy"}
                 if addon_id == "mqtt" and mqtt_status is not None:
                     running = bool(getattr(mqtt_status, "healthy", False))
                     health_status = "healthy" if running else "unhealthy"
+                primary_container = containers[0] if containers else {}
+                runtime_usage = {
+                    "cpu_percent": primary_container.get("cpu_percent"),
+                    "mem_percent": primary_container.get("mem_percent"),
+                } if containers else {}
                 items.append(
                     {
                         "runtime_id": f"addon:{addon_id}",
@@ -338,6 +439,7 @@ def create_app() -> FastAPI:
                         "lifecycle_state": "running" if running else "unknown",
                         "health_status": health_status,
                         "running": running,
+                        "resource_usage": runtime_usage,
                         "runtime_metadata": {
                             "addon_id": addon_id,
                             "version": addon.get("version"),
