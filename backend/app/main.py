@@ -216,7 +216,7 @@ def create_app() -> FastAPI:
         async def _probe_core_api_health() -> tuple[str, str | None]:
             host = str(os.getenv("SYNTHIA_BACKEND_HOST", "127.0.0.1")).strip() or "127.0.0.1"
             port = str(os.getenv("SYNTHIA_BACKEND_PORT", "9001")).strip() or "9001"
-            url = f"http://{host}:{port}/health"
+            url = f"http://{host}:{port}/api/health"
             try:
                 async with httpx.AsyncClient(timeout=2.0) as client:
                     response = await client.get(url)
