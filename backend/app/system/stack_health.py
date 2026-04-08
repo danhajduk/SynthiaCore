@@ -429,7 +429,6 @@ def build_stack_health_router() -> APIRouter:
         mqtt_runtime_boundary = getattr(request.app.state, "mqtt_runtime_boundary", None)
         mqtt_state_store = getattr(request.app.state, "mqtt_integration_state_store", None)
         mqtt_startup_reconciler = getattr(request.app.state, "mqtt_startup_reconciler", None)
-        scheduler_engine = getattr(request.app.state, "scheduler_engine", None)
         node_registrations_store = getattr(request.app.state, "node_registrations_store", None)
 
         core_state = "healthy"
@@ -544,23 +543,9 @@ def build_stack_health_router() -> APIRouter:
             except Exception:
                 pass
 
-        scheduler_state = "unknown"
+        scheduler_state = "disabled"
         active_leases = 0
         queued_jobs = 0
-        if scheduler_engine is not None:
-            try:
-                snapshot = await scheduler_engine.snapshot()
-                active_leases = int(getattr(snapshot, "active_leases", 0) or 0)
-                q = getattr(snapshot, "queue_depths", {}) or {}
-                queued_jobs = sum(int(v or 0) for v in q.values())
-                if active_leases > 0:
-                    scheduler_state = "running"
-                elif queued_jobs > 0:
-                    scheduler_state = "degraded"
-                else:
-                    scheduler_state = "idle"
-            except Exception:
-                scheduler_state = "unknown"
 
         installed_count = 0
         unhealthy_count = 0
@@ -643,8 +628,8 @@ def build_stack_health_router() -> APIRouter:
                     "queued_jobs": queued_jobs,
                 },
                 "workers": {
-                    "state": "active" if active_leases > 0 else "idle",
-                    "active_count": active_leases,
+                    "state": "disabled",
+                    "active_count": 0,
                 },
                 "addons": {
                     "state": "degraded" if unhealthy_count > 0 else "healthy",

@@ -93,16 +93,6 @@ def build_scheduler_router(
         execution_target = str(constraints.get("execution_target") or "").strip().lower()
         return target_runtime == "supervisor" or execution_target in {"host_local", "supervisor"}
 
-    @router.get("/internal")
-    def get_internal_scheduler(request: Request) -> dict[str, object]:
-        internal_scheduler = getattr(request.app.state, "internal_scheduler", None)
-        if internal_scheduler is None or not hasattr(internal_scheduler, "snapshot"):
-            return {"configured": False, "scheduler_status": "unavailable", "tasks": {}}
-        snapshot = internal_scheduler.snapshot()
-        if not isinstance(snapshot, dict):
-            return {"configured": False, "scheduler_status": "unavailable", "tasks": {}}
-        return {"configured": True, **snapshot}
-
     @router.on_event("startup")
     async def _startup() -> None:
         nonlocal expire_task

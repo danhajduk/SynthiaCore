@@ -50,9 +50,7 @@ from .api.admin import router as admin_router, configure_admin_users_store
 from .system.stats.router import router as stats_router
 
 # NEW: scheduler components
-from app.system.scheduler.store import SchedulerStore
-from app.system.scheduler.engine import SchedulerEngine
-from app.system.scheduler.history import SchedulerHistoryStore
+from app.system.internal_scheduler_router import build_internal_scheduler_router
 from app.system.settings.store import SettingsStore
 from app.system.settings.router import build_settings_router
 from app.system.platform_identity import default_platform_naming
@@ -107,7 +105,6 @@ from app.system.stack_health import build_stack_health_router, speed_sampler_loo
 from app.system.supervisor_status import build_supervisor_status_router
 from app.system.internal_scheduler import InternalScheduler
 from app.system.internal_scheduler_state_store import InternalSchedulerStateStore
-from app.system.scheduler import build_scheduler_router
 from app.store import CatalogCacheClient, build_store_models_router, StoreAuditLogStore, StoreSourcesStore, build_store_router
 from app.store.catalog import catalog_refresh_due
 
@@ -641,15 +638,6 @@ def create_app() -> FastAPI:
     # System stats routes
     app.include_router(stats_router, prefix="/api")
 
-    # --------------------
-    # Scheduler (NEW wiring)
-    # --------------------
-    store = SchedulerStore()
-    history_db = os.getenv(
-        "SCHEDULER_HISTORY_DB",
-        os.path.join(os.getcwd(), "var", "scheduler_history.db"),
-    )
-    history_store = SchedulerHistoryStore(history_db)
     settings_db = os.getenv(
         "APP_SETTINGS_DB",
         os.path.join(os.getcwd(), "var", "app_settings.db"),
@@ -722,23 +710,6 @@ def create_app() -> FastAPI:
     configure_admin_users_store(users_store)
     app.include_router(admin_router, prefix="/api")
 
-    def metrics_provider():
-        # SchedulerEngine will handle None/staleness conservatively.
-        return (
-            getattr(app.state, "latest_stats", None),
-            getattr(app.state, "latest_api_metrics", None),
-        )
-
-    engine = SchedulerEngine(
-        store=store,
-        metrics_provider=metrics_provider,
-        history_store=history_store,
-    )
-
-    # make available to the rest of the app (debugging / future hooks)
-    app.state.scheduler_store = store
-    app.state.scheduler_engine = engine
-    app.state.scheduler_history = history_store
     app.state.settings_store = settings_store
     app.state.service_token_keys = service_token_keys
     app.state.service_catalog_store = service_catalog_store
@@ -809,6 +780,7 @@ def create_app() -> FastAPI:
     app.include_router(repo_status_router, prefix="/api/system", tags=["repo"])
     app.include_router(build_stack_health_router(), prefix="/api/system", tags=["stack-health"])
     app.include_router(build_supervisor_status_router(), prefix="/api/system", tags=["supervisor"])
+    app.include_router(build_internal_scheduler_router(), prefix="/api/system", tags=["scheduler"])
 
     event_service = PlatformEventService()
     app.state.platform_events = event_service
@@ -826,16 +798,6 @@ def create_app() -> FastAPI:
         audit_store=audit_store,
     )
     app.state.edge_gateway_service = edge_gateway_service
-
-    scheduler_router = build_scheduler_router(
-        engine,
-        debug_enabled=bool(getattr(cfg_boot, "scheduler_debug_enabled", False)),
-        events=event_service,
-        supervisor_client=supervisor_client,
-        node_budget_service=node_budget_service,
-        audit_store=audit_store,
-    )
-    app.include_router(scheduler_router, prefix="/api/system/scheduler", tags=["scheduler"])
 
     # Addons
     log.info("Building addon registry and registering addons")
