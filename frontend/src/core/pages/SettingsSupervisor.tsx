@@ -52,6 +52,16 @@ type SupervisorSummary = {
   core_runtimes?: Array<Record<string, unknown>>;
 };
 
+type NodeServiceRow = {
+  node_id: string;
+  node_name: string;
+  service_id: string;
+  service_name: string;
+  service_state: string;
+  desired_state?: string;
+  health_status?: string;
+};
+
 type SystemStats = {
   hostname: string;
   uptime_s: number;
@@ -290,6 +300,56 @@ export default function SettingsSupervisor() {
       addonName: String(runtime.runtime_name || runtime.runtime_id || "Addon"),
     }));
   });
+  const nodeServices: NodeServiceRow[] = nodeRuntimes.flatMap((runtime) => {
+    const meta = (runtime as { runtime_metadata?: Record<string, unknown> }).runtime_metadata;
+    const services = meta && typeof meta === "object" ? (meta as { services?: unknown }).services : undefined;
+    if (!services) return [];
+    const nodeId = String(runtime.node_id || "");
+    const nodeName = String(runtime.node_name || runtime.node_id || "Node");
+    if (Array.isArray(services)) {
+      return services
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const svc = item as Record<string, unknown>;
+          const serviceId = String(svc.service_id || svc.id || svc.name || "");
+          if (!serviceId) return null;
+          return {
+            node_id: nodeId,
+            node_name: nodeName,
+            service_id: serviceId,
+            service_name: String(svc.service_name || svc.name || serviceId),
+            service_state: String(svc.service_state || svc.state || svc.status || "unknown"),
+            desired_state: svc.desired_state ? String(svc.desired_state) : undefined,
+            health_status: svc.health_status ? String(svc.health_status) : undefined,
+          } as NodeServiceRow;
+        })
+        .filter((item): item is NodeServiceRow => Boolean(item));
+    }
+    if (typeof services === "object") {
+      return Object.entries(services as Record<string, unknown>).map(([key, value]) => {
+        if (value && typeof value === "object") {
+          const svc = value as Record<string, unknown>;
+          return {
+            node_id: nodeId,
+            node_name: nodeName,
+            service_id: String(key),
+            service_name: String(svc.service_name || svc.name || key),
+            service_state: String(svc.service_state || svc.state || svc.status || "unknown"),
+            desired_state: svc.desired_state ? String(svc.desired_state) : undefined,
+            health_status: svc.health_status ? String(svc.health_status) : undefined,
+          };
+        }
+        return {
+          node_id: nodeId,
+          node_name: nodeName,
+          service_id: String(key),
+          service_name: String(key),
+          service_state: String(value || "unknown"),
+        };
+      });
+    }
+    return [];
+  });
 
   return (
     <div className="settings-page">
@@ -433,6 +493,46 @@ export default function SettingsSupervisor() {
                     <td>{formatPct((runtime as { resource_usage?: { error_rate?: number } }).resource_usage?.error_rate)}</td>
                     <td>{formatPctValue((runtime as { resource_usage?: { cpu_percent?: number } }).resource_usage?.cpu_percent)}</td>
                     <td>{formatPctValue((runtime as { resource_usage?: { mem_percent?: number } }).resource_usage?.mem_percent)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-head">
+          <h2>Node Services</h2>
+        </div>
+        <div className="settings-card">
+          {nodeServices.length === 0 ? (
+            <div className="settings-help">No node services reported yet.</div>
+          ) : (
+            <table className="settings-table">
+              <thead>
+                <tr>
+                  <th />
+                  <th>Node</th>
+                  <th>Service</th>
+                  <th>ID</th>
+                  <th>State</th>
+                  <th>Health</th>
+                  <th>Desired</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nodeServices.map((service) => (
+                  <tr key={`${service.node_id}:${service.service_id}`}>
+                    <td>
+                      <StatusLed tone={statusTone(service.health_status || service.service_state)} />
+                    </td>
+                    <td>{service.node_name}</td>
+                    <td>{service.service_name}</td>
+                    <td className="settings-mono">{service.service_id}</td>
+                    <td>{displayState(service.service_state)}</td>
+                    <td>{displayState(service.health_status)}</td>
+                    <td>{displayState(service.desired_state)}</td>
                   </tr>
                 ))}
               </tbody>
