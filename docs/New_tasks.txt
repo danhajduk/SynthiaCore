@@ -48,7 +48,6 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 794: Add Supervisor standalone API server entrypoint
 [TODO] Task 795: Add Supervisor service configuration and environment contract
 [TODO] Task 796: Add Supervisor systemd unit for API service (host-agnostic)
 [TODO] Task 797: Decouple Core from in-process Supervisor API wiring

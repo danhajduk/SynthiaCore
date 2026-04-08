@@ -848,3 +848,4 @@ Task 790: Add Core read-only integration for Supervisor-owned real Node runtime 
 Task 791: Add tests for Supervisor real Node registration, heartbeat, and freshness flows - Completed on 04/07/2026 19:18
 Task 792: Update Supervisor docs and schemas for the real Node runtime contract - Completed on 04/07/2026 19:18
 Task 793: Define Supervisor service boundary and external API host binding - Completed on 04/07/2026 22:00
+Task 794: Add Supervisor standalone API server entrypoint - Completed on 04/07/2026 22:08
