@@ -462,8 +462,6 @@ export default function SettingsSupervisor() {
                   <th>Err%</th>
                   <th>CPU</th>
                   <th>Mem</th>
-                  <th>Container</th>
-                  <th>Container State</th>
                 </tr>
               </thead>
               <tbody>
@@ -483,26 +481,6 @@ export default function SettingsSupervisor() {
                     <td>{formatPct((runtime as { resource_usage?: { error_rate?: number } }).resource_usage?.error_rate)}</td>
                     <td>{formatPct((runtime as { resource_usage?: { cpu_percent?: number } }).resource_usage?.cpu_percent)}</td>
                     <td>{formatPct((runtime as { resource_usage?: { mem_percent?: number } }).resource_usage?.mem_percent)}</td>
-                    <td>
-                      {(() => {
-                        const containers = (runtime as { runtime_metadata?: { containers?: Array<Record<string, unknown>> } })
-                          .runtime_metadata?.containers;
-                        if (Array.isArray(containers) && containers.length > 0) {
-                          return String(containers[0]?.name || containers[0]?.container_name || "-");
-                        }
-                        return "-";
-                      })()}
-                    </td>
-                    <td>
-                      {(() => {
-                        const containers = (runtime as { runtime_metadata?: { containers?: Array<Record<string, unknown>> } })
-                          .runtime_metadata?.containers;
-                        if (Array.isArray(containers) && containers.length > 0) {
-                          return displayState(containers[0]?.status || containers[0]?.state || "-");
-                        }
-                        return "-";
-                      })()}
-                    </td>
                   </tr>
                 ))}
               </tbody>
