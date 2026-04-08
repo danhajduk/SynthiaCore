@@ -29,6 +29,7 @@ const addonItemsCore: NavItem[] = [
 const storeItems: NavItem[] = [{ label: "Store", path: "/store" }];
 const systemItems: NavItem[] = [
   { label: "Settings", path: "/settings" },
+  { label: "Supervisor", path: "/settings/supervisor" },
   { label: "Edge Gateway", path: "/settings/edge" },
   { label: "Scheduler Jobs", path: "/settings/jobs" },
   { label: "System Metrics", path: "/settings/metrics" },
