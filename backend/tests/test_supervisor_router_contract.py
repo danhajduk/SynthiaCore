@@ -15,6 +15,8 @@ from app.supervisor import (
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
     SupervisorOwnershipBoundary,
+    SupervisorRegisteredRuntimeSummary,
+    SupervisorRuntimeActionResult,
     SupervisorRuntimeSummary,
     build_supervisor_router,
 )
@@ -108,6 +110,41 @@ class _FakeSupervisorService:
     def restart_managed_node(self, node_id: str) -> SupervisorNodeActionResult:
         return SupervisorNodeActionResult(action="restart", node=self._node())
 
+    def _runtime(self) -> SupervisorRegisteredRuntimeSummary:
+        return SupervisorRegisteredRuntimeSummary(
+            node_id="node-1",
+            node_name="office-node",
+            node_type="ai",
+            desired_state="running",
+            runtime_state="running",
+            lifecycle_state="running",
+            health_status="healthy",
+            freshness_state="online",
+            host_id="host-a",
+            hostname="host-a",
+        )
+
+    def list_registered_runtimes(self) -> list[SupervisorRegisteredRuntimeSummary]:
+        return [self._runtime()]
+
+    def get_registered_runtime(self, node_id: str) -> SupervisorRegisteredRuntimeSummary:
+        return self._runtime()
+
+    def register_runtime(self, body) -> SupervisorRegisteredRuntimeSummary:
+        return self._runtime()
+
+    def heartbeat_runtime(self, body) -> SupervisorRegisteredRuntimeSummary:
+        return self._runtime()
+
+    def start_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
+        return SupervisorRuntimeActionResult(action="start", runtime=self._runtime())
+
+    def stop_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
+        return SupervisorRuntimeActionResult(action="stop", runtime=self._runtime())
+
+    def restart_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
+        return SupervisorRuntimeActionResult(action="restart", runtime=self._runtime())
+
 
 class TestSupervisorRouterContract(unittest.TestCase):
     def test_supervisor_host_api_surface(self) -> None:
@@ -125,6 +162,11 @@ class TestSupervisorRouterContract(unittest.TestCase):
         self.assertEqual(client.post("/api/supervisor/nodes/mqtt/start").json()["action"], "start")
         self.assertEqual(client.post("/api/supervisor/nodes/mqtt/stop").json()["action"], "stop")
         self.assertEqual(client.post("/api/supervisor/nodes/mqtt/restart").json()["action"], "restart")
+        self.assertEqual(client.get("/api/supervisor/runtimes").json()["items"][0]["node_id"], "node-1")
+        self.assertEqual(client.get("/api/supervisor/runtimes/node-1").json()["runtime"]["node_name"], "office-node")
+        self.assertEqual(client.post("/api/supervisor/runtimes/register", json={"node_id": "node-1", "node_name": "office-node", "node_type": "ai"}).json()["node_id"], "node-1")
+        self.assertEqual(client.post("/api/supervisor/runtimes/heartbeat", json={"node_id": "node-1"}).json()["node_id"], "node-1")
+        self.assertEqual(client.post("/api/supervisor/runtimes/node-1/start").json()["action"], "start")
 
 
 if __name__ == "__main__":

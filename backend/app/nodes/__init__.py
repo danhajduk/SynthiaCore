@@ -5,6 +5,7 @@ from .models import (
     NodeCapabilityTaxonomySummary,
     NodeRecord,
     NodeRegistryListResponse,
+    NodeRuntimeSummary,
     NodeStatusSummary,
 )
 from .models_resolution import (
@@ -27,6 +28,7 @@ __all__ = [
     "NodeRecord",
     "NodeRegistry",
     "NodeRegistryListResponse",
+    "NodeRuntimeSummary",
     "NodeStatusSummary",
     "TaskExecutionResolutionRequest",
     "TaskExecutionResolutionCandidate",

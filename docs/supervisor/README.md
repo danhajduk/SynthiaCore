@@ -57,6 +57,7 @@ Supervisor may grow into these areas later, but they are not implemented today:
 - [domain-models.md](./domain-models.md)
 - [lifecycle-control.md](./lifecycle-control.md)
 - [workload-admission.md](./workload-admission.md)
+- [architecture-gap.md](./architecture-gap.md)
 
 ## See Also
 

@@ -137,3 +137,43 @@ Original task detail preserved from the queue update added after queue normaliza
 Implementation note:
 
 - Completed by switching Edge Gateway and Cloudflare rendering to a single canonical public hostname with reserved Core-owned path roots and path-based ingress routing.
+
+## Task 782-792
+Original task details preserved from the Milestone 1 Supervisor planning block requested for `docs/New_tasks.txt`.
+
+Active normalized queue entries:
+
+- Task 782: Define Supervisor-owned runtime models for real Nodes
+- Task 783: Add Supervisor runtime registration store for real Nodes
+- Task 784: Add Supervisor runtime registration API for real Nodes
+- Task 785: Add Supervisor runtime heartbeat API for real Nodes
+- Task 786: Add freshness evaluation for Supervisor-managed real Nodes
+- Task 787: Expose Supervisor runtime list and detail APIs for real Nodes
+- Task 788: Add Supervisor lifecycle action APIs for real Nodes
+- Task 789: Keep standalone addon runtime summaries separate from real Node runtime summaries
+- Task 790: Add Core read-only integration for Supervisor-owned real Node runtime truth
+- Task 791: Add tests for Supervisor real Node registration, heartbeat, and freshness flows
+- Task 792: Update Supervisor docs and schemas for the real Node runtime contract
+
+Preserved details:
+
+- The milestone goal is to make Supervisor the first host-local authority that real Nodes talk to for registration, heartbeat, and runtime state, while keeping Core as governance, trust, and orchestration authority.
+- Task 782 covers first-class Supervisor-managed real Node models and must keep them separate from compatibility-era standalone addon runtime models. The model set should include node identity, host identity, registration payload, heartbeat payload, runtime status payload, action result payload, and freshness or last-seen metadata.
+- Task 783 covers a Supervisor-owned persistence layer for runtime registration and state, separate from Core onboarding registration data. It should store node id, node type, host-local runtime metadata, lifecycle state, heartbeat timestamps, health status, and last error.
+- Task 784 covers `POST /api/supervisor/runtimes/register`, including validation, upsert behavior, and normalized Supervisor-owned runtime identity output.
+- Task 785 covers `POST /api/supervisor/runtimes/heartbeat`, including updates to last-seen time, health state, runtime state, and optional resource or diagnostic fields, while rejecting heartbeats from unknown nodes.
+- Task 786 covers freshness state computation for online, stale, offline, and error conditions, plus configurable timeout defaults and exposure of freshness in Supervisor summaries.
+- Task 787 covers `GET /api/supervisor/runtimes` and `GET /api/supervisor/runtimes/{node_id}` so real Node runtimes can be inspected without overloading standalone addon routes.
+- Task 788 covers `POST /api/supervisor/runtimes/{node_id}/start`, `stop`, and `restart` for the real Node contract while preserving the existing standalone addon lifecycle routes during transition.
+- Task 789 covers explicit separation of real Node runtime summaries from compatibility standalone addon summaries so the Supervisor API no longer treats standalone addon runtimes as if they were real Nodes.
+- Task 790 covers read-only Core integration so Core can consume Supervisor-owned runtime truth for real Nodes without moving trust, onboarding approval, governance, capability registry, or scheduling out of Core in this milestone.
+- Task 791 covers model validation tests, Supervisor route tests, registration store tests, heartbeat freshness tests, error handling for missing or unregistered nodes, and regression coverage to ensure standalone addon flows continue to work.
+- Task 792 covers the minimum documentation and schema updates needed after implementation, specifically in `docs/supervisor/domain-models.md`, `docs/supervisor/runtime-and-supervision.md`, `docs/supervisor/architecture-gap.md`, and relevant schema files under `docs/json_schema/`.
+
+Definition of done preserved from the original planning block:
+
+- A real Node can register with Supervisor.
+- A real Node can heartbeat to Supervisor.
+- Supervisor can report fresh, stale, or offline runtime state for that Node.
+- Core can consume Supervisor runtime truth without taking over host-local runtime ownership.
+- Existing standalone addon Supervisor behavior remains functional.

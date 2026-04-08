@@ -50,6 +50,27 @@ class NodeStatusSummary(BaseModel):
     governance_outdated: bool = False
 
 
+class NodeRuntimeSummary(BaseModel):
+    source: str = "supervisor"
+    runtime_kind: str = "real_node"
+    desired_state: str
+    runtime_state: str
+    lifecycle_state: str
+    health_status: str
+    freshness_state: str = "unknown"
+    host_id: str | None = None
+    hostname: str | None = None
+    api_base_url: str | None = None
+    ui_base_url: str | None = None
+    last_seen_at: str | None = None
+    last_action: str | None = None
+    last_action_at: str | None = None
+    last_error: str | None = None
+    running: bool | None = None
+    resource_usage: dict[str, object] = Field(default_factory=dict)
+    runtime_metadata: dict[str, object] = Field(default_factory=dict)
+
+
 class NodeRecord(BaseModel):
     node_id: str
     node_name: str
@@ -72,6 +93,7 @@ class NodeRecord(BaseModel):
     provider_intelligence: list[dict[str, object]] = Field(default_factory=list)
     capabilities: NodeCapabilitySummary = Field(default_factory=NodeCapabilitySummary)
     status: NodeStatusSummary = Field(default_factory=NodeStatusSummary)
+    runtime: NodeRuntimeSummary | None = None
 
     @field_validator("ui_base_url")
     @classmethod

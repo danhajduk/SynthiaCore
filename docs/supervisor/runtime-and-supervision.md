@@ -8,6 +8,15 @@ Status: Implemented
 - Supervisor reports host resources and process state through `/api/supervisor/health`, `/api/supervisor/resources`, and `/api/supervisor/runtime`.
 - Supervisor produces admission context through `/api/supervisor/admission`.
 - Supervisor lists standalone addon runtime state and performs start/stop/restart actions through `/api/supervisor/nodes` and the corresponding node action routes.
+- Supervisor now also owns a separate runtime contract for real Nodes through:
+  - `POST /api/supervisor/runtimes/register`
+  - `POST /api/supervisor/runtimes/heartbeat`
+  - `GET /api/supervisor/runtimes`
+  - `GET /api/supervisor/runtimes/{node_id}`
+  - `POST /api/supervisor/runtimes/{node_id}/start`
+  - `POST /api/supervisor/runtimes/{node_id}/stop`
+  - `POST /api/supervisor/runtimes/{node_id}/restart`
+- Supervisor computes heartbeat freshness for real Nodes as `online`, `stale`, `offline`, or `error` based on the locally tracked runtime record.
 - Standalone addon realization is compose-based today through `compose_up` and `compose_down` in `backend/app/supervisor/service.py`.
 
 ## Restart Semantics Boundary
@@ -28,6 +37,7 @@ Status: Implemented
 
 - Store lifecycle writes desired/runtime-linked state for addon deployment outcomes.
 - Runtime status and diagnostics APIs expose deployment/runtime realization status.
+- Core Node registry views can now consume Supervisor-owned runtime truth for real Nodes in read-only form without moving governance ownership out of Core.
 
 ## Explicit Non-Goals
 
@@ -40,6 +50,7 @@ Supervisor does not currently implement:
 - general service supervision outside Hexe-managed runtimes
 - firewall or network policy control
 - non-Hexe orchestration
+- arbitrary third-party container lifecycle control outside explicit Hexe-managed runtimes
 
 ## Future Expansion Path
 

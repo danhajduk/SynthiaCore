@@ -9,6 +9,7 @@ This document defines the current Supervisor domain models exposed by the migrat
 - `backend/app/supervisor/models.py`
 - `backend/app/supervisor/service.py`
 - `backend/app/supervisor/router.py`
+- `backend/app/supervisor/runtime_store.py`
 
 ## Models
 
@@ -47,6 +48,90 @@ Current implementation reuses the existing Core stats collector as a compatibili
 - `running`
 
 Current implementation maps host-local standalone addon runtimes into the Supervisor-managed node summary model.
+
+### SupervisorRegisteredRuntimeSummary
+
+Status: Implemented
+
+This model represents a real Supervisor-managed Node runtime and is separate from the compatibility-era standalone addon runtime summary model.
+
+Returned by:
+
+- `POST /api/supervisor/runtimes/register`
+- `POST /api/supervisor/runtimes/heartbeat`
+- `GET /api/supervisor/runtimes/{node_id}`
+
+Included in:
+
+- `GET /api/supervisor/runtimes`
+
+Fields include:
+
+- `node_id`
+- `node_name`
+- `node_type`
+- `runtime_kind`
+- `desired_state`
+- `runtime_state`
+- `lifecycle_state`
+- `health_status`
+- `freshness_state`
+- `host_id`
+- `hostname`
+- `api_base_url`
+- `ui_base_url`
+- `health_detail`
+- `registered_at`
+- `updated_at`
+- `last_seen_at`
+- `last_action`
+- `last_action_at`
+- `last_error`
+- `running`
+- `resource_usage`
+- `runtime_metadata`
+
+### SupervisorRuntimeRegistrationRequest
+
+Status: Implemented
+
+Accepted by:
+
+- `POST /api/supervisor/runtimes/register`
+
+Purpose:
+
+- register or refresh a real Node runtime with the local Supervisor
+- establish the Supervisor-owned runtime identity and local state view
+
+### SupervisorRuntimeHeartbeatRequest
+
+Status: Implemented
+
+Accepted by:
+
+- `POST /api/supervisor/runtimes/heartbeat`
+
+Purpose:
+
+- refresh runtime liveness
+- update runtime state, health, and resource usage
+- keep heartbeat freshness under Supervisor ownership
+
+### SupervisorRuntimeActionResult
+
+Status: Implemented
+
+Returned by:
+
+- `POST /api/supervisor/runtimes/{node_id}/start`
+- `POST /api/supervisor/runtimes/{node_id}/stop`
+- `POST /api/supervisor/runtimes/{node_id}/restart`
+
+Includes:
+
+- `action`
+- `runtime`
 
 ## Compatibility Service Boundary
 
@@ -143,6 +228,13 @@ Current Supervisor routes:
 - `POST /api/supervisor/nodes/{node_id}/start`
 - `POST /api/supervisor/nodes/{node_id}/stop`
 - `POST /api/supervisor/nodes/{node_id}/restart`
+- `POST /api/supervisor/runtimes/register`
+- `POST /api/supervisor/runtimes/heartbeat`
+- `GET /api/supervisor/runtimes`
+- `GET /api/supervisor/runtimes/{node_id}`
+- `POST /api/supervisor/runtimes/{node_id}/start`
+- `POST /api/supervisor/runtimes/{node_id}/stop`
+- `POST /api/supervisor/runtimes/{node_id}/restart`
 
 ## Ownership Boundary
 
@@ -152,6 +244,10 @@ Current Supervisor ownership:
 - admission context reporting
 - host-local standalone runtime realization
 - standalone workload lifecycle execution
+- real Node runtime registration
+- real Node heartbeat freshness tracking
+- real Node runtime state projection
+- real Node runtime action intent tracking
 
 Current Core-owned dependencies:
 

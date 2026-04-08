@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.system.onboarding import NodeGovernanceStatusService, NodeRegistrationsStore, node_registry_payload
+from app.supervisor.runtime_store import SupervisorRuntimeNodesStore
 
 from .models import (
     NodeCapabilityActivationSummary,
@@ -8,6 +9,7 @@ from .models import (
     NodeCapabilitySummary,
     NodeCapabilityTaxonomySummary,
     NodeRecord,
+    NodeRuntimeSummary,
     NodeStatusSummary,
 )
 
@@ -86,23 +88,55 @@ def _node_record_from_payload(payload: dict[str, object]) -> NodeRecord:
     )
 
 
+def _runtime_summary_from_store(runtime_store: SupervisorRuntimeNodesStore | None, node_id: str) -> NodeRuntimeSummary | None:
+    if runtime_store is None:
+        return None
+    runtime = runtime_store.get(node_id)
+    if runtime is None:
+        return None
+    return NodeRuntimeSummary(
+        desired_state=runtime.desired_state,
+        runtime_state=runtime.runtime_state,
+        lifecycle_state=runtime.lifecycle_state,
+        health_status=runtime.health_status,
+        freshness_state=runtime.freshness_state,
+        host_id=runtime.host_id,
+        hostname=runtime.hostname,
+        api_base_url=runtime.api_base_url,
+        ui_base_url=runtime.ui_base_url,
+        last_seen_at=runtime.last_seen_at,
+        last_action=runtime.last_action,
+        last_action_at=runtime.last_action_at,
+        last_error=runtime.last_error,
+        running=runtime.running,
+        resource_usage=dict(runtime.resource_usage or {}),
+        runtime_metadata=dict(runtime.runtime_metadata or {}),
+    )
+
+
 class NodeRegistry:
     def __init__(
         self,
         registrations_store: NodeRegistrationsStore | None = None,
         node_governance_status_service: NodeGovernanceStatusService | None = None,
+        runtime_store: SupervisorRuntimeNodesStore | None = None,
     ) -> None:
         self._registrations_store = registrations_store or NodeRegistrationsStore()
         self._node_governance_status_service = node_governance_status_service
+        self._runtime_store = runtime_store
 
     def list(self) -> list[NodeRecord]:
-        return [
-            _node_record_from_payload(node_registry_payload(item, self._node_governance_status_service))
-            for item in self._registrations_store.list()
-        ]
+        items: list[NodeRecord] = []
+        for item in self._registrations_store.list():
+            record = _node_record_from_payload(node_registry_payload(item, self._node_governance_status_service))
+            record.runtime = _runtime_summary_from_store(self._runtime_store, record.node_id)
+            items.append(record)
+        return items
 
     def get(self, node_id: str) -> NodeRecord | None:
         item = self._registrations_store.get(node_id)
         if item is None:
             return None
-        return _node_record_from_payload(node_registry_payload(item, self._node_governance_status_service))
+        record = _node_record_from_payload(node_registry_payload(item, self._node_governance_status_service))
+        record.runtime = _runtime_summary_from_store(self._runtime_store, record.node_id)
+        return record

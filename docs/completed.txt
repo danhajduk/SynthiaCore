@@ -836,3 +836,14 @@ Task 778: Add canonical node api_base_url onboarding and registration metadata -
 Task 779: Route node API proxy through canonical api_base_url metadata - Completed on 03/22/2026 16:55
 Task 780: Expose node api_base_url in admin/operator UI surfaces - Completed on 03/22/2026 16:57
 Task 781: Document and schema-update the canonical node API metadata contract - Completed on 03/22/2026 16:58
+Task 782: Define Supervisor-owned runtime models for real Nodes - Completed on 04/07/2026 19:18
+Task 783: Add Supervisor runtime registration store for real Nodes - Completed on 04/07/2026 19:18
+Task 784: Add Supervisor runtime registration API for real Nodes - Completed on 04/07/2026 19:18
+Task 785: Add Supervisor runtime heartbeat API for real Nodes - Completed on 04/07/2026 19:18
+Task 786: Add freshness evaluation for Supervisor-managed real Nodes - Completed on 04/07/2026 19:18
+Task 787: Expose Supervisor runtime list and detail APIs for real Nodes - Completed on 04/07/2026 19:18
+Task 788: Add Supervisor lifecycle action APIs for real Nodes - Completed on 04/07/2026 19:18
+Task 789: Keep standalone addon runtime summaries separate from real Node runtime summaries - Completed on 04/07/2026 19:18
+Task 790: Add Core read-only integration for Supervisor-owned real Node runtime truth - Completed on 04/07/2026 19:18
+Task 791: Add tests for Supervisor real Node registration, heartbeat, and freshness flows - Completed on 04/07/2026 19:18
+Task 792: Update Supervisor docs and schemas for the real Node runtime contract - Completed on 04/07/2026 19:18

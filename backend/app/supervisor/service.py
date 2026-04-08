@@ -9,6 +9,9 @@ from datetime import datetime, timezone
 from typing import Any
 from pathlib import Path
 
+from fastapi import HTTPException
+
+from app.system.onboarding import NodeRegistrationsStore
 from app.system.runtime import StandaloneRuntimeService
 from app.system.stats.models import SystemStats, SystemStatsSnapshot
 from app.system.stats.service import collect_process_stats, collect_system_snapshot, collect_system_stats
@@ -24,13 +27,26 @@ from .models import (
     SupervisorInfoSummary,
     SupervisorNodeActionResult,
     SupervisorOwnershipBoundary,
+    SupervisorRegisteredRuntimeSummary,
+    SupervisorRuntimeActionResult,
+    SupervisorRuntimeHeartbeatRequest,
+    SupervisorRuntimeRegistrationRequest,
     SupervisorRuntimeSummary,
 )
+from .runtime_nodes import merge_runtime_identity
+from .runtime_store import SupervisorRuntimeNodeRecord, SupervisorRuntimeNodesStore
 
 
 class SupervisorDomainService:
-    def __init__(self, runtime_service: StandaloneRuntimeService | None = None) -> None:
+    def __init__(
+        self,
+        runtime_service: StandaloneRuntimeService | None = None,
+        runtime_nodes_store: SupervisorRuntimeNodesStore | None = None,
+        node_registrations_store: NodeRegistrationsStore | None = None,
+    ) -> None:
         self._runtime_service = runtime_service or StandaloneRuntimeService()
+        self._runtime_nodes_store = runtime_nodes_store or SupervisorRuntimeNodesStore()
+        self._node_registrations_store = node_registrations_store
 
     def _runtime_provider(self) -> str:
         return str(os.getenv("SYNTHIA_MQTT_RUNTIME_PROVIDER", "docker")).strip().lower() or "docker"
@@ -77,6 +93,130 @@ class SupervisorDomainService:
             )
             for item in runtimes
         ]
+
+    def _runtime_stale_after_s(self) -> int:
+        raw = str(os.getenv("SYNTHIA_SUPERVISOR_NODE_HEARTBEAT_STALE_S", "60")).strip()
+        try:
+            parsed = int(raw)
+        except Exception:
+            return 60
+        return max(1, parsed)
+
+    def _runtime_offline_after_s(self) -> int:
+        raw = str(os.getenv("SYNTHIA_SUPERVISOR_NODE_HEARTBEAT_OFFLINE_S", "180")).strip()
+        try:
+            parsed = int(raw)
+        except Exception:
+            return 180
+        return max(self._runtime_stale_after_s() + 1, parsed)
+
+    def _freshness_state(self, last_seen_at: str | None, *, health_status: str, runtime_state: str) -> str:
+        if str(runtime_state or "").strip().lower() == "error" or str(health_status or "").strip().lower() == "error":
+            return "error"
+        if not last_seen_at:
+            return "offline"
+        try:
+            seen = datetime.fromisoformat(str(last_seen_at).replace("Z", "+00:00"))
+        except Exception:
+            return "offline"
+        age_s = max(0.0, (datetime.now(timezone.utc) - seen).total_seconds())
+        if age_s >= self._runtime_offline_after_s():
+            return "offline"
+        if age_s >= self._runtime_stale_after_s():
+            return "stale"
+        return "online"
+
+    def _registered_runtime_summary(self, record: SupervisorRuntimeNodeRecord) -> SupervisorRegisteredRuntimeSummary:
+        merged = merge_runtime_identity(record, self._node_registrations_store)
+        return SupervisorRegisteredRuntimeSummary(
+            node_id=merged.node_id,
+            node_name=merged.node_name,
+            node_type=merged.node_type,
+            desired_state=merged.desired_state,
+            runtime_state=merged.runtime_state,
+            lifecycle_state=merged.lifecycle_state,
+            health_status=merged.health_status,
+            freshness_state=self._freshness_state(
+                merged.last_seen_at,
+                health_status=merged.health_status,
+                runtime_state=merged.runtime_state,
+            ),
+            host_id=merged.host_id,
+            hostname=merged.hostname,
+            api_base_url=merged.api_base_url,
+            ui_base_url=merged.ui_base_url,
+            health_detail=merged.health_detail,
+            registered_at=merged.registered_at,
+            updated_at=merged.updated_at,
+            last_seen_at=merged.last_seen_at,
+            last_action=merged.last_action,
+            last_action_at=merged.last_action_at,
+            last_error=merged.last_error,
+            running=merged.running,
+            resource_usage=dict(merged.resource_usage or {}),
+            runtime_metadata=dict(merged.runtime_metadata or {}),
+        )
+
+    def list_registered_runtimes(self) -> list[SupervisorRegisteredRuntimeSummary]:
+        return [self._registered_runtime_summary(item) for item in self._runtime_nodes_store.list()]
+
+    def get_registered_runtime(self, node_id: str) -> SupervisorRegisteredRuntimeSummary:
+        record = self._runtime_nodes_store.get(node_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="runtime_not_registered")
+        return self._registered_runtime_summary(record)
+
+    def register_runtime(self, payload: SupervisorRuntimeRegistrationRequest) -> SupervisorRegisteredRuntimeSummary:
+        record = self._runtime_nodes_store.upsert_registration(payload=payload.model_dump())
+        return self._registered_runtime_summary(record)
+
+    def heartbeat_runtime(self, payload: SupervisorRuntimeHeartbeatRequest) -> SupervisorRegisteredRuntimeSummary:
+        record = self._runtime_nodes_store.apply_heartbeat(payload.node_id, payload=payload.model_dump())
+        if record is None:
+            raise HTTPException(status_code=404, detail="runtime_not_registered")
+        return self._registered_runtime_summary(record)
+
+    def _registered_runtime_action(
+        self,
+        node_id: str,
+        *,
+        action: str,
+        desired_state: str,
+        lifecycle_state: str,
+    ) -> SupervisorRuntimeActionResult:
+        record = self._runtime_nodes_store.apply_action(
+            node_id,
+            action=action,
+            desired_state=desired_state,
+            lifecycle_state=lifecycle_state,
+        )
+        if record is None:
+            raise HTTPException(status_code=404, detail="runtime_not_registered")
+        return SupervisorRuntimeActionResult(action=action, runtime=self._registered_runtime_summary(record))
+
+    def start_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
+        return self._registered_runtime_action(
+            node_id,
+            action="start",
+            desired_state="running",
+            lifecycle_state="starting",
+        )
+
+    def stop_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
+        return self._registered_runtime_action(
+            node_id,
+            action="stop",
+            desired_state="stopped",
+            lifecycle_state="stopping",
+        )
+
+    def restart_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
+        return self._registered_runtime_action(
+            node_id,
+            action="restart",
+            desired_state="running",
+            lifecycle_state="restarting",
+        )
 
     def system_stats(self, *, api_metrics=None) -> SystemStats:
         return collect_system_stats(api_metrics=api_metrics)

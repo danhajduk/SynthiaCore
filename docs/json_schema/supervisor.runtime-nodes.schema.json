@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Canonical JSON Schema for the Supervisor real Node runtime contract used by /api/supervisor/runtimes/*.",
+  "schemas": {
+    "SupervisorRuntimeRegistrationRequest": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": [
+        "node_id",
+        "node_name",
+        "node_type"
+      ],
+      "properties": {
+        "node_id": { "type": "string" },
+        "node_name": { "type": "string" },
+        "node_type": { "type": "string" },
+        "host_id": { "type": ["string", "null"] },
+        "hostname": { "type": ["string", "null"] },
+        "api_base_url": { "type": ["string", "null"] },
+        "ui_base_url": { "type": ["string", "null"] },
+        "desired_state": { "type": "string", "default": "running" },
+        "runtime_state": { "type": "string", "default": "running" },
+        "lifecycle_state": { "type": "string", "default": "running" },
+        "health_status": { "type": "string", "default": "unknown" },
+        "health_detail": { "type": ["string", "null"] },
+        "last_error": { "type": ["string", "null"] },
+        "running": { "type": ["boolean", "null"], "default": true },
+        "resource_usage": { "type": "object", "default": {} },
+        "runtime_metadata": { "type": "object", "default": {} }
+      }
+    },
+    "SupervisorRuntimeHeartbeatRequest": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": [
+        "node_id"
+      ],
+      "properties": {
+        "node_id": { "type": "string" },
+        "host_id": { "type": ["string", "null"] },
+        "hostname": { "type": ["string", "null"] },
+        "api_base_url": { "type": ["string", "null"] },
+        "ui_base_url": { "type": ["string", "null"] },
+        "runtime_state": { "type": ["string", "null"] },
+        "lifecycle_state": { "type": ["string", "null"] },
+        "health_status": { "type": ["string", "null"] },
+        "health_detail": { "type": ["string", "null"] },
+        "last_error": { "type": ["string", "null"] },
+        "running": { "type": ["boolean", "null"] },
+        "resource_usage": { "type": "object", "default": {} },
+        "runtime_metadata": { "type": "object", "default": {} }
+      }
+    },
+    "SupervisorRegisteredRuntimeSummary": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": [
+        "node_id",
+        "node_name",
+        "node_type",
+        "desired_state",
+        "runtime_state",
+        "lifecycle_state",
+        "health_status"
+      ],
+      "properties": {
+        "node_id": { "type": "string" },
+        "node_name": { "type": "string" },
+        "node_type": { "type": "string" },
+        "runtime_kind": { "type": "string", "default": "real_node" },
+        "desired_state": { "type": "string" },
+        "runtime_state": { "type": "string" },
+        "lifecycle_state": { "type": "string" },
+        "health_status": { "type": "string" },
+        "freshness_state": { "type": "string", "default": "unknown" },
+        "host_id": { "type": ["string", "null"] },
+        "hostname": { "type": ["string", "null"] },
+        "api_base_url": { "type": ["string", "null"] },
+        "ui_base_url": { "type": ["string", "null"] },
+        "health_detail": { "type": ["string", "null"] },
+        "registered_at": { "type": ["string", "null"] },
+        "updated_at": { "type": ["string", "null"] },
+        "last_seen_at": { "type": ["string", "null"] },
+        "last_action": { "type": ["string", "null"] },
+        "last_action_at": { "type": ["string", "null"] },
+        "last_error": { "type": ["string", "null"] },
+        "running": { "type": ["boolean", "null"] },
+        "resource_usage": { "type": "object", "default": {} },
+        "runtime_metadata": { "type": "object", "default": {} }
+      }
+    },
+    "SupervisorRuntimeActionResult": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": [
+        "action",
+        "runtime"
+      ],
+      "properties": {
+        "action": { "type": "string" },
+        "runtime": {
+          "$ref": "#/schemas/SupervisorRegisteredRuntimeSummary"
+        }
+      }
+    }
+  }
+}

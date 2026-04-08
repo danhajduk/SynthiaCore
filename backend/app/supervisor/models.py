@@ -38,6 +38,72 @@ class ManagedNodeSummary(BaseModel):
     last_action_at: str | None = None
 
 
+class SupervisorRegisteredRuntimeSummary(BaseModel):
+    node_id: str
+    node_name: str
+    node_type: str
+    runtime_kind: str = "real_node"
+    desired_state: str
+    runtime_state: str
+    lifecycle_state: str
+    health_status: str
+    freshness_state: str = "unknown"
+    host_id: str | None = None
+    hostname: str | None = None
+    api_base_url: str | None = None
+    ui_base_url: str | None = None
+    health_detail: str | None = None
+    registered_at: str | None = None
+    updated_at: str | None = None
+    last_seen_at: str | None = None
+    last_action: str | None = None
+    last_action_at: str | None = None
+    last_error: str | None = None
+    running: bool | None = None
+    resource_usage: dict[str, object] = Field(default_factory=dict)
+    runtime_metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class SupervisorRuntimeRegistrationRequest(BaseModel):
+    node_id: str
+    node_name: str
+    node_type: str
+    host_id: str | None = None
+    hostname: str | None = None
+    api_base_url: str | None = None
+    ui_base_url: str | None = None
+    desired_state: str = "running"
+    runtime_state: str = "running"
+    lifecycle_state: str = "running"
+    health_status: str = "unknown"
+    health_detail: str | None = None
+    last_error: str | None = None
+    running: bool | None = True
+    resource_usage: dict[str, object] = Field(default_factory=dict)
+    runtime_metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class SupervisorRuntimeHeartbeatRequest(BaseModel):
+    node_id: str
+    host_id: str | None = None
+    hostname: str | None = None
+    api_base_url: str | None = None
+    ui_base_url: str | None = None
+    runtime_state: str | None = None
+    lifecycle_state: str | None = None
+    health_status: str | None = None
+    health_detail: str | None = None
+    last_error: str | None = None
+    running: bool | None = None
+    resource_usage: dict[str, object] = Field(default_factory=dict)
+    runtime_metadata: dict[str, object] = Field(default_factory=dict)
+
+
+class SupervisorRuntimeActionResult(BaseModel):
+    action: str
+    runtime: SupervisorRegisteredRuntimeSummary
+
+
 class ProcessResourceSummary(BaseModel):
     rss_bytes: int | None = Field(default=None, ge=0)
     cpu_percent: float | None = Field(default=None)
