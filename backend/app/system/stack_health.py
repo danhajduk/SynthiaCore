@@ -14,6 +14,8 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from app.supervisor.client import SupervisorApiClient
+
 
 class _CachedSampler:
     def __init__(self) -> None:
@@ -443,6 +445,17 @@ def build_stack_health_router() -> APIRouter:
                     supervisor_running = bool(getattr(supervisor, "running", None))
         except Exception:
             supervisor_running = None
+        if supervisor_running is not True:
+            supervisor_client: SupervisorApiClient | None = getattr(request.app.state, "supervisor_client", None)
+            if supervisor_client is not None:
+                try:
+                    health = supervisor_client.request_json("GET", "/api/supervisor/health")
+                    if isinstance(health, dict):
+                        status = str(health.get("status") or "").strip().lower()
+                        if status in {"ok", "healthy"}:
+                            supervisor_running = True
+                except Exception:
+                    pass
 
         mqtt_state = "unknown"
         mqtt_last_message_at = None
