@@ -470,3 +470,4 @@
 2026-04-07 - Task 801: added tests for Supervisor API probes and client integration.
 2026-04-07 - Task 802: updated Supervisor standalone service docs and schemas.
 2026-04-07 - Task 803: documented mandatory aux-container heartbeats over the Supervisor socket.
+2026-04-07 - Session complete: finished Supervisor standalone service migration tasks 795-803.
