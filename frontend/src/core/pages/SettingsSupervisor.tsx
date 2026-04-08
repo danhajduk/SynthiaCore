@@ -395,6 +395,11 @@ export default function SettingsSupervisor() {
                   <th>Health</th>
                   <th>Desired</th>
                   <th>Freshness</th>
+                  <th>RPS</th>
+                  <th>P95</th>
+                  <th>Err%</th>
+                  <th>CPU</th>
+                  <th>Mem</th>
                 </tr>
               </thead>
               <tbody>
@@ -410,6 +415,11 @@ export default function SettingsSupervisor() {
                     <td>{displayState(runtime.health_status)}</td>
                     <td>{displayState(runtime.desired_state)}</td>
                     <td>{displayState(runtime.freshness_state)}</td>
+                    <td>{formatRps((runtime as { resource_usage?: { rps?: number } }).resource_usage?.rps)}</td>
+                    <td>{formatMs((runtime as { resource_usage?: { latency_ms_p95?: number } }).resource_usage?.latency_ms_p95)}</td>
+                    <td>{formatPct((runtime as { resource_usage?: { error_rate?: number } }).resource_usage?.error_rate)}</td>
+                    <td>{formatPct((runtime as { resource_usage?: { cpu_percent?: number } }).resource_usage?.cpu_percent)}</td>
+                    <td>{formatPct((runtime as { resource_usage?: { mem_percent?: number } }).resource_usage?.mem_percent)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -437,6 +447,11 @@ export default function SettingsSupervisor() {
                   <th>State</th>
                   <th>Health</th>
                   <th>Desired</th>
+                  <th>RPS</th>
+                  <th>P95</th>
+                  <th>Err%</th>
+                  <th>CPU</th>
+                  <th>Mem</th>
                 </tr>
               </thead>
               <tbody>
@@ -451,6 +466,11 @@ export default function SettingsSupervisor() {
                     <td>{displayState(runtime.runtime_state)}</td>
                     <td>{displayState(runtime.health_status)}</td>
                     <td>{displayState(runtime.desired_state)}</td>
+                    <td>{formatRps((runtime as { resource_usage?: { rps?: number } }).resource_usage?.rps)}</td>
+                    <td>{formatMs((runtime as { resource_usage?: { latency_ms_p95?: number } }).resource_usage?.latency_ms_p95)}</td>
+                    <td>{formatPct((runtime as { resource_usage?: { error_rate?: number } }).resource_usage?.error_rate)}</td>
+                    <td>{formatPct((runtime as { resource_usage?: { cpu_percent?: number } }).resource_usage?.cpu_percent)}</td>
+                    <td>{formatPct((runtime as { resource_usage?: { mem_percent?: number } }).resource_usage?.mem_percent)}</td>
                   </tr>
                 ))}
               </tbody>
