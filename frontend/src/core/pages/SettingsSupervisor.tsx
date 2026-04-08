@@ -274,6 +274,16 @@ export default function SettingsSupervisor() {
   const addonRuntimes = coreRuntimes.filter(
     (item) => String(item.runtime_kind || "").toLowerCase() === "addon",
   );
+  const addonContainers = addonRuntimes.flatMap((runtime) => {
+    const containers = (runtime as { runtime_metadata?: { containers?: Array<Record<string, unknown>> } })
+      .runtime_metadata?.containers;
+    if (!Array.isArray(containers) || containers.length === 0) return [];
+    return containers.map((container) => ({
+      container,
+      addonId: String(runtime.runtime_id || runtime.runtime_name || "addon"),
+      addonName: String(runtime.runtime_name || runtime.runtime_id || "Addon"),
+    }));
+  });
 
   return (
     <div className="settings-page">
@@ -493,6 +503,49 @@ export default function SettingsSupervisor() {
                         return "-";
                       })()}
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-head">
+          <h2>Addon Containers</h2>
+          <p>Embedded addon containers surfaced as standalone runtime entities.</p>
+        </div>
+        <div className="settings-card">
+          {addonContainers.length === 0 ? (
+            <div className="settings-help">No addon containers reported yet.</div>
+          ) : (
+            <table className="settings-table">
+              <thead>
+                <tr>
+                  <th />
+                  <th>Container</th>
+                  <th>Status</th>
+                  <th>Healthy</th>
+                  <th>Provider</th>
+                  <th>Reason</th>
+                  <th>Addon</th>
+                </tr>
+              </thead>
+              <tbody>
+                {addonContainers.map((entry) => (
+                  <tr key={`${entry.addonId}:${String(entry.container?.name || entry.container?.container_name || "container")}`}>
+                    <td>
+                      <StatusLed tone={statusTone(entry.container?.status || entry.container?.state || entry.container?.healthy)} />
+                    </td>
+                    <td className="settings-mono">
+                      {String(entry.container?.name || entry.container?.container_name || "container")}
+                    </td>
+                    <td>{displayState(entry.container?.status || entry.container?.state)}</td>
+                    <td>{entry.container?.healthy === undefined ? "-" : displayState(entry.container?.healthy ? "healthy" : "unhealthy")}</td>
+                    <td>{String(entry.container?.provider || "-")}</td>
+                    <td>{String(entry.container?.degraded_reason || entry.container?.last_error || "-")}</td>
+                    <td>{entry.addonName}</td>
                   </tr>
                 ))}
               </tbody>
