@@ -48,6 +48,5 @@ Standards reference:
 Do not edit above this line:
 #######################################################################
 
-[TODO] Task 801: Add tests for Supervisor API server and remote client integration
 [TODO] Task 802: Update docs and schemas for Supervisor standalone service
 [TODO] Task 803: Document mandatory aux-container heartbeat over Supervisor Unix socket

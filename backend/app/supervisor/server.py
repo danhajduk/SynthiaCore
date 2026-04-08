@@ -28,7 +28,8 @@ def create_supervisor_app() -> FastAPI:
 
     @app.get("/ready")
     def readiness() -> JSONResponse:
-        admission = supervisor.admission_summary()
+        supervisor_service = getattr(app.state, "supervisor_service", supervisor)
+        admission = supervisor_service.admission_summary()
         payload = {
             "status": "ready" if admission.execution_host_ready else "degraded",
             "admission": admission.model_dump(),

@@ -87,12 +87,18 @@ class _FakeSupervisorService:
             managed_nodes=[self._node()],
         )
 
-    def admission_summary(self) -> SupervisorAdmissionContextSummary:
+    def admission_summary(
+        self,
+        *,
+        total_capacity_units: int = 100,
+        reserve_units: int = 5,
+        headroom_pct: float = 0.05,
+    ) -> SupervisorAdmissionContextSummary:
         return SupervisorAdmissionContextSummary(
             admission_state="ready",
             execution_host_ready=True,
             host_busy_rating=1,
-            total_capacity_units=100,
+            total_capacity_units=total_capacity_units,
             available_capacity_units=75,
             managed_node_count=1,
             healthy_managed_node_count=1,
@@ -145,6 +151,12 @@ class _FakeSupervisorService:
     def restart_registered_runtime(self, node_id: str) -> SupervisorRuntimeActionResult:
         return SupervisorRuntimeActionResult(action="restart", runtime=self._runtime())
 
+    def get_runtime_state(self, runtime_id: str) -> dict[str, object]:
+        return {"exists": runtime_id == "cloudflared"}
+
+    def apply_cloudflared_config(self, config: dict[str, object]) -> dict[str, object]:
+        return {"ok": True, "runtime_state": "configured", "config_path": "/tmp/cloudflared.yaml"}
+
 
 class TestSupervisorRouterContract(unittest.TestCase):
     def test_supervisor_host_api_surface(self) -> None:
@@ -156,8 +168,12 @@ class TestSupervisorRouterContract(unittest.TestCase):
         self.assertEqual(info.status_code, 200)
         self.assertEqual(info.json()["boundaries"]["owns"], ["runtime"])
         self.assertEqual(client.get("/api/supervisor/admission").json()["admission_state"], "ready")
+        self.assertEqual(client.get("/api/supervisor/admission?total_capacity_units=250").json()["total_capacity_units"], 250)
         self.assertEqual(client.get("/api/supervisor/resources").status_code, 200)
         self.assertEqual(client.get("/api/supervisor/runtime").status_code, 200)
+        self.assertTrue(client.get("/api/supervisor/runtime/cloudflared").json()["exists"])
+        self.assertFalse(client.get("/api/supervisor/runtime/unknown").json()["exists"])
+        self.assertTrue(client.post("/api/supervisor/runtime/cloudflared/apply", json={"ok": True}).json()["ok"])
         self.assertEqual(client.get("/api/supervisor/nodes").json()["items"][0]["node_id"], "mqtt")
         self.assertEqual(client.post("/api/supervisor/nodes/mqtt/start").json()["action"], "start")
         self.assertEqual(client.post("/api/supervisor/nodes/mqtt/stop").json()["action"], "stop")
