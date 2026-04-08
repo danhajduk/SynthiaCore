@@ -502,164 +502,164 @@ export default function SettingsSupervisor() {
         <div className="settings-section-head">
           <h2>Node Runtimes</h2>
         </div>
-        <div className="settings-card">
-          {nodeRuntimes.length === 0 ? (
+        {nodeRuntimes.length === 0 ? (
+          <div className="settings-card">
             <div className="settings-help">No node runtimes registered yet.</div>
-          ) : (
-            <table className="settings-table">
-              <thead>
-                <tr>
-                  <th />
-                  <th>Name</th>
-                  <th>ID</th>
-                  <th>Runtime</th>
-                  <th>Runtime State</th>
-                  <th>Health</th>
-                  <th>Desired State</th>
-                  <th>CPU</th>
-                  <th>Mem</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {nodeRuntimes.map((runtime) => {
-                  const nodeId = String(runtime.node_id || "");
-                  const services = nodeServicesByNode[nodeId] || [];
-                  return (
-                    <Fragment key={`runtime:${nodeId || runtime.node_name}`}>
-                      <tr>
-                        <td>
-                          <StatusLed tone={statusTone(runtime.freshness_state || runtime.health_status)} />
-                        </td>
-                        <td>{String(runtime.node_name || runtime.node_id || "Unnamed")}</td>
-                        <td className="settings-mono">{nodeId || "-"}</td>
-                        <td>{String((runtime as { runtime_kind?: string }).runtime_kind || runtime.node_type || "-")}</td>
-                        <td>{displayState(runtime.runtime_state)}</td>
-                        <td>{displayState(runtime.health_status)}</td>
-                        <td>{displayState(runtime.desired_state)}</td>
-                        <td>
-                          {formatPctValue((runtime as { resource_usage?: { cpu_percent?: number } }).resource_usage?.cpu_percent)}
-                        </td>
-                        <td>
-                          {formatPctValue((runtime as { resource_usage?: { mem_percent?: number } }).resource_usage?.mem_percent)}
-                        </td>
-                        <td className="settings-actions-cell">
-                          <button
-                            className="settings-btn"
-                            type="button"
-                            onClick={() => void runNodeRuntimeAction(nodeId, "start")}
-                            disabled={actionBusy[nodeId] !== null && actionBusy[nodeId] !== undefined}
-                          >
-                            Start
-                          </button>
-                          <button
-                            className="settings-btn"
-                            type="button"
-                            onClick={() => void runNodeRuntimeAction(nodeId, "stop")}
-                            disabled={actionBusy[nodeId] !== null && actionBusy[nodeId] !== undefined}
-                          >
-                            Stop
-                          </button>
-                          <button
-                            className="settings-btn"
-                            type="button"
-                            onClick={() => void runNodeRuntimeAction(nodeId, "restart")}
-                            disabled={actionBusy[nodeId] !== null && actionBusy[nodeId] !== undefined}
-                          >
-                            Restart
-                          </button>
-                          <button className="settings-btn" type="button" onClick={() => toggleNodeDetails(nodeId)}>
-                            {expandedNodes[nodeId] ? "Hide" : "Details"}
-                          </button>
-                        </td>
-                      </tr>
-                      {expandedNodes[nodeId] && (
-                        <tr className="settings-subtable-row">
-                          <td colSpan={10}>
-                            <div className="settings-subtable-wrap">
-                              <div className="settings-subtable-label">Runtime Details</div>
-                              <div className="settings-kv-grid">
-                                {(runtime as { active_version?: string }).active_version && (
-                                  <div className="settings-kv-item">
-                                    <div>Active Version</div>
-                                    <strong>{String((runtime as { active_version?: string }).active_version)}</strong>
-                                  </div>
-                                )}
-                                {(runtime as { last_action?: string }).last_action && (
-                                  <div className="settings-kv-item">
-                                    <div>Last Action</div>
-                                    <strong>{String((runtime as { last_action?: string }).last_action)}</strong>
-                                  </div>
-                                )}
-                                {(runtime as { last_action_at?: string }).last_action_at && (
-                                  <div className="settings-kv-item">
-                                    <div>Last Action At</div>
-                                    <strong>{String((runtime as { last_action_at?: string }).last_action_at)}</strong>
-                                  </div>
-                                )}
-                                {(runtime as { hostname?: string }).hostname && (
-                                  <div className="settings-kv-item">
-                                    <div>Hostname</div>
-                                    <strong>{String((runtime as { hostname?: string }).hostname)}</strong>
-                                  </div>
-                                )}
-                                {(runtime as { host_id?: string }).host_id && (
-                                  <div className="settings-kv-item">
-                                    <div>Host ID</div>
-                                    <strong>{String((runtime as { host_id?: string }).host_id)}</strong>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                      {services.length > 0 && (
-                        <tr className="settings-subtable-row">
-                          <td colSpan={10}>
-                            <div className="settings-subtable-wrap">
-                              <div className="settings-subtable-label">Services</div>
-                              <table className="settings-subtable">
-                                <thead>
-                                  <tr>
-                                    <th />
-                                    <th>Name</th>
-                                    <th>ID</th>
-                                    <th>State</th>
-                                    <th>Health</th>
-                                    <th>CPU</th>
-                                    <th>Mem</th>
-                                    {hasServicePid && <th>PID</th>}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {services.map((service) => (
-                                    <tr key={`service:${nodeId}:${service.service_id}`}>
-                                      <td>
-                                        <StatusLed tone={statusTone(service.health_status || service.service_state)} />
-                                      </td>
-                                      <td>{service.service_name}</td>
-                                      <td className="settings-mono">{service.service_id}</td>
-                                      <td>{displayState(service.service_state)}</td>
-                                      <td>{displayState(service.health_status || service.service_state)}</td>
-                                      <td>{service.cpu_percent == null ? "" : formatPctValue(service.cpu_percent)}</td>
-                                      <td>{service.mem_percent == null ? "" : formatPctValue(service.mem_percent)}</td>
-                                      {hasServicePid && <td>{service.pid ?? ""}</td>}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="settings-node-list">
+            {nodeRuntimes.map((runtime) => {
+              const nodeId = String(runtime.node_id || "");
+              const services = nodeServicesByNode[nodeId] || [];
+              return (
+                <div key={`runtime:${nodeId || runtime.node_name}`} className="settings-card settings-node-card">
+                  <div className="settings-node-header">
+                    <div className="settings-node-title">
+                      <StatusLed tone={statusTone(runtime.freshness_state || runtime.health_status)} />
+                      <div>
+                        <strong>{String(runtime.node_name || runtime.node_id || "Unnamed")}</strong>
+                        <div className="settings-muted settings-mono">{nodeId || "-"}</div>
+                      </div>
+                    </div>
+                    <div className="settings-node-actions">
+                      <button
+                        className="settings-btn"
+                        type="button"
+                        onClick={() => void runNodeRuntimeAction(nodeId, "start")}
+                        disabled={actionBusy[nodeId] !== null && actionBusy[nodeId] !== undefined}
+                      >
+                        Start
+                      </button>
+                      <button
+                        className="settings-btn"
+                        type="button"
+                        onClick={() => void runNodeRuntimeAction(nodeId, "stop")}
+                        disabled={actionBusy[nodeId] !== null && actionBusy[nodeId] !== undefined}
+                      >
+                        Stop
+                      </button>
+                      <button
+                        className="settings-btn"
+                        type="button"
+                        onClick={() => void runNodeRuntimeAction(nodeId, "restart")}
+                        disabled={actionBusy[nodeId] !== null && actionBusy[nodeId] !== undefined}
+                      >
+                        Restart
+                      </button>
+                      <button className="settings-btn" type="button" onClick={() => toggleNodeDetails(nodeId)}>
+                        {expandedNodes[nodeId] ? "Hide" : "Details"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="settings-node-grid">
+                    <div>
+                      <div className="settings-node-label">Runtime</div>
+                      <strong>{String((runtime as { runtime_kind?: string }).runtime_kind || runtime.node_type || "-")}</strong>
+                    </div>
+                    <div>
+                      <div className="settings-node-label">Desired State</div>
+                      <strong>{displayState(runtime.desired_state)}</strong>
+                    </div>
+                    <div>
+                      <div className="settings-node-label">Runtime State</div>
+                      <strong>{displayState(runtime.runtime_state)}</strong>
+                    </div>
+                    <div>
+                      <div className="settings-node-label">Health</div>
+                      <strong>{displayState(runtime.health_status)}</strong>
+                    </div>
+                    <div>
+                      <div className="settings-node-label">CPU</div>
+                      <strong>
+                        {formatPctValue((runtime as { resource_usage?: { cpu_percent?: number } }).resource_usage?.cpu_percent)}
+                      </strong>
+                    </div>
+                    <div>
+                      <div className="settings-node-label">Mem</div>
+                      <strong>
+                        {formatPctValue((runtime as { resource_usage?: { mem_percent?: number } }).resource_usage?.mem_percent)}
+                      </strong>
+                    </div>
+                  </div>
+                  {expandedNodes[nodeId] && (
+                    <div className="settings-node-details">
+                      <div className="settings-subtable-label">Runtime Details</div>
+                      <div className="settings-kv-grid">
+                        {(runtime as { active_version?: string }).active_version && (
+                          <div className="settings-kv-item">
+                            <div>Active Version</div>
+                            <strong>{String((runtime as { active_version?: string }).active_version)}</strong>
+                          </div>
+                        )}
+                        {(runtime as { last_action?: string }).last_action && (
+                          <div className="settings-kv-item">
+                            <div>Last Action</div>
+                            <strong>{String((runtime as { last_action?: string }).last_action)}</strong>
+                          </div>
+                        )}
+                        {(runtime as { last_action_at?: string }).last_action_at && (
+                          <div className="settings-kv-item">
+                            <div>Last Action At</div>
+                            <strong>{String((runtime as { last_action_at?: string }).last_action_at)}</strong>
+                          </div>
+                        )}
+                        {(runtime as { hostname?: string }).hostname && (
+                          <div className="settings-kv-item">
+                            <div>Hostname</div>
+                            <strong>{String((runtime as { hostname?: string }).hostname)}</strong>
+                          </div>
+                        )}
+                        {(runtime as { host_id?: string }).host_id && (
+                          <div className="settings-kv-item">
+                            <div>Host ID</div>
+                            <strong>{String((runtime as { host_id?: string }).host_id)}</strong>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <div className="settings-subtable-wrap">
+                    <div className="settings-subtable-label">Services</div>
+                    {services.length === 0 ? (
+                      <div className="settings-help">No node services reported yet.</div>
+                    ) : (
+                      <table className="settings-subtable">
+                        <thead>
+                          <tr>
+                            <th />
+                            <th>Name</th>
+                            <th>ID</th>
+                            <th>State</th>
+                            <th>Health</th>
+                            <th>CPU</th>
+                            <th>Mem</th>
+                            {hasServicePid && <th>PID</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {services.map((service) => (
+                            <tr key={`service:${nodeId}:${service.service_id}`}>
+                              <td>
+                                <StatusLed tone={statusTone(service.health_status || service.service_state)} />
+                              </td>
+                              <td>{service.service_name}</td>
+                              <td className="settings-mono">{service.service_id}</td>
+                              <td>{displayState(service.service_state)}</td>
+                              <td>{displayState(service.health_status || service.service_state)}</td>
+                              <td>{service.cpu_percent == null ? "" : formatPctValue(service.cpu_percent)}</td>
+                              <td>{service.mem_percent == null ? "" : formatPctValue(service.mem_percent)}</td>
+                              {hasServicePid && <td>{service.pid ?? ""}</td>}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="settings-section">
