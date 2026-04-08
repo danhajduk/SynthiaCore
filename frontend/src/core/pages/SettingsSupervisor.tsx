@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import "./settings.css";
 import "./home.css";
 
@@ -361,25 +361,13 @@ export default function SettingsSupervisor() {
     return [];
   });
 
-  const nodeRows = nodeRuntimes.flatMap((runtime) => {
-    const base = {
-      kind: "runtime",
-      node_id: String(runtime.node_id || ""),
-      node_name: String(runtime.node_name || runtime.node_id || "Unnamed"),
-      node_type: String(runtime.node_type || "-"),
-      runtime,
-    } as const;
-    const services = nodeServices
-      .filter((service) => service.node_id === String(runtime.node_id || ""))
-      .map((service) => ({
-        kind: "service",
-        node_id: service.node_id,
-        node_name: service.node_name,
-        node_type: "service",
-        service,
-      }) as const);
-    return [base, ...services];
-  });
+  const nodeServicesByNode = nodeServices.reduce<Record<string, NodeServiceRow[]>>((acc, service) => {
+    const key = String(service.node_id || "");
+    if (!key) return acc;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(service);
+    return acc;
+  }, {});
 
   return (
     <div className="settings-page">
@@ -506,17 +494,18 @@ export default function SettingsSupervisor() {
                 </tr>
               </thead>
               <tbody>
-                {nodeRows.map((row) => {
-                  if (row.kind === "runtime") {
-                    const runtime = row.runtime;
-                    return (
-                      <tr key={`runtime:${row.node_id}`}>
+                {nodeRuntimes.map((runtime) => {
+                  const nodeId = String(runtime.node_id || "");
+                  const services = nodeServicesByNode[nodeId] || [];
+                  return (
+                    <Fragment key={`runtime:${nodeId || runtime.node_name}`}>
+                      <tr>
                         <td>
                           <StatusLed tone={statusTone(runtime.freshness_state || runtime.health_status)} />
                         </td>
-                        <td>{row.node_name}</td>
-                        <td className="settings-mono">{row.node_id || "-"}</td>
-                        <td>{row.node_type}</td>
+                        <td>{String(runtime.node_name || runtime.node_id || "Unnamed")}</td>
+                        <td className="settings-mono">{nodeId || "-"}</td>
+                        <td>{String(runtime.node_type || "-")}</td>
                         <td>{displayState(runtime.runtime_state)}</td>
                         <td>{displayState(runtime.health_status)}</td>
                         <td>{displayState(runtime.desired_state)}</td>
@@ -533,27 +522,45 @@ export default function SettingsSupervisor() {
                           {formatPctValue((runtime as { resource_usage?: { mem_percent?: number } }).resource_usage?.mem_percent)}
                         </td>
                       </tr>
-                    );
-                  }
-                  const service = row.service;
-                  return (
-                    <tr key={`service:${row.node_id}:${service.service_id}`} className="settings-subrow">
-                      <td>
-                        <StatusLed tone={statusTone(service.health_status || service.service_state)} />
-                      </td>
-                      <td className="settings-subrow-name">{service.service_name}</td>
-                      <td className="settings-mono">{service.service_id}</td>
-                      <td>service</td>
-                      <td>{displayState(service.service_state)}</td>
-                      <td>{displayState(service.health_status || service.service_state)}</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>{formatPctValue(service.cpu_percent)}</td>
-                      <td>{formatPctValue(service.mem_percent)}</td>
-                    </tr>
+                      {services.length > 0 && (
+                        <tr className="settings-subtable-row">
+                          <td colSpan={13}>
+                            <div className="settings-subtable-wrap">
+                              <table className="settings-subtable">
+                                <thead>
+                                  <tr>
+                                    <th />
+                                    <th>Name</th>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>State</th>
+                                    <th>Health</th>
+                                    <th>CPU</th>
+                                    <th>Mem</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {services.map((service) => (
+                                    <tr key={`service:${nodeId}:${service.service_id}`}>
+                                      <td>
+                                        <StatusLed tone={statusTone(service.health_status || service.service_state)} />
+                                      </td>
+                                      <td>{service.service_name}</td>
+                                      <td className="settings-mono">{service.service_id}</td>
+                                      <td>service</td>
+                                      <td>{displayState(service.service_state)}</td>
+                                      <td>{displayState(service.health_status || service.service_state)}</td>
+                                      <td>{formatPctValue(service.cpu_percent)}</td>
+                                      <td>{formatPctValue(service.mem_percent)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
