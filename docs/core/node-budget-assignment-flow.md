@@ -7,6 +7,14 @@ Last Updated: 2026-04-07 16:08 PDT
 
 This document explains, in implementation-verified detail, how Hexe Core decides which budget applies when a trusted node wants another service or node-runtime endpoint to execute a task.
 
+In this document, a budget means the money budget and/or compute-resource budget that Core is allowed to allocate to client nodes and delegated executions.
+
+Current implemented budget limit families include:
+
+- money-style limits such as `max_cost_cents`
+- compute-style limits such as `max_tokens`
+- compute-style limits such as `max_requests`
+
 This is the concrete flow behind the high-level sequence:
 
 1. a node requests service resolution
@@ -27,6 +35,8 @@ This behavior is currently implemented by:
 ## Short Answer
 
 Budget assignment is not a separate one-off API that “issues a budget” by itself.
+
+Instead, Core determines which pool of allocatable money and/or compute resources applies to the request, then decides which grant from that pool governs execution.
 
 Instead, Core assigns budget as part of service resolution and service authorization:
 
@@ -246,6 +256,12 @@ This means:
 - if `provider_node_id` is known, use that node’s budget
 - otherwise use the requesting node’s budget
 
+Here, “use that node’s budget” means:
+
+- use that node’s allocatable money limits
+- use that node’s allocatable compute limits
+- select the grant that represents the allowed slice of those resources for the request
+
 That exact rule is implemented in [backend/app/system/services/node_resolution.py#L290](/home/dan/Projects/Hexe/backend/app/system/services/node_resolution.py#L290) through [backend/app/system/services/node_resolution.py#L295](/home/dan/Projects/Hexe/backend/app/system/services/node_resolution.py#L295).
 
 ### What This Means Operationally
@@ -332,6 +348,12 @@ After selecting a grant, Core loads usage reports for that exact `grant_id` and 
 - consumed tokens
 - consumed cost cents
 - remaining limits for each configured limit family
+
+So the effective grant calculation is fundamentally:
+
+- start from the allocatable money and/or compute resources represented by the selected grant
+- subtract previously reported usage
+- decide whether enough allocatable resource remains to admit more work
 
 This happens in [backend/app/system/onboarding/node_budgeting.py#L919](/home/dan/Projects/Hexe/backend/app/system/onboarding/node_budgeting.py#L919) through [backend/app/system/onboarding/node_budgeting.py#L930](/home/dan/Projects/Hexe/backend/app/system/onboarding/node_budgeting.py#L930).
 
