@@ -477,7 +477,10 @@ def create_app() -> FastAPI:
                     "health_status": core_health_status,
                     "last_error": core_last_error,
                     "running": True,
-                    "runtime_metadata": {"component": "core-api"},
+                    "runtime_metadata": {
+                        "component": "core-api",
+                        "systemd_unit": "hexe-backend.service",
+                    },
                 }
             ]
             items.extend(await _collect_core_addon_runtimes())
