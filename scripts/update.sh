@@ -110,6 +110,20 @@ if [[ "$SERVICE_UPDATE" == "true" ]]; then
     echo "[update] WARN: missing optional unit template: $UNIT_SRC_DIR/${SUPERVISOR_API_UNIT}.in"
   fi
 
+  if command -v sudo >/dev/null 2>&1; then
+    TMPFILES_SRC="$REPO_DIR/systemd/tmpfiles.d/hexe.conf"
+    TMPFILES_DST="/etc/tmpfiles.d/hexe.conf"
+    if [[ -f "$TMPFILES_SRC" ]]; then
+      echo "[update] installing /run/hexe tmpfiles rule"
+      sudo install -m 0644 "$TMPFILES_SRC" "$TMPFILES_DST" || true
+      sudo systemd-tmpfiles --create "$TMPFILES_DST" || true
+    else
+      echo "[update] WARN: missing tmpfiles template: $TMPFILES_SRC"
+    fi
+  else
+    echo "[update] WARN: sudo unavailable; /run/hexe must be created manually"
+  fi
+
   systemctl --user daemon-reload
   systemctl --user restart hexe-backend.service
   systemctl --user restart hexe-frontend-dev.service

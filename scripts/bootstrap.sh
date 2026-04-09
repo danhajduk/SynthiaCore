@@ -147,6 +147,20 @@ else
   echo "[bootstrap] Using existing $ENVFILE"
 fi
 
+if command -v sudo >/dev/null 2>&1; then
+  echo "[bootstrap] Installing /run/hexe tmpfiles rule (Supervisor socket path)"
+  TMPFILES_SRC="$INSTALL_DIR/systemd/tmpfiles.d/hexe.conf"
+  TMPFILES_DST="/etc/tmpfiles.d/hexe.conf"
+  if [[ -f "$TMPFILES_SRC" ]]; then
+    sudo install -m 0644 "$TMPFILES_SRC" "$TMPFILES_DST" || true
+    sudo systemd-tmpfiles --create "$TMPFILES_DST" || true
+  else
+    echo "[bootstrap] WARN: missing tmpfiles template at $TMPFILES_SRC"
+  fi
+else
+  echo "[bootstrap] WARN: sudo unavailable; /run/hexe must be created manually"
+fi
+
 echo "[bootstrap] Installing systemd user units from repo templates"
 UNIT_SRC_DIR="$INSTALL_DIR/systemd/user"
 UNIT_DST_DIR="$HOME/.config/systemd/user"
