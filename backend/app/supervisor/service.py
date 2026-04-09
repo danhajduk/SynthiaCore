@@ -880,13 +880,22 @@ class SupervisorDomainService:
 
     def _append_boot_log(self, event: str, *, context: dict[str, Any] | None = None) -> None:
         log_path = self._boot_log_path()
-        payload: dict[str, Any] = {"ts": self._now_iso(), "event": str(event)}
+        payload: dict[str, Any] = {"event": str(event)}
         if context:
             payload.update(context)
+        message = str(payload.get("message") or event).strip()
+        omit_keys = {"message"}
+        if message == event:
+            omit_keys.add("event")
+        details = []
+        for key in sorted(k for k in payload.keys() if k not in omit_keys):
+            details.append(f"{key}={payload.get(key)}")
+        suffix = f" | {' '.join(details)}" if details else ""
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         try:
             log_path.parent.mkdir(parents=True, exist_ok=True)
             with log_path.open("a", encoding="utf-8") as handle:
-                handle.write(f"{json.dumps(payload, sort_keys=True)}\n")
+                handle.write(f"{ts} [{event}] {message}{suffix}\n")
         except Exception:
             return
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -52,11 +51,8 @@ def _prepare_unix_socket(path: str) -> None:
 def _init_boot_log(path: str) -> None:
     log_path = Path(path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "event": "supervisor_boot",
-    }
-    log_path.write_text(f"{json.dumps(payload)}\n", encoding="utf-8")
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    log_path.write_text(f"{ts} [supervisor_boot] Supervisor API boot\n", encoding="utf-8")
 
 
 def run() -> None:
