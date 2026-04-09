@@ -5,6 +5,7 @@ import socket
 import json
 import shutil
 import subprocess
+import time
 from datetime import datetime, timezone
 from typing import Any
 from pathlib import Path
@@ -41,6 +42,7 @@ from .models import (
     SupervisorRuntimeRegistrationRequest,
     SupervisorRuntimeSummary,
 )
+from .boot_order import load_boot_order_plan
 from .core_runtime_store import SupervisorCoreRuntimeRecord, SupervisorCoreRuntimeStore
 from .runtime_nodes import merge_runtime_identity
 from .runtime_store import SupervisorRuntimeNodeRecord, SupervisorRuntimeNodesStore
@@ -520,6 +522,143 @@ class SupervisorDomainService:
             managed_node_count=len(managed_nodes),
             managed_nodes=managed_nodes,
         )
+
+    def _boot_step_timeout_s(self) -> float:
+        raw = str(os.getenv("HEXE_SUPERVISOR_BOOT_STEP_TIMEOUT_S", "60")).strip()
+        try:
+            parsed = float(raw)
+        except Exception:
+            return 60.0
+        return max(5.0, parsed)
+
+    def _boot_poll_s(self) -> float:
+        raw = str(os.getenv("HEXE_SUPERVISOR_BOOT_POLL_S", "2")).strip()
+        try:
+            parsed = float(raw)
+        except Exception:
+            return 2.0
+        return max(0.5, parsed)
+
+    def _core_runtime_ready(self, record: SupervisorCoreRuntimeRecord) -> bool:
+        freshness = self._core_freshness_state(
+            record.last_seen_at,
+            health_status=record.health_status,
+            runtime_state=record.runtime_state,
+        )
+        if freshness != "online":
+            return False
+        if str(record.health_status or "").strip().lower() in {"error", "unhealthy"}:
+            return False
+        return str(record.runtime_state or "").strip().lower() == "running"
+
+    def _node_runtime_ready(self, record: SupervisorRuntimeNodeRecord) -> bool:
+        freshness = self._freshness_state(
+            record.last_seen_at,
+            health_status=record.health_status,
+            runtime_state=record.runtime_state,
+        )
+        if freshness != "online":
+            return False
+        if str(record.health_status or "").strip().lower() in {"error", "unhealthy"}:
+            return False
+        return str(record.runtime_state or "").strip().lower() == "running"
+
+    def _wait_for_core_runtime(self, runtime_id: str, timeout_s: float) -> bool:
+        start = time.monotonic()
+        while time.monotonic() - start < timeout_s:
+            record = self._core_runtime_store.get(runtime_id)
+            if record and self._core_runtime_ready(record):
+                return True
+            time.sleep(self._boot_poll_s())
+        return False
+
+    def _wait_for_node_runtime(self, node_id: str, timeout_s: float) -> bool:
+        start = time.monotonic()
+        while time.monotonic() - start < timeout_s:
+            record = self._runtime_nodes_store.get(node_id)
+            if record and self._node_runtime_ready(record):
+                return True
+            time.sleep(self._boot_poll_s())
+        return False
+
+    def _dependency_ready(self, dependency: str) -> bool:
+        dep = str(dependency or "").strip()
+        if not dep:
+            return True
+        if dep.startswith("node_type:"):
+            node_type = dep.split(":", 1)[1].strip()
+            return any(
+                self._node_runtime_ready(record)
+                for record in self._runtime_nodes_store.list()
+                if record.node_type == node_type
+            )
+        record = self._core_runtime_store.get(dep)
+        if record is None:
+            record = self._core_runtime_store.get(f"addon:{dep}")
+        if record is not None:
+            return self._core_runtime_ready(record)
+        return any(
+            self._node_runtime_ready(record)
+            for record in self._runtime_nodes_store.list()
+            if record.node_type == dep
+        )
+
+    def _wait_for_dependencies(self, dependencies: list[str], timeout_s: float) -> bool:
+        if not dependencies:
+            return True
+        start = time.monotonic()
+        while time.monotonic() - start < timeout_s:
+            if all(self._dependency_ready(dep) for dep in dependencies):
+                return True
+            time.sleep(self._boot_poll_s())
+        return False
+
+    def run_boot_loop(self) -> dict[str, Any]:
+        plan, warnings = load_boot_order_plan()
+        results: dict[str, Any] = {
+            "warnings": warnings,
+            "core": [],
+            "nodes": [],
+        }
+        timeout_s = self._boot_step_timeout_s()
+        core_order = plan.get("core", {}).get("boot_order", {})
+        core_deps = plan.get("core", {}).get("dependencies", {})
+        for runtime_id, _ in sorted(core_order.items(), key=lambda item: (item[1], item[0])):
+            deps = core_deps.get(runtime_id, [])
+            if not self._wait_for_dependencies(deps, timeout_s):
+                results["core"].append({"runtime_id": runtime_id, "status": "dependency_timeout"})
+                continue
+            record = self._core_runtime_store.get(runtime_id)
+            if record is None:
+                results["core"].append({"runtime_id": runtime_id, "status": "missing"})
+                continue
+            if str(record.management_mode or "").strip().lower() == "manage":
+                self.start_core_runtime(runtime_id)
+            ready = self._wait_for_core_runtime(runtime_id, timeout_s)
+            results["core"].append({"runtime_id": runtime_id, "status": "ready" if ready else "timeout"})
+
+        node_order = plan.get("nodes", {}).get("boot_order", {})
+        node_deps = plan.get("nodes", {}).get("dependencies", {})
+        for node_type, _ in sorted(node_order.items(), key=lambda item: (item[1], item[0])):
+            deps = node_deps.get(node_type, [])
+            if not self._wait_for_dependencies(deps, timeout_s):
+                results["nodes"].append({"node_type": node_type, "status": "dependency_timeout"})
+                continue
+            runtimes = [item for item in self._runtime_nodes_store.list() if item.node_type == node_type]
+            if not runtimes:
+                results["nodes"].append({"node_type": node_type, "status": "missing"})
+                continue
+            for record in sorted(runtimes, key=lambda item: (item.node_name, item.node_id)):
+                self.start_registered_runtime(record.node_id)
+                ready = self._wait_for_node_runtime(record.node_id, timeout_s)
+                results["nodes"].append(
+                    {
+                        "node_type": node_type,
+                        "node_id": record.node_id,
+                        "status": "ready" if ready else "timeout",
+                    }
+                )
+        return results
 
     def list_managed_nodes(self) -> list[ManagedNodeSummary]:
         return self._managed_nodes()

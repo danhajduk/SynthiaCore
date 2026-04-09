@@ -47,6 +47,5 @@ Standards reference:
 
 Do not edit above this line:
 #######################################################################
-[TODO] Task 922: Implement Supervisor boot loop execution (core/addon/aux/node sequencing with health waits + timeouts).
 [TODO] Task 923: Add Supervisor boot loop telemetry (boot log entries + structured status snapshot).
 [TODO] Task 924: Expose boot loop manual trigger and status API (and document the endpoints).
