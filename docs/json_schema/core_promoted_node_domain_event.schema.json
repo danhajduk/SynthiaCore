@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hexe.local/schemas/core_promoted_node_domain_event.schema.json",
+  "title": "Core Promoted Node Domain Event",
+  "description": "Core-owned MQTT event envelope for validated node-originated domain events promoted from hexe/nodes/<node_id>/events/# to hexe/events/#.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "promotion_id",
+    "event_id",
+    "event_type",
+    "promoted_event_type",
+    "received_at",
+    "promoted_at",
+    "source",
+    "core",
+    "subject",
+    "data"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "promotion_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Original node event id."
+    },
+    "event_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Original node event type."
+    },
+    "promoted_event_type": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+      "description": "Core-governed event type exposed on the shared bus."
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "promoted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "component",
+        "topic"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "node"
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "component": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node_type": {
+          "type": "string"
+        },
+        "topic": {
+          "type": "string",
+          "pattern": "^hexe/nodes/[^/]+/events/.+"
+        }
+      }
+    },
+    "core": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core_id",
+        "promotion_policy",
+        "validation_status"
+      ],
+      "properties": {
+        "core_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "promotion_policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validation_status": {
+          "type": "string",
+          "enum": [
+            "accepted",
+            "accepted_with_redaction",
+            "rejected"
+          ]
+        },
+        "redaction_version": {
+          "type": "string"
+        },
+        "rate_limit_bucket": {
+          "type": "string"
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "family"
+      ],
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "record_id": {
+          "type": "string"
+        },
+        "transaction_id": {
+          "type": "string"
+        },
+        "message_id": {
+          "type": "string"
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "domain_topic": {
+          "type": "string",
+          "pattern": "^hexe/events/.+"
+        },
+        "source_topic": {
+          "type": "string",
+          "pattern": "^hexe/events/nodes/[^/]+/.+"
+        },
+        "dedupe_key": {
+          "type": "string"
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "description": "Core-validated and redacted node event payload.",
+      "additionalProperties": true
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_valid": {
+          "type": "boolean"
+        },
+        "privacy_valid": {
+          "type": "boolean"
+        },
+        "noise_state": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "watch",
+            "limited",
+            "blocked"
+          ]
+        },
+        "decision_reasons": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}
