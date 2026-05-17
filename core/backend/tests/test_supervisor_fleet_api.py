@@ -10,6 +10,32 @@ from fastapi.testclient import TestClient
 from app.system.supervisors import SupervisorEnrollmentTokenStore, SupervisorFleetStore, build_supervisors_router
 
 
+class _FakeSupervisorClient:
+    def request_json(self, method: str, path: str, **_kwargs):  # noqa: ANN001
+        self.requests.append((method, path))
+        payloads = {
+            "/api/supervisor/health": {
+                "status": "ok",
+                "host": {"host_id": "core-host", "hostname": "core-host"},
+                "resources": {"cpu_percent_total": 10.0, "gpu_count": 0},
+            },
+            "/api/supervisor/runtime": {
+                "host": {"host_id": "core-host", "hostname": "core-host"},
+                "managed_nodes": [{"node_id": "local-node"}],
+            },
+            "/api/supervisor/info": {
+                "supervisor_id": "local-core-supervisor",
+                "host": {"host_id": "core-host", "hostname": "core-host"},
+            },
+            "/api/supervisor/runtimes": {"items": [{"node_id": "local-node", "node_name": "Local Node"}]},
+            "/api/supervisor/core/runtimes": {"items": [{"runtime_id": "core-api", "runtime_name": "Core API"}]},
+        }
+        return payloads.get(path)
+
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, str]] = []
+
+
 class TestSupervisorFleetApi(unittest.TestCase):
     def setUp(self) -> None:
         self.env_patch = patch.dict(os.environ, {"SYNTHIA_ADMIN_TOKEN": "test-token"}, clear=False)
@@ -157,6 +183,23 @@ class TestSupervisorFleetApi(unittest.TestCase):
             json={"supervisor_id": "host-d", "health_status": "healthy"},
         )
         self.assertEqual(denied.status_code, 401, denied.text)
+
+    def test_list_syncs_local_core_attached_supervisor(self) -> None:
+        app = FastAPI()
+        app.state.supervisor_client = _FakeSupervisorClient()
+        app.include_router(build_supervisors_router(self.store, self.enrollment_store), prefix="/api/system")
+        client = TestClient(app)
+
+        listed = client.get("/api/system/supervisors", headers={"X-Admin-Token": "test-token"})
+
+        self.assertEqual(listed.status_code, 200, listed.text)
+        items = listed.json()["items"]
+        self.assertEqual(items[0]["supervisor_id"], "local-core-supervisor")
+        self.assertEqual(items[0]["transport"], "local")
+        self.assertEqual(items[0]["freshness_state"], "online")
+        self.assertEqual(items[0]["registered_runtime_count"], 1)
+        self.assertEqual(items[0]["core_runtime_count"], 1)
+        self.assertTrue(items[0]["metadata"]["attached_to_core"])
 
 
 if __name__ == "__main__":

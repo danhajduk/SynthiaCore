@@ -76,6 +76,14 @@ def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def _dict_payload(value: object) -> dict[str, Any]:
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _list_payload(value: object) -> list[dict[str, Any]]:
+    return [dict(item) for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
 def _default_enrollment_ttl_s() -> int:
     raw = str(os.getenv("HEXE_SUPERVISOR_ENROLLMENT_TTL_S", "900")).strip()
     try:
@@ -512,9 +520,87 @@ def build_supervisors_router(
             raise HTTPException(status_code=401, detail="invalid_supervisor_token")
         require_admin_token(x_admin_token, request)
 
+    def sync_local_supervisor(request: Request) -> None:
+        client = getattr(request.app.state, "supervisor_client", None)
+        request_json = getattr(client, "request_json", None)
+        if not callable(request_json):
+            return
+
+        health = request_json("GET", "/api/supervisor/health")
+        runtime = request_json("GET", "/api/supervisor/runtime")
+        info = request_json("GET", "/api/supervisor/info")
+        runtimes = request_json("GET", "/api/supervisor/runtimes")
+        core_runtimes = request_json("GET", "/api/supervisor/core/runtimes")
+        if not any(isinstance(item, dict) for item in (health, runtime, info, runtimes, core_runtimes)):
+            return
+
+        info_payload = _dict_payload(info)
+        health_payload = _dict_payload(health)
+        runtime_payload = _dict_payload(runtime)
+        host = (
+            _dict_payload(info_payload.get("host"))
+            or _dict_payload(health_payload.get("host"))
+            or _dict_payload(runtime_payload.get("host"))
+        )
+        resources = (
+            _dict_payload(health_payload.get("resources"))
+            or _dict_payload(info_payload.get("resources"))
+            or _dict_payload(runtime_payload.get("resources"))
+        )
+        managed_nodes = _list_payload(runtime_payload.get("managed_nodes")) or _list_payload(info_payload.get("managed_nodes"))
+        supervisor_id = (
+            _clean_text(info_payload.get("supervisor_id"))
+            or _clean_text(host.get("host_id"))
+            or _clean_text(host.get("hostname"))
+        )
+        if not supervisor_id:
+            return
+
+        existing = registry.get(supervisor_id)
+        node_runtimes = (
+            _list_payload(_dict_payload(runtimes).get("items"))
+            if isinstance(runtimes, dict)
+            else list(existing.registered_runtimes if existing else [])
+        )
+        core_runtime_items = (
+            _list_payload(_dict_payload(core_runtimes).get("items"))
+            if isinstance(core_runtimes, dict)
+            else list(existing.core_runtimes if existing else [])
+        )
+        managed_node_count = len(managed_nodes) if managed_nodes else existing.managed_node_count if existing else 0
+        registry.heartbeat(
+            SupervisorHeartbeatRequest(
+                supervisor_id=supervisor_id,
+                supervisor_name=existing.supervisor_name if existing else supervisor_id,
+                supervisor_version=existing.supervisor_version if existing else None,
+                host_id=_clean_text(host.get("host_id")) or None,
+                hostname=_clean_text(host.get("hostname")) or None,
+                api_base_url=existing.api_base_url if existing else None,
+                transport="local",
+                health_status=_clean_text(health_payload.get("status"), "ok"),
+                lifecycle_state="running",
+                resources=resources,
+                runtime=runtime_payload,
+                managed_node_count=managed_node_count,
+                registered_runtime_count=len(node_runtimes),
+                core_runtime_count=len(core_runtime_items),
+                registered_runtimes=node_runtimes,
+                core_runtimes=core_runtime_items,
+                capabilities=[
+                    "host_resources",
+                    "runtime_inventory",
+                    "node_runtime_registry",
+                    "core_runtime_registry",
+                    "local_core_attached",
+                ],
+                metadata={"reporter": "core-local-supervisor-probe", "attached_to_core": True},
+            )
+        )
+
     @router.get("/supervisors")
     def list_supervisors(request: Request, x_admin_token: str | None = Header(default=None)) -> dict[str, Any]:
         require_admin_token(x_admin_token, request)
+        sync_local_supervisor(request)
         return {"items": [record.to_api_dict() for record in registry.list()]}
 
     @router.post("/supervisors/enrollment-tokens")
@@ -559,6 +645,7 @@ def build_supervisors_router(
         x_admin_token: str | None = Header(default=None),
     ) -> dict[str, Any]:
         require_admin_token(x_admin_token, request)
+        sync_local_supervisor(request)
         record = registry.get(supervisor_id)
         if record is None:
             raise HTTPException(status_code=404, detail="supervisor_not_found")

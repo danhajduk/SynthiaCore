@@ -79,6 +79,10 @@ class SupervisorDomainService:
             runtime_provider=self._runtime_provider(),
         )
 
+    def _supervisor_id(self) -> str:
+        configured = str(os.getenv("HEXE_SUPERVISOR_ID") or os.getenv("SYNTHIA_SUPERVISOR_ID") or "").strip()
+        return configured or self._host_identity().host_id
+
     def _host_resources(self) -> HostResourceSummary:
         stats = collect_system_stats(api_metrics=None)
         root_disk = stats.disks.get("/")
@@ -1336,7 +1340,7 @@ class SupervisorDomainService:
         managed_nodes = self._managed_nodes()
         host = self._host_identity()
         return SupervisorInfoSummary(
-            supervisor_id=host.host_id,
+            supervisor_id=self._supervisor_id(),
             host=host,
             resources=self._host_resources(),
             boundaries=SupervisorOwnershipBoundary(

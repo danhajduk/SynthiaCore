@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.supervisor import SupervisorDomainService, SupervisorRuntimeRegistrationRequest
 from app.supervisor.resource_monitor import SupervisorResourceMonitor
@@ -130,6 +131,14 @@ class TestSupervisorResourceMonitor(unittest.TestCase):
         device = summary["gpu_devices"][0]
         self.assertEqual(device["name"], "NVIDIA RTX")
         self.assertEqual(device["memory_used_mib"], 6144)
+
+    def test_info_summary_uses_configured_supervisor_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            service = SupervisorDomainService(self._runtime_service(Path(tmpdir) / "services"))
+            with patch.dict("os.environ", {"HEXE_SUPERVISOR_ID": "local-core-supervisor"}, clear=False):
+                summary = service.info_summary()
+
+        self.assertEqual(summary.supervisor_id, "local-core-supervisor")
 
     def test_registered_runtime_summary_prefers_supervisor_sampled_service_metrics(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
