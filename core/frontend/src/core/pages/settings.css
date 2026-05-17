@@ -447,6 +447,26 @@
   opacity: 0.7;
 }
 
+.settings-detail-row td {
+  background: hsl(var(--sx-muted) / 0.22);
+}
+
+.settings-remote-status {
+  display: grid;
+  gap: var(--sx-space-2);
+}
+
+.settings-detail-title {
+  color: hsl(var(--sx-text) / 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.settings-detail-list {
+  overflow-wrap: anywhere;
+}
+
 .settings-actions-cell {
   display: flex;
   flex-wrap: wrap;

@@ -111,6 +111,8 @@ def _build_core_heartbeat_payload(supervisor: SupervisorDomainService) -> dict[s
             "managed_node_count": len(runtime.managed_nodes),
             "registered_runtime_count": len(registered_runtimes),
             "core_runtime_count": len(core_runtimes),
+            "registered_runtimes": [item.model_dump(mode="json") for item in registered_runtimes],
+            "core_runtimes": [item.model_dump(mode="json") for item in core_runtimes],
             "capabilities": [
                 "host_resources",
                 "runtime_inventory",

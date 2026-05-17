@@ -20,11 +20,13 @@ class SupervisorResourceMonitor:
         command_runner: Callable[[list[str]], subprocess.CompletedProcess[str]] | None = None,
         docker_available: Callable[[], bool] | None = None,
         systemctl_available: Callable[[], bool] | None = None,
+        gpu_available: Callable[[], bool] | None = None,
     ) -> None:
         self._process_factory = process_factory or psutil.Process
         self._command_runner = command_runner or self._run_command
         self._docker_available = docker_available or (lambda: shutil.which("docker") is not None)
         self._systemctl_available = systemctl_available or (lambda: shutil.which("systemctl") is not None)
+        self._gpu_available = gpu_available or (lambda: shutil.which("nvidia-smi") is not None)
 
     def enrich(
         self,
@@ -56,6 +58,87 @@ class SupervisorResourceMonitor:
 
     def _now_iso(self) -> str:
         return datetime.now(timezone.utc).isoformat()
+
+    def gpu_summary(self) -> dict[str, object]:
+        devices = self._nvidia_gpu_devices()
+        if not devices:
+            return {"gpu_count": 0, "gpu_devices": []}
+
+        util_values = [float(item["utilization_percent"]) for item in devices if isinstance(item.get("utilization_percent"), int | float)]
+        mem_values = [float(item["memory_percent"]) for item in devices if isinstance(item.get("memory_percent"), int | float)]
+        summary: dict[str, object] = {
+            "gpu_count": len(devices),
+            "gpu_devices": devices,
+        }
+        if util_values:
+            summary["gpu_utilization_percent"] = sum(util_values) / len(util_values)
+        if mem_values:
+            summary["gpu_memory_percent"] = sum(mem_values) / len(mem_values)
+        return summary
+
+    def _nvidia_gpu_devices(self) -> list[dict[str, object]]:
+        if not self._gpu_available():
+            return []
+        try:
+            result = self._command_runner(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=index,name,uuid,utilization.gpu,memory.total,memory.used,temperature.gpu,power.draw",
+                    "--format=csv,noheader,nounits",
+                ]
+            )
+        except Exception:
+            return []
+        if result.returncode != 0:
+            return []
+
+        devices: list[dict[str, object]] = []
+        for line in (result.stdout or "").splitlines():
+            parts = [part.strip() for part in line.split(",")]
+            if len(parts) < 8:
+                continue
+            index_raw, name, uuid, util_raw, mem_total_raw, mem_used_raw, temp_raw, power_raw = parts[:8]
+            device: dict[str, object] = {
+                "index": self._parse_int(index_raw),
+                "name": name,
+                "uuid": uuid,
+                "resource_source": "nvidia_smi",
+                "sampled_at": self._now_iso(),
+            }
+            util = self._parse_float(util_raw)
+            mem_total = self._parse_int(mem_total_raw)
+            mem_used = self._parse_int(mem_used_raw)
+            temp = self._parse_float(temp_raw)
+            power = self._parse_float(power_raw)
+            if util is not None:
+                device["utilization_percent"] = util
+            if mem_total is not None:
+                device["memory_total_mib"] = mem_total
+            if mem_used is not None:
+                device["memory_used_mib"] = mem_used
+            if mem_total and mem_used is not None:
+                device["memory_percent"] = min(max((float(mem_used) / float(mem_total)) * 100.0, 0.0), 100.0)
+            if temp is not None:
+                device["temperature_c"] = temp
+            if power is not None:
+                device["power_w"] = power
+            devices.append({key: value for key, value in device.items() if value is not None})
+        return devices
+
+    def _parse_float(self, value: object) -> float | None:
+        try:
+            text = str(value).strip()
+            if not text or text.upper() in {"N/A", "NA"}:
+                return None
+            return float(text)
+        except Exception:
+            return None
+
+    def _parse_int(self, value: object) -> int | None:
+        parsed = self._parse_float(value)
+        if parsed is None:
+            return None
+        return int(parsed)
 
     def _as_pid(self, value: object) -> int | None:
         if isinstance(value, bool):

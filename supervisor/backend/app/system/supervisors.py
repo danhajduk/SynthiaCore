@@ -111,6 +111,8 @@ class SupervisorHeartbeatRequest(BaseModel):
     managed_node_count: int | None = None
     registered_runtime_count: int | None = None
     core_runtime_count: int | None = None
+    registered_runtimes: list[dict[str, Any]] = Field(default_factory=list)
+    core_runtimes: list[dict[str, Any]] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -144,6 +146,8 @@ class SupervisorFleetRecord:
     managed_node_count: int | None
     registered_runtime_count: int | None
     core_runtime_count: int | None
+    registered_runtimes: list[dict[str, Any]]
+    core_runtimes: list[dict[str, Any]]
     metadata: dict[str, Any]
     first_seen_at: str
     last_seen_at: str | None
@@ -170,6 +174,8 @@ class SupervisorFleetRecord:
             "managed_node_count": self.managed_node_count,
             "registered_runtime_count": self.registered_runtime_count,
             "core_runtime_count": self.core_runtime_count,
+            "registered_runtimes": [dict(item or {}) for item in self.registered_runtimes or []],
+            "core_runtimes": [dict(item or {}) for item in self.core_runtimes or []],
             "metadata": dict(self.metadata or {}),
             "first_seen_at": self.first_seen_at,
             "last_seen_at": self.last_seen_at,
@@ -260,6 +266,14 @@ class SupervisorFleetStore:
                     item.get("registered_runtime_count") if isinstance(item.get("registered_runtime_count"), int) else None
                 ),
                 core_runtime_count=item.get("core_runtime_count") if isinstance(item.get("core_runtime_count"), int) else None,
+                registered_runtimes=[
+                    dict(value) for value in item.get("registered_runtimes", []) if isinstance(value, dict)
+                ]
+                if isinstance(item.get("registered_runtimes"), list)
+                else [],
+                core_runtimes=[dict(value) for value in item.get("core_runtimes", []) if isinstance(value, dict)]
+                if isinstance(item.get("core_runtimes"), list)
+                else [],
                 metadata=dict(item.get("metadata") or {}) if isinstance(item.get("metadata"), dict) else {},
                 first_seen_at=first_seen_at,
                 last_seen_at=_clean_text(item.get("last_seen_at")) or None,
@@ -313,6 +327,8 @@ class SupervisorFleetStore:
             managed_node_count=existing.managed_node_count if existing else None,
             registered_runtime_count=existing.registered_runtime_count if existing else None,
             core_runtime_count=existing.core_runtime_count if existing else None,
+            registered_runtimes=existing.registered_runtimes if existing else [],
+            core_runtimes=existing.core_runtimes if existing else [],
             metadata=dict(body.metadata or {}) or (existing.metadata if existing else {}),
             first_seen_at=existing.first_seen_at if existing else now,
             last_seen_at=existing.last_seen_at if existing else None,
@@ -356,6 +372,8 @@ class SupervisorFleetStore:
             managed_node_count=body.managed_node_count,
             registered_runtime_count=body.registered_runtime_count,
             core_runtime_count=body.core_runtime_count,
+            registered_runtimes=[dict(item) for item in body.registered_runtimes if isinstance(item, dict)],
+            core_runtimes=[dict(item) for item in body.core_runtimes if isinstance(item, dict)],
             metadata={**dict(base.metadata or {}), **dict(body.metadata or {})},
             first_seen_at=base.first_seen_at,
             last_seen_at=now,

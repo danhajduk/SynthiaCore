@@ -105,6 +105,32 @@ class TestSupervisorResourceMonitor(unittest.TestCase):
         self.assertEqual(usage["cpu_percent"], 2.5)
         self.assertEqual(usage["mem_percent"], 0.75)
 
+    def test_gpu_summary_samples_nvidia_smi(self) -> None:
+        def runner(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+            self.assertEqual(cmd[0], "nvidia-smi")
+            return subprocess.CompletedProcess(
+                cmd,
+                0,
+                stdout="0, NVIDIA RTX, GPU-abc, 42, 24576, 6144, 55, 123.4\n",
+                stderr="",
+            )
+
+        monitor = SupervisorResourceMonitor(
+            command_runner=runner,
+            docker_available=lambda: False,
+            systemctl_available=lambda: False,
+            gpu_available=lambda: True,
+        )
+
+        summary = monitor.gpu_summary()
+
+        self.assertEqual(summary["gpu_count"], 1)
+        self.assertEqual(summary["gpu_utilization_percent"], 42.0)
+        self.assertEqual(summary["gpu_memory_percent"], 25.0)
+        device = summary["gpu_devices"][0]
+        self.assertEqual(device["name"], "NVIDIA RTX")
+        self.assertEqual(device["memory_used_mib"], 6144)
+
     def test_registered_runtime_summary_prefers_supervisor_sampled_service_metrics(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

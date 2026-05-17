@@ -23,6 +23,10 @@ class HostResourceSummary(BaseModel):
     root_disk_total_bytes: int | None = Field(default=None, ge=0)
     root_disk_free_bytes: int | None = Field(default=None, ge=0)
     root_disk_percent: float | None = Field(default=None, ge=0, le=100)
+    gpu_count: int = Field(default=0, ge=0)
+    gpu_utilization_percent: float | None = Field(default=None, ge=0, le=100)
+    gpu_memory_percent: float | None = Field(default=None, ge=0, le=100)
+    gpu_devices: list[dict[str, object]] = Field(default_factory=list)
 
 
 class ManagedNodeSummary(BaseModel):

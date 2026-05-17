@@ -82,6 +82,7 @@ class SupervisorDomainService:
     def _host_resources(self) -> HostResourceSummary:
         stats = collect_system_stats(api_metrics=None)
         root_disk = stats.disks.get("/")
+        gpu_summary = self._resource_monitor.gpu_summary()
         return HostResourceSummary(
             uptime_s=stats.uptime_s,
             load_1m=stats.load.load1,
@@ -95,6 +96,18 @@ class SupervisorDomainService:
             root_disk_total_bytes=root_disk.total if root_disk is not None else None,
             root_disk_free_bytes=root_disk.free if root_disk is not None else None,
             root_disk_percent=root_disk.percent if root_disk is not None else None,
+            gpu_count=int(gpu_summary.get("gpu_count") or 0),
+            gpu_utilization_percent=(
+                float(gpu_summary["gpu_utilization_percent"])
+                if isinstance(gpu_summary.get("gpu_utilization_percent"), int | float)
+                else None
+            ),
+            gpu_memory_percent=(
+                float(gpu_summary["gpu_memory_percent"])
+                if isinstance(gpu_summary.get("gpu_memory_percent"), int | float)
+                else None
+            ),
+            gpu_devices=list(gpu_summary.get("gpu_devices") or []),
         )
 
     def _managed_nodes(self) -> list[ManagedNodeSummary]:

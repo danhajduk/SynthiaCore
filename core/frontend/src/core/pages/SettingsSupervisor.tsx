@@ -15,6 +15,10 @@ type SupervisorHostResources = {
   root_disk_total_bytes?: number | null;
   root_disk_free_bytes?: number | null;
   root_disk_percent?: number | null;
+  gpu_count?: number;
+  gpu_utilization_percent?: number | null;
+  gpu_memory_percent?: number | null;
+  gpu_devices?: Array<Record<string, unknown>>;
 };
 
 type SupervisorHostProcess = {
@@ -68,6 +72,8 @@ type SupervisorFleetRecord = {
   managed_node_count?: number | null;
   registered_runtime_count?: number | null;
   core_runtime_count?: number | null;
+  registered_runtimes?: Array<Record<string, unknown>>;
+  core_runtimes?: Array<Record<string, unknown>>;
   last_seen_at?: string | null;
 };
 
@@ -196,6 +202,13 @@ function formatNumber(value: unknown, fallback = "-"): string {
   if (typeof value === "number" && Number.isFinite(value)) return value.toLocaleString();
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed.toLocaleString() : fallback;
+}
+
+function runtimeLabel(row: Record<string, unknown>): string {
+  const id = String(row.node_id || row.runtime_id || "-");
+  const name = String(row.node_name || row.runtime_name || id);
+  const health = displayState(row.health_status || row.lifecycle_state || row.runtime_state);
+  return `${name} (${id}) · ${health}`;
 }
 
 function formatBytes(value: unknown): string {
@@ -474,29 +487,83 @@ export default function SettingsSupervisor() {
                   <th>Health</th>
                   <th>Nodes</th>
                   <th>Runtimes</th>
+                  <th>GPU</th>
                   <th>CPU</th>
                   <th>Mem</th>
                   <th>Last Seen</th>
                 </tr>
               </thead>
               <tbody>
-                {supervisors.map((supervisor) => (
-                  <tr key={supervisor.supervisor_id}>
-                    <td>
-                      <StatusLed tone={statusTone(supervisor.freshness_state || supervisor.health_status)} />
-                    </td>
-                    <td>{String(supervisor.supervisor_name || supervisor.supervisor_id)}</td>
-                    <td className="settings-mono">{supervisor.supervisor_id}</td>
-                    <td>{String(supervisor.hostname || supervisor.host_id || "-")}</td>
-                    <td>{displayState(supervisor.freshness_state)}</td>
-                    <td>{displayState(supervisor.health_status)}</td>
-                    <td>{formatNumber(supervisor.managed_node_count)}</td>
-                    <td>{formatNumber(supervisor.registered_runtime_count)}</td>
-                    <td>{formatPctValue(supervisor.resources?.cpu_percent_total)}</td>
-                    <td>{formatPctValue(supervisor.resources?.memory_percent)}</td>
-                    <td>{formatDateTime(supervisor.last_seen_at)}</td>
-                  </tr>
-                ))}
+                {supervisors.map((supervisor) => {
+                  const nodeRuntimes = Array.isArray(supervisor.registered_runtimes)
+                    ? supervisor.registered_runtimes
+                    : [];
+                  const coreRuntimes = Array.isArray(supervisor.core_runtimes) ? supervisor.core_runtimes : [];
+                  const gpuDevices = Array.isArray(supervisor.resources?.gpu_devices)
+                    ? supervisor.resources?.gpu_devices || []
+                    : [];
+                  return (
+                    <Fragment key={supervisor.supervisor_id}>
+                      <tr>
+                        <td>
+                          <StatusLed tone={statusTone(supervisor.freshness_state || supervisor.health_status)} />
+                        </td>
+                        <td>{String(supervisor.supervisor_name || supervisor.supervisor_id)}</td>
+                        <td className="settings-mono">{supervisor.supervisor_id}</td>
+                        <td>{String(supervisor.hostname || supervisor.host_id || "-")}</td>
+                        <td>{displayState(supervisor.freshness_state)}</td>
+                        <td>{displayState(supervisor.health_status)}</td>
+                        <td>{formatNumber(supervisor.managed_node_count)}</td>
+                        <td>{formatNumber(supervisor.registered_runtime_count)}</td>
+                        <td>
+                          {formatNumber(supervisor.resources?.gpu_count, "0")}
+                          {supervisor.resources?.gpu_utilization_percent !== undefined
+                            ? ` · ${formatPctValue(supervisor.resources?.gpu_utilization_percent)}`
+                            : ""}
+                        </td>
+                        <td>{formatPctValue(supervisor.resources?.cpu_percent_total)}</td>
+                        <td>{formatPctValue(supervisor.resources?.memory_percent)}</td>
+                        <td>{formatDateTime(supervisor.last_seen_at)}</td>
+                      </tr>
+                      {(nodeRuntimes.length > 0 || coreRuntimes.length > 0 || gpuDevices.length > 0) && (
+                        <tr className="settings-detail-row">
+                          <td />
+                          <td colSpan={11}>
+                            <div className="settings-remote-status">
+                              {nodeRuntimes.length > 0 && (
+                                <div>
+                                  <div className="settings-detail-title">Node runtimes</div>
+                                  <div className="settings-detail-list">{nodeRuntimes.map(runtimeLabel).join(" | ")}</div>
+                                </div>
+                              )}
+                              {coreRuntimes.length > 0 && (
+                                <div>
+                                  <div className="settings-detail-title">Core runtimes</div>
+                                  <div className="settings-detail-list">{coreRuntimes.map(runtimeLabel).join(" | ")}</div>
+                                </div>
+                              )}
+                              {gpuDevices.length > 0 && (
+                                <div>
+                                  <div className="settings-detail-title">GPUs</div>
+                                  <div className="settings-detail-list">
+                                    {gpuDevices
+                                      .map((gpu) => {
+                                        const name = String(gpu.name || `GPU ${gpu.index ?? ""}`).trim();
+                                        return `${name} · ${formatPctValue(gpu.utilization_percent)} util · ${formatPctValue(
+                                          gpu.memory_percent,
+                                        )} mem`;
+                                      })
+                                      .join(" | ")}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           )}

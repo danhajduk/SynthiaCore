@@ -56,6 +56,22 @@ class TestSupervisorFleetApi(unittest.TestCase):
                 "managed_node_count": 2,
                 "registered_runtime_count": 3,
                 "core_runtime_count": 0,
+                "registered_runtimes": [
+                    {
+                        "node_id": "node-ai",
+                        "node_name": "AI Node",
+                        "node_type": "ai-node",
+                        "health_status": "healthy",
+                    }
+                ],
+                "core_runtimes": [
+                    {
+                        "runtime_id": "addon:mqtt",
+                        "runtime_name": "Hexe MQTT",
+                        "runtime_kind": "addon",
+                        "health_status": "healthy",
+                    }
+                ],
             },
         )
         self.assertEqual(heartbeat.status_code, 200, heartbeat.text)
@@ -63,10 +79,13 @@ class TestSupervisorFleetApi(unittest.TestCase):
         self.assertEqual(updated["health_status"], "healthy")
         self.assertEqual(updated["freshness_state"], "online")
         self.assertEqual(updated["managed_node_count"], 2)
+        self.assertEqual(updated["registered_runtimes"][0]["node_id"], "node-ai")
+        self.assertEqual(updated["core_runtimes"][0]["runtime_id"], "addon:mqtt")
 
         listed = self.client.get("/api/system/supervisors", headers=headers)
         self.assertEqual(listed.status_code, 200, listed.text)
         self.assertEqual(listed.json()["items"][0]["supervisor_id"], "host-a")
+        self.assertEqual(listed.json()["items"][0]["registered_runtimes"][0]["node_name"], "AI Node")
 
     def test_supervisor_routes_require_admin(self) -> None:
         denied = self.client.get("/api/system/supervisors")
