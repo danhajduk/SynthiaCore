@@ -17,6 +17,7 @@ import SettingsScheduler from "../pages/SettingsScheduler";
 import AddonStorePage from "../../pages/AddonStorePage";
 import OnboardingNodeApproval from "../pages/OnboardingNodeApproval";
 import NodeReauthApproval from "../pages/NodeReauthApproval";
+import SupervisorEnrollment from "../pages/SupervisorEnrollment";
 import { getAddonRoutes } from "./loadAddons";
 
 function ProtectedRedirect() {
@@ -48,6 +49,8 @@ export function buildRoutes(isAdmin: boolean, ready: boolean): RouteObject[] {
     { path: "/onboarding/registrations/approve", element: <OnboardingNodeApproval /> },
     { path: "/onboarding/nodes/approve", element: <OnboardingNodeApproval /> },
     { path: "/reauth/nodes/approve", element: <NodeReauthApproval /> },
+    { path: "/system/supervisors/enrollment", element: <SupervisorEnrollment /> },
+    { path: "/supervisors/enrollment", element: <SupervisorEnrollment /> },
     { path: "/settings", element: protectedRoute(<Settings />) },
     { path: "/settings/edge", element: protectedRoute(<EdgeGateway />) },
     { path: "/settings/metrics", element: protectedRoute(<SettingsMetrics />) },

@@ -12,6 +12,8 @@ function AppLayout() {
     location.pathname === "/onboarding/registrations/approve" ||
     location.pathname === "/onboarding/nodes/approve" ||
     location.pathname === "/reauth/nodes/approve" ||
+    location.pathname === "/system/supervisors/enrollment" ||
+    location.pathname === "/supervisors/enrollment" ||
     location.pathname === "/proxy-login";
   return (
     <Shell isAdmin={authenticated} chromeless={chromeless}>

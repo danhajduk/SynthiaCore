@@ -206,6 +206,30 @@
   line-height: 1.45;
 }
 
+.onboard-form-field input,
+.onboard-token-output textarea {
+  width: 100%;
+  border: 1px solid hsl(var(--sx-text) / 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: hsl(var(--sx-text) / 0.04);
+  color: white;
+  font: inherit;
+}
+
+.onboard-token-output {
+  display: grid;
+  gap: 12px;
+}
+
+.onboard-token-output textarea {
+  min-height: 112px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
 .onboard-actions {
   display: flex;
   gap: 12px;

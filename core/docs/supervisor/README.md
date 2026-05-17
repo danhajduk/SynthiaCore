@@ -76,6 +76,16 @@ Join-Core mode installs Supervisor on a host and configures remote reporting int
 
 First create a one-time enrollment token from Core with an admin session or admin token:
 
+Open the Core Supervisor enrollment page in a browser:
+
+```text
+http://core-host:9001/system/supervisors/enrollment?supervisor_id=host-a&supervisor_name=Host%20A%20Supervisor
+```
+
+The page signs in with the normal Core admin session, creates the one-time token, and can copy either the token or a joined install command.
+
+The same token can also be created directly through the API:
+
 ```bash
 curl -fsS -X POST http://core-host:9001/api/system/supervisors/enrollment-tokens \
   -H "Content-Type: application/json" \
