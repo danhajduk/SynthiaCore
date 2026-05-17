@@ -65,7 +65,7 @@ Supervisor can be installed as a first-party app independently from the Core run
 Standalone mode installs only the Supervisor daemon and Supervisor API services. It does not report to Core.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- --standalone
+curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- --standalone
 ```
 
 The default standalone Supervisor checkout location is `~/hexe/hexe/supervisor`.
@@ -96,7 +96,7 @@ curl -fsS -X POST http://core-host:9001/api/system/supervisors/enrollment-tokens
 Core returns `enrollment_token` and `one_time_token` with the same value. Pass that token to the remote host install command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- \
+curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- \
   --join-core \
   --core-url http://core-host:9001 \
   --enrollment-token "$HEXE_SUPERVISOR_ENROLLMENT_TOKEN" \
@@ -113,7 +113,7 @@ The default joined Supervisor checkout location is also `~/hexe/hexe/supervisor`
 Bundled-Core mode installs Supervisor beside a local Core checkout. This is the mode used by Core-host installs.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- \
+curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- \
   --bundled-core
 ```
 

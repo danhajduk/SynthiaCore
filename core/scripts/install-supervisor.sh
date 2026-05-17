@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${0:-}}")" && pwd)"
 LOCAL_INSTALLER="$SCRIPT_DIR/supervisor_install.sh"
-RAW_BASE="${HEXE_RAW_BASE_URL:-https://raw.githubusercontent.com/danhajduk/HexeCore/main}"
+RAW_BASE="${HEXE_RAW_BASE_URL:-https://raw.githubusercontent.com/danhajduk/HexeCore/main/core}"
 
 if [[ -f "$LOCAL_INSTALLER" ]]; then
   exec "$LOCAL_INSTALLER" "$@"

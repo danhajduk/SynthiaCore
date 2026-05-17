@@ -47,9 +47,9 @@ Usage:
                         [--supervisor-name NAME] [--public-url URL]
 
 Curl install:
-  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- --standalone
-  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- --join-core --core-url http://core-host:9001 --enrollment-token TOKEN --supervisor-id host-a
-  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- --bundled-core
+  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- --standalone
+  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- --join-core --core-url http://core-host:9001 --enrollment-token TOKEN --supervisor-id host-a
+  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- --bundled-core
 
 Options:
   --dir INSTALL_DIR  Checkout to use or create. Defaults to $DEFAULT_SUPERVISOR_INSTALL_DIR for standalone/join-core and $DEFAULT_CORE_INSTALL_DIR for bundled-core.
