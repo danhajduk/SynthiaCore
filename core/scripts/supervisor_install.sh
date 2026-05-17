@@ -175,6 +175,36 @@ infer_install_mode() {
   fi
 }
 
+load_existing_supervisor_env() {
+  local env_file="$HOME/.config/hexe/supervisor.env"
+  if [[ ! -f "$env_file" ]]; then
+    return 0
+  fi
+
+  # shellcheck source=/dev/null
+  source "$env_file"
+
+  if [[ -z "$INSTALL_MODE" && -n "${HEXE_SUPERVISOR_INSTALL_MODE:-}" ]]; then
+    INSTALL_MODE="$HEXE_SUPERVISOR_INSTALL_MODE"
+  fi
+  if [[ -z "$CORE_URL" && -n "${HEXE_SUPERVISOR_CORE_URL:-}" ]]; then
+    CORE_URL="$HEXE_SUPERVISOR_CORE_URL"
+  fi
+  if [[ -z "$SUPERVISOR_ID" && -n "${HEXE_SUPERVISOR_ID:-}" ]]; then
+    SUPERVISOR_ID="$HEXE_SUPERVISOR_ID"
+  fi
+  if [[ -z "$SUPERVISOR_NAME" && -n "${HEXE_SUPERVISOR_NAME:-}" ]]; then
+    SUPERVISOR_NAME="$HEXE_SUPERVISOR_NAME"
+  fi
+  if [[ -z "$SUPERVISOR_PUBLIC_URL" && -n "${HEXE_SUPERVISOR_PUBLIC_URL:-}" ]]; then
+    SUPERVISOR_PUBLIC_URL="$HEXE_SUPERVISOR_PUBLIC_URL"
+  fi
+  if [[ -z "$CORE_TOKEN" && -z "$ENROLLMENT_TOKEN" && -n "${HEXE_SUPERVISOR_CORE_TOKEN:-}" ]]; then
+    CORE_TOKEN="$HEXE_SUPERVISOR_CORE_TOKEN"
+    CORE_TOKEN_KIND="${HEXE_SUPERVISOR_CORE_TOKEN_KIND:-supervisor}"
+  fi
+}
+
 validate_install_mode() {
   infer_install_mode
 
@@ -216,6 +246,7 @@ validate_install_mode() {
   fi
 }
 
+load_existing_supervisor_env
 validate_install_mode
 
 if [[ -z "$INSTALL_DIR" ]]; then
