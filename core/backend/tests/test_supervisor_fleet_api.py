@@ -186,13 +186,16 @@ class TestSupervisorFleetApi(unittest.TestCase):
 
     def test_list_syncs_local_core_attached_supervisor(self) -> None:
         app = FastAPI()
-        app.state.supervisor_client = _FakeSupervisorClient()
+        supervisor_client = _FakeSupervisorClient()
+        app.state.supervisor_client = supervisor_client
         app.include_router(build_supervisors_router(self.store, self.enrollment_store), prefix="/api/system")
         client = TestClient(app)
 
         listed = client.get("/api/system/supervisors", headers={"X-Admin-Token": "test-token"})
+        listed_again = client.get("/api/system/supervisors", headers={"X-Admin-Token": "test-token"})
 
         self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(listed_again.status_code, 200, listed_again.text)
         items = listed.json()["items"]
         self.assertEqual(items[0]["supervisor_id"], "local-core-supervisor")
         self.assertEqual(items[0]["transport"], "local")
@@ -200,6 +203,7 @@ class TestSupervisorFleetApi(unittest.TestCase):
         self.assertEqual(items[0]["registered_runtime_count"], 1)
         self.assertEqual(items[0]["core_runtime_count"], 1)
         self.assertTrue(items[0]["metadata"]["attached_to_core"])
+        self.assertEqual(len(supervisor_client.requests), 5)
 
 
 if __name__ == "__main__":

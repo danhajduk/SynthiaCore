@@ -5,6 +5,7 @@ import hmac
 import json
 import os
 import secrets
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -46,6 +47,14 @@ def _offline_after_s() -> float:
         return max(_stale_after_s() + 1.0, float(raw))
     except Exception:
         return 180.0
+
+
+def _local_probe_cache_s() -> float:
+    raw = str(os.getenv("HEXE_SUPERVISOR_FLEET_LOCAL_CACHE_S", "10")).strip()
+    try:
+        return max(1.0, float(raw))
+    except Exception:
+        return 10.0
 
 
 def _freshness_state(last_seen_at: str | None) -> str:
@@ -521,6 +530,15 @@ def build_supervisors_router(
         require_admin_token(x_admin_token, request)
 
     def sync_local_supervisor(request: Request) -> None:
+        cache = getattr(request.app.state, "supervisor_fleet_local_sync_cache", None)
+        if not isinstance(cache, dict):
+            cache = {"updated_at": 0.0}
+            setattr(request.app.state, "supervisor_fleet_local_sync_cache", cache)
+        now = time.time()
+        cached_at = cache.get("updated_at")
+        if isinstance(cached_at, (int, float)) and now - cached_at < _local_probe_cache_s():
+            return
+
         client = getattr(request.app.state, "supervisor_client", None)
         request_json = getattr(client, "request_json", None)
         if not callable(request_json):
@@ -596,6 +614,7 @@ def build_supervisors_router(
                 metadata={"reporter": "core-local-supervisor-probe", "attached_to_core": True},
             )
         )
+        cache["updated_at"] = now
 
     @router.get("/supervisors")
     def list_supervisors(request: Request, x_admin_token: str | None = Header(default=None)) -> dict[str, Any]:
