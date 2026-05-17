@@ -264,6 +264,7 @@ if [[ -z "$REPO_URL" || -z "$BRANCH" || -z "$INSTALL_DIR" ]]; then
 fi
 
 APP_DIR="$INSTALL_DIR"
+REPO_SUBDIR=""
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
@@ -299,13 +300,40 @@ ensure_deps() {
 
 clone_or_refresh_repo() {
   if [[ ! -d "$INSTALL_DIR" ]]; then
+    local clone_dir="$INSTALL_DIR"
+    REPO_SUBDIR=""
+    if [[ "$INSTALL_MODE" == "bundled-core" ]]; then
+      REPO_SUBDIR="core"
+    else
+      REPO_SUBDIR="supervisor"
+    fi
+
     echo "[supervisor-install] Cloning $REPO_URL ($BRANCH) -> $INSTALL_DIR"
     mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+    if [[ "$REPO_SUBDIR" == "." ]]; then
+      git clone --branch "$BRANCH" "$REPO_URL" "$clone_dir"
+      return 0
+    fi
+
+    clone_dir="$(mktemp -d "${TMPDIR:-/tmp}/hexe-supervisor-install.XXXXXX")"
+    git clone --branch "$BRANCH" "$REPO_URL" "$clone_dir/repo"
+    if [[ ! -d "$clone_dir/repo/$REPO_SUBDIR" ]]; then
+      echo "[supervisor-install] Cloned repo is missing expected subdir: $REPO_SUBDIR" >&2
+      rm -rf "$clone_dir"
+      exit 1
+    fi
+    mkdir -p "$INSTALL_DIR"
+    (cd "$clone_dir/repo/$REPO_SUBDIR" && tar -cf - .) | (cd "$INSTALL_DIR" && tar -xf -)
+    rm -rf "$clone_dir"
     return 0
   fi
 
   if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+    if [[ -d "$INSTALL_DIR/core" && -d "$INSTALL_DIR/supervisor" ]]; then
+      echo "[supervisor-install] ERROR: $INSTALL_DIR looks like a full HexeCore checkout nested in the Supervisor install directory." >&2
+      echo "[supervisor-install] Remove it or rerun with --dir pointing at the intended parent checkout." >&2
+      exit 1
+    fi
     echo "[supervisor-install] Using existing non-git install dir: $INSTALL_DIR"
     return 0
   fi

@@ -90,7 +90,7 @@ export default function SupervisorEnrollment() {
   const installCommand = useMemo(() => {
     if (!tokenValue || !effectiveSupervisorId) return "";
     const args = [
-      "curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s --",
+      "curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s --",
       "--join-core",
       `--core-url ${coreUrl}`,
       `--supervisor-id ${effectiveSupervisorId}`,

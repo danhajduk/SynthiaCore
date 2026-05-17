@@ -47,9 +47,9 @@ Usage:
                         [--supervisor-name NAME] [--public-url URL]
 
 Curl install:
-  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- --standalone
-  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- --join-core --core-url http://core-host:9001 --enrollment-token TOKEN --supervisor-id host-a
-  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/scripts/install-supervisor.sh | bash -s -- --bundled-core
+  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- --standalone
+  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- --join-core --core-url http://core-host:9001 --enrollment-token TOKEN --supervisor-id host-a
+  curl -fsSL https://raw.githubusercontent.com/danhajduk/HexeCore/main/core/scripts/install-supervisor.sh | bash -s -- --bundled-core
 
 Options:
   --dir INSTALL_DIR  Checkout to use or create. Defaults to $DEFAULT_SUPERVISOR_INSTALL_DIR for standalone/join-core and $DEFAULT_CORE_INSTALL_DIR for bundled-core.
@@ -175,6 +175,36 @@ infer_install_mode() {
   fi
 }
 
+load_existing_supervisor_env() {
+  local env_file="$HOME/.config/hexe/supervisor.env"
+  if [[ ! -f "$env_file" ]]; then
+    return 0
+  fi
+
+  # shellcheck source=/dev/null
+  source "$env_file"
+
+  if [[ -z "$INSTALL_MODE" && -n "${HEXE_SUPERVISOR_INSTALL_MODE:-}" ]]; then
+    INSTALL_MODE="$HEXE_SUPERVISOR_INSTALL_MODE"
+  fi
+  if [[ -z "$CORE_URL" && -n "${HEXE_SUPERVISOR_CORE_URL:-}" ]]; then
+    CORE_URL="$HEXE_SUPERVISOR_CORE_URL"
+  fi
+  if [[ -z "$SUPERVISOR_ID" && -n "${HEXE_SUPERVISOR_ID:-}" ]]; then
+    SUPERVISOR_ID="$HEXE_SUPERVISOR_ID"
+  fi
+  if [[ -z "$SUPERVISOR_NAME" && -n "${HEXE_SUPERVISOR_NAME:-}" ]]; then
+    SUPERVISOR_NAME="$HEXE_SUPERVISOR_NAME"
+  fi
+  if [[ -z "$SUPERVISOR_PUBLIC_URL" && -n "${HEXE_SUPERVISOR_PUBLIC_URL:-}" ]]; then
+    SUPERVISOR_PUBLIC_URL="$HEXE_SUPERVISOR_PUBLIC_URL"
+  fi
+  if [[ -z "$CORE_TOKEN" && -z "$ENROLLMENT_TOKEN" && -n "${HEXE_SUPERVISOR_CORE_TOKEN:-}" ]]; then
+    CORE_TOKEN="$HEXE_SUPERVISOR_CORE_TOKEN"
+    CORE_TOKEN_KIND="${HEXE_SUPERVISOR_CORE_TOKEN_KIND:-supervisor}"
+  fi
+}
+
 validate_install_mode() {
   infer_install_mode
 
@@ -216,6 +246,7 @@ validate_install_mode() {
   fi
 }
 
+load_existing_supervisor_env
 validate_install_mode
 
 if [[ -z "$INSTALL_DIR" ]]; then
@@ -231,6 +262,9 @@ if [[ -z "$REPO_URL" || -z "$BRANCH" || -z "$INSTALL_DIR" ]]; then
   usage
   exit 1
 fi
+
+APP_DIR="$INSTALL_DIR"
+REPO_SUBDIR=""
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
@@ -266,13 +300,40 @@ ensure_deps() {
 
 clone_or_refresh_repo() {
   if [[ ! -d "$INSTALL_DIR" ]]; then
+    local clone_dir="$INSTALL_DIR"
+    REPO_SUBDIR=""
+    if [[ "$INSTALL_MODE" == "bundled-core" ]]; then
+      REPO_SUBDIR="core"
+    else
+      REPO_SUBDIR="supervisor"
+    fi
+
     echo "[supervisor-install] Cloning $REPO_URL ($BRANCH) -> $INSTALL_DIR"
     mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+    if [[ "$REPO_SUBDIR" == "." ]]; then
+      git clone --branch "$BRANCH" "$REPO_URL" "$clone_dir"
+      return 0
+    fi
+
+    clone_dir="$(mktemp -d "${TMPDIR:-/tmp}/hexe-supervisor-install.XXXXXX")"
+    git clone --branch "$BRANCH" "$REPO_URL" "$clone_dir/repo"
+    if [[ ! -d "$clone_dir/repo/$REPO_SUBDIR" ]]; then
+      echo "[supervisor-install] Cloned repo is missing expected subdir: $REPO_SUBDIR" >&2
+      rm -rf "$clone_dir"
+      exit 1
+    fi
+    mkdir -p "$INSTALL_DIR"
+    (cd "$clone_dir/repo/$REPO_SUBDIR" && tar -cf - .) | (cd "$INSTALL_DIR" && tar -xf -)
+    rm -rf "$clone_dir"
     return 0
   fi
 
   if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+    if [[ -d "$INSTALL_DIR/core" && -d "$INSTALL_DIR/supervisor" ]]; then
+      echo "[supervisor-install] ERROR: $INSTALL_DIR looks like a full HexeCore checkout nested in the Supervisor install directory." >&2
+      echo "[supervisor-install] Remove it or rerun with --dir pointing at the intended parent checkout." >&2
+      exit 1
+    fi
     echo "[supervisor-install] Using existing non-git install dir: $INSTALL_DIR"
     return 0
   fi
@@ -287,15 +348,36 @@ clone_or_refresh_repo() {
   fi
 }
 
+resolve_app_dir() {
+  APP_DIR="$INSTALL_DIR"
+  if [[ -d "$APP_DIR/backend/synthia_supervisor" && -d "$APP_DIR/systemd/user" ]]; then
+    return 0
+  fi
+
+  if [[ "$INSTALL_MODE" == "bundled-core" && -d "$INSTALL_DIR/core/backend/synthia_supervisor" ]]; then
+    APP_DIR="$INSTALL_DIR/core"
+    return 0
+  fi
+
+  if [[ "$INSTALL_MODE" != "bundled-core" && -d "$INSTALL_DIR/supervisor/backend/synthia_supervisor" ]]; then
+    APP_DIR="$INSTALL_DIR/supervisor"
+    return 0
+  fi
+
+  if [[ -d "$INSTALL_DIR/core/backend/synthia_supervisor" ]]; then
+    APP_DIR="$INSTALL_DIR/core"
+  fi
+}
+
 ensure_repo_layout() {
   local missing=()
-  [[ -f "$INSTALL_DIR/backend/requirements.txt" ]] || missing+=("backend/requirements.txt")
-  [[ -d "$INSTALL_DIR/backend/synthia_supervisor" ]] || missing+=("backend/synthia_supervisor")
-  [[ -f "$INSTALL_DIR/systemd/user/hexe-supervisor.service.in" ]] || missing+=("systemd/user/hexe-supervisor.service.in")
-  [[ -f "$INSTALL_DIR/systemd/user/hexe-supervisor-api.service.in" ]] || missing+=("systemd/user/hexe-supervisor-api.service.in")
+  [[ -f "$APP_DIR/backend/requirements.txt" ]] || missing+=("backend/requirements.txt")
+  [[ -d "$APP_DIR/backend/synthia_supervisor" ]] || missing+=("backend/synthia_supervisor")
+  [[ -f "$APP_DIR/systemd/user/hexe-supervisor.service.in" ]] || missing+=("systemd/user/hexe-supervisor.service.in")
+  [[ -f "$APP_DIR/systemd/user/hexe-supervisor-api.service.in" ]] || missing+=("systemd/user/hexe-supervisor-api.service.in")
 
   if (( ${#missing[@]} > 0 )); then
-    echo "[supervisor-install] Install dir is missing required Supervisor files:" >&2
+    echo "[supervisor-install] Supervisor app dir is missing required files: $APP_DIR" >&2
     printf "  - %s\n" "${missing[@]}" >&2
     exit 1
   fi
@@ -303,7 +385,7 @@ ensure_repo_layout() {
 
 install_backend_runtime() {
   echo "[supervisor-install] Preparing backend Python runtime"
-  cd "$INSTALL_DIR/backend"
+  cd "$APP_DIR/backend"
   python3 -m venv .venv
   # shellcheck source=/dev/null
   source .venv/bin/activate
@@ -313,7 +395,7 @@ install_backend_runtime() {
 }
 
 install_tmpfiles_rule() {
-  local src="$INSTALL_DIR/systemd/tmpfiles.d/hexe.conf"
+  local src="$APP_DIR/systemd/tmpfiles.d/hexe.conf"
   local dst="/etc/tmpfiles.d/hexe.conf"
 
   if [[ ! -f "$src" ]]; then
@@ -449,11 +531,11 @@ install_unit() {
     exit 1
   fi
 
-  sed "s|@INSTALL_DIR@|$INSTALL_DIR|g" "$template" > "$out"
+  sed "s|@INSTALL_DIR@|$APP_DIR|g" "$template" > "$out"
 }
 
 install_user_units() {
-  local unit_src_dir="$INSTALL_DIR/systemd/user"
+  local unit_src_dir="$APP_DIR/systemd/user"
   local unit_dst_dir="$HOME/.config/systemd/user"
 
   echo "[supervisor-install] Installing Supervisor systemd user units"
@@ -494,6 +576,8 @@ echo "[supervisor-install] repo_url=$REPO_URL branch=$BRANCH"
 
 ensure_deps
 clone_or_refresh_repo
+resolve_app_dir
+echo "[supervisor-install] app_dir=$APP_DIR"
 ensure_repo_layout
 install_backend_runtime
 install_tmpfiles_rule
