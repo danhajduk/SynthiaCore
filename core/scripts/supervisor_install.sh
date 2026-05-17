@@ -232,6 +232,8 @@ if [[ -z "$REPO_URL" || -z "$BRANCH" || -z "$INSTALL_DIR" ]]; then
   exit 1
 fi
 
+APP_DIR="$INSTALL_DIR"
+
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 install_missing_deps() {
@@ -287,15 +289,36 @@ clone_or_refresh_repo() {
   fi
 }
 
+resolve_app_dir() {
+  APP_DIR="$INSTALL_DIR"
+  if [[ -d "$APP_DIR/backend/synthia_supervisor" && -d "$APP_DIR/systemd/user" ]]; then
+    return 0
+  fi
+
+  if [[ "$INSTALL_MODE" == "bundled-core" && -d "$INSTALL_DIR/core/backend/synthia_supervisor" ]]; then
+    APP_DIR="$INSTALL_DIR/core"
+    return 0
+  fi
+
+  if [[ "$INSTALL_MODE" != "bundled-core" && -d "$INSTALL_DIR/supervisor/backend/synthia_supervisor" ]]; then
+    APP_DIR="$INSTALL_DIR/supervisor"
+    return 0
+  fi
+
+  if [[ -d "$INSTALL_DIR/core/backend/synthia_supervisor" ]]; then
+    APP_DIR="$INSTALL_DIR/core"
+  fi
+}
+
 ensure_repo_layout() {
   local missing=()
-  [[ -f "$INSTALL_DIR/backend/requirements.txt" ]] || missing+=("backend/requirements.txt")
-  [[ -d "$INSTALL_DIR/backend/synthia_supervisor" ]] || missing+=("backend/synthia_supervisor")
-  [[ -f "$INSTALL_DIR/systemd/user/hexe-supervisor.service.in" ]] || missing+=("systemd/user/hexe-supervisor.service.in")
-  [[ -f "$INSTALL_DIR/systemd/user/hexe-supervisor-api.service.in" ]] || missing+=("systemd/user/hexe-supervisor-api.service.in")
+  [[ -f "$APP_DIR/backend/requirements.txt" ]] || missing+=("backend/requirements.txt")
+  [[ -d "$APP_DIR/backend/synthia_supervisor" ]] || missing+=("backend/synthia_supervisor")
+  [[ -f "$APP_DIR/systemd/user/hexe-supervisor.service.in" ]] || missing+=("systemd/user/hexe-supervisor.service.in")
+  [[ -f "$APP_DIR/systemd/user/hexe-supervisor-api.service.in" ]] || missing+=("systemd/user/hexe-supervisor-api.service.in")
 
   if (( ${#missing[@]} > 0 )); then
-    echo "[supervisor-install] Install dir is missing required Supervisor files:" >&2
+    echo "[supervisor-install] Supervisor app dir is missing required files: $APP_DIR" >&2
     printf "  - %s\n" "${missing[@]}" >&2
     exit 1
   fi
@@ -303,7 +326,7 @@ ensure_repo_layout() {
 
 install_backend_runtime() {
   echo "[supervisor-install] Preparing backend Python runtime"
-  cd "$INSTALL_DIR/backend"
+  cd "$APP_DIR/backend"
   python3 -m venv .venv
   # shellcheck source=/dev/null
   source .venv/bin/activate
@@ -313,7 +336,7 @@ install_backend_runtime() {
 }
 
 install_tmpfiles_rule() {
-  local src="$INSTALL_DIR/systemd/tmpfiles.d/hexe.conf"
+  local src="$APP_DIR/systemd/tmpfiles.d/hexe.conf"
   local dst="/etc/tmpfiles.d/hexe.conf"
 
   if [[ ! -f "$src" ]]; then
@@ -449,11 +472,11 @@ install_unit() {
     exit 1
   fi
 
-  sed "s|@INSTALL_DIR@|$INSTALL_DIR|g" "$template" > "$out"
+  sed "s|@INSTALL_DIR@|$APP_DIR|g" "$template" > "$out"
 }
 
 install_user_units() {
-  local unit_src_dir="$INSTALL_DIR/systemd/user"
+  local unit_src_dir="$APP_DIR/systemd/user"
   local unit_dst_dir="$HOME/.config/systemd/user"
 
   echo "[supervisor-install] Installing Supervisor systemd user units"
@@ -494,6 +517,8 @@ echo "[supervisor-install] repo_url=$REPO_URL branch=$BRANCH"
 
 ensure_deps
 clone_or_refresh_repo
+resolve_app_dir
+echo "[supervisor-install] app_dir=$APP_DIR"
 ensure_repo_layout
 install_backend_runtime
 install_tmpfiles_rule
