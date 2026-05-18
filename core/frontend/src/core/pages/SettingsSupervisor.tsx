@@ -288,7 +288,11 @@ function gpuMemoryValue(gpu: Record<string, unknown>): string {
 
 function gpuPowerValue(gpu: Record<string, unknown>): string {
   const power = numberValue(gpu.power_w);
-  return power === null ? "-" : `${power.toFixed(1)} W`;
+  const limit = numberValue(gpu.power_limit_w);
+  if (power === null && limit === null) return "-";
+  if (limit !== null) return `${power === null ? "-" : power.toFixed(1)} / ${limit.toFixed(1)} W`;
+  if (power === null) return "-";
+  return `${power.toFixed(1)} W`;
 }
 
 function cudaValue(resources?: SupervisorHostResources): string {

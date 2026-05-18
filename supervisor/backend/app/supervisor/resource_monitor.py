@@ -118,7 +118,7 @@ class SupervisorResourceMonitor:
             result = self._command_runner(
                 [
                     "nvidia-smi",
-                    "--query-gpu=index,name,uuid,utilization.gpu,memory.total,memory.used,temperature.gpu,power.draw",
+                    "--query-gpu=index,name,uuid,utilization.gpu,memory.total,memory.used,temperature.gpu,power.draw,power.limit",
                     "--format=csv,noheader,nounits",
                 ]
             )
@@ -133,6 +133,7 @@ class SupervisorResourceMonitor:
             if len(parts) < 8:
                 continue
             index_raw, name, uuid, util_raw, mem_total_raw, mem_used_raw, temp_raw, power_raw = parts[:8]
+            power_limit_raw = parts[8] if len(parts) > 8 else None
             device: dict[str, object] = {
                 "index": self._parse_int(index_raw),
                 "name": name,
@@ -145,6 +146,7 @@ class SupervisorResourceMonitor:
             mem_used = self._parse_int(mem_used_raw)
             temp = self._parse_float(temp_raw)
             power = self._parse_float(power_raw)
+            power_limit = self._parse_float(power_limit_raw)
             if util is not None:
                 device["utilization_percent"] = util
             if mem_total is not None:
@@ -157,6 +159,8 @@ class SupervisorResourceMonitor:
                 device["temperature_c"] = temp
             if power is not None:
                 device["power_w"] = power
+            if power_limit is not None:
+                device["power_limit_w"] = power_limit
             devices.append({key: value for key, value in device.items() if value is not None})
         return devices
 

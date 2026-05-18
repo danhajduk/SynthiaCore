@@ -113,7 +113,7 @@ class TestSupervisorResourceMonitor(unittest.TestCase):
             return subprocess.CompletedProcess(
                 cmd,
                 0,
-                stdout="0, NVIDIA RTX, GPU-abc, 42, 24576, 6144, 55, 123.4\n",
+                stdout="0, NVIDIA RTX, GPU-abc, 42, 24576, 6144, 55, 123.4, 170.0\n",
                 stderr="",
             )
 
@@ -133,6 +133,7 @@ class TestSupervisorResourceMonitor(unittest.TestCase):
         device = summary["gpu_devices"][0]
         self.assertEqual(device["name"], "NVIDIA RTX")
         self.assertEqual(device["memory_used_mib"], 6144)
+        self.assertEqual(device["power_limit_w"], 170.0)
 
     def test_gpu_summary_reports_cuda_version_from_nvidia_smi(self) -> None:
         def runner(cmd: list[str]) -> subprocess.CompletedProcess[str]:
@@ -148,7 +149,7 @@ class TestSupervisorResourceMonitor(unittest.TestCase):
             return subprocess.CompletedProcess(
                 cmd,
                 0,
-                stdout="0, NVIDIA RTX, GPU-abc, 42, 24576, 6144, 55, 123.4\n",
+                stdout="0, NVIDIA RTX, GPU-abc, 42, 24576, 6144, 55, 123.4, 170.0\n",
                 stderr="",
             )
 
