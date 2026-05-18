@@ -562,30 +562,19 @@
   min-height: 49px;
 }
 
-.settings-metric-row-ok {
-  border-color: hsl(var(--sx-success) / 0.35);
+.settings-metric-row-ok strong,
+.settings-metric-bar-ok strong {
+  color: hsl(var(--sx-success));
 }
 
-.settings-metric-row-warn {
-  border-color: hsl(var(--sx-warning) / 0.45);
-  background: hsl(var(--sx-warning) / 0.08);
+.settings-metric-row-warn strong,
+.settings-metric-bar-warn strong {
+  color: hsl(var(--sx-warning));
 }
 
-.settings-metric-row-bad {
-  border-color: hsl(var(--sx-danger) / 0.48);
-  background: hsl(var(--sx-danger) / 0.1);
-}
-
-.settings-metric-bar-ok .home-metric-bar-fill {
-  background: hsl(var(--sx-success));
-}
-
-.settings-metric-bar-warn .home-metric-bar-fill {
-  background: hsl(var(--sx-warning));
-}
-
-.settings-metric-bar-bad .home-metric-bar-fill {
-  background: hsl(var(--sx-danger));
+.settings-metric-row-bad strong,
+.settings-metric-bar-bad strong {
+  color: hsl(var(--sx-danger));
 }
 
 .settings-metric-row-group-3 {
