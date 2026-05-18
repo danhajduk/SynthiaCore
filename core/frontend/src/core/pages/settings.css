@@ -414,8 +414,44 @@
   gap: var(--sx-space-3);
 }
 
+.settings-metrics-grid-compact {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.settings-remote-metrics {
+  margin-top: var(--sx-space-4);
+  display: grid;
+  gap: var(--sx-space-3);
+}
+
+.settings-remote-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: var(--sx-space-3);
+}
+
+.settings-host-metric-panel {
+  background: hsl(var(--sx-bg) / 0.65);
+  border: 1px solid hsl(var(--sx-text) / 0.08);
+  border-radius: var(--sx-radius-md);
+  padding: var(--sx-space-3);
+  display: grid;
+  gap: var(--sx-space-3);
+}
+
+.settings-host-metric-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sx-space-3);
+}
+
 @media (max-width: 900px) {
   .settings-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-metrics-grid-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -423,6 +459,15 @@
 @media (max-width: 620px) {
   .settings-metrics-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-remote-metrics-grid,
+  .settings-metrics-grid-compact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-host-metric-head {
+    display: grid;
   }
 }
 

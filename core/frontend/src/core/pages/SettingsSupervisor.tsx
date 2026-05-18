@@ -204,11 +204,39 @@ function formatNumber(value: unknown, fallback = "-"): string {
   return Number.isFinite(parsed) ? parsed.toLocaleString() : fallback;
 }
 
+function numberValue(value: unknown): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function runtimeLabel(row: Record<string, unknown>): string {
   const id = String(row.node_id || row.runtime_id || "-");
   const name = String(row.node_name || row.runtime_name || id);
   const health = displayState(row.health_status || row.lifecycle_state || row.runtime_state);
   return `${name} (${id}) · ${health}`;
+}
+
+function hostLabel(supervisor: SupervisorFleetRecord): string {
+  return String(supervisor.hostname || supervisor.host_id || supervisor.supervisor_name || supervisor.supervisor_id);
+}
+
+function load15Percent(resources?: SupervisorHostResources): number | null {
+  const load = numberValue(resources?.load_15m);
+  const cores = numberValue(resources?.cpu_cores_logical);
+  if (load === null || !cores || cores <= 0) return null;
+  return (load / cores) * 100;
+}
+
+function gpuMetricValue(resources?: SupervisorHostResources): string {
+  const count = numberValue(resources?.gpu_count);
+  const util = numberValue(resources?.gpu_utilization_percent);
+  const mem = numberValue(resources?.gpu_memory_percent);
+  if (count === null) return "-";
+  if (count <= 0) return "0 devices";
+  const parts = [`${count} device${count === 1 ? "" : "s"}`];
+  if (util !== null) parts.push(`${formatPctValue(util)} util`);
+  if (mem !== null) parts.push(`${formatPctValue(mem)} mem`);
+  return parts.join(" · ");
 }
 
 function formatBytes(value: unknown): string {
@@ -502,6 +530,7 @@ export default function SettingsSupervisor() {
                   const gpuDevices = Array.isArray(supervisor.resources?.gpu_devices)
                     ? supervisor.resources?.gpu_devices || []
                     : [];
+                  const hasGpuReport = supervisor.resources?.gpu_count !== undefined;
                   return (
                     <Fragment key={supervisor.supervisor_id}>
                       <tr>
@@ -525,7 +554,7 @@ export default function SettingsSupervisor() {
                         <td>{formatPctValue(supervisor.resources?.memory_percent)}</td>
                         <td>{formatDateTime(supervisor.last_seen_at)}</td>
                       </tr>
-                      {(nodeRuntimes.length > 0 || coreRuntimes.length > 0 || gpuDevices.length > 0) && (
+                      {(nodeRuntimes.length > 0 || coreRuntimes.length > 0 || hasGpuReport) && (
                         <tr className="settings-detail-row">
                           <td />
                           <td colSpan={11}>
@@ -542,18 +571,20 @@ export default function SettingsSupervisor() {
                                   <div className="settings-detail-list">{coreRuntimes.map(runtimeLabel).join(" | ")}</div>
                                 </div>
                               )}
-                              {gpuDevices.length > 0 && (
+                              {hasGpuReport && (
                                 <div>
                                   <div className="settings-detail-title">GPUs</div>
                                   <div className="settings-detail-list">
-                                    {gpuDevices
-                                      .map((gpu) => {
-                                        const name = String(gpu.name || `GPU ${gpu.index ?? ""}`).trim();
-                                        return `${name} · ${formatPctValue(gpu.utilization_percent)} util · ${formatPctValue(
-                                          gpu.memory_percent,
-                                        )} mem`;
-                                      })
-                                      .join(" | ")}
+                                    {gpuDevices.length > 0
+                                      ? gpuDevices
+                                          .map((gpu) => {
+                                            const name = String(gpu.name || `GPU ${gpu.index ?? ""}`).trim();
+                                            return `${name} · ${formatPctValue(gpu.utilization_percent)} util · ${formatPctValue(
+                                              gpu.memory_percent,
+                                            )} mem`;
+                                          })
+                                          .join(" | ")
+                                      : "0 devices"}
                                   </div>
                                 </div>
                               )}
@@ -600,6 +631,44 @@ export default function SettingsSupervisor() {
                 <MetricRow label="Internet" value={displayState(stack?.connectivity.internet.state || "unknown")} />
                 <MetricRow label="Speed" value={speedValue(stack?.samples.internet_speed)} />
               </div>
+              {supervisors.length > 0 && (
+                <div className="settings-remote-metrics">
+                  <div className="settings-subtable-label">Supervisor Host Metrics</div>
+                  <div className="settings-remote-metrics-grid">
+                    {supervisors.map((supervisor) => {
+                      const resources = supervisor.resources || {};
+                      const loadPct = load15Percent(resources);
+                      return (
+                        <div key={`host-metrics:${supervisor.supervisor_id}`} className="settings-host-metric-panel">
+                          <div className="settings-host-metric-head">
+                            <div>
+                              <strong>{hostLabel(supervisor)}</strong>
+                              <div className="settings-muted settings-mono">{supervisor.supervisor_id}</div>
+                            </div>
+                            <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
+                          </div>
+                          <div className="settings-help">Last report {formatDateTime(supervisor.last_seen_at)}</div>
+                          <div className="settings-metrics-grid settings-metrics-grid-compact">
+                            <MetricBar label="CPU" percent={numberValue(resources.cpu_percent_total) ?? 0} />
+                            <MetricBar label="Memory" percent={numberValue(resources.memory_percent) ?? 0} />
+                            <MetricBar label="Disk" percent={numberValue(resources.root_disk_percent) ?? 0} />
+                            <MetricBar label="15m Load" percent={loadPct ?? 0} />
+                            <MetricRow
+                              label="Load"
+                              value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
+                                resources.load_15m,
+                              )}`}
+                            />
+                            <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
+                            <MetricRow label="GPU" value={gpuMetricValue(resources)} />
+                            <MetricRow label="GPU Mem" value={formatPctValue(resources.gpu_memory_percent)} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
