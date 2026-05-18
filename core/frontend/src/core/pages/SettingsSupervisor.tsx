@@ -1061,8 +1061,7 @@ function SupervisorHostMetricPanel({
             <GpuDetailBlock resources={resources} />
           </WideMetricBlock>
         )}
-        <MetricGroup columns={4}>
-          <MetricRow label="GPU" value={gpuMetricValue(resources)} />
+        <MetricGroup columns={3}>
           <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
           <MetricRow label="CUDA" value={cudaValue(resources)} />
           <MetricRow
