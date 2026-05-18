@@ -459,6 +459,57 @@
   overflow-wrap: anywhere;
 }
 
+.settings-wide-metric-block {
+  grid-column: 1 / -1;
+}
+
+.settings-gpu-detail {
+  border: 1px solid hsl(var(--sx-text) / 0.12);
+  border-radius: var(--sx-radius-sm);
+  overflow: hidden;
+  background: hsl(var(--sx-bg) / 0.42);
+}
+
+.settings-gpu-detail-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.35fr) minmax(90px, 0.6fr) minmax(150px, 0.9fr) minmax(86px, 0.55fr) minmax(160px, 1fr);
+  align-items: center;
+  min-height: 36px;
+}
+
+.settings-gpu-detail-row > * {
+  min-width: 0;
+  padding: calc(var(--sx-space-2) + 1px) var(--sx-space-3);
+  border-left: 1px solid hsl(var(--sx-text) / 0.1);
+  overflow-wrap: anywhere;
+}
+
+.settings-gpu-detail-row > :first-child {
+  border-left: 0;
+}
+
+.settings-gpu-detail-row + .settings-gpu-detail-row {
+  border-top: 1px solid hsl(var(--sx-text) / 0.1);
+}
+
+.settings-gpu-detail-head {
+  color: hsl(var(--sx-text) / 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.settings-gpu-detail strong {
+  font-size: 13px;
+}
+
+.settings-gpu-detail small {
+  display: block;
+  margin-top: 2px;
+  color: hsl(var(--sx-text) / 0.62);
+  font-size: 11px;
+}
+
 .settings-metric-row-group {
   grid-column: 1 / -1;
   display: grid;
@@ -508,6 +559,14 @@
 
   .settings-wide-metric-row strong {
     text-align: left;
+  }
+
+  .settings-gpu-detail {
+    overflow-x: auto;
+  }
+
+  .settings-gpu-detail-row {
+    min-width: 720px;
   }
 
   .settings-metric-row-group-3,

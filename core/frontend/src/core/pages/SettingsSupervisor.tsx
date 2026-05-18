@@ -247,27 +247,68 @@ function gpuMetricValue(resources?: SupervisorHostResources): string {
   return parts.join(" · ");
 }
 
-function gpuDetailValue(resources?: SupervisorHostResources): string {
+function gpuMemoryValue(gpu: Record<string, unknown>): string {
+  const used = numberValue(gpu.memory_used_mib);
+  const total = numberValue(gpu.memory_total_mib);
+  if (used === null && total === null) return "-";
+  if (total !== null && total >= 1024) {
+    const usedGib = used === null ? "-" : (used / 1024).toFixed(1);
+    return `${usedGib} / ${(total / 1024).toFixed(1)} GiB`;
+  }
+  return `${used === null ? "-" : formatNumber(used)} / ${total === null ? "-" : formatNumber(total)} MiB`;
+}
+
+function gpuEtcValue(gpu: Record<string, unknown>): string {
+  const power = numberValue(gpu.power_w);
+  const source = String(gpu.resource_source || "").trim();
+  const uuid = String(gpu.uuid || "").trim();
+  const parts: string[] = [];
+  if (power !== null) parts.push(`${power.toFixed(1)} W`);
+  if (source) parts.push(source);
+  if (uuid) parts.push(uuid.slice(0, 8));
+  return parts.length > 0 ? parts.join(" · ") : "-";
+}
+
+function GpuDetailBlock({ resources }: { resources?: SupervisorHostResources }) {
   const devices = Array.isArray(resources?.gpu_devices) ? resources?.gpu_devices || [] : [];
-  if (devices.length === 0) return gpuMetricValue(resources);
-  return devices
-    .map((gpu) => {
-      const name = String(gpu.name || `GPU ${gpu.index ?? ""}`).trim();
-      const temp = numberValue(gpu.temperature_c);
-      const power = numberValue(gpu.power_w);
-      const used = numberValue(gpu.memory_used_mib);
-      const total = numberValue(gpu.memory_total_mib);
-      const parts = [
-        name,
-        `${formatPctValue(gpu.utilization_percent)} util`,
-        `${formatPctValue(gpu.memory_percent)} mem`,
-      ];
-      if (used !== null && total !== null) parts.push(`${formatNumber(used)} / ${formatNumber(total)} MiB`);
-      if (temp !== null) parts.push(`${temp.toFixed(0)}C`);
-      if (power !== null) parts.push(`${power.toFixed(1)} W`);
-      return parts.join(" · ");
-    })
-    .join(" | ");
+  return (
+    <div className="settings-gpu-detail">
+      <div className="settings-gpu-detail-row settings-gpu-detail-head">
+        <span>GPU Detail</span>
+        <span>Util</span>
+        <span>VRAM</span>
+        <span>Temp.</span>
+        <span>Etc</span>
+      </div>
+      {devices.length === 0 ? (
+        <div className="settings-gpu-detail-row">
+          <strong>{gpuMetricValue(resources)}</strong>
+          <span>-</span>
+          <span>-</span>
+          <span>-</span>
+          <span>-</span>
+        </div>
+      ) : (
+        devices.map((gpu, idx) => {
+          const index = gpu.index === null || gpu.index === undefined ? idx : gpu.index;
+          const name = String(gpu.name || `GPU ${index}`).trim();
+          const temp = numberValue(gpu.temperature_c);
+          return (
+            <div className="settings-gpu-detail-row" key={`${index}-${name}`}>
+              <strong>{name}</strong>
+              <span>{formatPctValue(gpu.utilization_percent)}</span>
+              <span>
+                {gpuMemoryValue(gpu)}
+                <small>{formatPctValue(gpu.memory_percent)}</small>
+              </span>
+              <span>{temp === null ? "-" : `${temp.toFixed(0)}C`}</span>
+              <span>{gpuEtcValue(gpu)}</span>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
 }
 
 function supervisorThroughputValue(resources?: SupervisorHostResources): string {
@@ -970,13 +1011,8 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function WideMetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="home-metric-row settings-wide-metric-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+function WideMetricBlock({ children }: { children: ReactNode }) {
+  return <div className="settings-wide-metric-block">{children}</div>;
 }
 
 function MetricGroup({ columns, children }: { columns: 3 | 4; children: ReactNode }) {
@@ -1023,7 +1059,9 @@ function SupervisorHostMetricPanel({
         <MetricBar label="Memory" percent={numberValue(resources.memory_percent) ?? 0} />
         <MetricBar label="Disk" percent={numberValue(resources.root_disk_percent) ?? 0} />
         <MetricBar label="15m Load" percent={loadPct ?? 0} />
-        <WideMetricRow label="GPU Detail" value={gpuDetailValue(resources)} />
+        <WideMetricBlock>
+          <GpuDetailBlock resources={resources} />
+        </WideMetricBlock>
         <MetricGroup columns={3}>
           <MetricRow label="GPU" value={gpuMetricValue(resources)} />
           <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
