@@ -254,6 +254,18 @@ function loadTone(percent: number | null): "ok" | "warn" | "bad" | "neutral" {
   return "ok";
 }
 
+function loadTrendValue(resources?: SupervisorHostResources): string {
+  const load1m = numberValue(resources?.load_1m);
+  const load15m = numberValue(resources?.load_15m);
+  if (load1m === null || load15m === null) return "Trend unknown";
+  const cores = numberValue(resources?.cpu_cores_logical);
+  const threshold = Math.max(0.1, (cores && cores > 0 ? cores : 1) * 0.05);
+  const delta = load1m - load15m;
+  if (delta >= threshold) return "↑ Rising";
+  if (delta <= -threshold) return "↓ Falling";
+  return "→ Stable";
+}
+
 function gpuMetricValue(resources?: SupervisorHostResources): string {
   const count = numberValue(resources?.gpu_count);
   const util = numberValue(resources?.gpu_utilization_percent);
@@ -1099,7 +1111,7 @@ function SupervisorHostMetricPanel({
             tone={loadStatusTone}
             value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
               resources.load_15m,
-            )}`}
+            )} · ${loadTrendValue(resources)}`}
           />
         </MetricGroup>
         <MetricGroup columns={3}>
