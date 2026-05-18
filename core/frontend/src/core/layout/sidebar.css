@@ -81,8 +81,16 @@
   background: transparent;
 }
 
+.sidebar-link-nested {
+  margin-left: var(--sx-space-3);
+  padding-left: var(--sx-space-4);
+  font-size: 14px;
+  opacity: 0.86;
+}
+
 .sidebar-link-active {
   background: hsl(var(--sx-text) / 0.12);
+  opacity: 1;
 }
 
 .sidebar-footer {

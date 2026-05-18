@@ -15,6 +15,7 @@ type AddonInfo = {
 type NavItem = {
   label: string;
   path: string;
+  nested?: boolean;
 };
 
 type NavSection = {
@@ -29,9 +30,9 @@ const addonItemsCore: NavItem[] = [
 const storeItems: NavItem[] = [{ label: "Store", path: "/store" }];
 const systemItems: NavItem[] = [
   { label: "Settings", path: "/settings" },
-  { label: "Supervisor", path: "/settings/supervisor" },
-  { label: "Edge Gateway", path: "/settings/edge" },
-  { label: "Scheduler", path: "/settings/scheduler" },
+  { label: "Supervisor", path: "/settings/supervisor", nested: true },
+  { label: "Edge Gateway", path: "/settings/edge", nested: true },
+  { label: "Scheduler", path: "/settings/scheduler", nested: true },
 ];
 
 export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
@@ -101,7 +102,7 @@ export default function Sidebar({ isAdmin }: { isAdmin: boolean }) {
                   key={it.path}
                   to={it.path}
                   className={({ isActive }) =>
-                    `sidebar-link${isActive ? " sidebar-link-active" : ""}`
+                    `sidebar-link${it.nested ? " sidebar-link-nested" : ""}${isActive ? " sidebar-link-active" : ""}`
                   }
                 >
                   {it.label}
