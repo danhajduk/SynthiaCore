@@ -260,15 +260,9 @@ function gpuMemoryValue(gpu: Record<string, unknown>): string {
   return `${used === null ? "-" : formatNumber(used)} / ${total === null ? "-" : formatNumber(total)} MiB`;
 }
 
-function gpuEtcValue(gpu: Record<string, unknown>): string {
+function gpuPowerValue(gpu: Record<string, unknown>): string {
   const power = numberValue(gpu.power_w);
-  const source = String(gpu.resource_source || "").trim();
-  const uuid = String(gpu.uuid || "").trim();
-  const parts: string[] = [];
-  if (power !== null) parts.push(`${power.toFixed(1)} W`);
-  if (source) parts.push(source);
-  if (uuid) parts.push(uuid.slice(0, 8));
-  return parts.length > 0 ? parts.join(" · ") : "-";
+  return power === null ? "-" : `${power.toFixed(1)} W`;
 }
 
 function cudaValue(resources?: SupervisorHostResources): string {
@@ -287,7 +281,7 @@ function GpuDetailBlock({ resources }: { resources?: SupervisorHostResources }) 
         <span>Util</span>
         <span>VRAM</span>
         <span>Temp.</span>
-        <span>Etc</span>
+        <span>Power</span>
       </div>
       {devices.map((gpu, idx) => {
         const index = gpu.index === null || gpu.index === undefined ? idx : gpu.index;
@@ -302,7 +296,7 @@ function GpuDetailBlock({ resources }: { resources?: SupervisorHostResources }) 
               <small>{formatPctValue(gpu.memory_percent)}</small>
             </span>
             <span>{temp === null ? "-" : `${temp.toFixed(0)}°C`}</span>
-            <span>{gpuEtcValue(gpu)}</span>
+            <span>{gpuPowerValue(gpu)}</span>
           </div>
         );
       })}
