@@ -309,7 +309,13 @@ class SupervisorFleetStore:
         self._path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
     def list(self) -> list[SupervisorFleetRecord]:
-        return sorted(self._records.values(), key=lambda item: item.supervisor_id)
+        return sorted(self._records.values(), key=self._list_sort_key)
+
+    @staticmethod
+    def _list_sort_key(record: SupervisorFleetRecord) -> tuple[int, str]:
+        attached_to_core = bool((record.metadata or {}).get("attached_to_core"))
+        is_local = attached_to_core or _clean_text(record.transport).lower() == "local"
+        return (0 if is_local else 1, record.supervisor_id)
 
     def get(self, supervisor_id: str) -> SupervisorFleetRecord | None:
         return self._records.get(_clean_text(supervisor_id))

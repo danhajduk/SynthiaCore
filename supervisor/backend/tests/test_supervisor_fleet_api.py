@@ -205,6 +205,30 @@ class TestSupervisorFleetApi(unittest.TestCase):
         self.assertTrue(items[0]["metadata"]["attached_to_core"])
         self.assertEqual(len(supervisor_client.requests), 5)
 
+    def test_local_supervisor_sorts_before_remote_supervisors(self) -> None:
+        headers = {"X-Admin-Token": "test-token"}
+        remote = self.client.post(
+            "/api/system/supervisors/register",
+            headers=headers,
+            json={"supervisor_id": "aaa-remote", "transport": "socket"},
+        )
+        self.assertEqual(remote.status_code, 200, remote.text)
+        local = self.client.post(
+            "/api/system/supervisors/register",
+            headers=headers,
+            json={
+                "supervisor_id": "zzz-local",
+                "transport": "local",
+                "metadata": {"attached_to_core": True},
+            },
+        )
+        self.assertEqual(local.status_code, 200, local.text)
+
+        listed = self.client.get("/api/system/supervisors", headers=headers)
+
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual([item["supervisor_id"] for item in listed.json()["items"]], ["zzz-local", "aaa-remote"])
+
 
 if __name__ == "__main__":
     unittest.main()
