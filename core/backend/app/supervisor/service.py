@@ -67,6 +67,8 @@ class SupervisorDomainService:
             "state": "idle",
             "updated_at": self._now_iso(),
         }
+        self._bluetooth_power_last_attempt_s = 0.0
+        self._bluetooth_power_error: str | None = None
 
     def _runtime_provider(self) -> str:
         return str(os.getenv("SYNTHIA_MQTT_RUNTIME_PROVIDER", "docker")).strip().lower() or "docker"
@@ -83,7 +85,16 @@ class SupervisorDomainService:
         configured = str(os.getenv("HEXE_SUPERVISOR_ID") or os.getenv("SYNTHIA_SUPERVISOR_ID") or "").strip()
         return configured or self._host_identity().host_id
 
-    def _bluetooth_summary(self) -> dict[str, Any]:
+    def _env_bool(self, name: str, default: bool) -> bool:
+        raw = str(os.getenv(name, "")).strip().lower()
+        if not raw:
+            return default
+        return raw in {"1", "true", "yes", "on"}
+
+    def _bluetooth_ensure_powered_enabled(self) -> bool:
+        return self._env_bool("HEXE_BLUETOOTH_ENSURE_POWERED", True)
+
+    def _collect_bluetooth_adapters(self) -> list[dict[str, Any]]:
         adapters: dict[str, dict[str, Any]] = {}
         for path in sorted(Path("/sys/class/bluetooth").glob("hci*")):
             adapters[path.name] = {
@@ -122,10 +133,52 @@ class SupervisorDomainService:
                         current["powered"] = True
                     if text == "DOWN" or text.startswith("DOWN "):
                         current["powered"] = False
-        adapter_list = list(adapters.values())
+        return list(adapters.values())
+
+    def _ensure_bluetooth_powered(self, adapters: list[dict[str, Any]]) -> None:
+        if not self._bluetooth_ensure_powered_enabled() or not adapters:
+            return
+        if any(bool(item.get("powered")) for item in adapters):
+            self._bluetooth_power_error = None
+            return
+        now = time.time()
+        retry_s = 60.0
+        raw_retry = str(os.getenv("HEXE_BLUETOOTH_POWER_RETRY_S", "")).strip()
+        if raw_retry:
+            try:
+                retry_s = max(5.0, float(raw_retry))
+            except Exception:
+                retry_s = 60.0
+        if now - self._bluetooth_power_last_attempt_s < retry_s:
+            return
+        self._bluetooth_power_last_attempt_s = now
+        errors: list[str] = []
+        if shutil.which("bluetoothctl"):
+            result = subprocess.run(["bluetoothctl", "power", "on"], capture_output=True, text=True, timeout=5.0, check=False)
+            if result.returncode != 0:
+                errors.append((result.stderr or result.stdout or f"bluetoothctl exited {result.returncode}").strip())
+        if shutil.which("hciconfig"):
+            for item in adapters:
+                adapter = str(item.get("adapter") or "").strip()
+                if not adapter:
+                    continue
+                result = subprocess.run(["hciconfig", adapter, "up"], capture_output=True, text=True, timeout=5.0, check=False)
+                if result.returncode != 0:
+                    errors.append((result.stderr or result.stdout or f"hciconfig {adapter} exited {result.returncode}").strip())
+        self._bluetooth_power_error = "; ".join(value for value in errors if value) or None
+
+    def _bluetooth_summary(self) -> dict[str, Any]:
+        adapter_list = self._collect_bluetooth_adapters()
+        powered = any(bool(item.get("powered")) for item in adapter_list)
+        if adapter_list and not powered and self._bluetooth_ensure_powered_enabled():
+            self._ensure_bluetooth_powered(adapter_list)
+            adapter_list = self._collect_bluetooth_adapters()
+            powered = any(bool(item.get("powered")) for item in adapter_list)
         return {
             "bluetooth_present": bool(adapter_list),
-            "bluetooth_powered": any(bool(item.get("powered")) for item in adapter_list),
+            "bluetooth_powered": powered,
+            "bluetooth_ensure_powered": self._bluetooth_ensure_powered_enabled(),
+            "bluetooth_power_error": None if powered else self._bluetooth_power_error,
             "bluetooth_adapters": adapter_list,
         }
 
@@ -222,6 +275,10 @@ class SupervisorDomainService:
             cuda_version=str(gpu_summary["cuda_version"]) if gpu_summary.get("cuda_version") else None,
             bluetooth_present=bool(bluetooth_summary.get("bluetooth_present")),
             bluetooth_powered=bool(bluetooth_summary.get("bluetooth_powered")),
+            bluetooth_ensure_powered=bool(bluetooth_summary.get("bluetooth_ensure_powered")),
+            bluetooth_power_error=str(bluetooth_summary["bluetooth_power_error"])
+            if bluetooth_summary.get("bluetooth_power_error")
+            else None,
             bluetooth_adapters=list(bluetooth_summary.get("bluetooth_adapters") or []),
             network_rx_Bps=net_rate.rx_Bps if net_rate is not None else None,
             network_tx_Bps=net_rate.tx_Bps if net_rate is not None else None,

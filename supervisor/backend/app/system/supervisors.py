@@ -86,6 +86,8 @@ def _supervisor_metadata(resources: dict[str, Any], *, reporter: str, attached_t
         metadata["bluetooth"] = {
             "present": True,
             "powered": bool(resources.get("bluetooth_powered")),
+            "ensure_powered": bool(resources.get("bluetooth_ensure_powered")),
+            "power_error": resources.get("bluetooth_power_error"),
             "policy": _bluetooth_access_policy(),
             "governed_by_core": True,
         }

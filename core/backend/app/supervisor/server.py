@@ -140,6 +140,8 @@ def _supervisor_metadata(resources: object | None = None) -> dict[str, object]:
         metadata["bluetooth"] = {
             "present": True,
             "powered": bool(getattr(resources, "bluetooth_powered", False)),
+            "ensure_powered": bool(getattr(resources, "bluetooth_ensure_powered", False)),
+            "power_error": getattr(resources, "bluetooth_power_error", None),
             "policy": _bluetooth_access_policy(),
             "governed_by_core": True,
         }

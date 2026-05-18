@@ -31,6 +31,8 @@ class HostResourceSummary(BaseModel):
     cuda_version: str | None = None
     bluetooth_present: bool = False
     bluetooth_powered: bool = False
+    bluetooth_ensure_powered: bool = False
+    bluetooth_power_error: str | None = None
     bluetooth_adapters: list[dict[str, object]] = Field(default_factory=list)
     network_rx_Bps: float | None = Field(default=None, ge=0)
     network_tx_Bps: float | None = Field(default=None, ge=0)

@@ -36,6 +36,8 @@ Core talks to a remote Supervisor over the following environment-backed client s
 - `HEXE_SUPERVISOR_API_TIMEOUT_S`: Client timeout (seconds). Default: `5.0`.
 - `HEXE_CORE_RUNTIME_DECLARATIONS_JSON`: Optional JSON list (or `{ "items": [...] }`) of extra Core runtime declarations to register with the local Supervisor. Each entry should include `runtime_id`, `runtime_name`, `runtime_kind`, and `management_mode` plus optional state/metadata fields.
 - `HEXE_BLUETOOTH_ACCESS_POLICY`: Bluetooth governance policy advertised by Supervisor when BT hardware is present. Supported values: `disabled`, `ask`, `trusted_only`, `allowed`. Default: `disabled`.
+- `HEXE_BLUETOOTH_ENSURE_POWERED`: When true, Supervisor attempts to keep detected Bluetooth adapters powered. Default: `true`.
+- `HEXE_BLUETOOTH_POWER_RETRY_S`: Minimum seconds between Bluetooth power-on retries after a failed attempt. Default: `60`.
 
 ## Notes
 

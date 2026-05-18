@@ -24,6 +24,8 @@ type SupervisorHostResources = {
   cuda_version?: string | null;
   bluetooth_present?: boolean;
   bluetooth_powered?: boolean;
+  bluetooth_ensure_powered?: boolean;
+  bluetooth_power_error?: string | null;
   bluetooth_adapters?: Array<Record<string, unknown>>;
   network_rx_Bps?: number | null;
   network_tx_Bps?: number | null;
@@ -243,6 +245,13 @@ function networkTransportLabel(resources: SupervisorHostResources): string {
   const signal =
     typeof resources.wifi_signal_percent === "number" ? ` · ${resources.wifi_signal_percent.toFixed(0)}% signal` : "";
   return `Network ${type}${iface}${speed}${signal}`;
+}
+
+function bluetoothStatusLabel(resources: SupervisorHostResources): string {
+  const powered = resources.bluetooth_powered === true;
+  const ensure = resources.bluetooth_ensure_powered === true ? " · auto-on" : "";
+  const error = resources.bluetooth_power_error ? ` · ${resources.bluetooth_power_error}` : "";
+  return `Bluetooth ${powered ? "On" : "Present"}${ensure}${error}`;
 }
 
 function StatusLed({ tone }: { tone: "ok" | "warn" | "bad" | "neutral" }) {
@@ -1194,7 +1203,7 @@ function SupervisorHostMetricPanel({
           )}
           {hasBluetooth && (
             <StatusIconPill
-              label={`Bluetooth ${bluetoothPowered ? "On" : "Present"}`}
+              label={bluetoothStatusLabel(resources)}
               icon={Bluetooth}
               tone={bluetoothTone}
             />
