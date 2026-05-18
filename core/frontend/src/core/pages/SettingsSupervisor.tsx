@@ -271,6 +271,7 @@ function gpuEtcValue(gpu: Record<string, unknown>): string {
 
 function GpuDetailBlock({ resources }: { resources?: SupervisorHostResources }) {
   const devices = Array.isArray(resources?.gpu_devices) ? resources?.gpu_devices || [] : [];
+  if (devices.length === 0) return null;
   return (
     <div className="settings-gpu-detail">
       <div className="settings-gpu-detail-row settings-gpu-detail-head">
@@ -280,33 +281,23 @@ function GpuDetailBlock({ resources }: { resources?: SupervisorHostResources }) 
         <span>Temp.</span>
         <span>Etc</span>
       </div>
-      {devices.length === 0 ? (
-        <div className="settings-gpu-detail-row">
-          <strong>{gpuMetricValue(resources)}</strong>
-          <span>-</span>
-          <span>-</span>
-          <span>-</span>
-          <span>-</span>
-        </div>
-      ) : (
-        devices.map((gpu, idx) => {
-          const index = gpu.index === null || gpu.index === undefined ? idx : gpu.index;
-          const name = String(gpu.name || `GPU ${index}`).trim();
-          const temp = numberValue(gpu.temperature_c);
-          return (
-            <div className="settings-gpu-detail-row" key={`${index}-${name}`}>
-              <strong>{name}</strong>
-              <span>{formatPctValue(gpu.utilization_percent)}</span>
-              <span>
-                {gpuMemoryValue(gpu)}
-                <small>{formatPctValue(gpu.memory_percent)}</small>
-              </span>
-              <span>{temp === null ? "-" : `${temp.toFixed(0)}C`}</span>
-              <span>{gpuEtcValue(gpu)}</span>
-            </div>
-          );
-        })
-      )}
+      {devices.map((gpu, idx) => {
+        const index = gpu.index === null || gpu.index === undefined ? idx : gpu.index;
+        const name = String(gpu.name || `GPU ${index}`).trim();
+        const temp = numberValue(gpu.temperature_c);
+        return (
+          <div className="settings-gpu-detail-row" key={`${index}-${name}`}>
+            <strong>{name}</strong>
+            <span>{formatPctValue(gpu.utilization_percent)}</span>
+            <span>
+              {gpuMemoryValue(gpu)}
+              <small>{formatPctValue(gpu.memory_percent)}</small>
+            </span>
+            <span>{temp === null ? "-" : `${temp.toFixed(0)}C`}</span>
+            <span>{gpuEtcValue(gpu)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1044,6 +1035,7 @@ function SupervisorHostMetricPanel({
   const resources = supervisor.resources || {};
   const loadPct = load15Percent(resources);
   const local = isLocalSupervisor(supervisor);
+  const hasGpuDevices = Array.isArray(resources.gpu_devices) && resources.gpu_devices.length > 0;
   return (
     <div className="settings-host-metric-panel">
       <div className="settings-host-metric-head">
@@ -1059,9 +1051,11 @@ function SupervisorHostMetricPanel({
         <MetricBar label="Memory" percent={numberValue(resources.memory_percent) ?? 0} />
         <MetricBar label="Disk" percent={numberValue(resources.root_disk_percent) ?? 0} />
         <MetricBar label="15m Load" percent={loadPct ?? 0} />
-        <WideMetricBlock>
-          <GpuDetailBlock resources={resources} />
-        </WideMetricBlock>
+        {hasGpuDevices && (
+          <WideMetricBlock>
+            <GpuDetailBlock resources={resources} />
+          </WideMetricBlock>
+        )}
         <MetricGroup columns={3}>
           <MetricRow label="GPU" value={gpuMetricValue(resources)} />
           <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
