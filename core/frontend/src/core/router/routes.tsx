@@ -11,7 +11,6 @@ import RenderedNodeUiPage from "../pages/RenderedNodeUiPage";
 import ProxyLogin from "../pages/ProxyLogin";
 import Settings from "../pages/Settings";
 import EdgeGateway from "../pages/EdgeGateway";
-import SettingsMetrics from "../pages/SettingsMetrics";
 import SettingsSupervisor from "../pages/SettingsSupervisor";
 import SettingsScheduler from "../pages/SettingsScheduler";
 import AddonStorePage from "../../pages/AddonStorePage";
@@ -53,7 +52,6 @@ export function buildRoutes(isAdmin: boolean, ready: boolean): RouteObject[] {
     { path: "/supervisors/enrollment", element: <SupervisorEnrollment /> },
     { path: "/settings", element: protectedRoute(<Settings />) },
     { path: "/settings/edge", element: protectedRoute(<EdgeGateway />) },
-    { path: "/settings/metrics", element: protectedRoute(<SettingsMetrics />) },
     { path: "/settings/supervisor", element: protectedRoute(<SettingsSupervisor />) },
     { path: "/settings/scheduler", element: protectedRoute(<SettingsScheduler />) },
     ...addonRoutes.map((route) => (
