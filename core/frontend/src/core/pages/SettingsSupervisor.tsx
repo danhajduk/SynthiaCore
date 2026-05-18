@@ -258,9 +258,9 @@ function loadTrendValue(resources?: SupervisorHostResources): string {
   const cores = numberValue(resources?.cpu_cores_logical);
   const threshold = Math.max(0.1, (cores && cores > 0 ? cores : 1) * 0.05);
   const delta = load1m - load15m;
-  if (delta >= threshold) return "↑ Rising";
-  if (delta <= -threshold) return "↓ Falling";
-  return "→ Stable";
+  if (delta >= threshold) return "↑";
+  if (delta <= -threshold) return "↓";
+  return "→";
 }
 
 function gpuMetricValue(resources?: SupervisorHostResources): string {
