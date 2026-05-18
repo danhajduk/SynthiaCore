@@ -443,7 +443,8 @@
   border: 1px solid hsl(var(--sx-text) / 0.08);
   border-radius: var(--sx-radius-md);
   padding: var(--sx-space-3);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--sx-space-3);
 }
 
@@ -459,6 +460,16 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--sx-space-2);
+}
+
+.settings-host-metric-top {
+  align-content: start;
+}
+
+.settings-host-metric-bottom {
+  display: grid;
+  gap: var(--sx-space-3);
+  margin-top: auto;
 }
 
 .settings-wide-metric-row {
@@ -544,6 +555,37 @@
   grid-column: 1 / -1;
   display: grid;
   gap: var(--sx-space-3);
+}
+
+.settings-metric-row-group .home-metric-row {
+  align-items: center;
+  min-height: 49px;
+}
+
+.settings-metric-row-ok {
+  border-color: hsl(var(--sx-success) / 0.35);
+}
+
+.settings-metric-row-warn {
+  border-color: hsl(var(--sx-warning) / 0.45);
+  background: hsl(var(--sx-warning) / 0.08);
+}
+
+.settings-metric-row-bad {
+  border-color: hsl(var(--sx-danger) / 0.48);
+  background: hsl(var(--sx-danger) / 0.1);
+}
+
+.settings-metric-bar-ok .home-metric-bar-fill {
+  background: hsl(var(--sx-success));
+}
+
+.settings-metric-bar-warn .home-metric-bar-fill {
+  background: hsl(var(--sx-warning));
+}
+
+.settings-metric-bar-bad .home-metric-bar-fill {
+  background: hsl(var(--sx-danger));
 }
 
 .settings-metric-row-group-3 {

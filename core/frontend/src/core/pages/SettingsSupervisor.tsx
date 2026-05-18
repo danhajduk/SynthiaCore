@@ -237,6 +237,23 @@ function load15Percent(resources?: SupervisorHostResources): number | null {
   return (load / cores) * 100;
 }
 
+function loadPeakPercent(resources?: SupervisorHostResources): number | null {
+  const cores = numberValue(resources?.cpu_cores_logical);
+  if (!cores || cores <= 0) return null;
+  const loads = [resources?.load_1m, resources?.load_5m, resources?.load_15m]
+    .map((value) => numberValue(value))
+    .filter((value): value is number => value !== null);
+  if (loads.length === 0) return null;
+  return (Math.max(...loads) / cores) * 100;
+}
+
+function loadTone(percent: number | null): "ok" | "warn" | "bad" | "neutral" {
+  if (percent === null) return "neutral";
+  if (percent >= 100) return "bad";
+  if (percent >= 70) return "warn";
+  return "ok";
+}
+
 function gpuMetricValue(resources?: SupervisorHostResources): string {
   const count = numberValue(resources?.gpu_count);
   const util = numberValue(resources?.gpu_utilization_percent);
@@ -990,9 +1007,9 @@ export default function SettingsSupervisor() {
   );
 }
 
-function MetricRow({ label, value }: { label: string; value: string }) {
+function MetricRow({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" | "bad" | "neutral" }) {
   return (
-    <div className="home-metric-row">
+    <div className={`home-metric-row${tone ? ` settings-metric-row-${tone}` : ""}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -1016,10 +1033,10 @@ function MetricGroup({ columns, children }: { columns: 3 | 4; children: ReactNod
   return <div className={`settings-metric-row-group settings-metric-row-group-${columns}`}>{children}</div>;
 }
 
-function MetricBar({ label, percent }: { label: string; percent: number }) {
+function MetricBar({ label, percent, tone }: { label: string; percent: number; tone?: "ok" | "warn" | "bad" | "neutral" }) {
   const clamped = Math.max(0, Math.min(100, percent));
   return (
-    <div className="home-metric-bar">
+    <div className={`home-metric-bar${tone ? ` settings-metric-bar-${tone}` : ""}`}>
       <div className="home-metric-bar-top">
         <span>{label}</span>
         <strong>{pct(clamped)}</strong>
@@ -1040,6 +1057,8 @@ function SupervisorHostMetricPanel({
 }) {
   const resources = supervisor.resources || {};
   const loadPct = load15Percent(resources);
+  const loadPeakPct = loadPeakPercent(resources);
+  const loadStatusTone = loadTone(loadPeakPct ?? loadPct);
   const local = isLocalSupervisor(supervisor);
   const hasGpuDevices = Array.isArray(resources.gpu_devices) && resources.gpu_devices.length > 0;
   const internetState = stack?.connectivity.internet.state || "unknown";
@@ -1060,21 +1079,24 @@ function SupervisorHostMetricPanel({
         </div>
       </div>
       <div className="settings-help">Last report {formatDateTime(supervisor.last_seen_at)}</div>
-      <div className="settings-metrics-grid settings-metrics-grid-compact">
+      <div className="settings-metrics-grid settings-metrics-grid-compact settings-host-metric-top">
         <MetricBar label="CPU" percent={numberValue(resources.cpu_percent_total) ?? 0} />
         <MetricBar label="Memory" percent={numberValue(resources.memory_percent) ?? 0} />
         <MetricBar label="Disk" percent={numberValue(resources.root_disk_percent) ?? 0} />
-        <MetricBar label="15m Load" percent={loadPct ?? 0} />
+        <MetricBar label="15m Load" percent={loadPct ?? 0} tone={loadTone(loadPct)} />
         {hasGpuDevices && (
           <WideMetricBlock>
             <GpuDetailBlock resources={resources} />
           </WideMetricBlock>
         )}
+      </div>
+      <div className="settings-host-metric-bottom">
         <MetricGroup columns={3}>
           <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
           <MetricRow label="CUDA" value={cudaValue(resources)} />
           <MetricRow
             label="Load"
+            tone={loadStatusTone}
             value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
               resources.load_15m,
             )}`}
