@@ -1018,15 +1018,15 @@ function SupervisorHostMetricPanel({
         <MetricBar label="Memory" percent={numberValue(resources.memory_percent) ?? 0} />
         <MetricBar label="Disk" percent={numberValue(resources.root_disk_percent) ?? 0} />
         <MetricBar label="15m Load" percent={loadPct ?? 0} />
+        <WideMetricRow label="GPU Detail" value={gpuDetailValue(resources)} />
+        <MetricRow label="GPU" value={gpuMetricValue(resources)} />
+        <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
         <MetricRow
           label="Load"
           value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
             resources.load_15m,
           )}`}
         />
-        <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
-        <MetricRow label="GPU" value={gpuMetricValue(resources)} />
-        <WideMetricRow label="GPU Detail" value={gpuDetailValue(resources)} />
         <MetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
         <MetricRow label="Net I/O" value={supervisorNetworkCountersValue(resources)} />
         <MetricRow label="Net Errors" value={supervisorNetworkErrorsValue(resources)} />
