@@ -111,15 +111,45 @@ def _supervisor_core_token_kind() -> str:
     return "admin"
 
 
-def _build_core_registration_payload() -> dict[str, object]:
-    payload: dict[str, object] = {key: value for key, value in _supervisor_identity().items() if value}
-    payload["capabilities"] = [
+def _bluetooth_access_policy() -> str:
+    value = _env_text("HEXE_BLUETOOTH_ACCESS_POLICY", "disabled").lower()
+    if value in {"disabled", "ask", "trusted_only", "allowed"}:
+        return value
+    return "disabled"
+
+
+def _supervisor_capabilities(resources: object | None = None, *, local_core_attached: bool = False) -> list[str]:
+    capabilities = [
         "host_resources",
         "runtime_inventory",
         "node_runtime_registry",
         "core_runtime_registry",
     ]
-    payload["metadata"] = {"reporter": "hexe-supervisor-api"}
+    bluetooth_present = bool(getattr(resources, "bluetooth_present", False)) if resources is not None else False
+    if bluetooth_present:
+        capabilities.extend(["bluetooth", "bluetooth_governance"])
+    if local_core_attached:
+        capabilities.append("local_core_attached")
+    return capabilities
+
+
+def _supervisor_metadata(resources: object | None = None) -> dict[str, object]:
+    metadata: dict[str, object] = {"reporter": "hexe-supervisor-api"}
+    bluetooth_present = bool(getattr(resources, "bluetooth_present", False)) if resources is not None else False
+    if bluetooth_present:
+        metadata["bluetooth"] = {
+            "present": True,
+            "powered": bool(getattr(resources, "bluetooth_powered", False)),
+            "policy": _bluetooth_access_policy(),
+            "governed_by_core": True,
+        }
+    return metadata
+
+
+def _build_core_registration_payload() -> dict[str, object]:
+    payload: dict[str, object] = {key: value for key, value in _supervisor_identity().items() if value}
+    payload["capabilities"] = _supervisor_capabilities()
+    payload["metadata"] = _supervisor_metadata()
     return payload
 
 
@@ -240,14 +270,9 @@ def _build_core_heartbeat_payload(supervisor: SupervisorDomainService) -> dict[s
             "core_runtime_count": len(core_runtimes),
             "registered_runtimes": [item.model_dump(mode="json") for item in registered_runtimes],
             "core_runtimes": [item.model_dump(mode="json") for item in core_runtimes],
-            "capabilities": [
-                "host_resources",
-                "runtime_inventory",
-                "node_runtime_registry",
-                "core_runtime_registry",
-            ],
+            "capabilities": _supervisor_capabilities(resources),
             "metadata": {
-                "reporter": "hexe-supervisor-api",
+                **_supervisor_metadata(resources),
                 "supervisor_api_transport": identity.get("transport") or "socket",
             },
         }

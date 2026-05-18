@@ -57,6 +57,41 @@ def _local_probe_cache_s() -> float:
         return 10.0
 
 
+def _bluetooth_access_policy() -> str:
+    value = _clean_text(os.getenv("HEXE_BLUETOOTH_ACCESS_POLICY"), "disabled").lower()
+    if value in {"disabled", "ask", "trusted_only", "allowed"}:
+        return value
+    return "disabled"
+
+
+def _supervisor_capabilities(resources: dict[str, Any], *, local_core_attached: bool = False) -> list[str]:
+    capabilities = [
+        "host_resources",
+        "runtime_inventory",
+        "node_runtime_registry",
+        "core_runtime_registry",
+    ]
+    if bool(resources.get("bluetooth_present")):
+        capabilities.extend(["bluetooth", "bluetooth_governance"])
+    if local_core_attached:
+        capabilities.append("local_core_attached")
+    return capabilities
+
+
+def _supervisor_metadata(resources: dict[str, Any], *, reporter: str, attached_to_core: bool = False) -> dict[str, Any]:
+    metadata: dict[str, Any] = {"reporter": reporter}
+    if attached_to_core:
+        metadata["attached_to_core"] = True
+    if bool(resources.get("bluetooth_present")):
+        metadata["bluetooth"] = {
+            "present": True,
+            "powered": bool(resources.get("bluetooth_powered")),
+            "policy": _bluetooth_access_policy(),
+            "governed_by_core": True,
+        }
+    return metadata
+
+
 def _freshness_state(last_seen_at: str | None) -> str:
     if not last_seen_at:
         return "offline"
@@ -629,14 +664,8 @@ def build_supervisors_router(
                 core_runtime_count=len(core_runtime_items),
                 registered_runtimes=node_runtimes,
                 core_runtimes=core_runtime_items,
-                capabilities=[
-                    "host_resources",
-                    "runtime_inventory",
-                    "node_runtime_registry",
-                    "core_runtime_registry",
-                    "local_core_attached",
-                ],
-                metadata={"reporter": "core-local-supervisor-probe", "attached_to_core": True},
+                capabilities=_supervisor_capabilities(resources, local_core_attached=True),
+                metadata=_supervisor_metadata(resources, reporter="core-local-supervisor-probe", attached_to_core=True),
             )
         )
         cache["updated_at"] = now
