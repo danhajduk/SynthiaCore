@@ -970,6 +970,15 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function WideMetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="home-metric-row settings-wide-metric-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 function MetricBar({ label, percent }: { label: string; percent: number }) {
   const clamped = Math.max(0, Math.min(100, percent));
   return (
@@ -1017,7 +1026,7 @@ function SupervisorHostMetricPanel({
         />
         <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
         <MetricRow label="GPU" value={gpuMetricValue(resources)} />
-        <MetricRow label="GPU Detail" value={gpuDetailValue(resources)} />
+        <WideMetricRow label="GPU Detail" value={gpuDetailValue(resources)} />
         <MetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
         <MetricRow label="Net I/O" value={supervisorNetworkCountersValue(resources)} />
         <MetricRow label="Net Errors" value={supervisorNetworkErrorsValue(resources)} />

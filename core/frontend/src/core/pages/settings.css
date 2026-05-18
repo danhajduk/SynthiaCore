@@ -446,6 +446,19 @@
   gap: var(--sx-space-3);
 }
 
+.settings-wide-metric-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sx-space-3);
+}
+
+.settings-wide-metric-row strong {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 900px) {
   .settings-metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -468,6 +481,14 @@
 
   .settings-host-metric-head {
     display: grid;
+  }
+
+  .settings-wide-metric-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-wide-metric-row strong {
+    text-align: left;
   }
 }
 
