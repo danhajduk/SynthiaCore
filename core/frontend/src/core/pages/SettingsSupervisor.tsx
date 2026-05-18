@@ -455,6 +455,9 @@ export default function SettingsSupervisor() {
     return acc;
   }, {});
   const hasServicePid = nodeServices.some((service) => typeof service.pid === "number");
+  const supervisorsWithResources = supervisors.filter(
+    (supervisor) => supervisor.resources && Object.keys(supervisor.resources).length > 0,
+  );
 
   async function runNodeRuntimeAction(nodeId: string, action: "start" | "stop" | "restart") {
     if (!nodeId) return;
@@ -631,45 +634,25 @@ export default function SettingsSupervisor() {
                 <MetricRow label="Internet" value={displayState(stack?.connectivity.internet.state || "unknown")} />
                 <MetricRow label="Speed" value={speedValue(stack?.samples.internet_speed)} />
               </div>
-              {supervisors.length > 0 && (
-                <div className="settings-remote-metrics">
-                  <div className="settings-subtable-label">Supervisor Host Metrics</div>
-                  <div className="settings-remote-metrics-grid">
-                    {supervisors.map((supervisor) => {
-                      const resources = supervisor.resources || {};
-                      const loadPct = load15Percent(resources);
-                      return (
-                        <div key={`host-metrics:${supervisor.supervisor_id}`} className="settings-host-metric-panel">
-                          <div className="settings-host-metric-head">
-                            <div>
-                              <strong>{hostLabel(supervisor)}</strong>
-                              <div className="settings-muted settings-mono">{supervisor.supervisor_id}</div>
-                            </div>
-                            <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
-                          </div>
-                          <div className="settings-help">Last report {formatDateTime(supervisor.last_seen_at)}</div>
-                          <div className="settings-metrics-grid settings-metrics-grid-compact">
-                            <MetricBar label="CPU" percent={numberValue(resources.cpu_percent_total) ?? 0} />
-                            <MetricBar label="Memory" percent={numberValue(resources.memory_percent) ?? 0} />
-                            <MetricBar label="Disk" percent={numberValue(resources.root_disk_percent) ?? 0} />
-                            <MetricBar label="15m Load" percent={loadPct ?? 0} />
-                            <MetricRow
-                              label="Load"
-                              value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
-                                resources.load_15m,
-                              )}`}
-                            />
-                            <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
-                            <MetricRow label="GPU" value={gpuMetricValue(resources)} />
-                            <MetricRow label="GPU Mem" value={formatPctValue(resources.gpu_memory_percent)} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </>
+          )}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <div className="settings-section-head">
+          <h2>Supervisor Host Metrics</h2>
+          <p>Host resources from Supervisor heartbeats. Load is shown as the 1m / 5m / 15m averages.</p>
+        </div>
+        <div className="settings-card">
+          {supervisorsWithResources.length === 0 ? (
+            <div className="settings-help">No supervisor host metrics reported yet.</div>
+          ) : (
+            <div className="settings-remote-metrics-grid">
+              {supervisorsWithResources.map((supervisor) => (
+                <SupervisorHostMetricPanel key={`host-metrics:${supervisor.supervisor_id}`} supervisor={supervisor} />
+              ))}
+            </div>
           )}
         </div>
       </section>
@@ -1021,6 +1004,38 @@ function MetricBar({ label, percent }: { label: string; percent: number }) {
       </div>
       <div className="home-metric-bar-track">
         <div className="home-metric-bar-fill" style={{ width: `${clamped}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function SupervisorHostMetricPanel({ supervisor }: { supervisor: SupervisorFleetRecord }) {
+  const resources = supervisor.resources || {};
+  const loadPct = load15Percent(resources);
+  return (
+    <div className="settings-host-metric-panel">
+      <div className="settings-host-metric-head">
+        <div>
+          <strong>{hostLabel(supervisor)}</strong>
+          <div className="settings-muted settings-mono">{supervisor.supervisor_id}</div>
+        </div>
+        <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
+      </div>
+      <div className="settings-help">Last report {formatDateTime(supervisor.last_seen_at)}</div>
+      <div className="settings-metrics-grid settings-metrics-grid-compact">
+        <MetricBar label="CPU" percent={numberValue(resources.cpu_percent_total) ?? 0} />
+        <MetricBar label="Memory" percent={numberValue(resources.memory_percent) ?? 0} />
+        <MetricBar label="Disk" percent={numberValue(resources.root_disk_percent) ?? 0} />
+        <MetricBar label="15m Load" percent={loadPct ?? 0} />
+        <MetricRow
+          label="Load"
+          value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
+            resources.load_15m,
+          )}`}
+        />
+        <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
+        <MetricRow label="GPU" value={gpuMetricValue(resources)} />
+        <MetricRow label="GPU Mem" value={formatPctValue(resources.gpu_memory_percent)} />
       </div>
     </div>
   );
