@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import "./settings.css";
 import "./home.css";
 
@@ -979,6 +979,10 @@ function WideMetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function MetricGroup({ columns, children }: { columns: 3 | 4; children: ReactNode }) {
+  return <div className={`settings-metric-row-group settings-metric-row-group-${columns}`}>{children}</div>;
+}
+
 function MetricBar({ label, percent }: { label: string; percent: number }) {
   const clamped = Math.max(0, Math.min(100, percent));
   return (
@@ -1003,6 +1007,7 @@ function SupervisorHostMetricPanel({
 }) {
   const resources = supervisor.resources || {};
   const loadPct = load15Percent(resources);
+  const local = isLocalSupervisor(supervisor);
   return (
     <div className="settings-host-metric-panel">
       <div className="settings-host-metric-head">
@@ -1019,20 +1024,22 @@ function SupervisorHostMetricPanel({
         <MetricBar label="Disk" percent={numberValue(resources.root_disk_percent) ?? 0} />
         <MetricBar label="15m Load" percent={loadPct ?? 0} />
         <WideMetricRow label="GPU Detail" value={gpuDetailValue(resources)} />
-        <MetricRow label="GPU" value={gpuMetricValue(resources)} />
-        <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
-        <MetricRow
-          label="Load"
-          value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
-            resources.load_15m,
-          )}`}
-        />
-        <MetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
-        <MetricRow label="Net I/O" value={supervisorNetworkCountersValue(resources)} />
-        <MetricRow label="Net Errors" value={supervisorNetworkErrorsValue(resources)} />
-        {isLocalSupervisor(supervisor) && (
-          <MetricRow label="Internet" value={displayState(stack?.connectivity.internet.state || "unknown")} />
-        )}
+        <MetricGroup columns={3}>
+          <MetricRow label="GPU" value={gpuMetricValue(resources)} />
+          <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
+          <MetricRow
+            label="Load"
+            value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
+              resources.load_15m,
+            )}`}
+          />
+        </MetricGroup>
+        <MetricGroup columns={local ? 4 : 3}>
+          <MetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
+          <MetricRow label="Net I/O" value={supervisorNetworkCountersValue(resources)} />
+          <MetricRow label="Net Errors" value={supervisorNetworkErrorsValue(resources)} />
+          {local && <MetricRow label="Internet" value={displayState(stack?.connectivity.internet.state || "unknown")} />}
+        </MetricGroup>
       </div>
     </div>
   );

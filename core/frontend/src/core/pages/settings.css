@@ -459,12 +459,31 @@
   overflow-wrap: anywhere;
 }
 
+.settings-metric-row-group {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--sx-space-3);
+}
+
+.settings-metric-row-group-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-metric-row-group-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 @media (max-width: 900px) {
   .settings-metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .settings-metrics-grid-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-metric-row-group-3,
+  .settings-metric-row-group-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -489,6 +508,11 @@
 
   .settings-wide-metric-row strong {
     text-align: left;
+  }
+
+  .settings-metric-row-group-3,
+  .settings-metric-row-group-4 {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
