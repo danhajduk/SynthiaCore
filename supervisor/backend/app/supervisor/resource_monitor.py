@@ -62,19 +62,54 @@ class SupervisorResourceMonitor:
     def gpu_summary(self) -> dict[str, object]:
         devices = self._nvidia_gpu_devices()
         if not devices:
-            return {"gpu_count": 0, "gpu_devices": []}
+            return {"gpu_count": 0, "gpu_devices": [], "cuda_available": False}
 
         util_values = [float(item["utilization_percent"]) for item in devices if isinstance(item.get("utilization_percent"), int | float)]
         mem_values = [float(item["memory_percent"]) for item in devices if isinstance(item.get("memory_percent"), int | float)]
         summary: dict[str, object] = {
             "gpu_count": len(devices),
             "gpu_devices": devices,
+            "cuda_available": True,
         }
+        cuda_version = self._nvidia_cuda_version() or self._nvcc_cuda_version()
+        if cuda_version:
+            summary["cuda_version"] = cuda_version
         if util_values:
             summary["gpu_utilization_percent"] = sum(util_values) / len(util_values)
         if mem_values:
             summary["gpu_memory_percent"] = sum(mem_values) / len(mem_values)
         return summary
+
+    def _nvidia_cuda_version(self) -> str | None:
+        try:
+            result = self._command_runner(["nvidia-smi"])
+        except Exception:
+            return None
+        if result.returncode != 0:
+            return None
+        marker = "CUDA Version:"
+        for line in (result.stdout or "").splitlines():
+            if marker not in line:
+                continue
+            version = line.split(marker, 1)[1].strip().split()[0].strip()
+            return version if version and version.upper() not in {"N/A", "NA"} else None
+        return None
+
+    def _nvcc_cuda_version(self) -> str | None:
+        if shutil.which("nvcc") is None:
+            return None
+        try:
+            result = self._command_runner(["nvcc", "--version"])
+        except Exception:
+            return None
+        if result.returncode != 0:
+            return None
+        text = result.stdout or ""
+        marker = "release "
+        if marker not in text:
+            return None
+        version = text.split(marker, 1)[1].split(",", 1)[0].strip()
+        return version or None
 
     def _nvidia_gpu_devices(self) -> list[dict[str, object]]:
         if not self._gpu_available():

@@ -114,6 +114,8 @@ class SupervisorDomainService:
                 else None
             ),
             gpu_devices=list(gpu_summary.get("gpu_devices") or []),
+            cuda_available=bool(gpu_summary.get("cuda_available")),
+            cuda_version=str(gpu_summary["cuda_version"]) if gpu_summary.get("cuda_version") else None,
             network_rx_Bps=net_rate.rx_Bps if net_rate is not None else None,
             network_tx_Bps=net_rate.tx_Bps if net_rate is not None else None,
             network_bytes_recv=net_total.bytes_recv,

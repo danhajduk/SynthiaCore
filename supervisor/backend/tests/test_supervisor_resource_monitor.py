@@ -108,7 +108,8 @@ class TestSupervisorResourceMonitor(unittest.TestCase):
 
     def test_gpu_summary_samples_nvidia_smi(self) -> None:
         def runner(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-            self.assertEqual(cmd[0], "nvidia-smi")
+            if cmd == ["nvcc", "--version"]:
+                return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
             return subprocess.CompletedProcess(
                 cmd,
                 0,
@@ -126,11 +127,42 @@ class TestSupervisorResourceMonitor(unittest.TestCase):
         summary = monitor.gpu_summary()
 
         self.assertEqual(summary["gpu_count"], 1)
+        self.assertEqual(summary["cuda_available"], True)
         self.assertEqual(summary["gpu_utilization_percent"], 42.0)
         self.assertEqual(summary["gpu_memory_percent"], 25.0)
         device = summary["gpu_devices"][0]
         self.assertEqual(device["name"], "NVIDIA RTX")
         self.assertEqual(device["memory_used_mib"], 6144)
+
+    def test_gpu_summary_reports_cuda_version_from_nvidia_smi(self) -> None:
+        def runner(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+            if cmd == ["nvcc", "--version"]:
+                return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
+            if cmd == ["nvidia-smi"]:
+                return subprocess.CompletedProcess(
+                    cmd,
+                    0,
+                    stdout="| NVIDIA-SMI 550.54.15    Driver Version: 550.54.15    CUDA Version: 12.4     |\n",
+                    stderr="",
+                )
+            return subprocess.CompletedProcess(
+                cmd,
+                0,
+                stdout="0, NVIDIA RTX, GPU-abc, 42, 24576, 6144, 55, 123.4\n",
+                stderr="",
+            )
+
+        monitor = SupervisorResourceMonitor(
+            command_runner=runner,
+            docker_available=lambda: False,
+            systemctl_available=lambda: False,
+            gpu_available=lambda: True,
+        )
+
+        summary = monitor.gpu_summary()
+
+        self.assertEqual(summary["cuda_available"], True)
+        self.assertEqual(summary["cuda_version"], "12.4")
 
     def test_info_summary_uses_configured_supervisor_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

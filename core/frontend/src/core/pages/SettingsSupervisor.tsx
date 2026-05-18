@@ -19,6 +19,8 @@ type SupervisorHostResources = {
   gpu_utilization_percent?: number | null;
   gpu_memory_percent?: number | null;
   gpu_devices?: Array<Record<string, unknown>>;
+  cuda_available?: boolean;
+  cuda_version?: string | null;
   network_rx_Bps?: number | null;
   network_tx_Bps?: number | null;
   network_bytes_recv?: number | null;
@@ -267,6 +269,12 @@ function gpuEtcValue(gpu: Record<string, unknown>): string {
   if (source) parts.push(source);
   if (uuid) parts.push(uuid.slice(0, 8));
   return parts.length > 0 ? parts.join(" · ") : "-";
+}
+
+function cudaValue(resources?: SupervisorHostResources): string {
+  if (!resources?.cuda_available) return "No";
+  const version = String(resources.cuda_version || "").trim();
+  return version ? `Yes · ${version}` : "Yes";
 }
 
 function GpuDetailBlock({ resources }: { resources?: SupervisorHostResources }) {
@@ -1056,9 +1064,10 @@ function SupervisorHostMetricPanel({
             <GpuDetailBlock resources={resources} />
           </WideMetricBlock>
         )}
-        <MetricGroup columns={3}>
+        <MetricGroup columns={4}>
           <MetricRow label="GPU" value={gpuMetricValue(resources)} />
           <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
+          <MetricRow label="CUDA" value={cudaValue(resources)} />
           <MetricRow
             label="Load"
             value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
