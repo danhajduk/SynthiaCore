@@ -634,12 +634,7 @@ export default function SettingsSupervisor() {
                     <td>{displayState(supervisor.health_status)}</td>
                     <td>{formatNumber(supervisor.managed_node_count)}</td>
                     <td>{formatNumber(supervisor.registered_runtime_count)}</td>
-                    <td>
-                      {formatNumber(supervisor.resources?.gpu_count, "0")}
-                      {supervisor.resources?.gpu_utilization_percent !== undefined
-                        ? ` · ${formatPctValue(supervisor.resources?.gpu_utilization_percent)}`
-                        : ""}
-                    </td>
+                    <td>{numberValue(supervisor.resources?.gpu_count) ? "Yes" : "No"}</td>
                     <td>{formatPctValue(supervisor.resources?.cpu_percent_total)}</td>
                     <td>{formatPctValue(supervisor.resources?.memory_percent)}</td>
                     <td>{formatDateTime(supervisor.last_seen_at)}</td>
