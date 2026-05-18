@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { Bluetooth, Globe2, type LucideIcon } from "lucide-react";
 import "./settings.css";
 import "./home.css";
 
@@ -215,6 +216,22 @@ function coreRuntimeErr(runtime: Record<string, unknown>, stats: SystemStats | n
 
 function StatusLed({ tone }: { tone: "ok" | "warn" | "bad" | "neutral" }) {
   return <span className={`settings-led settings-led-${tone}`} />;
+}
+
+function StatusIconPill({
+  label,
+  icon: StatusIcon,
+  tone,
+}: {
+  label: string;
+  icon: LucideIcon;
+  tone: "ok" | "warn" | "bad" | "neutral";
+}) {
+  return (
+    <span className={`settings-icon-pill settings-icon-pill-${tone}`} title={label} aria-label={label}>
+      <StatusIcon aria-hidden="true" />
+    </span>
+  );
 }
 
 function fmtUptime(sec: number): string {
@@ -1127,26 +1144,29 @@ function SupervisorHostMetricPanel({
   const internetState = stack?.connectivity.internet.state || "unknown";
   const hasBluetooth = resources.bluetooth_present === true;
   const bluetoothPowered = resources.bluetooth_powered === true;
+  const bluetoothTone = bluetoothPowered ? "ok" : "warn";
   return (
     <div className="settings-host-metric-panel">
       <div className="settings-host-metric-head">
         <div className="settings-host-metric-main">
           <strong>{hostLabel(supervisor)}</strong>
           <div className="settings-muted settings-mono">{supervisor.supervisor_id}</div>
-          <div className="settings-host-metric-pills">
-            {local && (
-              <span className={`settings-pill settings-pill-${statusTone(internetState)}`}>
-                Internet {displayState(internetState)}
-              </span>
-            )}
-            {hasBluetooth && (
-              <span className={`settings-pill settings-pill-${bluetoothPowered ? "ok" : "warn"}`}>
-                BT {bluetoothPowered ? "On" : "Present"}
-              </span>
-            )}
-          </div>
         </div>
         <div className="settings-host-metric-online">
+          {local && (
+            <StatusIconPill
+              label={`Internet ${displayState(internetState)}`}
+              icon={Globe2}
+              tone={statusTone(internetState)}
+            />
+          )}
+          {hasBluetooth && (
+            <StatusIconPill
+              label={`Bluetooth ${bluetoothPowered ? "On" : "Present"}`}
+              icon={Bluetooth}
+              tone={bluetoothTone}
+            />
+          )}
           <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
         </div>
       </div>

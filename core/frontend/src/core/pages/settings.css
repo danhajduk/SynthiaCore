@@ -181,6 +181,38 @@
   background: hsl(var(--sx-danger) / 0.24);
 }
 
+.settings-icon-pill {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sx-radius-pill);
+  background: hsl(var(--sx-text) / 0.12);
+  color: hsl(var(--sx-text) / 0.72);
+}
+
+.settings-icon-pill svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.2;
+}
+
+.settings-icon-pill-ok {
+  background: hsl(var(--sx-success) / 0.22);
+  color: hsl(var(--sx-success));
+}
+
+.settings-icon-pill-warn {
+  background: hsl(var(--sx-warning) / 0.3);
+  color: hsl(var(--sx-warning));
+}
+
+.settings-icon-pill-bad {
+  background: hsl(var(--sx-danger) / 0.24);
+  color: hsl(var(--sx-danger));
+}
+
 .settings-jobs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -469,6 +501,8 @@
 
 .settings-host-metric-online {
   display: flex;
+  align-items: center;
+  gap: var(--sx-space-2);
   justify-content: flex-end;
   flex: 0 0 auto;
 }
