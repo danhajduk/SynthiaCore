@@ -21,6 +21,9 @@ type SupervisorHostResources = {
   gpu_devices?: Array<Record<string, unknown>>;
   cuda_available?: boolean;
   cuda_version?: string | null;
+  bluetooth_present?: boolean;
+  bluetooth_powered?: boolean;
+  bluetooth_adapters?: Array<Record<string, unknown>>;
   network_rx_Bps?: number | null;
   network_tx_Bps?: number | null;
   network_bytes_recv?: number | null;
@@ -1095,20 +1098,29 @@ function SupervisorHostMetricPanel({
   const local = isLocalSupervisor(supervisor);
   const hasGpuDevices = Array.isArray(resources.gpu_devices) && resources.gpu_devices.length > 0;
   const internetState = stack?.connectivity.internet.state || "unknown";
+  const hasBluetooth = resources.bluetooth_present === true;
+  const bluetoothPowered = resources.bluetooth_powered === true;
   return (
     <div className="settings-host-metric-panel">
       <div className="settings-host-metric-head">
-        <div>
+        <div className="settings-host-metric-main">
           <strong>{hostLabel(supervisor)}</strong>
           <div className="settings-muted settings-mono">{supervisor.supervisor_id}</div>
+          <div className="settings-host-metric-pills">
+            {local && (
+              <span className={`settings-pill settings-pill-${statusTone(internetState)}`}>
+                Internet {displayState(internetState)}
+              </span>
+            )}
+            {hasBluetooth && (
+              <span className={`settings-pill settings-pill-${bluetoothPowered ? "ok" : "warn"}`}>
+                BT {bluetoothPowered ? "On" : "Present"}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="settings-host-metric-pills">
+        <div className="settings-host-metric-online">
           <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
-          {local && (
-            <span className={`settings-pill settings-pill-${statusTone(internetState)}`}>
-              Internet {displayState(internetState)}
-            </span>
-          )}
         </div>
       </div>
       <div className="settings-help">Last report {formatDateTime(supervisor.last_seen_at)}</div>

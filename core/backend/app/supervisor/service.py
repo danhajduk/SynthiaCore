@@ -83,10 +83,57 @@ class SupervisorDomainService:
         configured = str(os.getenv("HEXE_SUPERVISOR_ID") or os.getenv("SYNTHIA_SUPERVISOR_ID") or "").strip()
         return configured or self._host_identity().host_id
 
+    def _bluetooth_summary(self) -> dict[str, Any]:
+        adapters: dict[str, dict[str, Any]] = {}
+        for path in sorted(Path("/sys/class/bluetooth").glob("hci*")):
+            adapters[path.name] = {
+                "adapter": path.name,
+                "present": True,
+                "powered": False,
+                "source": "sysfs",
+            }
+        if shutil.which("hciconfig"):
+            try:
+                result = subprocess.run(["hciconfig", "-a"], capture_output=True, text=True, timeout=2.0, check=False)
+            except Exception:
+                result = None
+            if result is not None and result.returncode == 0:
+                current: dict[str, Any] | None = None
+                for line in (result.stdout or "").splitlines():
+                    if line.startswith("hci") and ":" in line:
+                        adapter = line.split(":", 1)[0].strip()
+                        current = adapters.setdefault(
+                            adapter,
+                            {
+                                "adapter": adapter,
+                                "present": True,
+                                "powered": False,
+                            },
+                        )
+                        current["source"] = "hciconfig"
+                        current["bus"] = line.split("Bus:", 1)[1].strip() if "Bus:" in line else None
+                        continue
+                    if current is None:
+                        continue
+                    text = line.strip()
+                    if text.startswith("BD Address:"):
+                        current["address"] = text.split("BD Address:", 1)[1].split()[0]
+                    if text == "UP" or text.startswith("UP "):
+                        current["powered"] = True
+                    if text == "DOWN" or text.startswith("DOWN "):
+                        current["powered"] = False
+        adapter_list = list(adapters.values())
+        return {
+            "bluetooth_present": bool(adapter_list),
+            "bluetooth_powered": any(bool(item.get("powered")) for item in adapter_list),
+            "bluetooth_adapters": adapter_list,
+        }
+
     def _host_resources(self) -> HostResourceSummary:
         stats = collect_system_stats(api_metrics=None)
         root_disk = stats.disks.get("/")
         gpu_summary = self._resource_monitor.gpu_summary()
+        bluetooth_summary = self._bluetooth_summary()
         net_total = stats.net.total
         net_rate = stats.net.total_rate
         return HostResourceSummary(
@@ -116,6 +163,9 @@ class SupervisorDomainService:
             gpu_devices=list(gpu_summary.get("gpu_devices") or []),
             cuda_available=bool(gpu_summary.get("cuda_available")),
             cuda_version=str(gpu_summary["cuda_version"]) if gpu_summary.get("cuda_version") else None,
+            bluetooth_present=bool(bluetooth_summary.get("bluetooth_present")),
+            bluetooth_powered=bool(bluetooth_summary.get("bluetooth_powered")),
+            bluetooth_adapters=list(bluetooth_summary.get("bluetooth_adapters") or []),
             network_rx_Bps=net_rate.rx_Bps if net_rate is not None else None,
             network_tx_Bps=net_rate.tx_Bps if net_rate is not None else None,
             network_bytes_recv=net_total.bytes_recv,

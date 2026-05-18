@@ -29,6 +29,9 @@ class HostResourceSummary(BaseModel):
     gpu_devices: list[dict[str, object]] = Field(default_factory=list)
     cuda_available: bool = False
     cuda_version: str | None = None
+    bluetooth_present: bool = False
+    bluetooth_powered: bool = False
+    bluetooth_adapters: list[dict[str, object]] = Field(default_factory=list)
     network_rx_Bps: float | None = Field(default=None, ge=0)
     network_tx_Bps: float | None = Field(default=None, ge=0)
     network_bytes_recv: int | None = Field(default=None, ge=0)
