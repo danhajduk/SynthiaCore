@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import "./settings.css";
 import "./home.css";
 
@@ -19,6 +19,14 @@ type SupervisorHostResources = {
   gpu_utilization_percent?: number | null;
   gpu_memory_percent?: number | null;
   gpu_devices?: Array<Record<string, unknown>>;
+  network_rx_Bps?: number | null;
+  network_tx_Bps?: number | null;
+  network_bytes_recv?: number | null;
+  network_bytes_sent?: number | null;
+  network_errin?: number | null;
+  network_errout?: number | null;
+  network_dropin?: number | null;
+  network_dropout?: number | null;
 };
 
 type SupervisorHostProcess = {
@@ -237,6 +245,55 @@ function gpuMetricValue(resources?: SupervisorHostResources): string {
   if (util !== null) parts.push(`${formatPctValue(util)} util`);
   if (mem !== null) parts.push(`${formatPctValue(mem)} mem`);
   return parts.join(" · ");
+}
+
+function gpuDetailValue(resources?: SupervisorHostResources): string {
+  const devices = Array.isArray(resources?.gpu_devices) ? resources?.gpu_devices || [] : [];
+  if (devices.length === 0) return gpuMetricValue(resources);
+  return devices
+    .map((gpu) => {
+      const name = String(gpu.name || `GPU ${gpu.index ?? ""}`).trim();
+      const temp = numberValue(gpu.temperature_c);
+      const power = numberValue(gpu.power_w);
+      const used = numberValue(gpu.memory_used_mib);
+      const total = numberValue(gpu.memory_total_mib);
+      const parts = [
+        name,
+        `${formatPctValue(gpu.utilization_percent)} util`,
+        `${formatPctValue(gpu.memory_percent)} mem`,
+      ];
+      if (used !== null && total !== null) parts.push(`${formatNumber(used)} / ${formatNumber(total)} MiB`);
+      if (temp !== null) parts.push(`${temp.toFixed(0)}C`);
+      if (power !== null) parts.push(`${power.toFixed(1)} W`);
+      return parts.join(" · ");
+    })
+    .join(" | ");
+}
+
+function supervisorThroughputValue(resources?: SupervisorHostResources): string {
+  const rx = numberValue(resources?.network_rx_Bps);
+  const tx = numberValue(resources?.network_tx_Bps);
+  if (rx === null && tx === null) return "-";
+  return `↓${rx === null ? "-" : fmtBps(rx)} ↑${tx === null ? "-" : fmtBps(tx)}`;
+}
+
+function supervisorNetworkCountersValue(resources?: SupervisorHostResources): string {
+  const rx = numberValue(resources?.network_bytes_recv);
+  const tx = numberValue(resources?.network_bytes_sent);
+  if (rx === null && tx === null) return "-";
+  return `↓${rx === null ? "-" : fmtBytes(rx)} ↑${tx === null ? "-" : fmtBytes(tx)}`;
+}
+
+function supervisorNetworkErrorsValue(resources?: SupervisorHostResources): string {
+  const errIn = numberValue(resources?.network_errin) ?? 0;
+  const errOut = numberValue(resources?.network_errout) ?? 0;
+  const dropIn = numberValue(resources?.network_dropin) ?? 0;
+  const dropOut = numberValue(resources?.network_dropout) ?? 0;
+  return `err ${errIn}/${errOut} drop ${dropIn}/${dropOut}`;
+}
+
+function isLocalSupervisor(supervisor: SupervisorFleetRecord): boolean {
+  return String(supervisor.transport || "").toLowerCase() === "local";
 }
 
 function formatBytes(value: unknown): string {
@@ -525,116 +582,31 @@ export default function SettingsSupervisor() {
                 </tr>
               </thead>
               <tbody>
-                {supervisors.map((supervisor) => {
-                  const nodeRuntimes = Array.isArray(supervisor.registered_runtimes)
-                    ? supervisor.registered_runtimes
-                    : [];
-                  const coreRuntimes = Array.isArray(supervisor.core_runtimes) ? supervisor.core_runtimes : [];
-                  const gpuDevices = Array.isArray(supervisor.resources?.gpu_devices)
-                    ? supervisor.resources?.gpu_devices || []
-                    : [];
-                  const hasGpuReport = supervisor.resources?.gpu_count !== undefined;
-                  return (
-                    <Fragment key={supervisor.supervisor_id}>
-                      <tr>
-                        <td>
-                          <StatusLed tone={statusTone(supervisor.freshness_state || supervisor.health_status)} />
-                        </td>
-                        <td>{String(supervisor.supervisor_name || supervisor.supervisor_id)}</td>
-                        <td className="settings-mono">{supervisor.supervisor_id}</td>
-                        <td>{String(supervisor.hostname || supervisor.host_id || "-")}</td>
-                        <td>{displayState(supervisor.freshness_state)}</td>
-                        <td>{displayState(supervisor.health_status)}</td>
-                        <td>{formatNumber(supervisor.managed_node_count)}</td>
-                        <td>{formatNumber(supervisor.registered_runtime_count)}</td>
-                        <td>
-                          {formatNumber(supervisor.resources?.gpu_count, "0")}
-                          {supervisor.resources?.gpu_utilization_percent !== undefined
-                            ? ` · ${formatPctValue(supervisor.resources?.gpu_utilization_percent)}`
-                            : ""}
-                        </td>
-                        <td>{formatPctValue(supervisor.resources?.cpu_percent_total)}</td>
-                        <td>{formatPctValue(supervisor.resources?.memory_percent)}</td>
-                        <td>{formatDateTime(supervisor.last_seen_at)}</td>
-                      </tr>
-                      {(nodeRuntimes.length > 0 || coreRuntimes.length > 0 || hasGpuReport) && (
-                        <tr className="settings-detail-row">
-                          <td />
-                          <td colSpan={11}>
-                            <div className="settings-remote-status">
-                              {nodeRuntimes.length > 0 && (
-                                <div>
-                                  <div className="settings-detail-title">Node runtimes</div>
-                                  <div className="settings-detail-list">{nodeRuntimes.map(runtimeLabel).join(" | ")}</div>
-                                </div>
-                              )}
-                              {coreRuntimes.length > 0 && (
-                                <div>
-                                  <div className="settings-detail-title">Core runtimes</div>
-                                  <div className="settings-detail-list">{coreRuntimes.map(runtimeLabel).join(" | ")}</div>
-                                </div>
-                              )}
-                              {hasGpuReport && (
-                                <div>
-                                  <div className="settings-detail-title">GPUs</div>
-                                  <div className="settings-detail-list">
-                                    {gpuDevices.length > 0
-                                      ? gpuDevices
-                                          .map((gpu) => {
-                                            const name = String(gpu.name || `GPU ${gpu.index ?? ""}`).trim();
-                                            return `${name} · ${formatPctValue(gpu.utilization_percent)} util · ${formatPctValue(
-                                              gpu.memory_percent,
-                                            )} mem`;
-                                          })
-                                          .join(" | ")
-                                      : "0 devices"}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
+                {supervisors.map((supervisor) => (
+                  <tr key={supervisor.supervisor_id}>
+                    <td>
+                      <StatusLed tone={statusTone(supervisor.freshness_state || supervisor.health_status)} />
+                    </td>
+                    <td>{String(supervisor.supervisor_name || supervisor.supervisor_id)}</td>
+                    <td className="settings-mono">{supervisor.supervisor_id}</td>
+                    <td>{String(supervisor.hostname || supervisor.host_id || "-")}</td>
+                    <td>{displayState(supervisor.freshness_state)}</td>
+                    <td>{displayState(supervisor.health_status)}</td>
+                    <td>{formatNumber(supervisor.managed_node_count)}</td>
+                    <td>{formatNumber(supervisor.registered_runtime_count)}</td>
+                    <td>
+                      {formatNumber(supervisor.resources?.gpu_count, "0")}
+                      {supervisor.resources?.gpu_utilization_percent !== undefined
+                        ? ` · ${formatPctValue(supervisor.resources?.gpu_utilization_percent)}`
+                        : ""}
+                    </td>
+                    <td>{formatPctValue(supervisor.resources?.cpu_percent_total)}</td>
+                    <td>{formatPctValue(supervisor.resources?.memory_percent)}</td>
+                    <td>{formatDateTime(supervisor.last_seen_at)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          )}
-        </div>
-      </section>
-
-      <section className="settings-section">
-        <div className="settings-section-head">
-          <h2>System Metrics</h2>
-        </div>
-        <div className="settings-card">
-          {!stats ? (
-            <div className="settings-help">Metrics unavailable.</div>
-          ) : (
-            <>
-              <div className="settings-help">
-                Host {stats.hostname} • uptime {fmtUptime(stats.uptime_s)}
-              </div>
-              <div className="settings-metrics-grid">
-                <MetricBar label="CPU" percent={stats.cpu.percent_total} />
-                <MetricBar label="Memory" percent={stats.mem.percent} />
-                <MetricBar
-                  label="Disk"
-                  percent={
-                    Object.values(stats.disks).length > 0
-                      ? Math.max(...Object.values(stats.disks).map((x) => x.percent))
-                      : 0
-                  }
-                />
-                <MetricRow label="Network" value={displayState(stack?.connectivity.network.state || "unknown")} />
-                <MetricRow label="Throughput" value={throughputValue(stack?.samples.network_throughput)} />
-                <MetricRow label="Net I/O" value={networkCountersValue(stack?.samples.network_metrics)} />
-                <MetricRow label="Net Errors" value={networkErrorsValue(stack?.samples.network_metrics)} />
-                <MetricRow label="Internet" value={displayState(stack?.connectivity.internet.state || "unknown")} />
-                <MetricRow label="Speed" value={speedValue(stack?.samples.internet_speed)} />
-              </div>
-            </>
           )}
         </div>
       </section>
@@ -650,7 +622,11 @@ export default function SettingsSupervisor() {
           ) : (
             <div className="settings-remote-metrics-grid">
               {supervisorsWithResources.map((supervisor) => (
-                <SupervisorHostMetricPanel key={`host-metrics:${supervisor.supervisor_id}`} supervisor={supervisor} />
+                <SupervisorHostMetricPanel
+                  key={`host-metrics:${supervisor.supervisor_id}`}
+                  supervisor={supervisor}
+                  stack={stack}
+                />
               ))}
             </div>
           )}
@@ -1009,7 +985,13 @@ function MetricBar({ label, percent }: { label: string; percent: number }) {
   );
 }
 
-function SupervisorHostMetricPanel({ supervisor }: { supervisor: SupervisorFleetRecord }) {
+function SupervisorHostMetricPanel({
+  supervisor,
+  stack,
+}: {
+  supervisor: SupervisorFleetRecord;
+  stack: StackSummary | null;
+}) {
   const resources = supervisor.resources || {};
   const loadPct = load15Percent(resources);
   return (
@@ -1035,7 +1017,13 @@ function SupervisorHostMetricPanel({ supervisor }: { supervisor: SupervisorFleet
         />
         <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
         <MetricRow label="GPU" value={gpuMetricValue(resources)} />
-        <MetricRow label="GPU Mem" value={formatPctValue(resources.gpu_memory_percent)} />
+        <MetricRow label="GPU Detail" value={gpuDetailValue(resources)} />
+        <MetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
+        <MetricRow label="Net I/O" value={supervisorNetworkCountersValue(resources)} />
+        <MetricRow label="Net Errors" value={supervisorNetworkErrorsValue(resources)} />
+        {isLocalSupervisor(supervisor) && (
+          <MetricRow label="Internet" value={displayState(stack?.connectivity.internet.state || "unknown")} />
+        )}
       </div>
     </div>
   );

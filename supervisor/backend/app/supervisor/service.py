@@ -87,6 +87,8 @@ class SupervisorDomainService:
         stats = collect_system_stats(api_metrics=None)
         root_disk = stats.disks.get("/")
         gpu_summary = self._resource_monitor.gpu_summary()
+        net_total = stats.net.total
+        net_rate = stats.net.total_rate
         return HostResourceSummary(
             uptime_s=stats.uptime_s,
             load_1m=stats.load.load1,
@@ -112,6 +114,14 @@ class SupervisorDomainService:
                 else None
             ),
             gpu_devices=list(gpu_summary.get("gpu_devices") or []),
+            network_rx_Bps=net_rate.rx_Bps if net_rate is not None else None,
+            network_tx_Bps=net_rate.tx_Bps if net_rate is not None else None,
+            network_bytes_recv=net_total.bytes_recv,
+            network_bytes_sent=net_total.bytes_sent,
+            network_errin=net_total.errin,
+            network_errout=net_total.errout,
+            network_dropin=net_total.dropin,
+            network_dropout=net_total.dropout,
         )
 
     def _managed_nodes(self) -> list[ManagedNodeSummary]:

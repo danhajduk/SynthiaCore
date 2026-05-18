@@ -27,6 +27,14 @@ class HostResourceSummary(BaseModel):
     gpu_utilization_percent: float | None = Field(default=None, ge=0, le=100)
     gpu_memory_percent: float | None = Field(default=None, ge=0, le=100)
     gpu_devices: list[dict[str, object]] = Field(default_factory=list)
+    network_rx_Bps: float | None = Field(default=None, ge=0)
+    network_tx_Bps: float | None = Field(default=None, ge=0)
+    network_bytes_recv: int | None = Field(default=None, ge=0)
+    network_bytes_sent: int | None = Field(default=None, ge=0)
+    network_errin: int | None = Field(default=None, ge=0)
+    network_errout: int | None = Field(default=None, ge=0)
+    network_dropin: int | None = Field(default=None, ge=0)
+    network_dropout: int | None = Field(default=None, ge=0)
 
 
 class ManagedNodeSummary(BaseModel):
