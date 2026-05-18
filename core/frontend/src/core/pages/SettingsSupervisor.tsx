@@ -301,7 +301,7 @@ function GpuDetailBlock({ resources }: { resources?: SupervisorHostResources }) 
               {gpuMemoryValue(gpu)}
               <small>{formatPctValue(gpu.memory_percent)}</small>
             </span>
-            <span>{temp === null ? "-" : `${temp.toFixed(0)}C`}</span>
+            <span>{temp === null ? "-" : `${temp.toFixed(0)}°C`}</span>
             <span>{gpuEtcValue(gpu)}</span>
           </div>
         );
