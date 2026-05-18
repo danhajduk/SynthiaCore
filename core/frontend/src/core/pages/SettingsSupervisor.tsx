@@ -186,6 +186,33 @@ function formatRps(value: unknown): string {
   return parsed.toFixed(2);
 }
 
+function runtimeResourceMetric(runtime: Record<string, unknown>, key: string): unknown {
+  const usage = runtime.resource_usage;
+  if (usage && typeof usage === "object" && key in usage) {
+    return (usage as Record<string, unknown>)[key];
+  }
+  const metadata = runtime.runtime_metadata;
+  if (metadata && typeof metadata === "object" && key in metadata) {
+    return (metadata as Record<string, unknown>)[key];
+  }
+  return undefined;
+}
+
+function coreRuntimeRps(runtime: Record<string, unknown>, stats: SystemStats | null): string {
+  if (String(runtime.runtime_id || "") === "core-api") return formatRps(stats?.api?.rps);
+  return formatRps(runtimeResourceMetric(runtime, "rps"));
+}
+
+function coreRuntimeP95(runtime: Record<string, unknown>, stats: SystemStats | null): string {
+  if (String(runtime.runtime_id || "") === "core-api") return formatMs(stats?.api?.latency_ms_p95);
+  return formatMs(runtimeResourceMetric(runtime, "latency_ms_p95"));
+}
+
+function coreRuntimeErr(runtime: Record<string, unknown>, stats: SystemStats | null): string {
+  if (String(runtime.runtime_id || "") === "core-api") return formatPct(stats?.api?.error_rate);
+  return formatPct(runtimeResourceMetric(runtime, "error_rate"));
+}
+
 function StatusLed({ tone }: { tone: "ok" | "warn" | "bad" | "neutral" }) {
   return <span className={`settings-led settings-led-${tone}`} />;
 }
@@ -734,11 +761,11 @@ export default function SettingsSupervisor() {
                     <td>{displayState(runtime.runtime_state)}</td>
                     <td>{displayState(runtime.health_status)}</td>
                     <td>{displayState(runtime.desired_state)}</td>
-                    <td>{String(runtime.runtime_id) === "core-api" ? formatRps(stats?.api?.rps) : "-"}</td>
-                    <td>{String(runtime.runtime_id) === "core-api" ? formatMs(stats?.api?.latency_ms_p95) : "-"}</td>
-                    <td>{String(runtime.runtime_id) === "core-api" ? formatPct(stats?.api?.error_rate) : "-"}</td>
-                    <td>{String(runtime.runtime_id) === "core-api" ? pct(stats?.cpu?.percent_total ?? 0) : "-"}</td>
-                    <td>{String(runtime.runtime_id) === "core-api" ? pct(stats?.mem?.percent ?? 0) : "-"}</td>
+                    <td>{coreRuntimeRps(runtime, stats)}</td>
+                    <td>{coreRuntimeP95(runtime, stats)}</td>
+                    <td>{coreRuntimeErr(runtime, stats)}</td>
+                    <td>{formatPctValue(runtimeResourceMetric(runtime, "cpu_percent"))}</td>
+                    <td>{formatPctValue(runtimeResourceMetric(runtime, "mem_percent"))}</td>
                   </tr>
                 ))}
               </tbody>
