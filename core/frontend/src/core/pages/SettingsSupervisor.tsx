@@ -218,10 +218,16 @@ function coreRuntimeErr(runtime: Record<string, unknown>, stats: SystemStats | n
   return formatPct(runtimeResourceMetric(runtime, "error_rate"));
 }
 
-function networkTransportTone(type: unknown): "ok" | "warn" | "bad" | "neutral" {
-  const normalized = String(type || "unknown").toLowerCase();
+function networkTransportTone(resources: SupervisorHostResources): "ok" | "warn" | "bad" | "neutral" {
+  const normalized = String(resources.network_primary_type || "unknown").toLowerCase();
   if (normalized === "ethernet") return "ok";
-  if (normalized === "wifi") return "warn";
+  if (normalized === "wifi") {
+    const signal = typeof resources.wifi_signal_percent === "number" ? resources.wifi_signal_percent : null;
+    if (signal === null) return "ok";
+    if (signal < 35) return "bad";
+    if (signal < 60) return "warn";
+    return "ok";
+  }
   if (normalized === "loopback") return "bad";
   return "neutral";
 }
@@ -1196,7 +1202,7 @@ function SupervisorHostMetricPanel({
           <StatusIconPill
             label={networkTransportLabel(resources)}
             icon={networkTransportIcon(networkType)}
-            tone={networkTransportTone(networkType)}
+            tone={networkTransportTone(resources)}
           />
           <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
         </div>
