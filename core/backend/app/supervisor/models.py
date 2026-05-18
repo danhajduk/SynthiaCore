@@ -40,6 +40,10 @@ class HostResourceSummary(BaseModel):
     network_errout: int | None = Field(default=None, ge=0)
     network_dropin: int | None = Field(default=None, ge=0)
     network_dropout: int | None = Field(default=None, ge=0)
+    network_primary_interface: str | None = None
+    network_primary_type: str = "unknown"
+    network_link_speed_mbps: int | None = Field(default=None, ge=0)
+    wifi_signal_percent: float | None = Field(default=None, ge=0, le=100)
 
 
 class ManagedNodeSummary(BaseModel):

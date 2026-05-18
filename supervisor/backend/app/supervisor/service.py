@@ -129,11 +129,68 @@ class SupervisorDomainService:
             "bluetooth_adapters": adapter_list,
         }
 
+    def _network_transport_summary(self) -> dict[str, Any]:
+        interface = None
+        try:
+            result = subprocess.run(["ip", "route", "show", "default"], capture_output=True, text=True, timeout=2.0, check=False)
+            if result.returncode == 0:
+                for line in (result.stdout or "").splitlines():
+                    parts = line.split()
+                    if "dev" in parts:
+                        interface = parts[parts.index("dev") + 1]
+                        break
+        except Exception:
+            interface = None
+        if not interface:
+            return {"network_primary_type": "unknown"}
+
+        iface_path = Path("/sys/class/net") / interface
+        link_type = "unknown"
+        if interface == "lo":
+            link_type = "loopback"
+        elif (iface_path / "wireless").exists():
+            link_type = "wifi"
+        else:
+            try:
+                type_value = (iface_path / "type").read_text(encoding="utf-8").strip()
+            except Exception:
+                type_value = ""
+            if type_value == "1":
+                link_type = "ethernet"
+
+        speed_mbps = None
+        try:
+            raw_speed = int((iface_path / "speed").read_text(encoding="utf-8").strip())
+            if raw_speed >= 0:
+                speed_mbps = raw_speed
+        except Exception:
+            speed_mbps = None
+
+        wifi_signal_percent = None
+        if link_type == "wifi":
+            try:
+                for line in Path("/proc/net/wireless").read_text(encoding="utf-8").splitlines():
+                    if line.strip().startswith(f"{interface}:"):
+                        values = line.split()
+                        quality = float(values[2].rstrip("."))
+                        wifi_signal_percent = max(0.0, min(100.0, (quality / 70.0) * 100.0))
+                        break
+            except Exception:
+                wifi_signal_percent = None
+
+        return {
+            "network_primary_interface": interface,
+            "network_primary_type": link_type,
+            "network_link_speed_mbps": speed_mbps,
+            "wifi_signal_percent": wifi_signal_percent,
+        }
+
     def _host_resources(self) -> HostResourceSummary:
         stats = collect_system_stats(api_metrics=None)
         root_disk = stats.disks.get("/")
         gpu_summary = self._resource_monitor.gpu_summary()
         bluetooth_summary = self._bluetooth_summary()
+        network_transport = self._network_transport_summary()
         net_total = stats.net.total
         net_rate = stats.net.total_rate
         return HostResourceSummary(
@@ -174,6 +231,20 @@ class SupervisorDomainService:
             network_errout=net_total.errout,
             network_dropin=net_total.dropin,
             network_dropout=net_total.dropout,
+            network_primary_interface=str(network_transport["network_primary_interface"])
+            if network_transport.get("network_primary_interface")
+            else None,
+            network_primary_type=str(network_transport.get("network_primary_type") or "unknown"),
+            network_link_speed_mbps=(
+                int(network_transport["network_link_speed_mbps"])
+                if isinstance(network_transport.get("network_link_speed_mbps"), int)
+                else None
+            ),
+            wifi_signal_percent=(
+                float(network_transport["wifi_signal_percent"])
+                if isinstance(network_transport.get("wifi_signal_percent"), int | float)
+                else None
+            ),
         )
 
     def _managed_nodes(self) -> list[ManagedNodeSummary]:

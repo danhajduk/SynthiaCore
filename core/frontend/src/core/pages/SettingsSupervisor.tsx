@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { Bluetooth, Globe2, type LucideIcon } from "lucide-react";
+import { Bluetooth, Globe2, Network, Wifi, type LucideIcon } from "lucide-react";
 import "./settings.css";
 import "./home.css";
 
@@ -33,6 +33,10 @@ type SupervisorHostResources = {
   network_errout?: number | null;
   network_dropin?: number | null;
   network_dropout?: number | null;
+  network_primary_interface?: string | null;
+  network_primary_type?: string;
+  network_link_speed_mbps?: number | null;
+  wifi_signal_percent?: number | null;
 };
 
 type SupervisorHostProcess = {
@@ -212,6 +216,27 @@ function coreRuntimeP95(runtime: Record<string, unknown>, stats: SystemStats | n
 function coreRuntimeErr(runtime: Record<string, unknown>, stats: SystemStats | null): string {
   if (String(runtime.runtime_id || "") === "core-api") return formatPct(stats?.api?.error_rate);
   return formatPct(runtimeResourceMetric(runtime, "error_rate"));
+}
+
+function networkTransportTone(type: unknown): "ok" | "warn" | "bad" | "neutral" {
+  const normalized = String(type || "unknown").toLowerCase();
+  if (normalized === "ethernet") return "ok";
+  if (normalized === "wifi") return "warn";
+  if (normalized === "loopback") return "bad";
+  return "neutral";
+}
+
+function networkTransportIcon(type: unknown): LucideIcon {
+  return String(type || "").toLowerCase() === "wifi" ? Wifi : Network;
+}
+
+function networkTransportLabel(resources: SupervisorHostResources): string {
+  const type = displayState(resources.network_primary_type || "unknown");
+  const iface = resources.network_primary_interface ? ` · ${resources.network_primary_interface}` : "";
+  const speed = typeof resources.network_link_speed_mbps === "number" ? ` · ${resources.network_link_speed_mbps} Mbps` : "";
+  const signal =
+    typeof resources.wifi_signal_percent === "number" ? ` · ${resources.wifi_signal_percent.toFixed(0)}% signal` : "";
+  return `Network ${type}${iface}${speed}${signal}`;
 }
 
 function StatusLed({ tone }: { tone: "ok" | "warn" | "bad" | "neutral" }) {
@@ -1145,6 +1170,7 @@ function SupervisorHostMetricPanel({
   const hasBluetooth = resources.bluetooth_present === true;
   const bluetoothPowered = resources.bluetooth_powered === true;
   const bluetoothTone = bluetoothPowered ? "ok" : "warn";
+  const networkType = resources.network_primary_type || "unknown";
   return (
     <div className="settings-host-metric-panel">
       <div className="settings-host-metric-head">
@@ -1167,6 +1193,11 @@ function SupervisorHostMetricPanel({
               tone={bluetoothTone}
             />
           )}
+          <StatusIconPill
+            label={networkTransportLabel(resources)}
+            icon={networkTransportIcon(networkType)}
+            tone={networkTransportTone(networkType)}
+          />
           <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
         </div>
       </div>
