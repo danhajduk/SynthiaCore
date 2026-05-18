@@ -134,6 +134,11 @@ class SupervisorHeartbeatRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class SupervisorCoreRuntimeReportRequest(BaseModel):
+    supervisor_id: str = Field(..., min_length=1)
+    core_runtimes: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class SupervisorEnrollmentTokenCreateRequest(BaseModel):
     supervisor_id: str | None = None
     supervisor_name: str | None = None
@@ -403,6 +408,20 @@ class SupervisorFleetStore:
             updated_at=now,
             reporting_token_hash=base.reporting_token_hash,
         )
+        self._records[record.supervisor_id] = record
+        self._save()
+        return record
+
+    def update_core_runtimes(self, supervisor_id: str, core_runtimes: list[dict[str, Any]]) -> SupervisorFleetRecord:
+        record = self.get(supervisor_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="supervisor_not_found")
+        now = _utcnow_iso()
+        record.core_runtimes = [dict(item) for item in core_runtimes if isinstance(item, dict)]
+        record.core_runtime_count = len(record.core_runtimes)
+        record.metadata = {**dict(record.metadata or {}), "local_core_runtime_report": True}
+        record.updated_at = now
+        record.last_seen_at = record.last_seen_at or now
         self._records[record.supervisor_id] = record
         self._save()
         return record
@@ -706,6 +725,22 @@ def build_supervisors_router(
             x_supervisor_token=x_supervisor_token,
         )
         record = registry.heartbeat(body)
+        return {"ok": True, "supervisor": record.to_api_dict()}
+
+    @router.post("/supervisors/local/core-runtimes")
+    def report_local_core_runtimes(
+        body: SupervisorCoreRuntimeReportRequest,
+        request: Request,
+        x_admin_token: str | None = Header(default=None),
+        x_supervisor_token: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        authorize_report(
+            supervisor_id=body.supervisor_id,
+            request=request,
+            x_admin_token=x_admin_token,
+            x_supervisor_token=x_supervisor_token,
+        )
+        record = registry.update_core_runtimes(body.supervisor_id, body.core_runtimes)
         return {"ok": True, "supervisor": record.to_api_dict()}
 
     @router.delete("/supervisors/{supervisor_id}")

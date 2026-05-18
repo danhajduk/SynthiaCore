@@ -4,10 +4,12 @@ import asyncio
 import logging
 import os
 import socket
+import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator
+from urllib.parse import urlparse
 
 import httpx
 import uvicorn
@@ -17,6 +19,7 @@ from fastapi.responses import JSONResponse
 from app.system.runtime import StandaloneRuntimeService
 
 from .config import supervisor_api_config
+from .models import SupervisorCoreRuntimeHeartbeatRequest, SupervisorCoreRuntimeRegistrationRequest
 from .router import build_supervisor_router
 from .service import SupervisorDomainService
 
@@ -33,6 +36,13 @@ def _env_bool(name: str, default: bool) -> bool:
     if not raw:
         return default
     return raw in {"1", "true", "yes", "on"}
+
+
+def _env_list(name: str, default: list[str]) -> list[str]:
+    raw = _env_text(name)
+    if not raw:
+        return default
+    return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 def _env_float(name: str, default: float) -> float:
@@ -69,6 +79,25 @@ def _supervisor_core_url() -> str:
     ).rstrip("/")
 
 
+def _is_local_core_url(core_url: str) -> bool:
+    if _env_bool("HEXE_SUPERVISOR_LOCAL_CORE", False):
+        return True
+    host = (urlparse(core_url).hostname or "").lower()
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        return True
+    try:
+        local_ips = set(socket.gethostbyname_ex(socket.gethostname())[2])
+    except Exception:
+        local_ips = set()
+    try:
+        result = subprocess.run(["hostname", "-I"], capture_output=True, text=True, timeout=2.0, check=False)
+        if result.returncode == 0:
+            local_ips.update(part.strip() for part in (result.stdout or "").split() if part.strip())
+    except Exception:
+        pass
+    return host in local_ips
+
+
 def _supervisor_core_token() -> str:
     return _env_text("HEXE_SUPERVISOR_CORE_TOKEN") or _env_text("SYNTHIA_ADMIN_TOKEN")
 
@@ -92,6 +121,104 @@ def _build_core_registration_payload() -> dict[str, object]:
     ]
     payload["metadata"] = {"reporter": "hexe-supervisor-api"}
     return payload
+
+
+def _systemd_runtime_payload(
+    *,
+    runtime_id: str,
+    runtime_name: str,
+    runtime_kind: str,
+    unit: str,
+    hostname: str,
+) -> dict[str, object]:
+    active_state = "unknown"
+    sub_state = "unknown"
+    load_state = "unknown"
+    last_error = None
+    try:
+        result = subprocess.run(
+            ["systemctl", "show", unit, "--property=ActiveState,SubState,LoadState", "--no-page"],
+            capture_output=True,
+            text=True,
+            timeout=3.0,
+            check=False,
+        )
+        if result.returncode == 0:
+            props: dict[str, str] = {}
+            for line in (result.stdout or "").splitlines():
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    props[key] = value
+            active_state = props.get("ActiveState") or active_state
+            sub_state = props.get("SubState") or sub_state
+            load_state = props.get("LoadState") or load_state
+        else:
+            last_error = (result.stderr or result.stdout or "").strip() or f"systemctl exited {result.returncode}"
+    except Exception as exc:
+        last_error = str(exc)
+    running = active_state == "active"
+    health_status = "healthy" if running else ("unknown" if load_state == "not-found" else "unhealthy")
+    return {
+        "runtime_id": runtime_id,
+        "runtime_name": runtime_name,
+        "runtime_kind": runtime_kind,
+        "management_mode": "monitor" if runtime_kind == "core_service" else "manage",
+        "host_id": hostname,
+        "hostname": hostname,
+        "desired_state": "running",
+        "runtime_state": active_state,
+        "lifecycle_state": active_state,
+        "health_status": health_status,
+        "last_error": last_error,
+        "running": running,
+        "runtime_metadata": {
+            "component": runtime_id,
+            "systemd_unit": unit,
+            "systemd_active_state": active_state,
+            "systemd_sub_state": sub_state,
+            "systemd_load_state": load_state,
+            "observer": "local_supervisor",
+        },
+    }
+
+
+def _collect_local_core_runtimes() -> list[dict[str, object]]:
+    hostname = socket.gethostname()
+    items = [
+        _systemd_runtime_payload(
+            runtime_id="core-api",
+            runtime_name="Hexe Core API",
+            runtime_kind="core_service",
+            unit=_env_text("HEXE_CORE_SYSTEMD_UNIT", "hexe-backend.service"),
+            hostname=hostname,
+        ),
+        _systemd_runtime_payload(
+            runtime_id="supervisor-api",
+            runtime_name="Hexe Supervisor API",
+            runtime_kind="core_service",
+            unit=_env_text("HEXE_SUPERVISOR_API_SYSTEMD_UNIT", "hexe-supervisor-api.service"),
+            hostname=hostname,
+        ),
+        _systemd_runtime_payload(
+            runtime_id="supervisor",
+            runtime_name="Hexe Supervisor",
+            runtime_kind="core_service",
+            unit=_env_text("HEXE_SUPERVISOR_SYSTEMD_UNIT", "hexe-supervisor.service"),
+            hostname=hostname,
+        ),
+    ]
+    for unit in _env_list("HEXE_SUPERVISOR_LOCAL_AUX_UNITS", ["hexe-cloudflared.service", "cloudflared.service"]):
+        runtime_id = unit.removesuffix(".service")
+        items.append(
+            _systemd_runtime_payload(
+                runtime_id=runtime_id,
+                runtime_name=runtime_id.replace("-", " ").title(),
+                runtime_kind="aux_service",
+                unit=unit,
+                hostname=hostname,
+            )
+        )
+    return [item for item in items if item.get("runtime_metadata", {}).get("systemd_load_state") != "not-found"]
 
 
 def _build_core_heartbeat_payload(supervisor: SupervisorDomainService) -> dict[str, object]:
@@ -156,6 +283,7 @@ async def _supervisor_core_report_loop(supervisor: SupervisorDomainService) -> N
     token = _supervisor_core_token()
     if not core_url or not token:
         return
+    local_core = _is_local_core_url(core_url)
     interval_s = max(5.0, _env_float("HEXE_SUPERVISOR_REPORT_INTERVAL_S", 15.0))
     timeout_s = max(2.0, _env_float("HEXE_SUPERVISOR_REPORT_TIMEOUT_S", 5.0))
     async with httpx.AsyncClient(timeout=timeout_s) as client:
@@ -169,6 +297,43 @@ async def _supervisor_core_report_loop(supervisor: SupervisorDomainService) -> N
                         token=token,
                         path="/api/system/supervisors/register",
                         payload=_build_core_registration_payload(),
+                    )
+                if local_core:
+                    core_runtime_items = await asyncio.to_thread(_collect_local_core_runtimes)
+                    for item in core_runtime_items:
+                        try:
+                            await asyncio.to_thread(
+                                supervisor.register_core_runtime,
+                                SupervisorCoreRuntimeRegistrationRequest.model_validate(item),
+                            )
+                            await asyncio.to_thread(
+                                supervisor.heartbeat_core_runtime,
+                                SupervisorCoreRuntimeHeartbeatRequest.model_validate(
+                                    {
+                                        "runtime_id": item.get("runtime_id"),
+                                        "host_id": item.get("host_id"),
+                                        "hostname": item.get("hostname"),
+                                        "runtime_state": item.get("runtime_state"),
+                                        "lifecycle_state": item.get("lifecycle_state"),
+                                        "health_status": item.get("health_status"),
+                                        "last_error": item.get("last_error"),
+                                        "running": item.get("running"),
+                                        "resource_usage": item.get("resource_usage", {}),
+                                        "runtime_metadata": item.get("runtime_metadata", {}),
+                                    }
+                                ),
+                            )
+                        except Exception:
+                            log.debug("Failed to refresh local core runtime %s", item.get("runtime_id"), exc_info=True)
+                    await _post_supervisor_payload(
+                        client,
+                        core_url=core_url,
+                        token=token,
+                        path="/api/system/supervisors/local/core-runtimes",
+                        payload={
+                            "supervisor_id": _supervisor_identity().get("supervisor_id"),
+                            "core_runtimes": core_runtime_items,
+                        },
                     )
                 heartbeat_payload = await asyncio.to_thread(_build_core_heartbeat_payload, supervisor)
                 await _post_supervisor_payload(
