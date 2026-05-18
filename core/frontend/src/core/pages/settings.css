@@ -562,19 +562,39 @@
   min-height: 49px;
 }
 
-.settings-metric-row-ok strong,
 .settings-metric-bar-ok strong {
   color: hsl(var(--sx-success));
 }
 
-.settings-metric-row-warn strong,
 .settings-metric-bar-warn strong {
   color: hsl(var(--sx-warning));
 }
 
-.settings-metric-row-bad strong,
 .settings-metric-bar-bad strong {
   color: hsl(var(--sx-danger));
+}
+
+.settings-load-metric-row strong {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0;
+}
+
+.settings-load-value-ok {
+  color: hsl(var(--sx-success));
+}
+
+.settings-load-value-warn {
+  color: hsl(var(--sx-warning));
+}
+
+.settings-load-value-bad {
+  color: hsl(var(--sx-danger));
+}
+
+.settings-load-trend {
+  color: hsl(var(--sx-text));
 }
 
 .settings-metric-row-group-3 {

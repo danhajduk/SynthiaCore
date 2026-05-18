@@ -237,14 +237,11 @@ function load15Percent(resources?: SupervisorHostResources): number | null {
   return (load / cores) * 100;
 }
 
-function loadPeakPercent(resources?: SupervisorHostResources): number | null {
+function loadPercent(value: unknown, resources?: SupervisorHostResources): number | null {
+  const load = numberValue(value);
   const cores = numberValue(resources?.cpu_cores_logical);
-  if (!cores || cores <= 0) return null;
-  const loads = [resources?.load_1m, resources?.load_5m, resources?.load_15m]
-    .map((value) => numberValue(value))
-    .filter((value): value is number => value !== null);
-  if (loads.length === 0) return null;
-  return (Math.max(...loads) / cores) * 100;
+  if (load === null || !cores || cores <= 0) return null;
+  return (load / cores) * 100;
 }
 
 function loadTone(percent: number | null): "ok" | "warn" | "bad" | "neutral" {
@@ -1037,6 +1034,28 @@ function NetworkMetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function LoadMetricRow({ resources, trend }: { resources?: SupervisorHostResources; trend: string }) {
+  const values = [
+    { label: "1m", value: resources?.load_1m },
+    { label: "5m", value: resources?.load_5m },
+    { label: "15m", value: resources?.load_15m },
+  ];
+  return (
+    <div className="home-metric-row settings-load-metric-row">
+      <span>Load</span>
+      <strong>
+        {values.map((item, idx) => (
+          <span className={`settings-load-value settings-load-value-${loadTone(loadPercent(item.value, resources))}`} key={item.label}>
+            {idx > 0 ? " / " : ""}
+            <span title={item.label}>{formatNumber(item.value)}</span>
+          </span>
+        ))}
+        <span className="settings-load-trend"> · {trend}</span>
+      </strong>
+    </div>
+  );
+}
+
 function WideMetricBlock({ children }: { children: ReactNode }) {
   return <div className="settings-wide-metric-block">{children}</div>;
 }
@@ -1069,8 +1088,6 @@ function SupervisorHostMetricPanel({
 }) {
   const resources = supervisor.resources || {};
   const loadPct = load15Percent(resources);
-  const loadPeakPct = loadPeakPercent(resources);
-  const loadStatusTone = loadTone(loadPeakPct ?? loadPct);
   const local = isLocalSupervisor(supervisor);
   const hasGpuDevices = Array.isArray(resources.gpu_devices) && resources.gpu_devices.length > 0;
   const internetState = stack?.connectivity.internet.state || "unknown";
@@ -1106,13 +1123,7 @@ function SupervisorHostMetricPanel({
         <MetricGroup columns={3}>
           <MetricRow label="Cores" value={formatNumber(resources.cpu_cores_logical)} />
           <MetricRow label="CUDA" value={cudaValue(resources)} />
-          <MetricRow
-            label="Load"
-            tone={loadStatusTone}
-            value={`${formatNumber(resources.load_1m)} / ${formatNumber(resources.load_5m)} / ${formatNumber(
-              resources.load_15m,
-            )} · ${loadTrendValue(resources)}`}
-          />
+          <LoadMetricRow resources={resources} trend={loadTrendValue(resources)} />
         </MetricGroup>
         <MetricGroup columns={3}>
           <NetworkMetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
