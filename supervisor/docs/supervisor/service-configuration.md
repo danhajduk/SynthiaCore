@@ -38,6 +38,7 @@ Core talks to a remote Supervisor over the following environment-backed client s
 - `HEXE_BLUETOOTH_ACCESS_POLICY`: Bluetooth governance policy advertised by Supervisor when BT hardware is present. Supported values: `disabled`, `ask`, `trusted_only`, `allowed`. Default: `disabled`.
 - `HEXE_BLUETOOTH_ENSURE_POWERED`: When true, Supervisor attempts to keep detected Bluetooth adapters powered. Default: `true`.
 - `HEXE_BLUETOOTH_POWER_RETRY_S`: Minimum seconds between Bluetooth power-on retries after a failed attempt. Default: `60`.
+- `HEXE_SUPERVISOR_INTERNET_CHECK_HOST` / `HEXE_SUPERVISOR_INTERNET_CHECK_PORT`: Host and port used by each Supervisor to report local Internet reachability. Defaults: `1.1.1.1` and `53`.
 
 ## Notes
 

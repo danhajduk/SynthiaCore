@@ -39,6 +39,8 @@ type SupervisorHostResources = {
   network_primary_type?: string;
   network_link_speed_mbps?: number | null;
   wifi_signal_percent?: number | null;
+  internet_reachable?: boolean | null;
+  internet_check_error?: string | null;
 };
 
 type SupervisorHostProcess = {
@@ -252,6 +254,18 @@ function bluetoothStatusLabel(resources: SupervisorHostResources): string {
   const ensure = resources.bluetooth_ensure_powered === true ? " · auto-on" : "";
   const error = resources.bluetooth_power_error ? ` · ${resources.bluetooth_power_error}` : "";
   return `Bluetooth ${powered ? "On" : "Present"}${ensure}${error}`;
+}
+
+function supervisorInternetState(resources: SupervisorHostResources, local: boolean, stack: StackSummary | null): string {
+  if (typeof resources.internet_reachable === "boolean") {
+    return resources.internet_reachable ? "reachable" : "unreachable";
+  }
+  return local ? stack?.connectivity.internet.state || "unknown" : "unknown";
+}
+
+function supervisorInternetLabel(resources: SupervisorHostResources, state: string): string {
+  const error = resources.internet_check_error ? ` · ${resources.internet_check_error}` : "";
+  return `Internet ${displayState(state)}${error}`;
 }
 
 function StatusLed({ tone }: { tone: "ok" | "warn" | "bad" | "neutral" }) {
@@ -1181,7 +1195,7 @@ function SupervisorHostMetricPanel({
   const loadPct = load15Percent(resources);
   const local = isLocalSupervisor(supervisor);
   const hasGpuDevices = Array.isArray(resources.gpu_devices) && resources.gpu_devices.length > 0;
-  const internetState = stack?.connectivity.internet.state || "unknown";
+  const internetState = supervisorInternetState(resources, local, stack);
   const hasBluetooth = resources.bluetooth_present === true;
   const bluetoothPowered = resources.bluetooth_powered === true;
   const bluetoothTone = bluetoothPowered ? "ok" : "warn";
@@ -1194,13 +1208,11 @@ function SupervisorHostMetricPanel({
           <div className="settings-muted settings-mono">{supervisor.supervisor_id}</div>
         </div>
         <div className="settings-host-metric-online">
-          {local && (
-            <StatusIconPill
-              label={`Internet ${displayState(internetState)}`}
-              icon={Globe2}
-              tone={statusTone(internetState)}
-            />
-          )}
+          <StatusIconPill
+            label={supervisorInternetLabel(resources, internetState)}
+            icon={Globe2}
+            tone={statusTone(internetState)}
+          />
           {hasBluetooth && (
             <StatusIconPill
               label={bluetoothStatusLabel(resources)}

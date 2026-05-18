@@ -238,12 +238,26 @@ class SupervisorDomainService:
             "wifi_signal_percent": wifi_signal_percent,
         }
 
+    def _internet_summary(self) -> dict[str, Any]:
+        host = str(os.getenv("HEXE_SUPERVISOR_INTERNET_CHECK_HOST", "1.1.1.1")).strip() or "1.1.1.1"
+        raw_port = str(os.getenv("HEXE_SUPERVISOR_INTERNET_CHECK_PORT", "53")).strip()
+        try:
+            port = int(raw_port)
+        except Exception:
+            port = 53
+        try:
+            with socket.create_connection((host, port), timeout=2.0):
+                return {"internet_reachable": True, "internet_check_error": None}
+        except Exception as exc:
+            return {"internet_reachable": False, "internet_check_error": str(exc)}
+
     def _host_resources(self) -> HostResourceSummary:
         stats = collect_system_stats(api_metrics=None)
         root_disk = stats.disks.get("/")
         gpu_summary = self._resource_monitor.gpu_summary()
         bluetooth_summary = self._bluetooth_summary()
         network_transport = self._network_transport_summary()
+        internet_summary = self._internet_summary()
         net_total = stats.net.total
         net_rate = stats.net.total_rate
         return HostResourceSummary(
@@ -302,6 +316,14 @@ class SupervisorDomainService:
                 if isinstance(network_transport.get("wifi_signal_percent"), int | float)
                 else None
             ),
+            internet_reachable=(
+                bool(internet_summary["internet_reachable"])
+                if isinstance(internet_summary.get("internet_reachable"), bool)
+                else None
+            ),
+            internet_check_error=str(internet_summary["internet_check_error"])
+            if internet_summary.get("internet_check_error")
+            else None,
         )
 
     def _managed_nodes(self) -> list[ManagedNodeSummary]:

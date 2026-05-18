@@ -46,6 +46,8 @@ class HostResourceSummary(BaseModel):
     network_primary_type: str = "unknown"
     network_link_speed_mbps: int | None = Field(default=None, ge=0)
     wifi_signal_percent: float | None = Field(default=None, ge=0, le=100)
+    internet_reachable: bool | None = None
+    internet_check_error: str | None = None
 
 
 class ManagedNodeSummary(BaseModel):
