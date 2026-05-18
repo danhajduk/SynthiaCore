@@ -478,6 +478,21 @@
   grid-column: 1 / -1;
 }
 
+.settings-network-metric-row {
+  display: grid;
+  justify-content: stretch;
+  gap: calc(var(--sx-space-1) + 2px);
+}
+
+.settings-network-metric-row span {
+  color: hsl(var(--sx-text) / 0.72);
+  font-size: 12px;
+}
+
+.settings-network-metric-row strong {
+  overflow-wrap: anywhere;
+}
+
 .settings-gpu-detail {
   border: 1px solid hsl(var(--sx-text) / 0.12);
   border-radius: var(--sx-radius-sm);

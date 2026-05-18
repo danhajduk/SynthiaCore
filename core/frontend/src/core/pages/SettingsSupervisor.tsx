@@ -999,6 +999,15 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function NetworkMetricRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="home-metric-row settings-network-metric-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 function WideMetricBlock({ children }: { children: ReactNode }) {
   return <div className="settings-wide-metric-block">{children}</div>;
 }
@@ -1072,9 +1081,9 @@ function SupervisorHostMetricPanel({
           />
         </MetricGroup>
         <MetricGroup columns={3}>
-          <MetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
-          <MetricRow label="Net I/O" value={supervisorNetworkCountersValue(resources)} />
-          <MetricRow label="Net Errors" value={supervisorNetworkErrorsValue(resources)} />
+          <NetworkMetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
+          <NetworkMetricRow label="Net I/O" value={supervisorNetworkCountersValue(resources)} />
+          <NetworkMetricRow label="Net Errors" value={supervisorNetworkErrorsValue(resources)} />
         </MetricGroup>
       </div>
     </div>
