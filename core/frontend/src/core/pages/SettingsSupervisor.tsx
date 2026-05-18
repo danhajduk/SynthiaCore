@@ -1033,6 +1033,7 @@ function SupervisorHostMetricPanel({
   const loadPct = load15Percent(resources);
   const local = isLocalSupervisor(supervisor);
   const hasGpuDevices = Array.isArray(resources.gpu_devices) && resources.gpu_devices.length > 0;
+  const internetState = stack?.connectivity.internet.state || "unknown";
   return (
     <div className="settings-host-metric-panel">
       <div className="settings-host-metric-head">
@@ -1040,7 +1041,14 @@ function SupervisorHostMetricPanel({
           <strong>{hostLabel(supervisor)}</strong>
           <div className="settings-muted settings-mono">{supervisor.supervisor_id}</div>
         </div>
-        <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
+        <div className="settings-host-metric-pills">
+          <span className="settings-pill">{displayState(supervisor.freshness_state)}</span>
+          {local && (
+            <span className={`settings-pill settings-pill-${statusTone(internetState)}`}>
+              Internet {displayState(internetState)}
+            </span>
+          )}
+        </div>
       </div>
       <div className="settings-help">Last report {formatDateTime(supervisor.last_seen_at)}</div>
       <div className="settings-metrics-grid settings-metrics-grid-compact">
@@ -1064,11 +1072,10 @@ function SupervisorHostMetricPanel({
             )}`}
           />
         </MetricGroup>
-        <MetricGroup columns={local ? 4 : 3}>
+        <MetricGroup columns={3}>
           <MetricRow label="Throughput" value={supervisorThroughputValue(resources)} />
           <MetricRow label="Net I/O" value={supervisorNetworkCountersValue(resources)} />
           <MetricRow label="Net Errors" value={supervisorNetworkErrorsValue(resources)} />
-          {local && <MetricRow label="Internet" value={displayState(stack?.connectivity.internet.state || "unknown")} />}
         </MetricGroup>
       </div>
     </div>

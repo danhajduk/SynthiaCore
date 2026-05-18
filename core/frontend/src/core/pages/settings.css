@@ -173,6 +173,14 @@
   font-size: 12px;
 }
 
+.settings-pill-ok {
+  background: hsl(var(--sx-success) / 0.22);
+}
+
+.settings-pill-bad {
+  background: hsl(var(--sx-danger) / 0.24);
+}
+
 .settings-jobs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -444,6 +452,13 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sx-space-3);
+}
+
+.settings-host-metric-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sx-space-2);
 }
 
 .settings-wide-metric-row {
